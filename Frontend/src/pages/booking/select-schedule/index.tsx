@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import Viewport from "../_components/Viewport";
 import { paths } from "../../../app/routes/paths";
 
-export default function BookingStepOnePage() {
+export default function BookingSelectSchedulePage() {
   const [selectedDay, setSelectedDay] = useState<number>(20);
   const navigate = useNavigate();
   const goPrev = () => navigate(paths.booking.waiting);
@@ -46,10 +47,10 @@ export default function BookingStepOnePage() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#efefef]">
+    <Viewport>
       {/* 상단 단계 네비게이션 바 (옅은 그라데이션 회색) */}
       <div className="text-[#222] bg-[linear-gradient(to_bottom,#f7f7f7,#e2e2e2)] border-b border-[#cfcfcf]">
-        <div className="max-w-5xl mx-auto flex text-sm">
+        <div className="mx-auto flex text-[13px] max-w-[860px] py-2">
           {[
             "01 관람일/회차선택",
             "02 좌석 선택",
@@ -77,13 +78,13 @@ export default function BookingStepOnePage() {
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto p-4">
+      <div className="max-w-[860px] mx-auto p-3">
         <div className="flex gap-4">
           {/* 좌측 3분할: 달력 / 회차 / 좌석등급 */}
           <div className="flex-1">
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-3 gap-2">
               {/* 달력 */}
-              <div className="bg-white rounded-md shadow p-3 border border-[#e3e3e3]">
+              <div className="bg-white rounded-md shadow p-2 border border-[#e3e3e3]">
                 <div className="flex items-center justify-between text-sm font-semibold">
                   <button className="px-2 py-1 text-gray-500" aria-label="prev">
                     ‹
@@ -93,7 +94,7 @@ export default function BookingStepOnePage() {
                     ›
                   </button>
                 </div>
-                <div className="mt-2 grid grid-cols-7 text-center text-[12px] text-gray-600">
+                <div className="mt-2 grid grid-cols-7 text-center text-[11px] text-gray-600">
                   {"일월화수목금토".split("").map((d) => (
                     <div key={d} className="py-1 font-medium">
                       {d}
@@ -135,26 +136,26 @@ export default function BookingStepOnePage() {
               </div>
 
               {/* 회차 */}
-              <div className="bg-white rounded-md shadow p-3 border border-[#e3e3e3]">
+              <div className="bg-white rounded-md shadow p-2 border border-[#e3e3e3]">
                 <div className="text-sm font-bold mb-2">회차(관람시간)</div>
-                <div className="h-[260px] border rounded flex items-center justify-center text-gray-500 text-sm">
+                <div className="h-[230px] border rounded flex items-center justify-center text-gray-500 text-sm">
                   먼저 관람일을 선택해 주세요.
                 </div>
               </div>
 
               {/* 좌석등급/잔여석 */}
-              <div className="bg-white rounded-md shadow p-3 border border-[#e3e3e3]">
+              <div className="bg-white rounded-md shadow p-2 border border-[#e3e3e3]">
                 <div className="text-sm font-bold mb-2">좌석등급 / 잔여석</div>
-                <div className="h-[260px] border rounded flex items-center justify-center text-gray-500 text-sm">
+                <div className="h-[230px] border rounded flex items-center justify-center text-gray-500 text-sm">
                   회차 선택 후 확인 가능합니다.
                 </div>
               </div>
             </div>
 
             {/* 유의사항 */}
-            <div className="mt-4 bg-white rounded-md shadow p-4 border border-[#e3e3e3]">
+            <div className="mt-3 bg-white rounded-md shadow p-3 border border-[#e3e3e3]">
               <div className="font-semibold text-sm mb-2">유의사항</div>
-              <ul className="text-[12px] text-gray-600 list-disc pl-5 space-y-1">
+              <ul className="text-[12px] text-gray-600 list-disc pl-4 space-y-1">
                 <li>
                   장애인, 국가유공자 할인은 현장 증빙서류 확인 시에만
                   가능합니다.
@@ -171,13 +172,13 @@ export default function BookingStepOnePage() {
           </div>
 
           {/* 우측: 포스터 + My예매정보 카드 */}
-          <div className="w-72 space-y-3">
-            <div className="bg-white rounded-md p-3 shadow border border-[#e3e3e3]">
+          <div className="w-60 space-y-3">
+            <div className="bg-white rounded-md p-2 shadow border border-[#e3e3e3]">
               <div className="flex gap-3">
                 <img
                   src="https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?q=80&w=400&auto=format&fit=crop"
                   alt="poster"
-                  className="w-24 h-32 object-cover rounded"
+                  className="w-20 h-28 object-cover rounded"
                 />
                 <div className="text-sm">
                   <div className="font-bold">YB REMASTERED 3.0</div>
@@ -195,7 +196,7 @@ export default function BookingStepOnePage() {
               </div>
             </div>
 
-            <div className="bg-white rounded-md p-4 shadow border border-[#e3e3e3]">
+            <div className="bg-white rounded-md p-3 shadow border border-[#e3e3e3]">
               <div className="text-sm font-semibold mb-2">My예매정보</div>
               <dl className="text-sm text-gray-700">
                 <div className="flex py-1 border-b">
@@ -229,7 +230,7 @@ export default function BookingStepOnePage() {
                 </div>
               </dl>
 
-              <div className="mt-4 flex gap-2">
+              <div className="mt-3 flex gap-2">
                 <button
                   onClick={goPrev}
                   className="flex-1 bg-[#5a5a5a] hover:bg-[#4a4a4a] text-white rounded-md py-2 font-semibold"
@@ -247,6 +248,6 @@ export default function BookingStepOnePage() {
           </div>
         </div>
       </div>
-    </div>
+    </Viewport>
   );
 }

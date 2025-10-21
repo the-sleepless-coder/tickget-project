@@ -37,7 +37,7 @@ export default function BookingWaitingPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     // 간단 매칭 후 1단계 화면으로 이동 (실제 검증은 서버 검증 필요)
-    navigate(paths.booking.stepOne, { replace: true });
+    navigate(paths.booking.selectSchedule, { replace: true });
   };
 
   if (stage === "loading") {

@@ -1,17 +1,20 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import Viewport from "../_components/Viewport";
 import { paths } from "../../../app/routes/paths";
 
 export default function PricePage() {
   const navigate = useNavigate();
-  const title = "YB REMASTERED 3.0 : Transcendent - 대구";
   const basePrice = 143000;
   const fee = 2000;
-  const discounts = [
-    { label: "중중장애인(1~3급/동반1인)20%", rate: 0.2 },
-    { label: "경증장애인(4~6급/본인만)20%", rate: 0.2 },
-    { label: "국가 유공자(본인만)20%", rate: 0.2 },
-  ];
+  const discounts = useMemo(
+    () => [
+      { label: "중중장애인(1~3급/동반1인)20%", rate: 0.2 },
+      { label: "경증장애인(4~6급/본인만)20%", rate: 0.2 },
+      { label: "국가 유공자(본인만)20%", rate: 0.2 },
+    ],
+    []
+  );
 
   // 선택 상태: 기본가("base") 또는 할인 인덱스(0..n-1) 또는 null(미선택)
   const [selection, setSelection] = useState<"base" | number | null>("base");
@@ -34,13 +37,13 @@ export default function PricePage() {
   );
 
   const goPrev = () => navigate(paths.booking.selectSeat);
-  const goNext = () => navigate(paths.booking.payment);
+  const goNext = () => navigate(paths.booking.orderConfirm);
 
   return (
-    <div className="min-h-screen bg-[#efefef]">
+    <Viewport>
       {/* 상단 단계 네비게이션 바 (1번 화면과 동일 스타일, 03 활성) */}
       <div className="text-[#222] bg-[linear-gradient(to_bottom,#f7f7f7,#e2e2e2)] border-b border-[#cfcfcf]">
-        <div className="max-w-5xl mx-auto flex text-sm">
+        <div className="mx-auto flex text-[13px] max-w-[860px] py-2">
           {[
             "01 관람일/회차선택",
             "02 좌석 선택",
@@ -68,7 +71,7 @@ export default function PricePage() {
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto p-4 flex gap-4">
+      <div className="max-w-[860px] mx-auto p-3 flex gap-3">
         <div className="flex-1 bg-white rounded-md shadow border border-[#e3e3e3]">
           <div className="px-3 py-2 text-sm border-b bg-[#fafafa]">
             SR석 | 좌석 1매를 선택하셨습니다.
@@ -117,8 +120,8 @@ export default function PricePage() {
           </div>
         </div>
 
-        <aside className="w-80 space-y-3">
-          <div className="bg-white rounded-md p-3 shadow border border-[#e3e3e3]">
+        <aside className="w-64 space-y-3">
+          <div className="bg-white rounded-md p-2 shadow border border-[#e3e3e3]">
             <div className="flex gap-3">
               <div className="w-24 h-32 bg-gray-200 rounded" />
               <div className="text-sm">
@@ -135,7 +138,7 @@ export default function PricePage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-md p-4 shadow border border-[#e3e3e3]">
+          <div className="bg-white rounded-md p-3 shadow border border-[#e3e3e3]">
             <div className="text-sm font-semibold mb-2">My예매정보</div>
             <dl className="text-sm text-gray-700">
               <div className="flex py-1 border-b">
@@ -169,7 +172,7 @@ export default function PricePage() {
               <div className="font-extrabold">{total.toLocaleString()} 원</div>
             </div>
 
-            <div className="mt-4 flex gap-2">
+            <div className="mt-3 flex gap-2">
               <button
                 onClick={goPrev}
                 className="flex-1 bg-[#5a5a5a] hover:bg-[#4a4a4a] text-white rounded-md py-2 font-semibold"
@@ -187,7 +190,7 @@ export default function PricePage() {
           </div>
         </aside>
       </div>
-    </div>
+    </Viewport>
   );
 }
 

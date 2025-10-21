@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { paths } from "../../../app/routes/paths";
+import Viewport from "../_components/Viewport";
 
 type GradeKey = "SR" | "R" | "S";
 type SelectedSeat = {
@@ -60,11 +61,11 @@ export default function SelectSeatPage() {
   };
 
   const clearSelection = () => setSelected([]);
-  const goPrev = () => navigate(paths.booking.stepOne);
+  const goPrev = () => navigate(paths.booking.selectSchedule);
   const complete = () => navigate(paths.booking.price);
 
   return (
-    <div className="min-h-screen bg-[#efefef]">
+    <Viewport>
       {/* 상단: 좌석 선택 헤더 (스샷 유사 스타일) */}
       <div className="bg-[linear-gradient(to_bottom,#f2f2f2,#dbdbdb)] border-b border-[#bdbdbd]">
         <div className="max-w-5xl mx-auto px-2 py-2 flex items-center gap-3">
@@ -109,16 +110,16 @@ export default function SelectSeatPage() {
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto p-4 flex gap-4">
+      <div className="max-w-[860px] mx-auto p-3 flex gap-3">
         {/* 좌측: 좌석도 */}
-        <div className="flex-1 bg-white rounded-md shadow p-4 border border-[#e3e3e3]">
+        <div className="flex-1 bg-white rounded-md shadow p-3 border border-[#e3e3e3]">
           <div className="text-[12px] text-gray-600 border rounded px-3 py-2 bg-[#fafafa]">
             {activeBlock
               ? `${activeBlock.code} 영역의 좌석배치도입니다`
               : "원하시는 영역을 선택해주세요. 공연장에서 위치를 클릭하거나, 오른쪽의 좌석을 선택해 주세요."}
           </div>
 
-          <div className="mt-3 grid grid-cols-[140px_1fr] gap-3">
+          <div className="mt-3 grid grid-cols-[120px_1fr] gap-3">
             {/* 왼쪽 안내 */}
             <div className="space-y-2 text-[12px] text-gray-700">
               <div className="border p-2">
@@ -139,10 +140,10 @@ export default function SelectSeatPage() {
             {/* 좌석 블록 or 상세 좌석배치 */}
             {!activeBlock ? (
               <div>
-                <div className="mx-auto w-72 h-5 bg-[#d8d8d8] rounded-sm text-center text-gray-700 text-sm font-extrabold tracking-wider">
+                <div className="mx-auto w-64 h-5 bg-[#d8d8d8] rounded-sm text-center text-gray-700 text-sm font-extrabold tracking-wider">
                   STAGE
                 </div>
-                <div className="mt-3 flex items-start justify-center gap-3">
+                <div className="mt-3 flex items-start justify-center gap-2">
                   <SeatBlock
                     block={BLOCKS[0]}
                     onSelect={openBlock}
@@ -173,7 +174,7 @@ export default function SelectSeatPage() {
                     size="narrow"
                   />
                 </div>
-                <div className="mt-3 flex items-end justify-center gap-3">
+                <div className="mt-3 flex items-end justify-center gap-2">
                   <SeatBlock
                     block={BLOCKS[5]}
                     onSelect={openBlock}
@@ -218,13 +219,13 @@ export default function SelectSeatPage() {
         </div>
 
         {/* 우측: 사이드 정보 */}
-        <aside className="w-80 space-y-3">
+        <aside className="w-64 space-y-3">
           <div className="bg-white rounded-md border border-[#e3e3e3] shadow">
             <div className="px-3 py-2 bg-[#b02a2a] text-white font-bold rounded-t-md flex items-center justify-between">
               <span>좌석도 전체보기</span>
               <span>▶</span>
             </div>
-            <div className="p-3 text-sm">
+            <div className="p-2 text-sm">
               <div className="font-semibold mb-2">좌석등급 / 잔여석</div>
               <ul className="space-y-1">
                 {/** 데모이므로 잔여석 수치는 임의 표기 */}
@@ -272,7 +273,7 @@ export default function SelectSeatPage() {
             <div className="px-3 py-2 text-[#b02a2a] text-right text-sm border-b">
               총 {selected.length}석 선택되었습니다.
             </div>
-            <div className="p-3">
+            <div className="p-2">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-gray-500">
@@ -334,7 +335,7 @@ export default function SelectSeatPage() {
           </div>
         </aside>
       </div>
-    </div>
+    </Viewport>
   );
 }
 
@@ -356,9 +357,9 @@ function SeatBlock({
   const { tier } = block;
   const bg = GRADE_META[tier].color;
   // 블록 크기 축소
-  const widthClass = size === "narrow" ? "w-8" : "w-32";
-  const heightClass = size === "narrow" ? "h-24" : "h-28";
-  const bandHeightClass = size === "narrow" ? "h-3" : "h-4";
+  const widthClass = size === "narrow" ? "w-7" : "w-28";
+  const heightClass = size === "narrow" ? "h-20" : "h-24";
+  const bandHeightClass = size === "narrow" ? "h-2.5" : "h-3.5";
   const labelSizeClass = size === "narrow" ? "text-xs" : "text-sm";
 
   return (

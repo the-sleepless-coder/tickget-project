@@ -48,12 +48,12 @@ const performance: Performance = {
 export default function ITicketPage() {
   const [secondsLeft, setSecondsLeft] = useState<number>(3);
   const openSeatWindow = () => {
-    const win = window.open(
+    window.open(
       paths.booking.waiting,
       "_blank",
-      "width=980,height=780"
+      "width=900,height=682,toolbar=no,menubar=no,location=no,status=no,scrollbars=yes,resizable=no"
     );
-    if (win) win.opener = null;
+    // 부모 창 참조(opener)를 유지해야 완료 시 부모를 마이페이지로 이동시킬 수 있음
   };
 
   useEffect(() => {
