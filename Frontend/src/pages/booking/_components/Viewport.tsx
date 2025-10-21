@@ -25,6 +25,26 @@ export default function Viewport({
       }
     }
   }, []);
+  useEffect(() => {
+    // booking 전용: 전역 body 스타일을 리셋하여 정확한 900x682 영역 확보
+    const bodyStyle = document.body.style;
+    const prev = {
+      padding: bodyStyle.padding,
+      display: bodyStyle.display,
+      justifyContent: bodyStyle.justifyContent,
+      alignItems: bodyStyle.alignItems,
+    } as const;
+    bodyStyle.padding = "0";
+    bodyStyle.display = "block";
+    bodyStyle.justifyContent = "";
+    bodyStyle.alignItems = "";
+    return () => {
+      bodyStyle.padding = prev.padding;
+      bodyStyle.display = prev.display;
+      bodyStyle.justifyContent = prev.justifyContent;
+      bodyStyle.alignItems = prev.alignItems;
+    };
+  }, []);
   return (
     <div className="w-[900px] h-[682px] bg-[#efefef] mx-auto">
       <div

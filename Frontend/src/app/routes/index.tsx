@@ -23,7 +23,7 @@ const BookingSelectSchedulePage = lazy(
 );
 const DashboardPage = lazy(() => import("../../pages/dashboard"));
 const ProfilePage = lazy(() => import("../../pages/profile"));
-const ITicketPage = lazy(() => import("../../pages/i-ticket/i-ticket"));
+const ITicketPage = lazy(() => import("../../pages/i-ticket"));
 const MyPageReservationsPage = lazy(
   () => import("../../pages/mypage/reservations")
 );
