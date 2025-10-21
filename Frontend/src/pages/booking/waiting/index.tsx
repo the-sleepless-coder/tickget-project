@@ -44,11 +44,11 @@ export default function BookingWaitingPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="text-center">
-          <div className="mx-auto mb-6 h-10 w-10 animate-spin rounded-full border-2 border-gray-300 border-t-gray-700" />
-          <div className="text-xl font-semibold text-gray-900">
+          <div className="mx-auto mb-8 h-12 w-12 md:h-14 md:w-14 animate-spin rounded-full border-4 border-gray-200 border-t-gray-500" />
+          <div className="text-xl md:text-2xl font-extrabold text-gray-900 tracking-tight">
             예매 화면을 불러오는 중입니다.
           </div>
-          <div className="mt-2 text-blue-600 font-medium">
+          <div className="text-xl md:text-2xl text-blue-600 font-bold">
             조금만 기다려주세요.
           </div>
         </div>

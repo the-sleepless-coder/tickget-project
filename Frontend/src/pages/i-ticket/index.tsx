@@ -183,6 +183,52 @@ export default function ITicketPage() {
               <InfoRow label="혜택" value="무이자할부" />
             </div>
           </div>
+
+          {/* 하단: 탭 & 상세 섹션 (좌측 컨텐츠 영역 안으로 이동) */}
+          <div className="mt-10">
+            {/* 탭 네비게이션 */}
+            <div className="border-b">
+              {(
+                [
+                  "공연정보",
+                  "캐스팅정보",
+                  "판매정보",
+                  "관람후기",
+                  "기대평",
+                ] as const
+              ).map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setActiveTab(tab)}
+                  className={`px-4 py-3 text-sm font-semibold border-b-2 -mb-[2px] ${
+                    activeTab === tab
+                      ? "border-[#222] text-[#222]"
+                      : "border-transparent text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+
+            {/* 탭 콘텐츠 */}
+            <div className="py-5">
+              {activeTab === "공연정보" && (
+                <PerformanceInfo
+                  onOpenCastingSchedule={() => setActiveTab("캐스팅정보")}
+                />
+              )}
+              {activeTab === "캐스팅정보" && <CastingInfoTab />}
+              {activeTab === "판매정보" && <SalesInfo />}
+              {activeTab === "관람후기" && (
+                <EmptyPlaceholder text="등록된 관람후기가 없습니다." />
+              )}
+              {activeTab === "기대평" && (
+                <EmptyPlaceholder text="등록된 기대평이 없습니다." />
+              )}
+            </div>
+          </div>
         </section>
 
         {/* 우측 티켓팅 박스 */}
@@ -307,48 +353,6 @@ export default function ITicketPage() {
           )}
         </aside>
       </main>
-
-      {/* 하단: 탭 & 상세 섹션 */}
-      <section className="max-w-7xl mx-auto mt-6 px-4">
-        {/* 탭 네비게이션 */}
-        <div className="border-b">
-          {(
-            [
-              "공연정보",
-              "캐스팅정보",
-              "판매정보",
-              "관람후기",
-              "기대평",
-            ] as const
-          ).map((tab) => (
-            <button
-              key={tab}
-              type="button"
-              onClick={() => setActiveTab(tab)}
-              className={`px-4 py-3 text-sm font-semibold border-b-2 -mb-[2px] ${
-                activeTab === tab
-                  ? "border-[#222] text-[#222]"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
-
-        {/* 탭 콘텐츠 */}
-        <div className="py-5">
-          {activeTab === "공연정보" && <PerformanceInfo />}
-          {activeTab === "캐스팅정보" && <CastingInfoTab />}
-          {activeTab === "판매정보" && <SalesInfo />}
-          {activeTab === "관람후기" && (
-            <EmptyPlaceholder text="등록된 관람후기가 없습니다." />
-          )}
-          {activeTab === "기대평" && (
-            <EmptyPlaceholder text="등록된 기대평이 없습니다." />
-          )}
-        </div>
-      </section>
     </div>
   );
 }
@@ -362,9 +366,114 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function PerformanceInfo() {
+function PerformanceInfo({
+  onOpenCastingSchedule,
+}: {
+  onOpenCastingSchedule: () => void;
+}) {
+  const cast = [
+    {
+      name: "김호영",
+      role: "찰리",
+      img: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=300",
+    },
+    {
+      name: "이재환",
+      role: "찰리",
+      img: "https://images.unsplash.com/photo-1527980965255-d3b416303d12?w=300",
+    },
+    {
+      name: "신재범",
+      role: "찰리",
+      img: "https://images.unsplash.com/photo-1527980965255-d3b416303d12?w=301",
+    },
+    {
+      name: "강홍석",
+      role: "롤라",
+      img: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=300",
+    },
+    {
+      name: "백형훈",
+      role: "롤라",
+      img: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=301",
+    },
+    {
+      name: "서경수",
+      role: "롤라",
+      img: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=302",
+    },
+    {
+      name: "한재아",
+      role: "로렌",
+      img: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=303",
+    },
+    {
+      name: "허윤슬",
+      role: "로렌",
+      img: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=304",
+    },
+    {
+      name: "신승환",
+      role: "돈",
+      img: "https://images.unsplash.com/photo-1547425260-76bcadfb4f2c?w=300",
+    },
+    {
+      name: "심재현",
+      role: "돈",
+      img: "https://images.unsplash.com/photo-1547425260-76bcadfb4f2c?w=301",
+    },
+    {
+      name: "김동현",
+      role: "돈",
+      img: "https://images.unsplash.com/photo-1547425260-76bcadfb4f2c?w=302",
+    },
+  ];
+
+  const [expanded, setExpanded] = useState(false);
+  const visible = expanded ? cast : cast.slice(0, 6);
+
   return (
     <div className="space-y-8">
+      {/* 캐스팅 섹션 */}
+      <section>
+        <div className="flex items-center justify-between">
+          <h3 className="text-xl font-extrabold text-gray-900">캐스팅</h3>
+          <button
+            type="button"
+            onClick={onOpenCastingSchedule}
+            className="px-3 py-1 rounded-lg border text-sm bg-white hover:bg-gray-50"
+          >
+            캐스팅 일정조회
+          </button>
+        </div>
+        <div className="mt-6 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-8 place-items-center">
+          {visible.map((c) => (
+            <div key={c.name} className="text-center">
+              <div className="mx-auto w-28 h-28 rounded-full overflow-hidden bg-gray-200 shadow">
+                <img
+                  src={c.img}
+                  alt={c.name}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <div className="mt-3 text-sm font-extrabold text-gray-900">
+                {c.role}
+              </div>
+              <div className="text-sm text-gray-600">{c.name}</div>
+            </div>
+          ))}
+        </div>
+        <div className="mt-6">
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            className="w-full border rounded-xl py-3 font-semibold text-gray-700 bg-white hover:bg-gray-50"
+          >
+            {expanded ? "닫기 ▴" : "더보기 ▾"}
+          </button>
+        </div>
+      </section>
+
       {/* 공연시간 정보 */}
       <section>
         <h3 className="text-lg font-bold text-gray-900">공연시간 정보</h3>

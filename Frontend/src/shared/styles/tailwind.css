@@ -112,6 +112,8 @@ body {
   border-radius: 8px;
   padding: 24px;
   height: fit-content; /* 내용물 높이에 맞춤 */
+  position: sticky; /* 오른쪽 패널 고정 */
+  top: 24px;
 }
 
 .ticketing-box h2 {
