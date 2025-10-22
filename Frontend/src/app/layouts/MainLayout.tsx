@@ -30,10 +30,10 @@ export default function MainLayout() {
                 Profile
               </Link>
               <Link
-                to="/i-ticket"
+                to="/auth/login"
                 className="hover:text-blue-200 transition-colors"
               >
-                I사 티켓
+                로그인
               </Link>
             </nav>
           </div>

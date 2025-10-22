@@ -9,9 +9,11 @@ body {
   background-color: white;
   margin: 0;
   padding: 20px;
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
 }
 
 /* 전체 컨테이너 레이아웃 */
