@@ -114,30 +114,6 @@ export default function ITicketPage() {
         <GuideNotice />
       </Modal>
 
-      {/* 상단 헤더 (임시 로고 자리) */}
-      <header className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-blue-600 rounded-sm" aria-hidden />
-            <span className="font-semibold text-gray-900">I사 Ticket</span>
-          </div>
-          <nav className="hidden md:flex gap-6 text-sm text-gray-600">
-            <a href="#" className="hover:text-blue-600">
-              홈
-            </a>
-            <a href="#" className="hover:text-blue-600">
-              티켓
-            </a>
-            <a href="#" className="hover:text-blue-600">
-              투어
-            </a>
-            <a href="#" className="hover:text-blue-600">
-              이벤트
-            </a>
-          </nav>
-        </div>
-      </header>
-
       {/* 상단 콘텐츠 (포스터/정보 + 우측 예매/달력 박스) */}
       <main className="ticket-container">
         {/* 메인 공연 정보 */}

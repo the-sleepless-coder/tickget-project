@@ -106,7 +106,8 @@ export default function SocialLogin() {
   ];
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black">
+    // 배경색
+    <div className="fixed inset-0 flex items-center justify-center bg-white">
       {/* 중앙 흰색 카드 */}
       <div className="bg-white rounded-2xl shadow-lg p-8 w-full mx-4 max-w-sm md:max-w-md lg:max-w-lg">
         {/* 로고와 제목 */}
@@ -116,20 +117,20 @@ export default function SocialLogin() {
             onClick={handleLogoClick}
           >
             <img
-              src="/images/tickget-logo.png"
+              src="/header-logo.svg"
               alt="Tickget Logo"
               className="h-12 w-auto"
             />
           </div>
-          <p className="text-gray-600 text-sm">계속하려면 로그인해주세요.</p>
+          <p className="text-gray-600 text-sm">서비스 이용을 위해 로그인이 필요합니다.</p>
         </div>
 
-        {/* 소셜 로그인 버튼들 */}
+        {/* 소셜 로그인 버튼 */}
         <div className="space-y-3 mb-8">
           {socialButtons.map((button) => (
             <Button
               key={button.provider}
-              size="large"
+              size="medium"
               fullWidth
               className="h-12 flex items-center justify-center rounded-lg font-medium"
               sx={{

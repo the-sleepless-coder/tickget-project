@@ -1,51 +1,17 @@
-import { Outlet, Link } from "react-router-dom";
+import { Outlet } from "react-router-dom";
+import Header from "../../shared/ui/common/Header";
 
 export default function MainLayout() {
   return (
     <div className="min-h-screen flex flex-col">
-      <header className="bg-blue-600 text-white shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <h1 className="text-xl font-bold">PJT-Ticketing</h1>
-            <nav className="hidden md:flex space-x-6">
-              <Link to="/" className="hover:text-blue-200 transition-colors">
-                Home
-              </Link>
-              <Link
-                to="/booking"
-                className="hover:text-blue-200 transition-colors"
-              >
-                Booking
-              </Link>
-              <Link
-                to="/dashboard"
-                className="hover:text-blue-200 transition-colors"
-              >
-                Dashboard
-              </Link>
-              <Link
-                to="/profile"
-                className="hover:text-blue-200 transition-colors"
-              >
-                Profile
-              </Link>
-              <Link
-                to="/auth/login"
-                className="hover:text-blue-200 transition-colors"
-              >
-                로그인
-              </Link>
-            </nav>
-          </div>
-        </div>
-      </header>
+      <Header />
 
       <main className="flex-1 py-6">
         <Outlet />
       </main>
 
-      <footer className="bg-gray-800 text-white text-center py-4">
-        © {new Date().getFullYear()} PJT-Ticketing
+      <footer className="bg-gray-100 text-gray-400 text-center py-4">
+        © {new Date().getFullYear()} 이선좌, All rights reserved.
       </footer>
     </div>
   );
