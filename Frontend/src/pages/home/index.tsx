@@ -1,16 +1,107 @@
-import { Link } from "react-router-dom";
-import { paths } from "../../app/routes/paths";
+import RoomCard from "./_components/RoomCard";
+import InfoOutlined from "@mui/icons-material/InfoOutlined";
+import Tooltip from "@mui/material/Tooltip";
 
 export default function HomePage() {
   return (
-    <div className="p-6">
-      <Link
-        to={paths.iTicket}
-        className="inline-flex items-center justify-center px-6 py-4 bg-blue-600 text-white text-lg font-medium rounded-none shadow-md hover:shadow-lg active:shadow-sm transition-all duration-200"
-        aria-label="I 사 티켓 뽑기"
-      >
-        I 사 티켓 뽑기
-      </Link>
+    <div className="mx-auto max-w-7xl p-4 sm:p-6">
+      {/* Banner */}
+      <div className="relative overflow-hidden rounded-2xl">
+        <img
+          src="/banner-get.png"
+          alt="tickget 배너"
+          className="w-full select-none"
+          draggable={false}
+        />
+      </div>
+
+      {/* Section: 방 목록 */}
+      <div className="mt-8 flex items-center gap-3">
+        <h2 className="text-base font-semibold text-gray-900">현재 방 목록</h2>
+        <div className="hidden md:block">
+          <Tooltip
+            title={
+              <span>
+                방의 <b className="text-purple-600">참가 인원, AI 봇 수</b>를
+                지정할 수 있습니다.
+              </span>
+            }
+            placement="top"
+            arrow
+            slotProps={{
+              tooltip: {
+                sx: {
+                  borderRadius: 3,
+                  px: 2,
+                  py: 1.5,
+                  fontSize: 14,
+                  bgcolor: "#ffffff",
+                  color: "#111827",
+                  border: "1px solid #e5e7eb",
+                  boxShadow: "0 6px 16px rgba(0,0,0,0.12)",
+                },
+              },
+              arrow: { sx: { color: "#ffffff" } },
+            }}
+          >
+            <button
+              type="button"
+              aria-label="현재 방 목록 도움말"
+              className="grid h-7 w-7 place-items-center rounded-full bg-purple-600 text-white shadow-md focus:outline-none"
+            >
+              <InfoOutlined sx={{ fontSize: 16 }} />
+            </button>
+          </Tooltip>
+        </div>
+        <div className="ml-auto flex gap-2 text-xs">
+          <button className="rounded-full bg-gray-100 px-3 py-1 text-gray-700">
+            시작순
+          </button>
+          <button className="rounded-full bg-gray-100 px-3 py-1 text-gray-700">
+            최신순
+          </button>
+          <button className="rounded-full bg-gray-100 px-3 py-1 text-gray-700">
+            전체 목록
+          </button>
+        </div>
+      </div>
+
+      {/* Grid */}
+      <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {/* 새로 만들기 카드 */}
+        <div className="flex items-center justify-center rounded-xl border border-dashed border-gray-300 bg-white p-6 text-center text-sm text-gray-500 shadow-sm">
+          <div>
+            <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-purple-600 text-white">
+              +
+            </div>
+            새로운 방 만들기
+          </div>
+        </div>
+
+        <RoomCard
+          title="18시 모집합니다~~!! 18시 시작"
+          variant="blue"
+          badgeText="익스터파크"
+        />
+        <RoomCard
+          title="18시 모집합니다~~!! 18시 시작"
+          variant="purple"
+          badgeText="익스터파크"
+        />
+        <RoomCard
+          title="18시 모집합니다~~!! 18시 시작"
+          variant="green"
+          badgeText="워터멜론"
+        />
+        <RoomCard
+          title="18시 모집합니다~~!! 18시 시작"
+          variant="orange"
+          badgeText="NO24"
+        />
+        <RoomCard title="18시 모집합니다~~!! 18시 시작" variant="gray" />
+      </div>
+
+      <div className="h-10" />
     </div>
   );
 }

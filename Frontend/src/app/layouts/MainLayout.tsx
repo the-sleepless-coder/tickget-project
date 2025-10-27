@@ -1,5 +1,6 @@
 import { Outlet } from "react-router-dom";
 import Header from "../../shared/ui/common/Header";
+import Footer from "../../shared/ui/common/Footer";
 
 export default function MainLayout() {
   return (
@@ -10,9 +11,7 @@ export default function MainLayout() {
         <Outlet />
       </main>
 
-      <footer className="bg-gray-100 text-gray-400 text-center py-4">
-        © {new Date().getFullYear()} 이선좌, All rights reserved.
-      </footer>
+      <Footer />
     </div>
   );
 }
