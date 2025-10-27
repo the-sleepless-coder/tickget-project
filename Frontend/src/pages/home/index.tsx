@@ -19,81 +19,79 @@ export default function HomePage() {
         />
       </div>
 
-      {/* Section: 방 목록 */}
+      {/* Section: 추천 방 목록 */}
       <div className="mt-8 flex items-center gap-3">
-        <h2 className="text-base font-semibold text-gray-900">현재 방 목록</h2>
-        <div className="hidden md:block">
-          <Tooltip
-            title={
-              <span>
-                방의 <b className="text-purple-600">참가 인원, AI 봇 수</b>를
-                지정할 수 있습니다.
-              </span>
-            }
-            placement="top"
-            arrow
-            slotProps={{
-              tooltip: {
-                sx: {
-                  borderRadius: 3,
-                  px: 2,
-                  py: 1.5,
-                  fontSize: 14,
-                  bgcolor: "#ffffff",
-                  color: "#111827",
-                  border: "1px solid #e5e7eb",
-                  boxShadow: "0 6px 16px rgba(0,0,0,0.12)",
-                },
-              },
-              arrow: { sx: { color: "#ffffff" } },
-            }}
-          >
+        <h2 className="text-base font-semibold text-gray-900">추천 방 목록</h2>
+        <button
+          type="button"
+          className="text-xs text-gray-500 hover:text-gray-700"
+        >
+          더보기
+        </button>
+
+        <div className="ml-auto flex items-center gap-3">
+          <div className="flex gap-3 text-sm">
             <button
               type="button"
-              aria-label="현재 방 목록 도움말"
-              className="grid h-7 w-7 place-items-center rounded-full bg-purple-600 text-white shadow-md focus:outline-none"
+              aria-pressed={activeSort === "start"}
+              onClick={() => setActiveSort("start")}
+              className={`rounded-full px-4 py-2 transition-colors ${
+                activeSort === "start"
+                  ? "text-purple-600 bg-purple-50"
+                  : "text-gray-900 bg-gray-100"
+              }`}
             >
-              <InfoOutlined sx={{ fontSize: 16 }} />
+              시작순
             </button>
-          </Tooltip>
-        </div>
-        <div className="ml-auto flex gap-3 text-sm">
-          <button
-            type="button"
-            aria-pressed={activeSort === "start"}
-            onClick={() => setActiveSort("start")}
-            className={`rounded-full px-4 py-2 transition-colors ${
-              activeSort === "start"
-                ? "text-purple-600 bg-purple-50"
-                : "text-gray-900 bg-gray-100"
-            }`}
-          >
-            시작순
-          </button>
-          <button
-            type="button"
-            aria-pressed={activeSort === "latest"}
-            onClick={() => setActiveSort("latest")}
-            className={`rounded-full px-4 py-2 transition-colors ${
-              activeSort === "latest"
-                ? "text-purple-600 bg-purple-50"
-                : "text-gray-900 bg-gray-100"
-            }`}
-          >
-            최신순
-          </button>
-          <button
-            type="button"
-            aria-pressed={activeSort === "all"}
-            onClick={() => setActiveSort("all")}
-            className={`rounded-full px-4 py-2 transition-colors ${
-              activeSort === "all"
-                ? "text-purple-600 bg-purple-50"
-                : "text-gray-900 bg-gray-100"
-            }`}
-          >
-            전체 목록
-          </button>
+            <button
+              type="button"
+              aria-pressed={activeSort === "latest"}
+              onClick={() => setActiveSort("latest")}
+              className={`rounded-full px-4 py-2 transition-colors ${
+                activeSort === "latest"
+                  ? "text-purple-600 bg-purple-50"
+                  : "text-gray-900 bg-gray-100"
+              }`}
+            >
+              최신순
+            </button>
+          </div>
+
+          <div className="hidden md:block">
+            <Tooltip
+              title={
+                <span>
+                  방의 <b className="text-purple-600">참가 인원, AI 봇 수</b>를
+                  지정할 수 있습니다.
+                </span>
+              }
+              placement="top"
+              arrow
+              slotProps={{
+                tooltip: {
+                  sx: {
+                    borderRadius: 3,
+                    px: 2,
+                    py: 1.5,
+                    fontSize: 14,
+                    bgcolor: "#ffffff",
+                    color: "#111827",
+                    border: "1px solid #e5e7eb",
+                    boxShadow: "0 6px 16px rgba(0,0,0,0.12)",
+                  },
+                },
+                arrow: { sx: { color: "#ffffff" } },
+              }}
+            >
+              <button
+                type="button"
+                aria-label="추천 방 목록 도움말"
+                className="grid h-7 w-7 place-items-center rounded-full bg-purple-600 text-white shadow-md focus:outline-none"
+              >
+                <InfoOutlined sx={{ fontSize: 16 }} />
+              </button>
+            </Tooltip>
+          </div>
         </div>
       </div>
 
@@ -110,7 +108,7 @@ export default function HomePage() {
         </div>
 
         <RoomCard
-          title="18시 모집합니다~~!! 18시 시작"
+          title="18시 모집합니다~~!! 18시 모집합니다~~!! 18시 모집합니다~~!!"
           variant="blue"
           badgeText="익스터파크"
         />
