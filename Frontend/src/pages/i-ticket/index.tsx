@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import PeopleIcon from "@mui/icons-material/People";
+import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
+import { paths } from "../../app/routes/paths";
 
 type Participant = {
   name: string;
@@ -37,6 +39,17 @@ export default function ITicketPage() {
   const formatted =
     secondsLeft < 10 ? `00:0${secondsLeft}` : `00:${secondsLeft}`;
 
+  const openQueueWindow = () => {
+    const url =
+      (paths as { booking: { waiting: string } })?.booking?.waiting ??
+      "/booking/waiting";
+    window.open(
+      url,
+      "_blank",
+      "width=900,height=682,toolbar=no,menubar=no,location=no,status=no,scrollbars=yes,resizable=no"
+    );
+  };
+
   return (
     <div className="min-h-screen">
       {showBanner && (
@@ -62,6 +75,8 @@ export default function ITicketPage() {
             openText="티켓오픈"
             openAt="2025.10.23 18:00"
             remaining={formatted}
+            canReserve={secondsLeft === 0}
+            onReserve={openQueueWindow}
           />
         </div>
       </div>
@@ -141,6 +156,14 @@ function TitleSection() {
         <span>돔형 콘서트장</span>
         <span className="text-gray-300">|</span>
         <span>커스텀</span>
+        <span className="text-gray-300">|</span>
+        <button
+          type="button"
+          className="inline-flex items-center gap-1 text-gray-500 hover:text-gray-600"
+        >
+          <SettingsOutlinedIcon fontSize="small" />
+          <span>방 설정</span>
+        </button>
       </div>
     </div>
   );
@@ -148,7 +171,7 @@ function TitleSection() {
 
 function SeatThumbnail() {
   return (
-    <section className="bg-white border rounded-xl p-4 flex flex-col items-center">
+    <section className="bg-white rounded-xl p-4 flex flex-col items-center border border-neutral-200 shadow">
       <img
         src="/temp-seats.jpg"
         alt="좌석 썸네일"
@@ -185,7 +208,7 @@ function ParticipantList({
   capacity: number;
 }) {
   return (
-    <section className="bg-white border rounded-xl overflow-hidden">
+    <section className="bg-white rounded-xl overflow-hidden border border-neutral-200 shadow">
       <div className="flex items-center justify-between px-4 py-3 bg-[#eef2ff]">
         <div className="flex items-center gap-2 font-semibold text-gray-700">
           <PeopleIcon style={{ color: "var(--color-c-blue-200)" }} />
@@ -195,7 +218,7 @@ function ParticipantList({
           {participants.length} / {capacity}명
         </span>
       </div>
-      <ul className="max-h-[420px] overflow-y-auto py-1 space-y-1 pr-1">
+      <ul className="max-h-[420px] overflow-y-auto py-1 space-y-1 pr-1 nice-scroll">
         {participants.map((p, idx) => (
           <li key={idx} className="flex items-center justify-between px-4 py-2">
             <div className="flex items-center gap-3">
@@ -228,13 +251,17 @@ function StartInfoCard({
   openText,
   openAt,
   remaining,
+  canReserve,
+  onReserve,
 }: {
   openText: string;
   openAt: string;
   remaining: string;
+  canReserve: boolean;
+  onReserve: () => void;
 }) {
   return (
-    <section className="bg-white border rounded-xl p-6 flex flex-col items-stretch">
+    <section className="bg-white rounded-xl p-6 flex flex-col items-stretch border border-neutral-200 shadow">
       <h3 className="text-lg font-bold text-gray-900 mb-4">경기시작안내</h3>
       <div className="rounded-xl border bg-[#fafafa] p-6 text-center mb-6">
         <div className="text-2xl font-extrabold text-red-500 mb-2">Start</div>
@@ -244,12 +271,23 @@ function StartInfoCard({
           경기가 위 시간에 시작될 예정이므로 준비해주세요.
         </p>
       </div>
-      <button
-        className="mt-auto w-full py-4 rounded-lg bg-gray-200 text-gray-700 font-extrabold"
-        disabled
-      >
-        남은시간 {remaining}
-      </button>
+      {canReserve ? (
+        <button
+          className="mt-auto w-full py-4 rounded-lg bg-blue-600 text-white font-extrabold hover:bg-blue-700"
+          onClick={onReserve}
+          type="button"
+        >
+          예매하기
+        </button>
+      ) : (
+        <button
+          className="mt-auto w-full py-4 rounded-lg bg-gray-200 text-gray-700 font-extrabold"
+          disabled
+          type="button"
+        >
+          남은시간 {remaining}
+        </button>
+      )}
     </section>
   );
 }
