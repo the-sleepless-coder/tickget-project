@@ -2,6 +2,8 @@ import RoomCard from "./_components/RoomCard";
 import InfoOutlined from "@mui/icons-material/InfoOutlined";
 import Tooltip from "@mui/material/Tooltip";
 import { useState } from "react";
+import { Link } from "react-router-dom";
+import { paths } from "../../app/routes/paths";
 
 type SortKey = "start" | "latest" | "all";
 
@@ -22,12 +24,12 @@ export default function HomePage() {
       {/* Section: 추천 방 목록 */}
       <div className="mt-8 flex items-center gap-3">
         <h2 className="text-base font-semibold text-gray-900">추천 방 목록</h2>
-        <button
-          type="button"
+        <Link
+          to={paths.rooms}
           className="text-xs text-gray-500 hover:text-gray-700"
         >
           더보기
-        </button>
+        </Link>
 
         <div className="ml-auto flex items-center gap-3">
           <div className="flex gap-3 text-sm">

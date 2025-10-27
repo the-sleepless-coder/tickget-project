@@ -1,6 +1,7 @@
 export const paths = {
   home: "/",
   iTicket: "/i-ticket",
+  rooms: "/rooms",
   auth: {
     root: "/auth",
     login: "/auth/login",
