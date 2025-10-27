@@ -1,8 +1,12 @@
 import RoomCard from "./_components/RoomCard";
 import InfoOutlined from "@mui/icons-material/InfoOutlined";
 import Tooltip from "@mui/material/Tooltip";
+import { useState } from "react";
+
+type SortKey = "start" | "latest" | "all";
 
 export default function HomePage() {
+  const [activeSort, setActiveSort] = useState<SortKey>("start");
   return (
     <div className="mx-auto max-w-7xl p-4 sm:p-6">
       {/* Banner */}
@@ -53,14 +57,41 @@ export default function HomePage() {
             </button>
           </Tooltip>
         </div>
-        <div className="ml-auto flex gap-2 text-xs">
-          <button className="rounded-full bg-gray-100 px-3 py-1 text-gray-700">
+        <div className="ml-auto flex gap-3 text-sm">
+          <button
+            type="button"
+            aria-pressed={activeSort === "start"}
+            onClick={() => setActiveSort("start")}
+            className={`rounded-full px-4 py-2 transition-colors ${
+              activeSort === "start"
+                ? "text-purple-600 bg-purple-50"
+                : "text-gray-900 bg-gray-100"
+            }`}
+          >
             시작순
           </button>
-          <button className="rounded-full bg-gray-100 px-3 py-1 text-gray-700">
+          <button
+            type="button"
+            aria-pressed={activeSort === "latest"}
+            onClick={() => setActiveSort("latest")}
+            className={`rounded-full px-4 py-2 transition-colors ${
+              activeSort === "latest"
+                ? "text-purple-600 bg-purple-50"
+                : "text-gray-900 bg-gray-100"
+            }`}
+          >
             최신순
           </button>
-          <button className="rounded-full bg-gray-100 px-3 py-1 text-gray-700">
+          <button
+            type="button"
+            aria-pressed={activeSort === "all"}
+            onClick={() => setActiveSort("all")}
+            className={`rounded-full px-4 py-2 transition-colors ${
+              activeSort === "all"
+                ? "text-purple-600 bg-purple-50"
+                : "text-gray-900 bg-gray-100"
+            }`}
+          >
             전체 목록
           </button>
         </div>
