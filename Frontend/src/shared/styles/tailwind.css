@@ -9,14 +9,14 @@
   --font-sans: var(--font-family-suite);
 
   /* Custom Blue Palette */
-  --color-c-blue-100: #eaeffa;
-  --color-c-blue-200: #3f7ff7;
+  --color-c-blue-100: #D8E5FE;
+  --color-c-blue-200: #4383FB;
   --color-c-blue-300: #104bb7;
   --color-deep-blue: #072151;
 
   /* Custom Red Palette */
-  --color-c-red-100: #fadcdc;
-  --color-c-red-200: #fa4e4e;
+  --color-c-red-100: #ffdede;
+  --color-c-red-200: #FF4040;
 
   /* Custom Purple Palette */
   --color-c-purple-100: #f0e3ff;
