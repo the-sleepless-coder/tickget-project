@@ -1,3 +1,7 @@
+import FacebookIcon from "@mui/icons-material/Facebook";
+import TwitterIcon from "@mui/icons-material/Twitter";
+import InstagramIcon from "@mui/icons-material/Instagram";
+
 export default function Footer() {
   return (
     <footer className="border-t border-gray-200 bg-white text-gray-600">
@@ -46,27 +50,27 @@ export default function Footer() {
           </div>
 
           {/* 소셜 아이콘 */}
-          <div className="ml-auto flex items-center gap-3">
+          <div className="ml-auto flex items-center gap-2">
             <a
               href="#"
               aria-label="Facebook"
               className="grid h-9 w-9 place-items-center rounded-md bg-black text-white"
             >
-              f
+              <FacebookIcon fontSize="small" />
             </a>
             <a
               href="#"
               aria-label="Twitter"
               className="grid h-9 w-9 place-items-center rounded-md bg-black text-white"
             >
-              t
+              <TwitterIcon fontSize="small" />
             </a>
             <a
               href="#"
               aria-label="Instagram"
               className="grid h-9 w-9 place-items-center rounded-md bg-black text-white"
             >
-              ◎
+              <InstagramIcon fontSize="small" />
             </a>
           </div>
         </div>

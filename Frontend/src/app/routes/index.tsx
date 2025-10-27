@@ -24,6 +24,7 @@ const BookingSelectSchedulePage = lazy(
 const DashboardPage = lazy(() => import("../../pages/dashboard"));
 const ProfilePage = lazy(() => import("../../pages/profile"));
 const ITicketPage = lazy(() => import("../../pages/i-ticket"));
+const RoomsPage = lazy(() => import("../../pages/rooms"));
 const MyPageReservationsPage = lazy(
   () => import("../../pages/mypage/reservations")
 );
@@ -44,6 +45,10 @@ export const router = createBrowserRouter([
       {
         path: "i-ticket",
         element: withSuspense(<ITicketPage />),
+      },
+      {
+        path: "rooms",
+        element: withSuspense(<RoomsPage />),
       },
       {
         path: "mypage",
