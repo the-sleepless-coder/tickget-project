@@ -11,14 +11,20 @@ export default function Header() {
           </Link>
 
           <div className="flex items-center gap-3">
+            <Link to="/mypage" aria-label="프로필">
+              <AccountCircleOutlinedIcon className="text-purple-500" />
+            </Link>
             <Link
-              to="/auth/login"
+              to="/mypage"
               className="hidden sm:inline text-sm text-neutral-700 hover:text-neutral-900"
             >
               닉네임
             </Link>
-            <Link to="/profile" aria-label="프로필">
-              <AccountCircleOutlinedIcon className="text-purple-500" />
+            <Link
+              to="/auth/login"
+              className="text-sm text-neutral-700 hover:text-neutral-900"
+            >
+              로그인
             </Link>
           </div>
         </div>

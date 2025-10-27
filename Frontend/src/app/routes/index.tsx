@@ -25,6 +25,7 @@ const DashboardPage = lazy(() => import("../../pages/dashboard"));
 const ProfilePage = lazy(() => import("../../pages/profile"));
 const ITicketPage = lazy(() => import("../../pages/i-ticket"));
 const RoomsPage = lazy(() => import("../../pages/rooms"));
+const MyPageIndex = lazy(() => import("../../pages/mypage"));
 const MyPageReservationsPage = lazy(
   () => import("../../pages/mypage/reservations")
 );
@@ -54,6 +55,7 @@ export const router = createBrowserRouter([
         path: "mypage",
         element: <Outlet />,
         children: [
+          { index: true, element: withSuspense(<MyPageIndex />) },
           {
             path: "reservations",
             element: withSuspense(<MyPageReservationsPage />),
