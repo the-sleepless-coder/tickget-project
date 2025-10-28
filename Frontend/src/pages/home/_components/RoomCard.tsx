@@ -42,6 +42,13 @@ export default function RoomCard({
 }: RoomCardProps) {
   const gradient = VARIANT_GRADIENT[variant];
   const badgeBg = VARIANT_BADGE_BG[variant];
+  // Default badge text by variant (blue/orange/green only)
+  const DEFAULT_BADGE_BY_VARIANT: Partial<Record<RoomCardVariant, string>> = {
+    blue: "익스터파크",
+    orange: "NO24",
+    green: "워터멜론",
+  };
+  const displayedBadge = DEFAULT_BADGE_BY_VARIANT[variant] ?? badgeText;
 
   return (
     <Link
@@ -74,12 +81,12 @@ export default function RoomCard({
             <p className="text-[12px] leading-5 opacity-90">{capacityText}</p>
             <p className="text-[12px] leading-5 opacity-90">{tagsText}</p>
           </div>
-          {badgeText ? (
+          {displayedBadge ? (
             <span
               className="rounded-full px-3 py-1 text-[11px] font-medium text-white shadow-sm"
               style={{ backgroundColor: badgeBg }}
             >
-              {badgeText}
+              {displayedBadge}
             </span>
           ) : null}
         </div>

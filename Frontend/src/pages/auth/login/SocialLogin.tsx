@@ -117,7 +117,7 @@ export default function SocialLogin() {
             onClick={handleLogoClick}
           >
             <img
-              src="/header-logo.svg"
+              src="/header-logo-violet.svg"
               alt="Tickget Logo"
               className="h-12 w-auto"
             />
