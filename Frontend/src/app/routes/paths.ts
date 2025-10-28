@@ -18,6 +18,7 @@ export const paths = {
     complete: "/booking/complete",
     payment: "/booking/payment",
     waiting: "/booking/waiting",
+    gameResult: "/booking/game-result",
   },
   mypage: {
     root: "/mypage",
@@ -25,5 +26,6 @@ export const paths = {
   },
   dashboard: "/dashboard",
   profile: "/profile",
+  gameResult: "/game-result",
   notFound: "*",
 } as const;

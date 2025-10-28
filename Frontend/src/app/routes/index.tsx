@@ -18,12 +18,13 @@ const PaymentPage = lazy(() => import("../../pages/booking/payment"));
 const CancelFeePage = lazy(() => import("../../pages/booking/cancel-fee"));
 const CompletePage = lazy(() => import("../../pages/booking/complete"));
 const BookingWaitingPage = lazy(() => import("../../pages/booking/waiting"));
+const GameResultPage = lazy(() => import("../../pages/game-result"));
 const BookingSelectSchedulePage = lazy(
   () => import("../../pages/booking/select-schedule")
 );
 const DashboardPage = lazy(() => import("../../pages/dashboard"));
 const ProfilePage = lazy(() => import("../../pages/profile"));
-const ITicketPage = lazy(() => import("../../pages/i-ticket"));
+const ITicketPage = lazy(() => import("../../pages/i-ticket/index"));
 const RoomsPage = lazy(() => import("../../pages/rooms"));
 const MyPageIndex = lazy(() => import("../../pages/mypage"));
 const MyPageReservationsPage = lazy(
@@ -43,10 +44,8 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: withSuspense(<HomePage />) },
 
-      {
-        path: "i-ticket",
-        element: withSuspense(<ITicketPage />),
-      },
+      { path: "i-ticket", element: withSuspense(<ITicketPage />) },
+      { path: "game-result", element: withSuspense(<GameResultPage />) },
       {
         path: "rooms",
         element: withSuspense(<RoomsPage />),

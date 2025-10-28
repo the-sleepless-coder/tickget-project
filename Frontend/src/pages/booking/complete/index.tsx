@@ -1,4 +1,5 @@
 import Viewport from "../_components/Viewport";
+import { paths } from "../../../app/routes/paths";
 
 export default function BookingCompletePage() {
   return (
@@ -86,15 +87,16 @@ export default function BookingCompletePage() {
         <aside className="flex flex-col justify-end">
           <button
             onClick={() => {
+              const target = paths.gameResult;
               try {
                 if (window.opener && !window.opener.closed) {
-                  window.opener.location.href = "/mypage/reservations";
+                  window.opener.location.href = target;
                   window.close();
                 } else {
-                  window.location.href = "/mypage/reservations";
+                  window.location.href = target;
                 }
               } catch {
-                window.location.href = "/mypage/reservations";
+                window.location.href = target;
               }
             }}
             className="w-full py-4 bg-[#c62828] hover:bg-[#b71c1c] text-white rounded-md font-semibold tracking-wide shadow"
