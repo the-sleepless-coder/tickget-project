@@ -24,6 +24,12 @@
   --color-c-purple-250: #bf5bfe;
   --color-c-purple-300: #9608ca;
   --color-deep-purple: #49005d;
+
+  /* Custom Grey Palette */
+  --color-c-grey-100: #e0e0e0;
+  --color-c-grey-200: #c4c4c4;
+  --color-c-grey-300: #acacac;
+  --color-deep-grey: #02002c;
 }
 
 body {
