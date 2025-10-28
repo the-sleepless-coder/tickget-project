@@ -33,7 +33,7 @@ public class WebSocketEventListener {
         //기존에 세션이 있다면 끊고 새 새션만 유지
         if (sessionManager.hasSession(userId)){
             log.warn("유저 {}의 기존 세션 감지. 기존 세션 종료", userId);
-            sessionManager.removeSession(sessionManager.getSessionIdByUserId(userId));
+            sessionManager.closeSession(sessionManager.getSessionByUserId(userId));
         }
 
         sessionManager.registerSession(sessionId, userId);
@@ -53,30 +53,27 @@ public class WebSocketEventListener {
             return;
         }
 
-        // 세션에서 유저 ID 조회
+        // 세션에서 유저 ID 조회. 아직 데이터가 삭제되지 않은 상태.
         Long userId = sessionManager.getUserId(sessionId);
+        Long roomId = sessionManager.getRoomByUser(userId);
 
         if (userId == null) {
             log.warn("유저 정보 없는 세션 해제: sessionId={}", sessionId);
-            sessionManager.removeSession(sessionId);
             return;
         }
 
         log.info("WebSocket 연결 해제: sessionId={}, userId={}", sessionId, userId);
 
-        // 방 자동 퇴장 처리
-        Long currentRoomId = sessionManager.getRoomByUser(userId);
+        // 1. 비즈니스 로직: 방 퇴장 처리
+        if (roomId != null) {
+            log.info("연결 해제로 인한 자동 퇴장 처리: userId={}, roomId={}", userId, roomId);
 
-        if (currentRoomId != null) {
-            log.info("연결 해제로 인한 자동 퇴장 처리: userId={}, roomId={}", userId, currentRoomId);
-
-            // TODO: RoomMemberService로 퇴장 처리 (나중에)
-            // 임시: SessionManager에서만 제거
-            sessionManager.removeUserFromRoom(userId, currentRoomId);
+            // TODO: RoomMemberService로 퇴장 처리
+            // roomMemberService.leaveRoom(roomId, userId);
         }
 
-        // 세션 정리
-        sessionManager.removeSession(sessionId);
+        // 2. 데이터 정리: 세션 정보 제거
+        sessionManager.removeSessionData(sessionId);
 
         // TODO: Redis에서 전역 세션 제거
 
