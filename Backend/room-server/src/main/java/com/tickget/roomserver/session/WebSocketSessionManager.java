@@ -47,7 +47,8 @@ public class WebSocketSessionManager {
         if( userToSession.containsKey(userId) ){
             String oldSessionId = userToSession.get(userId);
             log.debug("유저 {}의 기존 세션 {} 제거", userId, oldSessionId);
-            removeSession(oldSessionId);
+            WebSocketSession oldSession = sessions.get(oldSessionId);
+            closeSession(oldSession);
         }
 
         userToSession.put(userId, sessionId);
@@ -91,8 +92,8 @@ public class WebSocketSessionManager {
     }
 
 
-    //세션 삭제
-    public void removeSession(String sessionId) {
+    //세션데이터 삭제: section이 닫힌 상황에서만 호출됨
+    public void removeSessionData(String sessionId) {
         Long userId = sessionToUser.remove(sessionId);
 
         if (userId != null) {
@@ -110,19 +111,15 @@ public class WebSocketSessionManager {
                 }
             }
 
-            log.info("세션 삭제: sessionId={}, userId={}", sessionId, userId);
+            sessions.remove(sessionId);
+            log.info("세션 데이터 삭제: sessionId={}, userId={}", sessionId, userId);
         }
 
-        WebSocketSession session = sessions.remove(sessionId);
-        if (session != null) {
-            closeSession(session);
-        }
 
-        log.info("세션 삭제 완료: sessionId={}, userId={}", sessionId, userId);
     }
 
     //세션 닫기
-    private void closeSession(WebSocketSession session) {
+    public void closeSession(WebSocketSession session) {
         if (session.isOpen()) {
             try {
                 session.close();
