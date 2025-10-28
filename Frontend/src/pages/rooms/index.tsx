@@ -3,28 +3,31 @@ import { useState } from "react";
 import Tooltip from "@mui/material/Tooltip";
 import InfoOutlined from "@mui/icons-material/InfoOutlined";
 import SearchIcon from "@mui/icons-material/Search";
+import CreateRoomModal from "./_components/CreateRoomModal";
 
 type SortKey = "start" | "latest";
-const variants = ["blue", "green", "orange", "purple", "gray"] as const;
+// Only show blue, orange, green in the order: blue, blue, blue, orange, green
+const variantsPattern = ["blue", "blue", "blue", "orange", "green"] as const;
 const titles = [
   "18시 모집합니다~~!! 18시 모집합니다~~!! 18시 모집합니다~~!!",
   "록페스티벌 가즈아",
   "뮤지컬 킹키부츠 예매",
   "팬미팅 연습하실 분",
-  "콘서트 A",
-  "콘서트 B",
-  "연극 C",
+  "센과 치히로 내한",
+  "B-Dragon 컴백콘서트",
+  "빨래하는 날",
   "가을 야구 보러가자",
 ] as const;
-const badges = ["익스터파크", "워터멜론", "NO24", "익스터파크", ""] as const;
+const badges = ["익스터파크", "워터멜론", "NO24"] as const;
 
 export default function RoomsPage() {
   const [activeSort, setActiveSort] = useState<SortKey>("start");
   const [query, setQuery] = useState("");
+  const [openCreate, setOpenCreate] = useState(false);
   const rooms = Array.from({ length: 12 }).map((_, idx) => ({
     id: idx,
     title: titles[idx % titles.length],
-    variant: variants[idx % variants.length],
+    variant: variantsPattern[idx % variantsPattern.length],
     badgeText: badges[idx % badges.length],
   }));
   const normalizedQuery = query.trim().toLowerCase();
@@ -49,38 +52,8 @@ export default function RoomsPage() {
 
       {/* Heading + Controls */}
       <div className="mt-6 flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-gray-900">전체 방 목록</h1>
         <div className="flex items-center gap-3">
-          <button
-            type="button"
-            className="rounded-full bg-purple-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-purple-600"
-          >
-            + 방만들기
-          </button>
-          <button
-            type="button"
-            aria-pressed={activeSort === "start"}
-            onClick={() => setActiveSort("start")}
-            className={`rounded-full px-4 py-2 text-sm transition-colors ${
-              activeSort === "start"
-                ? "text-purple-600 bg-purple-50"
-                : "text-gray-900 bg-gray-100"
-            }`}
-          >
-            시작순
-          </button>
-          <button
-            type="button"
-            aria-pressed={activeSort === "latest"}
-            onClick={() => setActiveSort("latest")}
-            className={`rounded-full px-4 py-2 text-sm transition-colors ${
-              activeSort === "latest"
-                ? "text-purple-600 bg-purple-50"
-                : "text-gray-900 bg-gray-100"
-            }`}
-          >
-            최신순
-          </button>
+          <h1 className="text-xl font-semibold text-gray-900">전체 방 목록</h1>
           <div className="hidden md:block">
             <Tooltip
               title={
@@ -116,8 +89,43 @@ export default function RoomsPage() {
               </button>
             </Tooltip>
           </div>
+          <button
+            type="button"
+            aria-pressed={activeSort === "start"}
+            onClick={() => setActiveSort("start")}
+            className={`rounded-full px-4 py-2 text-sm transition-colors ${
+              activeSort === "start"
+                ? "text-purple-600 bg-purple-50"
+                : "text-gray-900 bg-gray-100"
+            }`}
+          >
+            시작순
+          </button>
+          <button
+            type="button"
+            aria-pressed={activeSort === "latest"}
+            onClick={() => setActiveSort("latest")}
+            className={`rounded-full px-4 py-2 text-sm transition-colors ${
+              activeSort === "latest"
+                ? "text-purple-600 bg-purple-50"
+                : "text-gray-900 bg-gray-100"
+            }`}
+          >
+            최신순
+          </button>
+        </div>
+        <div>
+          <button
+            type="button"
+            onClick={() => setOpenCreate(true)}
+            className="rounded-full bg-purple-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-purple-600"
+          >
+            + 방만들기
+          </button>
         </div>
       </div>
+
+      <CreateRoomModal open={openCreate} onClose={() => setOpenCreate(false)} />
 
       <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {filteredRooms.map((room) => (
