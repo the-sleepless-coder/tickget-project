@@ -26,6 +26,7 @@ const DashboardPage = lazy(() => import("../../pages/dashboard"));
 const ProfilePage = lazy(() => import("../../pages/profile"));
 const ITicketPage = lazy(() => import("../../pages/i-ticket/index"));
 const RoomsPage = lazy(() => import("../../pages/rooms"));
+const ThreeJsTestPage = lazy(() => import("../../pages/threejstest"));
 const MyPageIndex = lazy(() => import("../../pages/mypage"));
 const MyPageReservationsPage = lazy(
   () => import("../../pages/mypage/reservations")
@@ -45,6 +46,7 @@ export const router = createBrowserRouter([
       { index: true, element: withSuspense(<HomePage />) },
 
       { path: "i-ticket", element: withSuspense(<ITicketPage />) },
+      { path: "threejstest", element: withSuspense(<ThreeJsTestPage />) },
       { path: "game-result", element: withSuspense(<GameResultPage />) },
       {
         path: "rooms",
