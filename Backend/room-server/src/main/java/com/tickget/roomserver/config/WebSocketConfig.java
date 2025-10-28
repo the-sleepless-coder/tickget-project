@@ -22,4 +22,6 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         registry.enableSimpleBroker("/topic");
         registry.setApplicationDestinationPrefixes("/app");
     }
+    
+    //TODO: 로그인이 도입되면 JWT인터셉터 도입
 }
