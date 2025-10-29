@@ -11,6 +11,7 @@ import com.tickget.roomserver.dto.response.MatchResponse;
 import com.tickget.roomserver.dto.response.RoomResponse;
 import com.tickget.roomserver.exception.PresetHallNotFoundException;
 
+import com.tickget.roomserver.exception.RoomNotFoundException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -69,4 +70,15 @@ public class RoomService {
                         ));
     }
 
+    public RoomResponse getRoom(Long roomId) {
+        Room room = roomRepository.findById(roomId).orElseThrow(
+                () -> new RoomNotFoundException(roomId)
+        );
+
+        //TODO: 로직 구현 시 대체
+        MatchResponse matchResponse = null;
+        int currentUserCount = 1;
+
+        return RoomResponse.of(room, matchResponse, currentUserCount);
+    }
 }

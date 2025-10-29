@@ -43,13 +43,15 @@ public class RoomController {
 
     // 특정 방 상세 정보 조회
     @GetMapping("/{roomId}")
-    public ResponseEntity<?> getRoom(@PathVariable("roomId") String roomId){
-        return ResponseEntity.ok().build();
+    public ResponseEntity<RoomResponse> getRoom(@PathVariable("roomId") Long roomId){
+        RoomResponse response = roomService.getRoom(roomId);
+        return ResponseEntity.ok()
+                .body(response);
     }
 
     // 방 멤버리스트 조회
     @GetMapping("/{roomId}/members")
-    public ResponseEntity<?> getRoomMembers(@PathVariable("roomId") String roomId){
+    public ResponseEntity<?> getRoomMembers(@PathVariable("roomId") Long roomId){
         return ResponseEntity.ok().build();
     }
 
