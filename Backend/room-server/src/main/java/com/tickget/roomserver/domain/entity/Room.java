@@ -12,6 +12,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.ColumnDefault;
 
 @Entity
 @Getter
@@ -24,24 +25,25 @@ public class Room {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "name", length = 100)
-    private String name;
+    @Column(name = "room_type")
+    private RoomType roomType;
 
     @Column(name = "hall_id")
     private Long hallId;
 
-    @Column(name = "room_type")
-    private RoomType roomType;
-
     @Column(name = "hall_type")
     private HallType hallType;
+
+    @Column(name = "bot_count")
+    private int botCount;
 
     @Column(name = "total_seat")
     private int totalSeat;
 
     @Column(name = "max_booking")
+    @ColumnDefault("2") // 기본 인당 2매
     private int maxBooking;
-    
+
     private RoomStatus status;
 
     @Column(name = "thumbnail_url", length = 500)
