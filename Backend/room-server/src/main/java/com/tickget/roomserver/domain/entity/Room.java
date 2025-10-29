@@ -1,5 +1,6 @@
 package com.tickget.roomserver.domain.entity;
 
+import com.tickget.roomserver.domain.enums.HallSize;
 import com.tickget.roomserver.domain.enums.HallType;
 import com.tickget.roomserver.domain.enums.RoomStatus;
 import com.tickget.roomserver.domain.enums.RoomType;
@@ -9,6 +10,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -20,6 +22,7 @@ import org.hibernate.annotations.ColumnDefault;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Table(name = "rooms")
 public class Room extends BaseTimeEntity{
 
     @Id
@@ -32,14 +35,20 @@ public class Room extends BaseTimeEntity{
     @Column(name = "hall_id")
     private Long hallId;
 
-    @Column(name = "hall_type")
-    private HallType hallType;
+    @Column(name = "hall_name")
+    private String hallName;
 
-    @Column(name = "bot_count")
-    private int botCount;
+    @Column(name = "hall_size")
+    private HallSize hallSize;
+
+    @Column(name = "is_ai_generated")
+    private boolean isAIGenerated;
 
     @Column(name = "total_seat")
     private int totalSeat;
+
+    @Column(name = "bot_count")
+    private int botCount;
 
     @Column(name = "max_booking")
     @ColumnDefault("2") // 기본 인당 2매
@@ -50,11 +59,13 @@ public class Room extends BaseTimeEntity{
     @Column(name = "thumbnail_url", length = 500)
     private String thumbnailUrl;
 
-    public static Room from(CreateRoomRequest createRoomRequest) {
+    public static Room of (CreateRoomRequest createRoomRequest,PresetHall hall ) {
         return Room.builder()
                 .roomType(createRoomRequest.getRoomType())
                 .hallId(createRoomRequest.getHallId())
-                .hallType(createRoomRequest.getHallType())
+                .hallSize(hall.getSize())
+                .hallName(hall.getName())
+                .isAIGenerated(false)
                 .botCount(createRoomRequest.getBotCount())
                 .totalSeat(createRoomRequest.getTotalSeat())
                 .status(RoomStatus.WAITING)
