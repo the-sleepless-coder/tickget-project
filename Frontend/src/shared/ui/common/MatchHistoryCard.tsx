@@ -20,6 +20,12 @@ interface MatchHistoryCardProps {
   }>;
   isExpanded?: boolean;
   onExpand?: () => void;
+  onUserClick?: (user: {
+    id: number;
+    nickname: string;
+    rank: number;
+    seatArea: string;
+  }) => void;
 }
 
 export default function MatchHistoryCard({
@@ -35,6 +41,7 @@ export default function MatchHistoryCard({
   users,
   isExpanded = false,
   onExpand,
+  onUserClick,
 }: MatchHistoryCardProps) {
   const getTagColorClass = (color: string) => {
     switch (color) {
@@ -103,6 +110,7 @@ export default function MatchHistoryCard({
               mySeatArea={mySeatArea}
               mySeatSection={mySeatSection}
               users={users}
+              onUserClick={onUserClick}
             />
           ) : (
             <div className="space-y-3 text-sm text-neutral-700">
