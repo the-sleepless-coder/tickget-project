@@ -14,7 +14,21 @@ export default function ThreeJsTestPage() {
     if (!container) return;
 
     const scene = new THREE.Scene();
+    // 기본 배경색 (이미지 로드 전)
     scene.background = new THREE.Color(0xffffff);
+    // 배경 이미지 적용 (public 폴더 기준 경로)
+    const textureLoader = new THREE.TextureLoader();
+    textureLoader.load(
+      "/banner-get.png",
+      (tex: unknown) => {
+        // 로드 완료 시 배경으로 설정
+        scene.background = tex;
+      },
+      undefined,
+      () => {
+        // 로드 실패 시 기본색 유지
+      }
+    );
 
     const camera = new THREE.PerspectiveCamera(
       60,
@@ -61,14 +75,17 @@ export default function ThreeJsTestPage() {
         box.getCenter(center);
         const maxDim = Math.max(size.x, size.y, size.z);
         const fov = camera.fov * (Math.PI / 180);
-        let cameraZ = Math.abs((maxDim / 2) / Math.tan(fov / 2));
+        let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2));
         cameraZ *= 1.6; // 약간 여유
-        camera.position.set(center.x + cameraZ * 0.4, center.y + cameraZ * 0.5, center.z + cameraZ);
+        camera.position.set(
+          center.x + cameraZ * 0.4,
+          center.y + cameraZ * 0.5,
+          center.z + cameraZ
+        );
         camera.lookAt(center);
       },
       undefined,
       (error: any) => {
-        // eslint-disable-next-line no-console
         console.error("Failed to load GLB:", error);
       }
     );
@@ -131,8 +148,9 @@ export default function ThreeJsTestPage() {
   }, []);
 
   return (
-    <div style={{ width: "100%", height: "100%", minHeight: 500 }} ref={containerRef} />
+    <div
+      style={{ width: "100%", height: "100%", minHeight: 500 }}
+      ref={containerRef}
+    />
   );
 }
-
-
