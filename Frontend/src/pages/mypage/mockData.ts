@@ -1,7 +1,9 @@
 export interface UserRank {
   id: number;
   nickname: string;
-  rank: number;
+  rank: number; // 전체 순위 (봇 + 사람)
+  rankAmongBots?: number; // 봇들 중에서의 순위
+  rankAmongUsers?: number; // 다른 사용자들 중에서의 순위
   seatArea: string;
   seatSection?: string;
   seatRow?: number;
@@ -52,7 +54,9 @@ export const mockMatchHistory: MatchHistory[] = [
       {
         id: 0,
         nickname: "나",
-        rank: 1,
+        rank: 1, // 전체 순위 (봇 3000명 + 나 포함)
+        rankAmongBots: 1, // 봇 3000명 중에서의 순위
+        rankAmongUsers: 1, // 사람 1명 중에서의 순위
         seatArea: "4-7",
         seatSection: "A",
         seatRow: 4,
@@ -70,6 +74,7 @@ export const mockMatchHistory: MatchHistory[] = [
     tags: [
       { label: "보통", color: "green" },
       { label: "최대 15명", color: "blue" },
+      { label: "봇 2000명", color: "blue" },
     ],
     date: "2024-01-18",
     time: "20:00",
@@ -79,7 +84,9 @@ export const mockMatchHistory: MatchHistory[] = [
       {
         id: 1,
         nickname: "김철수",
-        rank: 1,
+        rank: 1, // 전체 순위 (봇 + 사람)
+        rankAmongBots: 1, // 봇들 중에서의 순위
+        rankAmongUsers: 1, // 사용자들 중에서의 순위
         seatArea: "2-5",
         seatSection: "A",
         seatRow: 2,
@@ -95,6 +102,8 @@ export const mockMatchHistory: MatchHistory[] = [
         id: 2,
         nickname: "이영희",
         rank: 2,
+        rankAmongBots: 2,
+        rankAmongUsers: 2,
         seatArea: "6-3",
         seatSection: "B",
         seatRow: 6,
@@ -109,7 +118,9 @@ export const mockMatchHistory: MatchHistory[] = [
       {
         id: 0,
         nickname: "나",
-        rank: 3,
+        rank: 3, // 전체 순위
+        rankAmongBots: 3, // 봇들 중에서의 순위
+        rankAmongUsers: 3, // 사용자들 중에서의 순위
         seatArea: "5-8",
         seatSection: "B",
         seatRow: 5,
@@ -125,6 +136,8 @@ export const mockMatchHistory: MatchHistory[] = [
         id: 3,
         nickname: "박민수",
         rank: 4,
+        rankAmongBots: 4,
+        rankAmongUsers: 4,
         seatArea: "3-9",
         seatSection: "A",
         seatRow: 3,
@@ -140,6 +153,8 @@ export const mockMatchHistory: MatchHistory[] = [
         id: 4,
         nickname: "최지영",
         rank: 5,
+        rankAmongBots: 5,
+        rankAmongUsers: 5,
         seatArea: "4-11",
         seatSection: "C",
         seatRow: 4,
@@ -207,6 +222,7 @@ export const mockMatchHistory: MatchHistory[] = [
     tags: [
       { label: "쉬움", color: "green" },
       { label: "최대 20명", color: "blue" },
+      { label: "봇 1500명", color: "blue" },
     ],
     date: "2024-01-22",
     time: "15:00",
@@ -362,6 +378,7 @@ export const mockMatchHistory: MatchHistory[] = [
     tags: [
       { label: "어려움", color: "red" },
       { label: "최대 8명", color: "blue" },
+      { label: "봇 3500명", color: "blue" },
     ],
     date: "2024-01-23",
     time: "14:00",
@@ -409,6 +426,7 @@ export const mockMatchHistory: MatchHistory[] = [
     tags: [
       { label: "쉬움", color: "green" },
       { label: "최대 5명", color: "blue" },
+      { label: "봇 1000명", color: "blue" },
     ],
     date: "2024-01-17",
     time: "16:00",
@@ -514,6 +532,7 @@ export const mockMatchHistory: MatchHistory[] = [
     tags: [
       { label: "어려움", color: "red" },
       { label: "최대 7명", color: "blue" },
+      { label: "봇 2800명", color: "blue" },
     ],
     date: "2024-01-15",
     time: "21:00",
@@ -541,6 +560,7 @@ export const mockMatchHistory: MatchHistory[] = [
     tags: [
       { label: "쉬움", color: "green" },
       { label: "최대 25명", color: "blue" },
+      { label: "봇 1800명", color: "blue" },
     ],
     date: "2024-01-24",
     time: "13:00",
@@ -696,6 +716,7 @@ export const mockMatchHistory: MatchHistory[] = [
     tags: [
       { label: "쉬움", color: "green" },
       { label: "최대 6명", color: "blue" },
+      { label: "봇 1200명", color: "blue" },
     ],
     date: "2024-01-14",
     time: "23:00",
@@ -846,6 +867,7 @@ export const mockMatchHistory: MatchHistory[] = [
     tags: [
       { label: "보통", color: "green" },
       { label: "최대 4명", color: "blue" },
+      { label: "봇 800명", color: "blue" },
     ],
     date: "2024-01-25",
     time: "11:00",

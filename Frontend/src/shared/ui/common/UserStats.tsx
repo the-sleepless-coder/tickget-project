@@ -26,71 +26,175 @@ export default function UserStats({
 }: UserStatsProps) {
   const [visibleRows, setVisibleRows] = useState(5);
 
+  const computeRankAmongUsers = (
+    users?: Array<{ id: number; rank: number }>,
+    targetUserId?: number
+  ): number | undefined => {
+    if (!users || users.length === 0 || targetUserId === undefined)
+      return undefined;
+    const sortedByRank = [...users].sort(
+      (a, b) => (a.rank ?? 0) - (b.rank ?? 0)
+    );
+    const idx = sortedByRank.findIndex((u) => u.id === targetUserId);
+    return idx >= 0 ? idx + 1 : undefined;
+  };
+
+  // 전체 참가자 수를 계산하는 함수
+  const getTotalParticipants = (match: MatchHistory): number => {
+    let humanParticipants = 0;
+    let botParticipants = 0;
+
+    // participants에서 참가인원 추출
+    const participantsMatch = match.participants.match(/참가인원\s+(\d+)명/);
+    if (participantsMatch) {
+      humanParticipants = parseInt(participantsMatch[1], 10);
+    }
+
+    // tags에서 봇 인원 추출
+    const botTag = match.tags?.find((tag) => tag.label.includes("봇"));
+    if (botTag) {
+      const botMatch = botTag.label.match(/봇\s+(\d+)명/);
+      if (botMatch) {
+        botParticipants = parseInt(botMatch[1], 10);
+      }
+    }
+
+    return humanParticipants + botParticipants;
+  };
+
   // 해당 유저의 데이터만 필터링하고 날짜순으로 정렬
   const userData = matchHistory
     .filter((match) => match.users?.some((user) => user.id === userId))
     .map((match) => {
       const myUser = match.users?.find((user) => user.id === userId);
+      const totalParticipants = getTotalParticipants(match);
+      const percentile =
+        totalParticipants > 0
+          ? ((myUser?.rank ?? 0) / totalParticipants) * 100
+          : 0;
+
+      // 솔로/대결 판단
+      const participantsMatch = match.participants.match(/참가인원\s+(\d+)명/);
+      const humanCount = participantsMatch
+        ? parseInt(participantsMatch[1], 10)
+        : 0;
+      const matchType = humanCount === 1 ? "솔로" : "대결";
+
+      const derivedRankAmongUsers =
+        myUser?.rankAmongUsers ?? computeRankAmongUsers(match.users, userId);
+
       return {
         date: match.date,
+        time: match.time,
+        matchType,
         rank: myUser?.rank ?? 0,
+        humanParticipants: humanCount,
+        rankAmongBots: myUser?.rankAmongBots,
+        rankAmongUsers: derivedRankAmongUsers,
+        totalParticipants,
+        percentile,
         bookingClick: myUser?.metrics?.bookingClick?.reactionMs ?? 0,
         captcha: myUser?.metrics?.captcha?.durationMs ?? 0,
         seatSelection: myUser?.metrics?.seatSelection?.durationMs ?? 0,
       };
     })
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) // 역순 정렬
+    .slice(0, 20); // 최대 20개만
 
-  // 평균 등수 계산
-  const averageRank =
+  // 평균 퍼센트 계산
+  const averagePercentile =
     userData.length > 0
       ? (
-          userData.reduce((sum, data) => sum + data.rank, 0) / userData.length
-        ).toFixed(1)
+          userData.reduce((sum, data) => sum + data.percentile, 0) /
+          userData.length
+        ).toFixed(2)
       : "-";
 
-  // 차트 데이터 포맷팅
-  const chartData = userData.map((data) => ({
-    date: data.date.replace(/-/g, "."),
-    rank: data.rank,
-    bookingClick: (data.bookingClick / 1000).toFixed(2),
-    captcha: (data.captcha / 1000).toFixed(2),
-    seatSelection: (data.seatSelection / 1000).toFixed(2),
-  }));
+  // 상위/하위 텍스트 결정
+  const percentileText =
+    averagePercentile !== "-"
+      ? parseFloat(averagePercentile) <= 50
+        ? `상위 ${averagePercentile}%`
+        : `하위 ${(100 - parseFloat(averagePercentile)).toFixed(2)}%`
+      : "-";
+
+  // 차트 데이터 포맷팅 (역순으로 정렬하여 최신부터 표시)
+  const chartData = userData
+    .slice()
+    .reverse() // 차트는 오래된 것부터 표시
+    .map((data, index) => ({
+      matchNumber: userData.length - index, // 경기 번호 (최신 경기 = 큰 번호)
+      date: data.date.replace(/-/g, "."),
+      dateTime: `${data.date.replace(/-/g, ".")} ${data.time} [${data.matchType}]`,
+      time: data.time,
+      matchType: data.matchType,
+      rank: data.rank,
+      humanParticipants: data.humanParticipants,
+      totalParticipants: data.totalParticipants,
+      rankAmongBots: data.rankAmongBots,
+      rankAmongUsers: data.rankAmongUsers,
+      percentile: data.percentile.toFixed(2),
+      bookingClick: (data.bookingClick / 1000).toFixed(2),
+      captcha: (data.captcha / 1000).toFixed(2),
+      seatSelection: (data.seatSelection / 1000).toFixed(2),
+      totalTime: (
+        (data.bookingClick + data.captcha + data.seatSelection) /
+        1000
+      ).toFixed(2),
+    }));
 
   return (
     <div className="space-y-6">
-      {/* 평균 등수 카드 */}
+      {/* 평균 성과 카드 */}
       <div className="rounded-xl border border-purple-200 bg-purple-50 p-6">
         <h3 className="mb-4 text-lg font-bold text-neutral-900">
-          {userNickname}님의 평균 등수
+          {userNickname}님의 평균 성과
         </h3>
-        <div className="flex items-baseline gap-2">
-          <span className="text-4xl font-bold text-purple-600">
-            {averageRank}위
-          </span>
-          <span className="text-sm text-neutral-600">
-            (총 {userData.length}회 참여)
-          </span>
+        <div className="flex flex-col gap-2">
+          <div className="flex items-baseline gap-2">
+            <span className="text-4xl font-bold text-purple-600">
+              {percentileText}
+            </span>
+            <span className="text-sm text-neutral-600">
+              (총 {userData.length}회 참여)
+            </span>
+          </div>
+          {averagePercentile !== "-" && (
+            <p className="text-sm text-neutral-500">
+              전체 참가자 중 평균 {averagePercentile}% 위치
+            </p>
+          )}
         </div>
       </div>
 
-      {/* 등수 추이 차트 */}
+      {/* 퍼센트 추이 차트 */}
       <div className="rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
-        <h3 className="mb-4 text-lg font-bold text-neutral-900">등수 추이</h3>
+        <div className="mb-2 flex items-center justify-between">
+          <h3 className="text-lg font-bold text-neutral-900">성과 추이</h3>
+          <p className="text-xs text-neutral-500">최근 20경기만 표시</p>
+        </div>
         <ResponsiveContainer width="100%" height={200}>
           <LineChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="date" />
-            <YAxis reversed />
-            <Tooltip />
+            <XAxis
+              dataKey="matchNumber"
+              label={{ value: "경기", position: "insideBottom", offset: -5 }}
+            />
+            <YAxis />
+            <Tooltip
+              formatter={(
+                value: string,
+                _name: string,
+                props: { payload?: { dateTime?: string } }
+              ) => [`${value}%`, props.payload?.dateTime || ""]}
+            />
             <Legend />
             <Line
               type="monotone"
-              dataKey="rank"
+              dataKey="percentile"
               stroke="#9333ea"
               strokeWidth={2}
-              name="등수"
+              name="퍼센트"
             />
           </LineChart>
         </ResponsiveContainer>
@@ -108,12 +212,32 @@ export default function UserStats({
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="date" hide />
               <YAxis />
-              <Tooltip />
-              <Bar
-                dataKey="bookingClick"
-                fill="#3b82f6"
-                name="소요 시간 (초)"
+              <Tooltip
+                content={({ active, payload }) => {
+                  if (!active || !payload || !payload[0]) return null;
+                  const data = payload[0].payload as {
+                    date?: string;
+                    time?: string;
+                  };
+                  const fullDate = data?.date ?? "";
+                  const shortDate =
+                    fullDate.length >= 3 ? fullDate.slice(2) : fullDate;
+                  const time = data?.time ?? "";
+                  const value = payload[0].value;
+                  return (
+                    <div className="rounded-lg border border-neutral-200 bg-white p-2 shadow-lg">
+                      <p className="font-semibold text-neutral-900">
+                        {time ? `${shortDate}(${time})` : shortDate}
+                      </p>
+                      <p className="text-neutral-600">
+                        소요시간 :{" "}
+                        {typeof value === "number" ? value.toFixed(2) : value}초
+                      </p>
+                    </div>
+                  );
+                }}
               />
+              <Bar dataKey="bookingClick" fill="#3b82f6" />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -128,8 +252,32 @@ export default function UserStats({
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="date" hide />
               <YAxis />
-              <Tooltip />
-              <Bar dataKey="captcha" fill="#10b981" name="소요 시간 (초)" />
+              <Tooltip
+                content={({ active, payload }) => {
+                  if (!active || !payload || !payload[0]) return null;
+                  const data = payload[0].payload as {
+                    date?: string;
+                    time?: string;
+                  };
+                  const fullDate = data?.date ?? "";
+                  const shortDate =
+                    fullDate.length >= 3 ? fullDate.slice(2) : fullDate;
+                  const time = data?.time ?? "";
+                  const value = payload[0].value;
+                  return (
+                    <div className="rounded-lg border border-neutral-200 bg-white p-2 shadow-lg">
+                      <p className="font-semibold text-neutral-900">
+                        {time ? `${shortDate}(${time})` : shortDate}
+                      </p>
+                      <p className="text-neutral-600">
+                        소요시간 :{" "}
+                        {typeof value === "number" ? value.toFixed(2) : value}초
+                      </p>
+                    </div>
+                  );
+                }}
+              />
+              <Bar dataKey="captcha" fill="#10b981" />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -144,12 +292,32 @@ export default function UserStats({
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="date" hide />
               <YAxis />
-              <Tooltip />
-              <Bar
-                dataKey="seatSelection"
-                fill="#f59e0b"
-                name="소요 시간 (초)"
+              <Tooltip
+                content={({ active, payload }) => {
+                  if (!active || !payload || !payload[0]) return null;
+                  const data = payload[0].payload as {
+                    date?: string;
+                    time?: string;
+                  };
+                  const fullDate = data?.date ?? "";
+                  const shortDate =
+                    fullDate.length >= 3 ? fullDate.slice(2) : fullDate;
+                  const time = data?.time ?? "";
+                  const value = payload[0].value;
+                  return (
+                    <div className="rounded-lg border border-neutral-200 bg-white p-2 shadow-lg">
+                      <p className="font-semibold text-neutral-900">
+                        {time ? `${shortDate}(${time})` : shortDate}
+                      </p>
+                      <p className="text-neutral-600">
+                        소요시간 :{" "}
+                        {typeof value === "number" ? value.toFixed(2) : value}초
+                      </p>
+                    </div>
+                  );
+                }}
               />
+              <Bar dataKey="seatSelection" fill="#f59e0b" />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -160,15 +328,29 @@ export default function UserStats({
         <div className="border-b border-neutral-200 px-6 py-4">
           <h3 className="text-lg font-bold text-neutral-900">상세 기록</h3>
         </div>
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto overflow-y-visible">
           <table className="w-full">
             <thead className="bg-neutral-50">
               <tr>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-neutral-700">
-                  날짜
+                  경기 정보
                 </th>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-neutral-700">
-                  등수
+                  <span className="relative flex items-center gap-1">
+                    퍼센트
+                    <div className="group relative">
+                      <span className="cursor-help text-neutral-400 hover:text-neutral-600">
+                        (?)
+                      </span>
+                      <div className="absolute left-1/2 top-full z-50 mt-2 hidden -translate-x-1/2 transform rounded-md bg-neutral-800 px-2 py-1 text-xs text-white shadow-lg group-hover:block whitespace-nowrap">
+                        봇 + 사용자
+                        <div className="absolute -top-1 left-1/2 h-2 w-2 -translate-x-1/2 rotate-45 bg-neutral-800"></div>
+                      </div>
+                    </div>
+                  </span>
+                </th>
+                <th className="px-6 py-3 text-left text-sm font-semibold text-neutral-700">
+                  등수 정보
                 </th>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-neutral-700">
                   예매 클릭 (초)
@@ -179,16 +361,30 @@ export default function UserStats({
                 <th className="px-6 py-3 text-left text-sm font-semibold text-neutral-700">
                   좌석 선정 (초)
                 </th>
+                <th className="px-6 py-3 text-left text-sm font-semibold text-neutral-700">
+                  총 소요시간 (초)
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-200">
               {chartData.slice(0, visibleRows).map((data, index) => (
                 <tr key={index} className="hover:bg-neutral-50">
                   <td className="px-6 py-4 text-sm text-neutral-900">
-                    {data.date}
+                    {data.dateTime}
                   </td>
                   <td className="px-6 py-4 text-sm font-semibold text-purple-600">
-                    {data.rank}위
+                    {data.percentile}%
+                  </td>
+                  <td className="px-6 py-4 text-sm text-neutral-700">
+                    {data.humanParticipants &&
+                    data.humanParticipants > 1 &&
+                    data.rankAmongUsers ? (
+                      <div className="text-sm text-purple-600">
+                        {data.rankAmongUsers}/{data.humanParticipants}등
+                      </div>
+                    ) : (
+                      <div className="text-sm text-neutral-500">-</div>
+                    )}
                   </td>
                   <td className="px-6 py-4 text-sm text-neutral-700">
                     {data.bookingClick}초
@@ -198,6 +394,9 @@ export default function UserStats({
                   </td>
                   <td className="px-6 py-4 text-sm text-neutral-700">
                     {data.seatSelection}초
+                  </td>
+                  <td className="px-6 py-4 text-sm text-neutral-700">
+                    {data.totalTime}초
                   </td>
                 </tr>
               ))}
