@@ -12,6 +12,6 @@ import java.util.List;
 public class SeatHoldResponse {
 
     private boolean success;
-    private List<SeatInfoDto> heldSeats;
-    private List<SeatInfoDto> failedSeats;
+    private List<ReservedSeatInfoDto> heldSeats;
+    private List<ReservedSeatInfoDto> failedSeats;
 }
