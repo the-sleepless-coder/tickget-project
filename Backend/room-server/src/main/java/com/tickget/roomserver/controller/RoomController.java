@@ -2,9 +2,14 @@ package com.tickget.roomserver.controller;
 
 import com.tickget.roomserver.dto.request.CreateRoomRequest;
 import com.tickget.roomserver.dto.response.CreateRoomResponse;
+import com.tickget.roomserver.dto.response.RoomResponse;
 import com.tickget.roomserver.service.RoomService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -26,8 +31,14 @@ public class RoomController {
 
     //방 목록 및 상태 조회
     @GetMapping
-    public ResponseEntity<?> getRooms(){
-        return ResponseEntity.ok().build();
+    public ResponseEntity<Slice<RoomResponse>> getRooms(
+            @PageableDefault(size = 12, sort = "createdAt", direction = Sort.Direction.DESC)
+            Pageable pageable){
+
+        Slice<RoomResponse> responses = roomService.getRooms(pageable);
+
+        return ResponseEntity.ok()
+                .body(responses);
     }
 
     // 특정 방 상세 정보 조회
