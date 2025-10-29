@@ -2,6 +2,7 @@ package com.tickget.roomserver.controller;
 
 import com.tickget.roomserver.dto.request.CreateRoomRequest;
 import com.tickget.roomserver.dto.response.CreateRoomResponse;
+import com.tickget.roomserver.dto.response.RoomDetailResponse;
 import com.tickget.roomserver.dto.response.RoomResponse;
 import com.tickget.roomserver.service.RoomService;
 import lombok.RequiredArgsConstructor;
@@ -44,8 +45,8 @@ public class RoomController {
 
     // 특정 방 상세 정보 조회
     @GetMapping("/{roomId}")
-    public ResponseEntity<RoomResponse> getRoom(@PathVariable("roomId") Long roomId){
-        RoomResponse response = roomService.getRoom(roomId);
+    public ResponseEntity<RoomDetailResponse> getRoom(@PathVariable("roomId") Long roomId){
+        RoomDetailResponse response = roomService.getRoom(roomId);
         return ResponseEntity.ok()
                 .body(response);
     }
