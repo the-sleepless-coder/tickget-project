@@ -23,7 +23,7 @@ public class CreateRoomResponse {
     private int botCount;
     private int maxBooking;
 
-    public static CreateRoomResponse of (Room room){
+    public static CreateRoomResponse from(Room room){
         return CreateRoomResponse.builder()
                 .roomId(room.getId())
                 .roomType(room.getRoomType())

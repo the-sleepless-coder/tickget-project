@@ -50,7 +50,7 @@ public class Room extends BaseTimeEntity{
     @Column(name = "thumbnail_url", length = 500)
     private String thumbnailUrl;
 
-    public static Room of (CreateRoomRequest createRoomRequest) {
+    public static Room from(CreateRoomRequest createRoomRequest) {
         return Room.builder()
                 .roomType(createRoomRequest.getRoomType())
                 .hallId(createRoomRequest.getHallId())
