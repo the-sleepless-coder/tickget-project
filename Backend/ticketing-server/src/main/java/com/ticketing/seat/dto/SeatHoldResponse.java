@@ -1,0 +1,17 @@
+package com.ticketing.seat.dto;
+
+import lombok.*;
+
+import java.util.List;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class SeatHoldResponse {
+
+    private boolean success;
+    private List<SeatInfoDto> heldSeats;
+    private List<SeatInfoDto> failedSeats;
+}
