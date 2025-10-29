@@ -66,20 +66,31 @@ export default function ITicketPage() {
         />
       )}
 
-      <div className="max-w-6xl mx-auto px-4 md:px-6">
+      <div className="productWrapper w-[1280px] mx-auto px-4 md:px-6">
         <TagsRow />
         <TitleSection />
 
-        <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <SeatThumbnail />
-          <ParticipantList participants={participants} capacity={capacity} />
-          <StartInfoCard
-            openText="티켓오픈"
-            openAt="2025.10.23 18:00"
-            remaining={formatted}
-            canReserve={secondsLeft === 0}
-            onReserve={openQueueWindow}
-          />
+        <div className="mt-6 flex flex-row gap-8">
+          <div className="summary w-[830px]">
+            <div className="flex items-start">
+              <PosterBox />
+              <div className="ml-[25px] my-0 mr-0 w-[400px]">
+                <ParticipantList
+                  participants={participants}
+                  capacity={capacity}
+                />
+              </div>
+            </div>
+          </div>
+          <aside className="productSide w-[370px]">
+            <StartInfoCard
+              openText="티켓오픈"
+              openAt="2025.10.23 18:00"
+              remaining={formatted}
+              canReserve={secondsLeft === 0}
+              onReserve={openQueueWindow}
+            />
+          </aside>
         </div>
       </div>
     </div>
@@ -171,36 +182,19 @@ function TitleSection() {
   );
 }
 
-function SeatThumbnail() {
+function PosterBox() {
   return (
-    <section className="bg-white rounded-xl p-4 flex flex-col items-center border border-neutral-200 shadow">
+    <div>
       <img
-        src="/temp-seats.jpg"
-        alt="좌석 썸네일"
-        className="w-full max-w-md rounded-md"
+        src="/performance-halls/olympic-hall.jpg"
+        alt="포스터 이미지"
+        className="posterBoxImage w-[300px] h-[400px] object-cover rounded-lg border border-neutral-200"
       />
-      <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-1 text-xs text-gray-600 w-full max-w-md">
-        <Legend color="#6b21a8" label="VIP석" />
-        <Legend color="#1d4ed8" label="R석" />
-        <Legend color="#10b981" label="S석" />
-        <Legend color="#f59e0b" label="A석" />
-        <Legend color="#9ca3af" label="휠체어석" />
-      </div>
-    </section>
+    </div>
   );
 }
 
-function Legend({ color, label }: { color: string; label: string }) {
-  return (
-    <span className="inline-flex items-center gap-2">
-      <span
-        className="inline-block w-3 h-3 rounded-sm"
-        style={{ backgroundColor: color }}
-      />
-      {label}
-    </span>
-  );
-}
+// removed SeatThumbnail and Legend in favor of PosterBox
 
 function ParticipantList({
   participants,
