@@ -18,7 +18,9 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 @Slf4j
 @RestController
@@ -56,8 +58,9 @@ public class RoomController {
 
     // 방생성
     @PostMapping
-    public ResponseEntity<CreateRoomResponse> createRoom(@RequestBody CreateRoomRequest createRoomRequest){
-        CreateRoomResponse response = roomService.createRoom(createRoomRequest);
+    public ResponseEntity<CreateRoomResponse> createRoom(@RequestBody CreateRoomRequest createRoomRequest,
+                                                         @RequestPart(value = "file", required = false) MultipartFile thumbnail){
+        CreateRoomResponse response = roomService.createRoom(createRoomRequest,thumbnail);
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(response);
@@ -71,13 +74,13 @@ public class RoomController {
 
     // 방 입장
     @PostMapping("/{roomId}/join")
-    public ResponseEntity<?> joinRoom(@PathVariable("roomId") String roomId){
+    public ResponseEntity<?> joinRoom(@PathVariable("roomId") Long roomId){
         return ResponseEntity.ok().build();
     }
 
     //방 퇴장 -> 방에 아무도 존재하지 않으면 삭제.
     @DeleteMapping("/{roomId}/exit")
-    public ResponseEntity<?> exitRoom(@PathVariable("roomId") String roomId){
+    public ResponseEntity<?> exitRoom(@PathVariable("roomId") Long roomId){
         return ResponseEntity.ok().build();
     }
 
