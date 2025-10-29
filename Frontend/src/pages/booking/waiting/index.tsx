@@ -9,6 +9,13 @@ export default function BookingWaitingPage() {
   );
   const [rank, setRank] = useState<number>(60);
   const totalQueue = 73;
+  const PROGRESS_STEPS = useMemo(
+    () => [80, 70, 60, 50, 40, 30, 20, 10] as const,
+    []
+  );
+  const [progress, setProgress] = useState<number>(PROGRESS_STEPS[0]);
+  const START_RANK = 11080;
+  const END_RANK = 955;
 
   useEffect(() => {
     const timer = setTimeout(() => setStage("queue"), 1200);
@@ -17,19 +24,26 @@ export default function BookingWaitingPage() {
 
   useEffect(() => {
     if (stage !== "queue") return;
-    setRank(60);
-    const interval = setInterval(() => {
-      setRank((prev) => (prev > 52 ? prev - 1 : prev));
-    }, 120);
-    const toCaptcha = setTimeout(() => {
-      clearInterval(interval);
-      setStage("captcha");
-    }, 2200);
+    setRank(START_RANK);
+    setProgress(PROGRESS_STEPS[0]);
+    // 예시: 진행도 80→70→...→10으로 감소
+    let stepIndex = 0;
+    const progressInterval = setInterval(() => {
+      stepIndex += 1;
+      if (stepIndex < PROGRESS_STEPS.length) {
+        setProgress(PROGRESS_STEPS[stepIndex]);
+        const t = stepIndex / (PROGRESS_STEPS.length - 1);
+        const nextRank = Math.round(START_RANK - (START_RANK - END_RANK) * t);
+        setRank(nextRank);
+      } else {
+        clearInterval(progressInterval);
+        setStage("captcha");
+      }
+    }, 350);
     return () => {
-      clearInterval(interval);
-      clearTimeout(toCaptcha);
+      clearInterval(progressInterval);
     };
-  }, [stage]);
+  }, [stage, PROGRESS_STEPS]);
 
   // 캡차 단계에서만 사용하지만 훅 호출 순서를 보장하기 위해 상단에서 선언
   const code = useMemo(() => generateCode(6), []);
@@ -58,19 +72,22 @@ export default function BookingWaitingPage() {
 
   // queue stage
   if (stage === "queue") {
-    const percent = Math.max(
-      0,
-      Math.min(100, ((totalQueue - rank) / totalQueue) * 100)
-    );
+    const percent = progress; // 남은 비율(%)
+    const widthPercent = Math.max(0, Math.min(100, 100 - percent)); // 좌→우로 증가
+    const isImminent = percent <= 20; // 진행도가 많이 줄어들면(20% 이하) 임박 상태
 
     return (
       <div className="min-h-screen bg-white">
         <div className="max-w-2xl mx-auto p-6">
           <h1 className="text-2xl font-bold text-gray-900">
-            접속 인원이 많아 대기 중입니다.
+            {isImminent
+              ? "곧 고객님의 순서가 다가옵니다."
+              : "접속 인원이 많아 대기 중입니다."}
           </h1>
-          <div className="mt-2 text-blue-600 font-semibold">
-            조금만 기다려주세요.
+          <div
+            className={`mt-2 font-semibold ${isImminent ? "text-red-600" : "text-blue-600"}`}
+          >
+            {isImminent ? "예매를 준비해주세요." : "조금만 기다려주세요."}
           </div>
 
           <div className="mt-6 text-gray-700">
@@ -84,8 +101,10 @@ export default function BookingWaitingPage() {
             <div className="mt-6">
               <div className="relative h-4 rounded-full bg-gray-100">
                 <div
-                  className="absolute left-0 top-0 h-4 rounded-full bg-blue-600"
-                  style={{ width: `${percent}%` }}
+                  className={`absolute left-0 top-0 h-4 rounded-full ${
+                    isImminent ? "bg-red-500" : "bg-blue-600"
+                  }`}
+                  style={{ width: `${widthPercent}%` }}
                 />
               </div>
               <div className="mt-2 text-sm text-gray-600 flex items-center justify-between">
@@ -93,16 +112,15 @@ export default function BookingWaitingPage() {
                 <span className="font-semibold">{totalQueue}명</span>
               </div>
             </div>
-
-            <ul className="mt-6 text-xs text-gray-500 list-disc pl-5 space-y-1">
-              <li>잠시만 기다려주시면, 예매하기 페이지로 연결됩니다.</li>
-              <li>
-                새로고침하거나 재접속 하시면 대기순서가 초기화되어 대기시간이 더
-                길어질 수 있습니다.
-              </li>
-            </ul>
           </div>
         </div>
+        <ul className="mt-6 text-xs text-gray-500 list-disc pl-5 space-y-1">
+          <li>잠시만 기다려주시면, 예매하기 페이지로 연결됩니다.</li>
+          <li>
+            새로고침하거나 재접속 하시면 대기순서가 초기화되어 대기시간이 더
+            길어질 수 있습니다.
+          </li>
+        </ul>
       </div>
     );
   }
