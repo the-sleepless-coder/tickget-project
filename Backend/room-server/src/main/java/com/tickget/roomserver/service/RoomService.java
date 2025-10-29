@@ -3,15 +3,18 @@ package com.tickget.roomserver.service;
 import com.tickget.roomserver.domain.entity.PresetHall;
 import com.tickget.roomserver.domain.entity.Room;
 import com.tickget.roomserver.domain.enums.RoomStatus;
+import com.tickget.roomserver.domain.enums.ThumbnailType;
 import com.tickget.roomserver.domain.repository.PresetHallRepository;
 import com.tickget.roomserver.domain.repository.RoomRepository;
 import com.tickget.roomserver.dto.request.CreateRoomRequest;
 import com.tickget.roomserver.dto.response.CreateRoomResponse;
 import com.tickget.roomserver.dto.response.MatchResponse;
+import com.tickget.roomserver.dto.response.RoomDetailResponse;
 import com.tickget.roomserver.dto.response.RoomResponse;
 import com.tickget.roomserver.exception.PresetHallNotFoundException;
 
 import com.tickget.roomserver.exception.RoomNotFoundException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -21,6 +24,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 @Slf4j
 @Service
@@ -28,19 +32,28 @@ import org.springframework.transaction.annotation.Transactional;
 public class RoomService {
 
     private final RoomRepository roomRepository;
+    private final MinioService minioService;
     private final PresetHallRepository  presetHallRepository;
 
     @Transactional
-    public CreateRoomResponse createRoom(CreateRoomRequest createRoomRequest) {
+    public CreateRoomResponse createRoom(CreateRoomRequest createRoomRequest, MultipartFile thumbnail) {
+        //TODO: AI 생성 맵 추가 시 분기점 구현
         PresetHall presetHall = presetHallRepository.findById(createRoomRequest.getHallId()).orElseThrow(
                 () -> new PresetHallNotFoundException(createRoomRequest.getHallId())
         );
-        Room room = Room.of(createRoomRequest,presetHall);
+        String thumbnailValue = createRoomRequest.getThumbnailValue();
+        if (createRoomRequest.getThumbnailType() == ThumbnailType.UPLOADED) {
+            thumbnailValue = minioService.uploadFile(thumbnail);
+        }
+
+        Room room = Room.of(createRoomRequest,presetHall,thumbnailValue);
+        room = roomRepository.save(room); // 알아서 id값 반영되지만 명시
         //TODO: 매치 생성 요청
 
-        room = roomRepository.save(room); // 알아서 id값 반영되지만 명시
+
         return CreateRoomResponse.from(room);
     }
+
 
     @Transactional(readOnly = true)
     public Slice<RoomResponse> getRooms(Pageable pageable) {
@@ -70,7 +83,7 @@ public class RoomService {
                         ));
     }
 
-    public RoomResponse getRoom(Long roomId) {
+    public RoomDetailResponse getRoom(Long roomId) {
         Room room = roomRepository.findById(roomId).orElseThrow(
                 () -> new RoomNotFoundException(roomId)
         );
@@ -78,7 +91,8 @@ public class RoomService {
         //TODO: 로직 구현 시 대체
         MatchResponse matchResponse = null;
         int currentUserCount = 1;
+        List<String> userNames = new ArrayList<>();
 
-        return RoomResponse.of(room, matchResponse, currentUserCount);
+        return RoomDetailResponse.of(room, matchResponse, currentUserCount,userNames);
     }
 }

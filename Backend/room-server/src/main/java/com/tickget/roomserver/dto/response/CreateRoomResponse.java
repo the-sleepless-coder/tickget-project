@@ -4,6 +4,7 @@ package com.tickget.roomserver.dto.response;
 import com.tickget.roomserver.domain.entity.Room;
 import com.tickget.roomserver.domain.enums.HallSize;
 import com.tickget.roomserver.domain.enums.RoomType;
+import com.tickget.roomserver.domain.enums.ThumbnailType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -22,6 +23,8 @@ public class CreateRoomResponse {
     private int totalSeat;
     private int botCount;
     private int maxBooking;
+    private ThumbnailType thumbnailType;
+    private String thumbnailValue;
 
     public static CreateRoomResponse from(Room room){
         return CreateRoomResponse.builder()
@@ -32,6 +35,8 @@ public class CreateRoomResponse {
                 .totalSeat(room.getTotalSeat())
                 .botCount(room.getBotCount())
                 .maxBooking(room.getMaxBooking())
+                .thumbnailType(room.getThumbnailType())
+                .thumbnailValue(room.getThumbnailValue())
                 .build();
     }
 
