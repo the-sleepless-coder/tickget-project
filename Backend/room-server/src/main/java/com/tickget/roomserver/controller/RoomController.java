@@ -14,7 +14,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -64,11 +63,11 @@ public class RoomController {
                 .body(response);
     }
 
-    // 방 세팅 변경
-    @PatchMapping("/{roomId}/settings")
-    public ResponseEntity<?> changeRoomSetting(@PathVariable("roomId") String roomId){
-        return ResponseEntity.ok().build();
-    }
+    // 방 세팅 변경 -> 매치 서버에서 변경하면 됨. 불필요.
+//    @PatchMapping("/{roomId}/settings")
+//    public ResponseEntity<?> changeRoomSetting(@PathVariable("roomId") String roomId){
+//        return ResponseEntity.ok().build();
+//    }
 
     // 방 입장
     @PostMapping("/{roomId}/join")
