@@ -57,7 +57,7 @@ public class Room extends BaseTimeEntity{
                 .hallType(createRoomRequest.getHallType())
                 .botCount(createRoomRequest.getBotCount())
                 .totalSeat(createRoomRequest.getTotalSeat())
-                .status(RoomStatus.READY)
+                .status(RoomStatus.WAITING)
                 .thumbnailUrl("") //TODO: 썸네일 관련 로직은 얘기해보고 추가 구현
                 .build();
     }
