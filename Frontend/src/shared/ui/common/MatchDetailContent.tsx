@@ -26,12 +26,14 @@ interface MatchDetailContentProps {
   users: UserRank[];
   date?: string;
   time?: string;
+  onUserClick?: (user: UserRank) => void;
 }
 
 export default function MatchDetailContent({
   mySeatArea,
   mySeatSection,
   users,
+  onUserClick,
 }: MatchDetailContentProps) {
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
   const [hoveredUserId, setHoveredUserId] = useState<number | null>(null);
@@ -275,11 +277,26 @@ export default function MatchDetailContent({
                   key={user.id}
                   onMouseEnter={() => setHoveredUserId(user.id)}
                   onMouseLeave={() => setHoveredUserId(null)}
-                  onClick={() =>
-                    setSelectedUserId((prev) =>
-                      prev === user.id ? null : user.id
-                    )
-                  }
+                  onClick={(e) => {
+                    // 더블클릭 또는 컨텍스트 메뉴(우클릭)로 유저 전체 통계 보기
+                    if (e.detail === 2 || e.type === "contextmenu") {
+                      e.preventDefault();
+                      if (onUserClick) {
+                        onUserClick(user);
+                      }
+                    } else {
+                      // 싱글클릭은 기존 동작 (상세 정보)
+                      setSelectedUserId((prev) =>
+                        prev === user.id ? null : user.id
+                      );
+                    }
+                  }}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    if (onUserClick) {
+                      onUserClick(user);
+                    }
+                  }}
                   className={`flex cursor-pointer items-center rounded-lg border p-3 transition-colors ${
                     selectedUserId === user.id
                       ? "border-purple-500 bg-purple-50"

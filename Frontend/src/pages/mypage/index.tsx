@@ -100,6 +100,25 @@ export default function MyPageIndex() {
 
   return (
     <div className="min-h-screen bg-neutral-50">
+      {selectedUser && activePrimaryTab !== "stats" && (
+        <div className="bg-blue-50 border-b border-blue-200 px-6 py-3">
+          <div className="mx-auto max-w-6xl flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => {
+                  setActivePrimaryTab("stats");
+                  setSelectedUser(null);
+                  setSearchQuery("");
+                }}
+                className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+              >
+                ← {selectedUser.nickname}님의 통계 보기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Profile Banner */}
       <ProfileBanner
         nickname={nickname}
@@ -202,7 +221,29 @@ export default function MyPageIndex() {
 
           {/* Content Area */}
           <div className="space-y-4 px-6 pb-6">
-            {activePrimaryTab === "match-history" ? (
+            {activePrimaryTab === "match-history" && selectedUser ? (
+              <>
+                <div className="mb-4 flex items-center justify-between">
+                  <h3 className="text-lg font-bold text-neutral-900">
+                    {selectedUser.nickname}님의 통계
+                  </h3>
+                  <button
+                    onClick={() => {
+                      setSelectedUser(null);
+                      setSearchQuery("");
+                    }}
+                    className="rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50"
+                  >
+                    돌아가기
+                  </button>
+                </div>
+                <UserStats
+                  userId={selectedUser.id}
+                  userNickname={selectedUser.nickname}
+                  matchHistory={mockMatchHistory}
+                />
+              </>
+            ) : activePrimaryTab === "match-history" ? (
               <>
                 {visibleItems.map((match: MatchHistory, index: number) => (
                   <div
@@ -228,6 +269,7 @@ export default function MyPageIndex() {
                           expandedCardIndex === index ? null : index
                         )
                       }
+                      onUserClick={(user) => setSelectedUser(user)}
                     />
                   </div>
                 ))}
