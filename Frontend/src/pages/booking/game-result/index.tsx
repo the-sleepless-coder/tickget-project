@@ -1,26 +1,23 @@
 import Viewport from "../_components/Viewport";
 import { Link, useSearchParams } from "react-router-dom";
+import {
+  readMetricsWithFallback,
+  formatSecondsHuman,
+} from "../../../shared/utils/reserveMetrics";
 import { paths } from "../../../app/routes/paths";
 
 export default function BookingGameResultPage() {
   const [searchParams] = useSearchParams();
-  const rtSec = Number(searchParams.get("rtSec") ?? 0);
-  const nrClicks = Number(searchParams.get("nrClicks") ?? 0);
-  const captchaSec = Number(
-    searchParams.get("captchaSec") ??
-      sessionStorage.getItem("reserve.captchaDurationSec") ??
-      0
-  );
-  const capBackspaces = Number(searchParams.get("capBackspaces") ?? 0);
-  const capWrong = Number(searchParams.get("capWrong") ?? 0);
-  const capToCompleteSec = Number(searchParams.get("capToCompleteSec") ?? 0);
-  const totalSec = rtSec + captchaSec + capToCompleteSec;
-
-  function fmtTime(sec: number) {
-    const m = Math.floor(sec / 60);
-    const s = sec % 60;
-    return m > 0 ? `${m}분 ${s.toFixed(2)} 초` : `${s.toFixed(2)} 초`;
-  }
+  const {
+    rtSec,
+    nrClicks,
+    captchaSec,
+    capBackspaces,
+    capWrong,
+    capToCompleteSec,
+  } = readMetricsWithFallback(searchParams);
+  const totalSec = rtSec + captchaSec + (capToCompleteSec ?? 0);
+  const fmtTime = formatSecondsHuman;
   return (
     <Viewport>
       <div className="mx-auto max-w-[960px] p-4">

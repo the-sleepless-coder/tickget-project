@@ -1,5 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import {
+  readMetricsWithFallback,
+  formatSecondsHuman,
+} from "../../shared/utils/reserveMetrics";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import AdsClickIcon from "@mui/icons-material/AdsClick";
 import CloseIcon from "@mui/icons-material/Close";
@@ -14,52 +18,21 @@ export default function GameResultPage() {
   const [searchParams] = useSearchParams();
   const [showBanner, setShowBanner] = useState(true);
 
-  const rtSec = useMemo(() => {
-    const v =
-      searchParams.get("rtSec") ?? sessionStorage.getItem("reserve.rtSec");
-    return v ? Number(v) : 0;
-  }, [searchParams]);
-  const nrClicks = useMemo(() => {
-    const v =
-      searchParams.get("nrClicks") ??
-      sessionStorage.getItem("reserve.nrClicks");
-    return v ? Number(v) : 0;
-  }, [searchParams]);
-  const capToCompleteSec = useMemo(() => {
-    const v =
-      searchParams.get("capToCompleteSec") ??
-      sessionStorage.getItem("reserve.capToCompleteSec");
-    return v ? Number(v) : null;
-  }, [searchParams]);
-  const capBackspaces = useMemo(() => {
-    const v =
-      searchParams.get("capBackspaces") ??
-      sessionStorage.getItem("reserve.capBackspaces");
-    return v ? Number(v) : null;
-  }, [searchParams]);
-  const capWrong = useMemo(() => {
-    const v =
-      searchParams.get("capWrong") ??
-      sessionStorage.getItem("reserve.capWrong");
-    return v ? Number(v) : null;
-  }, [searchParams]);
-  const captchaSec = useMemo(() => {
-    const v =
-      searchParams.get("captchaSec") ??
-      sessionStorage.getItem("reserve.captchaDurationSec");
-    return v ? Number(v) : 0;
-  }, [searchParams]);
+  const {
+    rtSec,
+    nrClicks,
+    captchaSec,
+    capToCompleteSec,
+    capBackspaces,
+    capWrong,
+  } = useMemo(() => readMetricsWithFallback(searchParams), [searchParams]);
 
   const totalSec = useMemo(() => {
     const seatSec = capToCompleteSec ?? 0;
     return rtSec + captchaSec + seatSec;
   }, [rtSec, captchaSec, capToCompleteSec]);
 
-  function fmt(sec: number): string {
-    const m = Math.floor(sec / 60);
-    const s = sec % 60;
-    return m > 0 ? `${m}분 ${s.toFixed(2)} 초` : `${s.toFixed(2)} 초`;
-  }
+  const fmt = formatSecondsHuman;
 
   useEffect(() => {
     // 2분 뒤 자동 이동 → rooms

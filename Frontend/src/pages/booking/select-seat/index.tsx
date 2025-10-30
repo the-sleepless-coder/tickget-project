@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { paths } from "../../../app/routes/paths";
+import {
+  saveInitialReaction,
+  setCaptchaEndNow,
+  getCaptchaEndMs,
+  recordSeatCompleteNow,
+} from "../../../shared/utils/reserveMetrics";
 import Viewport from "../_components/Viewport";
 import CaptchaModal from "../_components/CaptchaModal";
 
@@ -77,20 +83,12 @@ export default function SelectSeatPage() {
   const complete = () => {
     const now = Date.now();
     setSeatCompleteAtMs(now);
-    const storedCaptchaEnd = sessionStorage.getItem("reserve.captchaEndAtMs");
-    const captchaEnd = storedCaptchaEnd
-      ? Number(storedCaptchaEnd)
-      : captchaEndAtMs;
-    const durationSec = captchaEnd
-      ? Math.max(0, Math.round((now - captchaEnd) / 1000))
-      : null;
+    const durationSec = recordSeatCompleteNow();
     console.log("[ReserveTiming] Seat complete", {
       durationFromCaptchaSec: durationSec,
       captchaBackspaces,
       captchaWrongAttempts,
     });
-    if (durationSec != null)
-      sessionStorage.setItem("reserve.capToCompleteSec", String(durationSec));
     sessionStorage.setItem("reserve.capBackspaces", String(captchaBackspaces));
     sessionStorage.setItem("reserve.capWrong", String(captchaWrongAttempts));
     const nextUrl = new URL(window.location.origin + paths.booking.price);
@@ -117,11 +115,10 @@ export default function SelectSeatPage() {
       reactionSec: rtSec ? Number(rtSec) : null,
       nonReserveClickCount: nrClicks ? Number(nrClicks) : null,
     });
-    if (rtSec) sessionStorage.setItem("reserve.rtSec", rtSec);
-    if (nrClicks) sessionStorage.setItem("reserve.nrClicks", nrClicks);
+    saveInitialReaction(rtSec, nrClicks);
     // load persisted captcha end timestamp if exists
-    const storedCaptchaEnd = sessionStorage.getItem("reserve.captchaEndAtMs");
-    if (storedCaptchaEnd) setCaptchaEndAtMs(Number(storedCaptchaEnd));
+    const end = getCaptchaEndMs();
+    if (end != null) setCaptchaEndAtMs(end);
   }, [searchParams]);
 
   return (
@@ -133,10 +130,8 @@ export default function SelectSeatPage() {
           setCaptchaSec(sec);
           setCaptchaBackspaces(backspaceCount);
           setCaptchaWrongAttempts(wrongAttempts);
-          const endMs = Date.now();
+          const endMs = setCaptchaEndNow(sec, backspaceCount, wrongAttempts);
           setCaptchaEndAtMs(endMs);
-          sessionStorage.setItem("reserve.captchaEndAtMs", String(endMs));
-          sessionStorage.setItem("reserve.captchaDurationSec", String(sec));
           console.log("[ReserveTiming] Captcha verified", {
             captchaSec: sec,
             backspaceCount,
