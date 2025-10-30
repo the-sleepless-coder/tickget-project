@@ -16,24 +16,16 @@ type Props = {
   onReselect: () => void;
 };
 
-function generateCode(len: number) {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let out = "";
-  for (let i = 0; i < len; i++)
-    out += chars[Math.floor(Math.random() * chars.length)];
-  return out;
-}
-
 export default function CaptchaModal({ open, onVerify, onReselect }: Props) {
   const [seed, setSeed] = useState<number>(0);
-  const [code, setCode] = useState<string>(() => generateCode(6));
   const [input, setInput] = useState<string>("");
   const [error, setError] = useState<string>("");
   const [isFocused, setIsFocused] = useState<boolean>(false);
+  const [startMs, setStartMs] = useState<number | null>(null);
+  const [backspaceCount, setBackspaceCount] = useState<number>(0);
+  const [wrongAttempts, setWrongAttempts] = useState<number>(0);
 
-  useEffect(() => {
-    setCode(generateCode(6));
-  }, [seed]);
+  // bump seed to refresh image when needed
 
   // mark start time when modal opens
   useEffect(() => {
@@ -43,7 +35,7 @@ export default function CaptchaModal({ open, onVerify, onReselect }: Props) {
       );
       setInput("");
       setError("");
-      setSeed((s) => s + 1); // refresh code on each open
+      setSeed((s) => s + 1); // refresh image on each open
       setBackspaceCount(0);
       setWrongAttempts(0);
     }
@@ -53,7 +45,7 @@ export default function CaptchaModal({ open, onVerify, onReselect }: Props) {
 
   const submit = (e?: React.FormEvent) => {
     e?.preventDefault();
-    if (input.trim().toUpperCase() === code) {
+    if (input.trim().length > 0) {
       const endMs =
         typeof performance !== "undefined" ? performance.now() : Date.now();
       const duration = startMs != null ? Math.max(0, endMs - startMs) : 0;
@@ -62,6 +54,7 @@ export default function CaptchaModal({ open, onVerify, onReselect }: Props) {
       setError("입력한 문자를 다시 확인해주세요");
       setInput("");
       setIsFocused(false);
+      setWrongAttempts((w) => w + 1);
     }
   };
 
@@ -90,7 +83,7 @@ export default function CaptchaModal({ open, onVerify, onReselect }: Props) {
             <div className="mt-4">
               <div className="relative w-[280px] h-[120px] mx-auto border-2 border-gray-300 bg-gray-100 p-3 flex items-center justify-center">
                 <img
-                  src="/tempcaptcha.jpg"
+                  src={`/tempcaptcha.jpg?${seed}`}
                   alt="보안문자"
                   className="block mx-auto w-[210px] h-auto select-none"
                 />
@@ -124,6 +117,10 @@ export default function CaptchaModal({ open, onVerify, onReselect }: Props) {
                     onChange={(e) => setInput(e.target.value)}
                     onFocus={() => setIsFocused(true)}
                     onBlur={() => setIsFocused(false)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Backspace")
+                        setBackspaceCount((c) => c + 1);
+                    }}
                     className={`absolute inset-0 w-full h-full px-3 outline-none bg-transparent rounded-none ${
                       isFocused || input ? "pt-3" : ""
                     }`}
