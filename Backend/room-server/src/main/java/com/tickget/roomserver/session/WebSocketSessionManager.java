@@ -181,6 +181,10 @@ public class WebSocketSessionManager {
     //방의 모든 유저 조회 id:name 꼴
     public Map<Long,String> getUsersInRoom(Long roomId) {
         Set<Long> users = roomUsers.get(roomId);
+        if (users == null) {
+            roomUsers.put(roomId, ConcurrentHashMap.newKeySet());
+            users = roomUsers.get(roomId);
+        }
         HashMap<Long,String> usersInRoom = new HashMap<>();
 
         for (Long userId : users) {
