@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import ConfirmationNumberOutlinedIcon from "@mui/icons-material/ConfirmationNumberOutlined";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { paths } from "../../../app/routes/paths";
 
 export default function BookingWaitingPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [stage, setStage] = useState<"loading" | "queue" | "captcha">(
     "loading"
   );
@@ -45,6 +46,16 @@ export default function BookingWaitingPage() {
       clearInterval(progressInterval);
     };
   }, [stage, PROGRESS_STEPS]);
+
+  useEffect(() => {
+    if (stage !== "captcha") return;
+    const rtSec = searchParams.get("rtSec");
+    const nrClicks = searchParams.get("nrClicks");
+    console.log("[ReserveTiming] Arrived at captcha stage", {
+      reactionSec: rtSec ? Number(rtSec) : null,
+      nonReserveClickCount: nrClicks ? Number(nrClicks) : null,
+    });
+  }, [stage, searchParams]);
 
   // 캡차 단계에서만 사용하지만 훅 호출 순서를 보장하기 위해 상단에서 선언
   const code = useMemo(() => generateCode(6), []);
