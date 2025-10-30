@@ -84,7 +84,26 @@ export default function BookingCompletePage() {
         <aside className="flex flex-col justify-end">
           <button
             onClick={() => {
-              const target = paths.gameResult;
+              const base = paths.gameResult;
+              const rtSec = sessionStorage.getItem("reserve.rtSec") ?? "0";
+              const nrClicks =
+                sessionStorage.getItem("reserve.nrClicks") ?? "0";
+              const captchaSec =
+                sessionStorage.getItem("reserve.captchaDurationSec") ?? "0";
+              const capToCompleteSec =
+                sessionStorage.getItem("reserve.capToCompleteSec") ?? "0";
+              const capBackspaces =
+                sessionStorage.getItem("reserve.capBackspaces") ?? "0";
+              const capWrong =
+                sessionStorage.getItem("reserve.capWrong") ?? "0";
+              const url = new URL(window.location.origin + base);
+              url.searchParams.set("rtSec", rtSec);
+              url.searchParams.set("nrClicks", nrClicks);
+              url.searchParams.set("captchaSec", captchaSec);
+              url.searchParams.set("capToCompleteSec", capToCompleteSec);
+              url.searchParams.set("capBackspaces", capBackspaces);
+              url.searchParams.set("capWrong", capWrong);
+              const target = url.pathname + url.search;
               try {
                 if (window.opener && !window.opener.closed) {
                   window.opener.location.href = target;

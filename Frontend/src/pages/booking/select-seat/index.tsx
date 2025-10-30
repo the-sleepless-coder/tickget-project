@@ -46,6 +46,8 @@ export default function SelectSeatPage() {
   const [captchaSec, setCaptchaSec] = useState<number | null>(null);
   const [captchaBackspaces, setCaptchaBackspaces] = useState<number>(0);
   const [captchaWrongAttempts, setCaptchaWrongAttempts] = useState<number>(0);
+  const [captchaEndAtMs, setCaptchaEndAtMs] = useState<number | null>(null);
+  const [seatCompleteAtMs, setSeatCompleteAtMs] = useState<number | null>(null);
 
   const totalPrice = useMemo(
     () => selected.reduce((sum, s) => sum + s.price, 0),
@@ -68,7 +70,41 @@ export default function SelectSeatPage() {
 
   const clearSelection = () => setSelected([]);
   const goPrev = () => navigate(paths.booking.selectSchedule);
-  const complete = () => navigate(paths.booking.price);
+  const complete = () => {
+    const now = Date.now();
+    setSeatCompleteAtMs(now);
+    const storedCaptchaEnd = sessionStorage.getItem("reserve.captchaEndAtMs");
+    const captchaEnd = storedCaptchaEnd
+      ? Number(storedCaptchaEnd)
+      : captchaEndAtMs;
+    const durationSec = captchaEnd
+      ? Math.max(0, Math.round((now - captchaEnd) / 1000))
+      : null;
+    console.log("[ReserveTiming] Seat complete", {
+      durationFromCaptchaSec: durationSec,
+      captchaBackspaces,
+      captchaWrongAttempts,
+    });
+    if (durationSec != null)
+      sessionStorage.setItem("reserve.capToCompleteSec", String(durationSec));
+    sessionStorage.setItem("reserve.capBackspaces", String(captchaBackspaces));
+    sessionStorage.setItem("reserve.capWrong", String(captchaWrongAttempts));
+    const nextUrl = new URL(window.location.origin + paths.booking.price);
+    if (durationSec != null)
+      nextUrl.searchParams.set("capToCompleteSec", String(durationSec));
+    nextUrl.searchParams.set("capBackspaces", String(captchaBackspaces));
+    nextUrl.searchParams.set("capWrong", String(captchaWrongAttempts));
+    const rt =
+      searchParams.get("rtSec") ?? sessionStorage.getItem("reserve.rtSec");
+    const nrc =
+      searchParams.get("nrClicks") ??
+      sessionStorage.getItem("reserve.nrClicks");
+    if (rt) nextUrl.searchParams.set("rtSec", rt);
+    if (nrc) nextUrl.searchParams.set("nrClicks", nrc);
+    const cap = sessionStorage.getItem("reserve.captchaDurationSec");
+    if (cap) nextUrl.searchParams.set("captchaSec", cap);
+    navigate(nextUrl.pathname + nextUrl.search);
+  };
 
   useEffect(() => {
     const rtSec = searchParams.get("rtSec");
@@ -77,6 +113,11 @@ export default function SelectSeatPage() {
       reactionSec: rtSec ? Number(rtSec) : null,
       nonReserveClickCount: nrClicks ? Number(nrClicks) : null,
     });
+    if (rtSec) sessionStorage.setItem("reserve.rtSec", rtSec);
+    if (nrClicks) sessionStorage.setItem("reserve.nrClicks", nrClicks);
+    // load persisted captcha end timestamp if exists
+    const storedCaptchaEnd = sessionStorage.getItem("reserve.captchaEndAtMs");
+    if (storedCaptchaEnd) setCaptchaEndAtMs(Number(storedCaptchaEnd));
   }, [searchParams]);
 
   return (
@@ -88,6 +129,10 @@ export default function SelectSeatPage() {
           setCaptchaSec(sec);
           setCaptchaBackspaces(backspaceCount);
           setCaptchaWrongAttempts(wrongAttempts);
+          const endMs = Date.now();
+          setCaptchaEndAtMs(endMs);
+          sessionStorage.setItem("reserve.captchaEndAtMs", String(endMs));
+          sessionStorage.setItem("reserve.captchaDurationSec", String(sec));
           console.log("[ReserveTiming] Captcha verified", {
             captchaSec: sec,
             backspaceCount,

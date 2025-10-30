@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import AdsClickIcon from "@mui/icons-material/AdsClick";
 import CloseIcon from "@mui/icons-material/Close";
@@ -11,7 +11,55 @@ import { paths } from "../../app/routes/paths";
 
 export default function GameResultPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [showBanner, setShowBanner] = useState(true);
+
+  const rtSec = useMemo(() => {
+    const v =
+      searchParams.get("rtSec") ?? sessionStorage.getItem("reserve.rtSec");
+    return v ? Number(v) : 0;
+  }, [searchParams]);
+  const nrClicks = useMemo(() => {
+    const v =
+      searchParams.get("nrClicks") ??
+      sessionStorage.getItem("reserve.nrClicks");
+    return v ? Number(v) : 0;
+  }, [searchParams]);
+  const capToCompleteSec = useMemo(() => {
+    const v =
+      searchParams.get("capToCompleteSec") ??
+      sessionStorage.getItem("reserve.capToCompleteSec");
+    return v ? Number(v) : null;
+  }, [searchParams]);
+  const capBackspaces = useMemo(() => {
+    const v =
+      searchParams.get("capBackspaces") ??
+      sessionStorage.getItem("reserve.capBackspaces");
+    return v ? Number(v) : null;
+  }, [searchParams]);
+  const capWrong = useMemo(() => {
+    const v =
+      searchParams.get("capWrong") ??
+      sessionStorage.getItem("reserve.capWrong");
+    return v ? Number(v) : null;
+  }, [searchParams]);
+  const captchaSec = useMemo(() => {
+    const v =
+      searchParams.get("captchaSec") ??
+      sessionStorage.getItem("reserve.captchaDurationSec");
+    return v ? Number(v) : 0;
+  }, [searchParams]);
+
+  const totalSec = useMemo(() => {
+    const seatSec = capToCompleteSec ?? 0;
+    return rtSec + captchaSec + seatSec;
+  }, [rtSec, captchaSec, capToCompleteSec]);
+
+  function fmt(sec: number): string {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return m > 0 ? `${m}분 ${s.toFixed(2)} 초` : `${s.toFixed(2)} 초`;
+  }
 
   useEffect(() => {
     // 2분 뒤 자동 이동
@@ -47,7 +95,7 @@ export default function GameResultPage() {
           4등
         </div>
         <div className="rounded-lg bg-[#6e8ee3] text-white text-center py-4 text-3xl font-extrabold">
-          1분 28.78 초
+          {fmt(totalSec)}
         </div>
       </div>
 
@@ -58,14 +106,14 @@ export default function GameResultPage() {
           items={[
             {
               label: "반응 속도",
-              value: "00:02.56",
+              value: `${rtSec.toFixed(2)} 초`,
               icon: (
                 <AccessTimeIcon fontSize="small" className="text-gray-500" />
               ),
             },
             {
               label: "클릭 실수",
-              value: "3회",
+              value: `${nrClicks}회`,
               icon: <AdsClickIcon fontSize="small" className="text-gray-500" />,
             },
           ]}
@@ -75,14 +123,19 @@ export default function GameResultPage() {
           items={[
             {
               label: "소요 시간",
-              value: "00:23.01",
+              value: `${captchaSec.toFixed(2)} 초`,
               icon: (
                 <AccessTimeIcon fontSize="small" className="text-gray-500" />
               ),
             },
             {
+              label: "백스페이스",
+              value: `${capBackspaces ?? 0}회`,
+              icon: <CloseIcon fontSize="small" className="text-gray-500" />,
+            },
+            {
               label: "틀린 횟수",
-              value: "3회",
+              value: `${capWrong ?? 0}회`,
               icon: <CloseIcon fontSize="small" className="text-gray-500" />,
             },
           ]}
@@ -92,7 +145,7 @@ export default function GameResultPage() {
           items={[
             {
               label: "소요 시간",
-              value: "01:03.21",
+              value: `${(capToCompleteSec ?? 0).toFixed(2)} 초`,
               icon: (
                 <AccessTimeIcon fontSize="small" className="text-gray-500" />
               ),
