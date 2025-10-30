@@ -16,6 +16,11 @@ const BANNER_HIDE_KEY = "iticket.topBannerHideUntil";
 export default function ITicketPage() {
   const [secondsLeft, setSecondsLeft] = useState<number>(3);
   const [showBanner, setShowBanner] = useState<boolean>(true);
+  const [reserveAppearedAt, setReserveAppearedAt] = useState<number | null>(
+    null
+  );
+  const [nonReserveClickCount, setNonReserveClickCount] = useState<number>(0);
+  const [isTrackingClicks, setIsTrackingClicks] = useState<boolean>(false);
 
   const participants: Participant[] = Array.from({ length: 18 }, (_, i) => ({
     name: "닉네임123",
@@ -38,10 +43,58 @@ export default function ITicketPage() {
     return () => clearInterval(id);
   }, []);
 
+  useEffect(() => {
+    if (secondsLeft === 0 && reserveAppearedAt === null) {
+      const appearedTs = Date.now();
+      setReserveAppearedAt(appearedTs);
+      setNonReserveClickCount(0);
+      setIsTrackingClicks(true);
+      // Log: the moment the reserve button becomes available
+      console.log("[ReserveTiming] Button appeared", {
+        appearedAt: new Date(appearedTs).toISOString(),
+      });
+    }
+  }, [secondsLeft, reserveAppearedAt]);
+
+  useEffect(() => {
+    if (!isTrackingClicks) return;
+    const onDocClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      const isReserveButton = Boolean(target.closest("[data-reserve-button]"));
+      if (!isReserveButton) {
+        setNonReserveClickCount((prev) => {
+          const next = prev + 1;
+          console.log("[ReserveTiming] Non-reserve click", { count: next });
+          return next;
+        });
+      }
+    };
+    document.addEventListener("click", onDocClick);
+    return () => document.removeEventListener("click", onDocClick);
+  }, [isTrackingClicks]);
+
   const formatted =
     secondsLeft < 10 ? `00:0${secondsLeft}` : `00:${secondsLeft}`;
 
   const openQueueWindow = () => {
+    if (reserveAppearedAt) {
+      const clickedTs = Date.now();
+      const reactionMs = clickedTs - reserveAppearedAt;
+      // Log: reaction time between appearance and click
+      console.log("[ReserveTiming] Reaction time until click", {
+        reactionMs,
+        reactionSec: (reactionMs / 1000).toFixed(3),
+        appearedAt: new Date(reserveAppearedAt).toISOString(),
+        clickedAt: new Date(clickedTs).toISOString(),
+        nonReserveClickCount,
+      });
+      setIsTrackingClicks(false);
+    } else {
+      console.log(
+        "[ReserveTiming] Click without appearance timestamp (possibly test click)"
+      );
+    }
     const url =
       (paths as { booking: { waiting: string } })?.booking?.waiting ??
       "/booking/waiting";
@@ -494,6 +547,7 @@ function BookingCalendarCard({ onBook }: { onBook: () => void }) {
       <div className="mt-4 flex flex-col gap-3">
         <button
           type="button"
+          data-reserve-button
           onClick={onBook}
           className="w-full py-4 rounded-xl bg-indigo-600 text-white font-extrabold hover:bg-indigo-700"
         >
