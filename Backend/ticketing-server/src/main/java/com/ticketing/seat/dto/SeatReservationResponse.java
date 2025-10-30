@@ -9,7 +9,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class SeatHoldResponse {
+public class SeatReservationResponse {
 
     private boolean success;
     private List<ReservedSeatInfoDto> heldSeats;
