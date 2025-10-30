@@ -13,9 +13,11 @@ import com.tickget.roomserver.dto.response.JoinRoomResponse;
 import com.tickget.roomserver.dto.response.MatchResponse;
 import com.tickget.roomserver.dto.response.RoomDetailResponse;
 import com.tickget.roomserver.dto.response.RoomResponse;
+import com.tickget.roomserver.event.UserJoinedRoomEvent;
 import com.tickget.roomserver.exception.PresetHallNotFoundException;
 
 import com.tickget.roomserver.exception.RoomNotFoundException;
+import com.tickget.roomserver.kafaka.RoomEventProducer;
 import com.tickget.roomserver.session.WebSocketSessionManager;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -35,9 +37,10 @@ import org.springframework.web.multipart.MultipartFile;
 public class RoomService {
 
     private final RoomRepository roomRepository;
-    private final MinioService minioService;
     private final PresetHallRepository  presetHallRepository;
+    private final MinioService minioService;
     private final WebSocketSessionManager sessionManager;
+    private final RoomEventProducer roomEventProducer;
 
     @Transactional
     public CreateRoomResponse createRoom(CreateRoomRequest createRoomRequest, MultipartFile thumbnail) {
@@ -101,7 +104,7 @@ public class RoomService {
         return RoomDetailResponse.of(room, matchResponse, currentUserCount,userNames);
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     public JoinRoomResponse joinRoom(JoinRoomRequest joinRoomRequest, Long roomId) {
         Long userId = joinRoomRequest.getUserId();
         String userName = joinRoomRequest.getUserName();
@@ -110,6 +113,7 @@ public class RoomService {
                 () -> new RoomNotFoundException(roomId));
 
         RoomStatus roomStatus = room.getStatus();
+
         if (roomStatus == RoomStatus.PLAYING) {
             throw new IllegalArgumentException("게임이 진행중이여서 입장할 수 없는 방입니다");
         }
@@ -125,7 +129,11 @@ public class RoomService {
         int currentUserCount = users.size();
         log.debug("사용자  {}(id:{})(이)가 방 {}에 입장 - 현재 인원: {}",userName, userId, roomId, currentUserCount);
 
+        UserJoinedRoomEvent event = UserJoinedRoomEvent.of(userId, roomId, currentUserCount);
+        roomEventProducer.publishUserJoinedEvent(event);
+
         return JoinRoomResponse.of(room, currentUserCount, users);
 
     }
+
 }

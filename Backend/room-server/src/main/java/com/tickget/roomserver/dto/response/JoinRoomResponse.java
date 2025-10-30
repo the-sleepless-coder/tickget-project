@@ -4,11 +4,15 @@ import com.tickget.roomserver.domain.entity.Room;
 import com.tickget.roomserver.domain.enums.RoomStatus;
 import java.util.List;
 import java.util.Map;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 @Getter
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class JoinRoomResponse {
     private Long roomId;
     private int currentUserCount;
