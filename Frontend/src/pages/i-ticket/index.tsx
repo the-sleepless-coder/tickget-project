@@ -78,28 +78,34 @@ export default function ITicketPage() {
     secondsLeft < 10 ? `00:0${secondsLeft}` : `00:${secondsLeft}`;
 
   const openQueueWindow = () => {
+    let finalUrl: string;
+    const baseUrl =
+      (paths as { booking: { waiting: string } })?.booking?.waiting ??
+      "/booking/waiting";
+
     if (reserveAppearedAt) {
       const clickedTs = Date.now();
       const reactionMs = clickedTs - reserveAppearedAt;
+      const reactionSec = Number((reactionMs / 1000).toFixed(3));
       // Log: reaction time between appearance and click
       console.log("[ReserveTiming] Reaction time until click", {
         reactionMs,
-        reactionSec: (reactionMs / 1000).toFixed(3),
+        reactionSec,
         appearedAt: new Date(reserveAppearedAt).toISOString(),
         clickedAt: new Date(clickedTs).toISOString(),
         nonReserveClickCount,
       });
       setIsTrackingClicks(false);
+      finalUrl = `${baseUrl}?rtSec=${encodeURIComponent(String(reactionSec))}&nrClicks=${encodeURIComponent(String(nonReserveClickCount))}`;
     } else {
       console.log(
         "[ReserveTiming] Click without appearance timestamp (possibly test click)"
       );
+      finalUrl = `${baseUrl}?rtSec=0&nrClicks=${encodeURIComponent(String(nonReserveClickCount))}`;
     }
-    const url =
-      (paths as { booking: { waiting: string } })?.booking?.waiting ??
-      "/booking/waiting";
+
     window.open(
-      url,
+      finalUrl,
       "_blank",
       "width=900,height=682,toolbar=no,menubar=no,location=no,status=no,scrollbars=yes,resizable=no"
     );

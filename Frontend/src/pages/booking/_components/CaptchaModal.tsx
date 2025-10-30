@@ -5,7 +5,14 @@ import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 
 type Props = {
   open: boolean;
-  onVerify: () => void;
+  /**
+   * Called when captcha is successfully verified.
+   * durationMs: elapsed milliseconds from modal open to success.
+   */
+  onVerify: (
+    durationMs: number,
+    metrics: { backspaceCount: number; wrongAttempts: number }
+  ) => void;
   onReselect: () => void;
 };
 
@@ -28,12 +35,29 @@ export default function CaptchaModal({ open, onVerify, onReselect }: Props) {
     setCode(generateCode(6));
   }, [seed]);
 
+  // mark start time when modal opens
+  useEffect(() => {
+    if (open) {
+      setStartMs(
+        typeof performance !== "undefined" ? performance.now() : Date.now()
+      );
+      setInput("");
+      setError("");
+      setSeed((s) => s + 1); // refresh code on each open
+      setBackspaceCount(0);
+      setWrongAttempts(0);
+    }
+  }, [open]);
+
   if (!open) return null;
 
   const submit = (e?: React.FormEvent) => {
     e?.preventDefault();
     if (input.trim().toUpperCase() === code) {
-      onVerify();
+      const endMs =
+        typeof performance !== "undefined" ? performance.now() : Date.now();
+      const duration = startMs != null ? Math.max(0, endMs - startMs) : 0;
+      onVerify(duration, { backspaceCount, wrongAttempts });
     } else {
       setError("입력한 문자를 다시 확인해주세요");
       setInput("");
