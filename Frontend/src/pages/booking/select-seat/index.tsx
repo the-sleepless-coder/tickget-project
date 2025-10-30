@@ -38,7 +38,7 @@ const BLOCKS: Block[] = [
 export default function SelectSeatPage() {
   const navigate = useNavigate();
   const [selected, setSelected] = useState<SelectedSeat[]>([]);
-  const eventTitle = "YB REMASTERED 3.0 : Transcendent - 대구";
+  const eventTitle = "방 이름 입력";
   const [activeBlock, setActiveBlock] = useState<Block | null>(null);
 
   const totalPrice = useMemo(
