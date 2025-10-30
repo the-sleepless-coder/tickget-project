@@ -1,5 +1,6 @@
 import Viewport from "../_components/Viewport";
 import { paths } from "../../../app/routes/paths";
+import { buildMetricsQueryFromStorage } from "../../../shared/utils/reserveMetrics";
 
 export default function BookingCompletePage() {
   return (
@@ -84,7 +85,8 @@ export default function BookingCompletePage() {
         <aside className="flex flex-col justify-end">
           <button
             onClick={() => {
-              const target = paths.gameResult;
+              const qs = buildMetricsQueryFromStorage();
+              const target = paths.gameResult + qs;
               try {
                 if (window.opener && !window.opener.closed) {
                   window.opener.location.href = target;
