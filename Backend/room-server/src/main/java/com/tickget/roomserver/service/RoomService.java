@@ -7,13 +7,16 @@ import com.tickget.roomserver.domain.enums.ThumbnailType;
 import com.tickget.roomserver.domain.repository.PresetHallRepository;
 import com.tickget.roomserver.domain.repository.RoomRepository;
 import com.tickget.roomserver.dto.request.CreateRoomRequest;
+import com.tickget.roomserver.dto.request.JoinRoomRequest;
 import com.tickget.roomserver.dto.response.CreateRoomResponse;
+import com.tickget.roomserver.dto.response.JoinRoomResponse;
 import com.tickget.roomserver.dto.response.MatchResponse;
 import com.tickget.roomserver.dto.response.RoomDetailResponse;
 import com.tickget.roomserver.dto.response.RoomResponse;
 import com.tickget.roomserver.exception.PresetHallNotFoundException;
 
 import com.tickget.roomserver.exception.RoomNotFoundException;
+import com.tickget.roomserver.session.WebSocketSessionManager;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -34,6 +37,7 @@ public class RoomService {
     private final RoomRepository roomRepository;
     private final MinioService minioService;
     private final PresetHallRepository  presetHallRepository;
+    private final WebSocketSessionManager sessionManager;
 
     @Transactional
     public CreateRoomResponse createRoom(CreateRoomRequest createRoomRequest, MultipartFile thumbnail) {
@@ -83,6 +87,7 @@ public class RoomService {
                         ));
     }
 
+    @Transactional(readOnly = true)
     public RoomDetailResponse getRoom(Long roomId) {
         Room room = roomRepository.findById(roomId).orElseThrow(
                 () -> new RoomNotFoundException(roomId)
@@ -94,5 +99,33 @@ public class RoomService {
         List<String> userNames = new ArrayList<>();
 
         return RoomDetailResponse.of(room, matchResponse, currentUserCount,userNames);
+    }
+
+    @Transactional
+    public JoinRoomResponse joinRoom(JoinRoomRequest joinRoomRequest, Long roomId) {
+        Long userId = joinRoomRequest.getUserId();
+        String userName = joinRoomRequest.getUserName();
+
+        Room room = roomRepository.findById(roomId).orElseThrow(
+                () -> new RoomNotFoundException(roomId));
+
+        RoomStatus roomStatus = room.getStatus();
+        if (roomStatus == RoomStatus.PLAYING) {
+            throw new IllegalArgumentException("게임이 진행중이여서 입장할 수 없는 방입니다");
+        }
+        if (roomStatus == RoomStatus.CLOSED) {
+            throw new IllegalStateException("이미 종료된 방에는 참가할 수 없습니다.");
+        }
+
+        Map<Long,String> users = sessionManager.getUsersInRoom(roomId);
+        //TODO: 로직 변경해서 room에서 최대 인원수를 들고 있게 한 후, 이를 기반으로 요청 거절
+
+        sessionManager.addUserToRoom(userId,userName,roomId);
+        users.put(userId,userName);
+        int currentUserCount = users.size();
+        log.debug("사용자  {}(id:{})(이)가 방 {}에 입장 - 현재 인원: {}",userName, userId, roomId, currentUserCount);
+
+        return JoinRoomResponse.of(room, currentUserCount, users);
+
     }
 }

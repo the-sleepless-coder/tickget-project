@@ -1,7 +1,9 @@
 package com.tickget.roomserver.controller;
 
 import com.tickget.roomserver.dto.request.CreateRoomRequest;
+import com.tickget.roomserver.dto.request.JoinRoomRequest;
 import com.tickget.roomserver.dto.response.CreateRoomResponse;
+import com.tickget.roomserver.dto.response.JoinRoomResponse;
 import com.tickget.roomserver.dto.response.RoomDetailResponse;
 import com.tickget.roomserver.dto.response.RoomResponse;
 import com.tickget.roomserver.service.RoomService;
@@ -13,12 +15,14 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
@@ -75,8 +79,13 @@ public class RoomController {
 
     // 방 입장
     @PostMapping("/{roomId}/join")
-    public ResponseEntity<?> joinRoom(@PathVariable("roomId") Long roomId){
-        return ResponseEntity.ok().build();
+    public ResponseEntity<?> joinRoom(@PathVariable("roomId") Long roomId,
+                                      @RequestBody JoinRoomRequest joinRoomRequest){
+        //TODO: 현재 회원 정보가 어떻게 구성되고, 무엇을 프론트에 보여줄지가 결정안됨. 그에 따른 로직 변경이 필요할수도
+
+        JoinRoomResponse joinRoomResponse = roomService.joinRoom(joinRoomRequest, roomId);
+        return ResponseEntity.ok()
+                .body(joinRoomResponse);
     }
 
     //방 퇴장 -> 방에 아무도 존재하지 않으면 삭제.

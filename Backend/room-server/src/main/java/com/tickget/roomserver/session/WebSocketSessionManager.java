@@ -1,8 +1,6 @@
 package com.tickget.roomserver.session;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -20,10 +18,12 @@ import org.springframework.web.socket.WebSocketSession;
 public class WebSocketSessionManager {
 
 
-    /*
-    여기 만들어놓은 다양한 Map을
-    통해서 원하는 값 편하게 조회하는 유틸성 메서드 만들 수 있음
-    */
+ /* 관리하는 매핑:
+ *  1. sessionId ↔ WebSocketSession (WebSocket 연결)
+ * 2. sessionId ↔ userId (WebSocket 연결 ↔ 사용자)
+ * 3. userId ↔ roomId (사용자 ↔ 방)
+ * 4. roomId ↔ Set<userId> (방 ↔ 방에 속한 사용자들)
+ * */
 
     // sessionId -> WebSocketSession
     private final Map<String, WebSocketSession> sessions = new ConcurrentHashMap<>();
@@ -34,11 +34,17 @@ public class WebSocketSessionManager {
     // sessionId -> userId
     private final Map<String, Long> sessionToUser = new ConcurrentHashMap<>();
 
+    // sessionId - > roomId;
+    private final Map<String,Long> sessionToRoom = new ConcurrentHashMap<>();
+
     // roomId -> Set<userId>
     private final Map<Long, Set<Long>> roomUsers = new ConcurrentHashMap<>();
 
     // userId -> roomId (한 유저는 한 방에만)
     private final Map<Long, Long> userToRoom = new ConcurrentHashMap<>();
+
+    // userId -> userName
+    private final Map<Long, String> userToName = new ConcurrentHashMap<>();
 
     //새롭게 세션등록
     public void registerSession(String sessionId, Long userId){
@@ -95,6 +101,7 @@ public class WebSocketSessionManager {
     //세션데이터 삭제: section이 닫힌 상황에서만 호출됨
     public void removeSessionData(String sessionId) {
         Long userId = sessionToUser.remove(sessionId);
+        userToName.remove(userId);
 
         if (userId != null) {
             userToSession.remove(userId);
@@ -112,6 +119,7 @@ public class WebSocketSessionManager {
             }
 
             sessions.remove(sessionId);
+            sessionToRoom.remove(sessionId);
             log.info("세션 데이터 삭제: sessionId={}, userId={}", sessionId, userId);
         }
 
@@ -132,16 +140,23 @@ public class WebSocketSessionManager {
     }
 
     // 유저를 방에 추가
-    public void addUserToRoom(Long userId, Long roomId) {
+    public void addUserToRoom(Long userId,String userName, Long roomId) {
         // 기존 방에서 제거
         Long oldRoomId = userToRoom.get(userId);
         if (oldRoomId != null && !oldRoomId.equals(roomId)) {
             removeUserFromRoom(userId, oldRoomId);
         }
 
+        //이름과 id 매핑
+        userToName.put(userId, userName);
+
         // 새 방에 추가
         userToRoom.put(userId, roomId);
         roomUsers.computeIfAbsent(roomId, k -> ConcurrentHashMap.newKeySet()).add(userId);
+        String sessionId = userToSession.get(userId);
+        if (sessionId != null) {
+            sessionToRoom.put(sessionId, roomId);
+        }
 
         log.info("유저 방 추가: userId={}, roomId={}", userId, roomId);
     }
@@ -149,6 +164,7 @@ public class WebSocketSessionManager {
     // 유저를 방에서 제거
     public void removeUserFromRoom(Long userId, Long roomId) {
         userToRoom.remove(userId);
+        userToName.remove(userId);
 
         Set<Long> users = roomUsers.get(roomId);
         if (users != null) {
@@ -161,18 +177,26 @@ public class WebSocketSessionManager {
         log.info("유저 방 제거: userId={}, roomId={}", userId, roomId);
     }
 
-    //방의 모든 유저 조회
-    public List<Long> getUsersInRoom(Long roomId) {
+    //방의 모든 유저 조회 id:name 꼴
+    public Map<Long,String> getUsersInRoom(Long roomId) {
         Set<Long> users = roomUsers.get(roomId);
-        if (users == null) {
-            return Collections.emptyList();
+        HashMap<Long,String> usersInRoom = new HashMap<>();
+
+        for (Long userId : users) {
+            usersInRoom.put(userId, userToName.get(userId));
         }
-        return new ArrayList<>(users);
+
+        return usersInRoom;
     }
 
     // 유저가 속한 방 조회
     public Long getRoomByUser(Long userId) {
         return userToRoom.get(userId);
+    }
+
+    //웹소켓 sessionId로 방 조회
+    public Long getRoomBySessionId(String sessionId) {
+        return sessionToRoom.get(sessionId);
     }
 
     // 전체 연결 수
