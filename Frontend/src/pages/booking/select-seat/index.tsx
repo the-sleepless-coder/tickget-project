@@ -43,6 +43,9 @@ export default function SelectSeatPage() {
   const eventTitle = "방 이름 입력";
   const [activeBlock, setActiveBlock] = useState<Block | null>(null);
   const [showCaptcha, setShowCaptcha] = useState<boolean>(true);
+  const [captchaSec, setCaptchaSec] = useState<number | null>(null);
+  const [captchaBackspaces, setCaptchaBackspaces] = useState<number>(0);
+  const [captchaWrongAttempts, setCaptchaWrongAttempts] = useState<number>(0);
 
   const totalPrice = useMemo(
     () => selected.reduce((sum, s) => sum + s.price, 0),
@@ -80,7 +83,18 @@ export default function SelectSeatPage() {
     <Viewport>
       <CaptchaModal
         open={showCaptcha}
-        onVerify={() => setShowCaptcha(false)}
+        onVerify={(durationMs, { backspaceCount, wrongAttempts }) => {
+          const sec = Math.round(durationMs) / 1000;
+          setCaptchaSec(sec);
+          setCaptchaBackspaces(backspaceCount);
+          setCaptchaWrongAttempts(wrongAttempts);
+          console.log("[ReserveTiming] Captcha verified", {
+            captchaSec: sec,
+            backspaceCount,
+            wrongAttempts,
+          });
+          setShowCaptcha(false);
+        }}
         onReselect={goPrev}
       />
       {/* 상단: 좌석 선택 헤더 (스샷 유사 스타일) */}
