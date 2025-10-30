@@ -21,7 +21,7 @@ export default function BookingWaitingPage() {
 
   useEffect(() => {
     const timer = setTimeout(() => setStage("queue"), 1200);
-    return () => clearInterval(timer as unknown as number);
+    return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
@@ -39,32 +39,18 @@ export default function BookingWaitingPage() {
         setRank(nextRank);
       } else {
         clearInterval(progressInterval);
-        setStage("captcha");
+        const rtSec = searchParams.get("rtSec") ?? "0";
+        const nrClicks = searchParams.get("nrClicks") ?? "0";
+        const nextUrl = `${paths.booking.selectSeat}?rtSec=${encodeURIComponent(rtSec)}&nrClicks=${encodeURIComponent(nrClicks)}`;
+        navigate(nextUrl, { replace: true });
       }
     }, 350);
     return () => {
       clearInterval(progressInterval);
     };
-  }, [stage, PROGRESS_STEPS]);
+  }, [stage, PROGRESS_STEPS, navigate, searchParams]);
 
-  useEffect(() => {
-    if (stage !== "captcha") return;
-    const rtSec = searchParams.get("rtSec");
-    const nrClicks = searchParams.get("nrClicks");
-    console.log("[ReserveTiming] Arrived at captcha stage", {
-      reactionSec: rtSec ? Number(rtSec) : null,
-      nonReserveClickCount: nrClicks ? Number(nrClicks) : null,
-    });
-  }, [stage, searchParams]);
-
-  // 캡차 단계에서만 사용하지만 훅 호출 순서를 보장하기 위해 상단에서 선언
-  const code = useMemo(() => generateCode(6), []);
-  const [input, setInput] = useState<string>("");
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    // 간단 매칭 후 1단계 화면으로 이동 (실제 검증은 서버 검증 필요)
-    navigate(paths.booking.selectSchedule, { replace: true });
-  };
+  // 캡차는 좌석 선택 페이지의 모달로 이동
 
   if (stage === "loading") {
     return (
@@ -146,70 +132,6 @@ export default function BookingWaitingPage() {
     );
   }
 
-  // captcha stage
-  return (
-    <div className="min-h-screen bg-white flex items-center justify-center p-4">
-      <div className="w-full max-w-md rounded-xl bg-white shadow-lg border">
-        <div className="p-6">
-          <div className="text-center">
-            <div className="inline-flex items-center justify-center rounded-full bg-indigo-50 text-indigo-600 font-semibold px-3 py-1 text-xs">
-              안심예매
-            </div>
-            <h2 className="mt-3 text-2xl font-extrabold text-gray-900">
-              문자를 입력해주세요
-            </h2>
-            <p className="mt-2 text-sm text-gray-600">
-              부정예매방지를 위해 아래의 문자를 입력해주세요. 인증 후 좌석을
-              선택할 수 있습니다.
-            </p>
-          </div>
-
-          <div className="mt-6">
-            <div className="flex items-center gap-2">
-              <div className="flex-1 h-20 rounded-md bg-[#1e3a8a] text-white flex items-center justify-center text-2xl tracking-widest select-none">
-                {code}
-              </div>
-              <button
-                type="button"
-                className="h-10 w-10 rounded-md border text-gray-600 hover:bg-gray-50"
-                aria-label="새로고침"
-              >
-                ↻
-              </button>
-            </div>
-            <form onSubmit={handleSubmit} className="mt-4 space-y-3">
-              <input
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder="문자를 입력해주세요"
-                className="w-full rounded-md border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  className="flex-1 rounded-md border px-3 py-2 hover:bg-gray-50"
-                >
-                  날짜 다시 선택
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 rounded-md bg-gray-900 text-white px-3 py-2 hover:bg-black"
-                >
-                  입력완료
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function generateCode(len: number) {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let out = "";
-  for (let i = 0; i < len; i++)
-    out += chars[Math.floor(Math.random() * chars.length)];
-  return out;
+  // no further stages; navigation happens after queue
+  return null;
 }
