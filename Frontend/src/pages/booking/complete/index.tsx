@@ -22,10 +22,7 @@ export default function BookingCompletePage() {
                 <span className="text-white/95">T2833352540(총 1매)</span>
               </div>
               <dl className="mt-3 border rounded">
-                <Row
-                  label="상품"
-                  value="YB REMASTERED 3.0 : Transcendent - 대구"
-                />
+                <Row label="상품" value="방 이름 입력" />
                 <Row label="장소" value="엑스코 서관 1홀" />
                 <Row
                   label="일시"

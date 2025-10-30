@@ -125,8 +125,8 @@ export default function PricePage() {
             <div className="flex gap-3">
               <div className="w-24 h-32 bg-gray-200 rounded" />
               <div className="text-sm">
-                <div className="font-bold">YB REMASTERED 3.0</div>
-                <div className="text-gray-600">Transcendent - 대구</div>
+                <div className="font-bold">방 이름1</div>
+                <div className="text-gray-600">방 이름2</div>
                 <div className="text-[12px] mt-1 text-gray-500">
                   2025.12.20 ~ 2025.12.20
                 </div>

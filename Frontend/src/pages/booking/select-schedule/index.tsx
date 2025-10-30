@@ -181,8 +181,8 @@ export default function BookingSelectSchedulePage() {
                   className="w-20 h-28 object-cover rounded"
                 />
                 <div className="text-sm">
-                  <div className="font-bold">YB REMASTERED 3.0</div>
-                  <div className="text-gray-600">Transcendent - 대구</div>
+                  <div className="font-bold">방 이름1</div>
+                  <div className="text-gray-600">방 이름2</div>
                   <div className="text-[12px] mt-1 text-gray-500">
                     2025.12.20 ~ 2025.12.20
                   </div>

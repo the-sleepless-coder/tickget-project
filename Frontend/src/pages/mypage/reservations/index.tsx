@@ -119,9 +119,7 @@ export default function MyPageReservationsPage() {
               <div className="px-3 py-3 text-blue-700 underline">
                 T2833352540
               </div>
-              <div className="px-3 py-3">
-                YB REMASTERED 3.0 : Transcendent - 대구
-              </div>
+              <div className="px-3 py-3">방 이름 입력</div>
               <div className="px-3 py-3">
                 <div>2025.12.20 18:00</div>
                 <div className="text-gray-500">1매</div>
