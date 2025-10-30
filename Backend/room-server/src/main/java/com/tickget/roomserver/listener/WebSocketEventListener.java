@@ -1,5 +1,7 @@
 package com.tickget.roomserver.listener;
 
+import com.tickget.roomserver.dto.request.ExitRoomRequest;
+import com.tickget.roomserver.service.RoomService;
 import com.tickget.roomserver.session.WebSocketSessionManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,7 +20,7 @@ import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 public class WebSocketEventListener {
 
     private final WebSocketSessionManager sessionManager;
-    // private final RoomMemberService roomMemberService; // TODO: 나중에 추가
+    private final RoomService roomService; // TODO: 나중에 추가
     // private final DistributedSessionRegistry sessionRegistry; // TODO: Redis 연동 시 추가
 
     // 소켓 연결 시 (SessionConnectedEvent 발생 시)
@@ -55,21 +57,25 @@ public class WebSocketEventListener {
 
         // 세션에서 유저 ID 조회. 아직 데이터가 삭제되지 않은 상태.
         Long userId = sessionManager.getUserId(sessionId);
-        Long roomId = sessionManager.getRoomByUser(userId);
 
         if (userId == null) {
             log.warn("유저 정보 없는 세션 해제: sessionId={}", sessionId);
             return;
         }
 
+        Long roomId = sessionManager.getRoomByUser(userId);
+
+
+
         log.info("WebSocket 연결 해제: sessionId={}, userId={}", sessionId, userId);
 
         // 1. 비즈니스 로직: 방 퇴장 처리
         if (roomId != null) {
-            log.info("연결 해제로 인한 자동 퇴장 처리: userId={}, roomId={}", userId, roomId);
-
             // TODO: RoomMemberService로 퇴장 처리
-            // roomMemberService.leaveRoom(roomId, userId);
+            log.info("연결 해제로 인한 자동 퇴장 처리: userId={}, roomId={}", userId, roomId);
+            String userName = sessionManager.getUsersInRoom(userId).get(userId);
+            roomService.exitRoom(new ExitRoomRequest(userId, userName),roomId);
+
         }
 
         // 2. 데이터 정리: 세션 정보 제거
