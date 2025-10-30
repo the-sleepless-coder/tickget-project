@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import ConfirmationNumberOutlinedIcon from "@mui/icons-material/ConfirmationNumberOutlined";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { paths } from "../../../app/routes/paths";
 
 export default function BookingWaitingPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [stage, setStage] = useState<"loading" | "queue" | "captcha">(
     "loading"
   );
@@ -38,13 +39,16 @@ export default function BookingWaitingPage() {
         setRank(nextRank);
       } else {
         clearInterval(progressInterval);
-        navigate(paths.booking.selectSeat, { replace: true });
+        const rtSec = searchParams.get("rtSec") ?? "0";
+        const nrClicks = searchParams.get("nrClicks") ?? "0";
+        const nextUrl = `${paths.booking.selectSeat}?rtSec=${encodeURIComponent(rtSec)}&nrClicks=${encodeURIComponent(nrClicks)}`;
+        navigate(nextUrl, { replace: true });
       }
     }, 350);
     return () => {
       clearInterval(progressInterval);
     };
-  }, [stage, PROGRESS_STEPS, navigate]);
+  }, [stage, PROGRESS_STEPS, navigate, searchParams]);
 
   // 캡차는 좌석 선택 페이지의 모달로 이동
 
