@@ -241,13 +241,13 @@ export default function SocialLogin() {
       </div>
 
       {/* 우측 비디오 영역 */}
-      <div className="hidden lg:flex lg:w-1/2 items-center justify-center bg-gray-50">
+      <div className="hidden lg:flex lg:w-1/2 items-stretch justify-end bg-white overflow-hidden">
         <video
           autoPlay
           loop
           muted
           playsInline
-          className="w-full h-full object-cover"
+          className="h-full w-auto object-contain object-right"
         >
           <source src="/tickget.mp4" type="video/mp4" />
           Your browser does not support the video tag.
