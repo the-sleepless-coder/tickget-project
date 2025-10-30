@@ -173,6 +173,7 @@ public class WebSocketSessionManager {
                 roomUsers.remove(roomId);
             }
         }
+        //TODO: 제거된 유저가 방장일시, 방장위임 로직
 
         log.info("유저 방 제거: userId={}, roomId={}", userId, roomId);
     }

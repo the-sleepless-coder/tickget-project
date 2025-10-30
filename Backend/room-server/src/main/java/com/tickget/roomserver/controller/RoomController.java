@@ -1,8 +1,10 @@
 package com.tickget.roomserver.controller;
 
 import com.tickget.roomserver.dto.request.CreateRoomRequest;
+import com.tickget.roomserver.dto.request.ExitRoomRequest;
 import com.tickget.roomserver.dto.request.JoinRoomRequest;
 import com.tickget.roomserver.dto.response.CreateRoomResponse;
+import com.tickget.roomserver.dto.response.ExitRoomResponse;
 import com.tickget.roomserver.dto.response.JoinRoomResponse;
 import com.tickget.roomserver.dto.response.RoomDetailResponse;
 import com.tickget.roomserver.dto.response.RoomResponse;
@@ -90,8 +92,11 @@ public class RoomController {
 
     //방 퇴장 -> 방에 아무도 존재하지 않으면 삭제.
     @DeleteMapping("/{roomId}/exit")
-    public ResponseEntity<?> exitRoom(@PathVariable("roomId") Long roomId){
-        return ResponseEntity.ok().build();
+    public ResponseEntity<?> exitRoom(@PathVariable("roomId") Long roomId,
+                                      @RequestBody ExitRoomRequest exitRoomResuest){
+        ExitRoomResponse exitRoomResponse = roomService.exitRoom(exitRoomResuest, roomId);
+        return ResponseEntity.ok()
+                .body(exitRoomResponse);
     }
 
 
