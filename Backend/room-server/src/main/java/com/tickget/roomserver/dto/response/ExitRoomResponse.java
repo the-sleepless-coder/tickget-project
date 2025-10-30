@@ -2,7 +2,6 @@ package com.tickget.roomserver.dto.response;
 
 import com.tickget.roomserver.domain.entity.Room;
 import com.tickget.roomserver.domain.enums.RoomStatus;
-import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;

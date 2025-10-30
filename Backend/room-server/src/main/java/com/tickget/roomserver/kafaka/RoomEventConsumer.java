@@ -3,7 +3,6 @@ package com.tickget.roomserver.kafaka;
 import com.tickget.roomserver.domain.enums.EventType;
 import com.tickget.roomserver.event.UserJoinedRoomEvent;
 import com.tickget.roomserver.event.UserLeftRoomEvent;
-import com.tickget.roomserver.session.WebSocketSessionManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
