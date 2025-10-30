@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { paths } from "../../../app/routes/paths";
 import Viewport from "../_components/Viewport";
+import CaptchaModal from "../_components/CaptchaModal";
 
 type GradeKey = "SR" | "R" | "S";
 type SelectedSeat = {
@@ -40,6 +41,7 @@ export default function SelectSeatPage() {
   const [selected, setSelected] = useState<SelectedSeat[]>([]);
   const eventTitle = "방 이름 입력";
   const [activeBlock, setActiveBlock] = useState<Block | null>(null);
+  const [showCaptcha, setShowCaptcha] = useState<boolean>(true);
 
   const totalPrice = useMemo(
     () => selected.reduce((sum, s) => sum + s.price, 0),
@@ -66,6 +68,11 @@ export default function SelectSeatPage() {
 
   return (
     <Viewport>
+      <CaptchaModal
+        open={showCaptcha}
+        onVerify={() => setShowCaptcha(false)}
+        onReselect={goPrev}
+      />
       {/* 상단: 좌석 선택 헤더 (스샷 유사 스타일) */}
       <div className="bg-[linear-gradient(to_bottom,#f2f2f2,#dbdbdb)] border-b border-[#bdbdbd]">
         <div className="max-w-5xl mx-auto px-2 py-2 flex items-center gap-3">
