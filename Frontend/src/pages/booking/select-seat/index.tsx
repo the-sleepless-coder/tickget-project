@@ -58,7 +58,11 @@ export default function SelectSeatPage() {
 
   const selectSeatCell = (block: Block, row: number, col: number) => {
     const seatId = `${block.code}-${row}-${col}`;
-    if (selected.some((s) => s.id === seatId)) return; // 중복 방지
+    // 이미 선택된 좌석이면 해제, 아니면 추가 (토글)
+    if (selected.some((s) => s.id === seatId)) {
+      setSelected((prev) => prev.filter((s) => s.id !== seatId));
+      return;
+    }
     const seat: SelectedSeat = {
       id: seatId,
       grade: block.tier,
@@ -186,7 +190,7 @@ export default function SelectSeatPage() {
         </div>
       </div>
 
-      <div className="max-w-[860px] mx-auto p-3 flex gap-3">
+      <div className="max-w-[920px] mx-auto p-3 flex gap-3">
         {/* 좌측: 좌석도 */}
         <div className="flex-1 bg-white rounded-md shadow p-3 border border-[#e3e3e3]">
           <div className="text-[12px] text-gray-600 border rounded px-3 py-2 bg-[#fafafa]">
@@ -295,9 +299,12 @@ export default function SelectSeatPage() {
         </div>
 
         {/* 우측: 사이드 정보 */}
-        <aside className="w-64 space-y-3">
+        <aside className="w-80 space-y-3">
           <div className="bg-white rounded-md border border-[#e3e3e3] shadow">
-            <div className="px-3 py-2 bg-[#b02a2a] text-white font-bold rounded-t-md flex items-center justify-between">
+            <div
+              className="px-3 py-2 bg-[#b02a2a] text-white font-bold rounded-t-md flex items-center justify-between cursor-pointer"
+              onClick={() => setActiveBlock(null)}
+            >
               <span>좌석도 전체보기</span>
               <span>▶</span>
             </div>
@@ -353,15 +360,22 @@ export default function SelectSeatPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-gray-500">
-                    <th className="text-left font-normal w-20">좌석등급</th>
-                    <th className="text-left font-normal">좌석번호</th>
+                    <th className="text-left font-normal w-24 whitespace-nowrap">
+                      좌석등급
+                    </th>
+                    <th className="text-left font-normal whitespace-nowrap">
+                      좌석번호
+                    </th>
+                    <th className="text-right font-normal w-16 whitespace-nowrap">
+                      삭제
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {selected.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={2}
+                        colSpan={3}
                         className="text-center text-gray-400 py-8"
                       >
                         선택된 좌석이 없습니다.
@@ -370,8 +384,24 @@ export default function SelectSeatPage() {
                   ) : (
                     selected.map((s) => (
                       <tr key={s.id} className="border-t">
-                        <td className="py-2">{GRADE_META[s.grade].name}</td>
-                        <td>{s.label}</td>
+                        <td className="py-2 whitespace-nowrap">
+                          {GRADE_META[s.grade].name}
+                        </td>
+                        <td className="whitespace-nowrap">{s.label}</td>
+                        <td className="text-right">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setSelected((prev) =>
+                                prev.filter((x) => x.id !== s.id)
+                              )
+                            }
+                            className="inline-flex items-center justify-center w-7 h-7 rounded border border-[#e0e0e0] text-gray-500 hover:bg-[#f6f6f6]"
+                            aria-label={`remove-${s.id}`}
+                          >
+                            ×
+                          </button>
+                        </td>
                       </tr>
                     ))
                   )}

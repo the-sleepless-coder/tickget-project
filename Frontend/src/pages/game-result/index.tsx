@@ -62,10 +62,10 @@ export default function GameResultPage() {
   }
 
   useEffect(() => {
-    // 2분 뒤 자동 이동
+    // 2분 뒤 자동 이동 → rooms
     const id = setTimeout(
       () => {
-        navigate(paths.iTicket);
+        navigate(paths.rooms);
       },
       2 * 60 * 1000
     );
@@ -170,14 +170,14 @@ export default function GameResultPage() {
       <div className="mt-8 flex items-center justify-center gap-6">
         <button
           type="button"
-          onClick={() => navigate(paths.booking.waiting)}
+          onClick={() => navigate(paths.iTicket)}
           className="inline-flex items-center gap-2 rounded-xl bg-[#e9efff] text-[#143eab] px-6 py-4 text-lg font-extrabold hover:bg-[#dbe6ff]"
         >
           <RestartAltIcon /> 다시하기
         </button>
         <button
           type="button"
-          onClick={() => navigate(paths.iTicket)}
+          onClick={() => navigate(paths.rooms)}
           className="inline-flex items-center gap-2 rounded-xl bg-[#5b7ae7] text-white px-8 py-4 text-lg font-extrabold hover:bg-[#4d6ad6]"
         >
           <MeetingRoomOutlinedIcon /> 로비로

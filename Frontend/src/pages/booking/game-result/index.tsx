@@ -60,7 +60,7 @@ export default function BookingGameResultPage() {
             예매 확인
           </Link>
           <Link
-            to={paths.home}
+            to={paths.rooms}
             className="inline-flex items-center gap-2 rounded-md bg-[#2f56a5] px-4 py-2 text-white"
           >
             로비로
