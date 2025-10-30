@@ -1,39 +1,89 @@
 import RoomCard from "../home/_components/RoomCard";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Tooltip from "@mui/material/Tooltip";
 import InfoOutlined from "@mui/icons-material/InfoOutlined";
 import SearchIcon from "@mui/icons-material/Search";
 import CreateRoomModal from "./_components/CreateRoomModal";
 
 type SortKey = "start" | "latest";
-// Only show blue, orange, green in the order: blue, blue, blue, orange, green
-const variantsPattern = ["blue", "blue", "blue", "orange", "green"] as const;
-const titles = [
-  "18시 모집합니다~~!! 18시 모집합니다~~!! 18시 모집합니다~~!!",
-  "록페스티벌 가즈아",
-  "뮤지컬 킹키부츠 예매",
-  "팬미팅 연습하실 분",
-  "센과 치히로 내한",
-  "B-Dragon 컴백콘서트",
-  "빨래하는 날",
-  "가을 야구 보러가자",
-] as const;
-const badges = ["익스터파크", "워터멜론", "NO24"] as const;
 
 export default function RoomsPage() {
   const [activeSort, setActiveSort] = useState<SortKey>("start");
   const [query, setQuery] = useState("");
   const [openCreate, setOpenCreate] = useState(false);
-  const rooms = Array.from({ length: 12 }).map((_, idx) => ({
-    id: idx,
-    title: titles[idx % titles.length],
-    variant: variantsPattern[idx % variantsPattern.length],
-    badgeText: badges[idx % badges.length],
-  }));
+  const baseRooms = useMemo(
+    () => [
+      {
+        title: "18시 모집합니다~~!! 18시 모집합니다~~!! 18시 모집합니다~~!!",
+        variant: "blue" as const,
+        size: "small" as const,
+        venueName: "샤롯데씨어터",
+        participants: { current: 8, capacity: 10 },
+        startTime: "18:10",
+        ongoing: false,
+      },
+      {
+        title: "록페스티벌 가즈아",
+        variant: "blue" as const,
+        size: "medium" as const,
+        venueName: "올림픽공원 올림픽홀",
+        participants: { current: 1, capacity: 1 },
+        startTime: "14:20",
+        ongoing: false,
+      },
+      {
+        title: "뮤지컬 킹키부츠 예매",
+        variant: "blue" as const,
+        size: "large" as const,
+        venueName: "올림픽 주경기장",
+        participants: { current: 15, capacity: 20 },
+        startTime: "13:50",
+        ongoing: true,
+      },
+      {
+        title: "팬미팅 연습하실 분",
+        variant: "blue" as const,
+        size: "small" as const,
+        venueName: "샤롯데씨어터",
+        participants: { current: 10, capacity: 10 },
+        startTime: "18:10",
+        ongoing: true,
+      },
+      {
+        title: "센과 치히로 내한",
+        variant: "green" as const,
+        size: "medium" as const,
+        venueName: "올림픽공원 올림픽홀",
+        participants: { current: 4, capacity: 5 },
+        startTime: "14:30",
+        ongoing: false,
+      },
+      {
+        title: "B-Dragon 컴백콘서트",
+        variant: "orange" as const,
+        size: "large" as const,
+        venueName: "올림픽 주경기장",
+        participants: { current: 15, capacity: 20 },
+        startTime: "14:50",
+        ongoing: false,
+      },
+    ],
+    []
+  );
+  const rooms = useMemo(() => {
+    // 6개를 2번 반복하여 12개 구성
+    return Array.from({ length: 12 }).map((_, idx) => ({
+      id: idx,
+      ...baseRooms[idx % baseRooms.length],
+    }));
+  }, [baseRooms]);
+  const [availableOnly, setAvailableOnly] = useState(false);
   const normalizedQuery = query.trim().toLowerCase();
-  const filteredRooms = normalizedQuery
-    ? rooms.filter((r) => r.title.toLowerCase().includes(normalizedQuery))
-    : rooms;
+  const filteredRooms = rooms
+    .filter((r) =>
+      normalizedQuery ? r.title.toLowerCase().includes(normalizedQuery) : true
+    )
+    .filter((r) => (availableOnly ? !r.ongoing : true));
   return (
     <div className="mx-auto max-w-7xl p-4 sm:p-6">
       {/* Search */}
@@ -52,7 +102,7 @@ export default function RoomsPage() {
 
       {/* Heading + Controls */}
       <div className="mt-6 flex items-center justify-between">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <h1 className="text-xl font-semibold text-gray-900">전체 방 목록</h1>
           <div className="hidden md:block">
             <Tooltip
@@ -91,9 +141,30 @@ export default function RoomsPage() {
           </div>
           <button
             type="button"
+            onClick={() => setOpenCreate(true)}
+            className="rounded-full bg-purple-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-purple-600"
+          >
+            + 방만들기
+          </button>
+          <button
+            type="button"
+            aria-pressed={availableOnly}
+            onClick={() => setAvailableOnly((v) => !v)}
+            className={`rounded-full px-4 py-2 text-sm font-medium shadow-sm transition-colors ${
+              availableOnly
+                ? "bg-purple-500 text-white hover:bg-purple-600"
+                : "bg-purple-50 text-purple-600 hover:bg-purple-100"
+            }`}
+          >
+            입장 가능
+          </button>
+        </div>
+        <div className="flex items-center gap-2 text-sm">
+          <button
+            type="button"
             aria-pressed={activeSort === "start"}
             onClick={() => setActiveSort("start")}
-            className={`rounded-full px-4 py-2 text-sm transition-colors ${
+            className={`rounded-full px-4 py-2 transition-colors ${
               activeSort === "start"
                 ? "text-purple-600 bg-purple-50"
                 : "text-gray-900 bg-gray-100"
@@ -105,22 +176,13 @@ export default function RoomsPage() {
             type="button"
             aria-pressed={activeSort === "latest"}
             onClick={() => setActiveSort("latest")}
-            className={`rounded-full px-4 py-2 text-sm transition-colors ${
+            className={`rounded-full px-4 py-2 transition-colors ${
               activeSort === "latest"
                 ? "text-purple-600 bg-purple-50"
                 : "text-gray-900 bg-gray-100"
             }`}
           >
             최신순
-          </button>
-        </div>
-        <div>
-          <button
-            type="button"
-            onClick={() => setOpenCreate(true)}
-            className="rounded-full bg-purple-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-purple-600"
-          >
-            + 방만들기
           </button>
         </div>
       </div>
@@ -133,7 +195,11 @@ export default function RoomsPage() {
             key={room.id}
             title={room.title}
             variant={room.variant}
-            badgeText={room.badgeText}
+            size={room.size}
+            venueName={room.venueName}
+            participants={room.participants}
+            startTime={room.startTime}
+            ongoing={room.ongoing}
           />
         ))}
       </div>

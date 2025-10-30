@@ -17,10 +17,12 @@ export default function CreateRoomModal({
   onClose: () => void;
 }) {
   const [startTime, setStartTime] = useState<Dayjs | null>(dayjs());
+  const [title, setTitle] = useState("");
   const [size, setSize] = useState<"소형" | "중형" | "대형">("소형");
   const [difficulty, setDifficulty] = useState<"쉬움" | "보통" | "어려움">(
     "쉬움"
   );
+  const [venue, setVenue] = useState("");
   const sizeOptions = useMemo(() => ["소형", "중형", "대형"] as const, []);
   const diffOptions = useMemo(() => ["쉬움", "보통", "어려움"] as const, []);
   return (
@@ -90,14 +92,19 @@ export default function CreateRoomModal({
         </div>
 
         <div className="flex-1 space-y-5">
-          <div>
+          <div className="relative">
             <label className="sr-only">방 제목</label>
             <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
               type="text"
               placeholder="방 제목을 입력해주세요."
               className="w-full border-b px-2 py-3 text-lg outline-none"
               maxLength={50}
             />
+            <div className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-sm text-gray-400">
+              (50자)
+            </div>
           </div>
 
           <div className="flex items-center gap-2">
@@ -134,11 +141,17 @@ export default function CreateRoomModal({
             ))}
           </div>
 
-          <div className="grid grid-cols-[1fr_200px] items-center gap-4">
-            <select className="border-b px-2 py-3 text-gray-700">
-              <option>공연장 선택</option>
+          <div>
+            <select
+              value={venue}
+              onChange={(e) => setVenue(e.target.value)}
+              className="w-full border-b px-2 py-3 text-gray-700"
+            >
+              <option value="">공연장 선택</option>
+              <option value="샤롯데씨어터">샤롯데씨어터</option>
+              <option value="올림픽홀">올림픽공원 올림픽홀</option>
+              <option value="올림픽주경기장">올림픽 주경기장</option>
             </select>
-            <div className="text-right text-gray-400">(50자)</div>
           </div>
 
           <div className="grid grid-cols-[1fr_120px] items-center gap-4">
@@ -151,14 +164,29 @@ export default function CreateRoomModal({
             <div className="text-right text-gray-400">/20 명</div>
           </div>
 
-          <LocalizationProvider dateAdapter={AdapterDayjs}>
-            <TimePicker
-              label="시작 시간"
-              value={startTime}
-              onChange={(v: Dayjs | null) => setStartTime(v)}
-              slotProps={{ textField: { fullWidth: true, size: "small" } }}
-            />
-          </LocalizationProvider>
+          <div className="grid grid-cols-[1fr_180px] items-center gap-4">
+            <div className="text-gray-700">시작 시간</div>
+            <LocalizationProvider dateAdapter={AdapterDayjs}>
+              <TimePicker
+                label={undefined}
+                value={startTime}
+                onChange={(v: Dayjs | null) => setStartTime(v)}
+                slotProps={{
+                  textField: {
+                    size: "small",
+                    fullWidth: true,
+                    placeholder: "타임피커",
+                    sx: {
+                      "& .MuiInputBase-root": {
+                        borderRadius: "8px",
+                        backgroundColor: "#f3f4f6",
+                      },
+                    },
+                  },
+                }}
+              />
+            </LocalizationProvider>
+          </div>
         </div>
       </div>
     </Modal>

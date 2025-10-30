@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import type { ReactNode } from "react";
 
 interface ModalProps {
   open: boolean;
@@ -7,7 +8,7 @@ interface ModalProps {
   footer?: ReactNode;
   children: ReactNode;
   headerActions?: ReactNode;
-};
+}
 
 export function Modal({
   open,
@@ -42,6 +43,12 @@ export function Modal({
       role="dialog"
       aria-modal="true"
     >
+      {/* backdrop */}
+      <div
+        className="absolute inset-0 bg-black/30"
+        onClick={onClose}
+        aria-hidden
+      />
       <div className="relative bg-white rounded-xl shadow-lg w-[900px] max-w-[90vw] flex flex-col">
         <div className="flex items-center justify-between h-[50px] px-6 border-b bg-white rounded-t-xl flex-shrink-0">
           <div className="flex items-center gap-3">

@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { Collapse, IconButton } from "@mui/material";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import PeopleIcon from "@mui/icons-material/People";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import { paths } from "../../app/routes/paths";
@@ -64,20 +66,31 @@ export default function ITicketPage() {
         />
       )}
 
-      <div className="max-w-6xl mx-auto px-4 md:px-6">
+      <div className="productWrapper w-[1280px] mx-auto px-4 md:px-6">
         <TagsRow />
         <TitleSection />
 
-        <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <SeatThumbnail />
-          <ParticipantList participants={participants} capacity={capacity} />
-          <StartInfoCard
-            openText="티켓오픈"
-            openAt="2025.10.23 18:00"
-            remaining={formatted}
-            canReserve={secondsLeft === 0}
-            onReserve={openQueueWindow}
-          />
+        <div className="mt-6 flex flex-row gap-8">
+          <div className="summary w-[830px]">
+            <div className="flex items-start">
+              <PosterBox />
+              <div className="ml-[25px] my-0 mr-0 w-[400px]">
+                <ParticipantList
+                  participants={participants}
+                  capacity={capacity}
+                />
+              </div>
+            </div>
+          </div>
+          <aside className="productSide w-[370px]">
+            <StartInfoCard
+              openText="티켓오픈"
+              openAt="2025.10.23 18:00"
+              remaining={formatted}
+              canReserve={secondsLeft === 0}
+              onReserve={openQueueWindow}
+            />
+          </aside>
         </div>
       </div>
     </div>
@@ -169,36 +182,19 @@ function TitleSection() {
   );
 }
 
-function SeatThumbnail() {
+function PosterBox() {
   return (
-    <section className="bg-white rounded-xl p-4 flex flex-col items-center border border-neutral-200 shadow">
+    <div>
       <img
-        src="/temp-seats.jpg"
-        alt="좌석 썸네일"
-        className="w-full max-w-md rounded-md"
+        src="/performance-halls/olympic-hall.jpg"
+        alt="포스터 이미지"
+        className="posterBoxImage w-[300px] h-[400px] object-cover rounded-lg border border-neutral-200"
       />
-      <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-1 text-xs text-gray-600 w-full max-w-md">
-        <Legend color="#6b21a8" label="VIP석" />
-        <Legend color="#1d4ed8" label="R석" />
-        <Legend color="#10b981" label="S석" />
-        <Legend color="#f59e0b" label="A석" />
-        <Legend color="#9ca3af" label="휠체어석" />
-      </div>
-    </section>
+    </div>
   );
 }
 
-function Legend({ color, label }: { color: string; label: string }) {
-  return (
-    <span className="inline-flex items-center gap-2">
-      <span
-        className="inline-block w-3 h-3 rounded-sm"
-        style={{ backgroundColor: color }}
-      />
-      {label}
-    </span>
-  );
-}
+// removed SeatThumbnail and Legend in favor of PosterBox
 
 function ParticipantList({
   participants,
@@ -260,6 +256,9 @@ function StartInfoCard({
   canReserve: boolean;
   onReserve: () => void;
 }) {
+  if (canReserve) {
+    return <BookingCalendarCard onBook={onReserve} />;
+  }
   return (
     <section className="bg-white rounded-xl p-6 flex flex-col items-stretch border border-neutral-200 shadow">
       <h3 className="text-lg font-bold text-gray-900 mb-4">경기시작안내</h3>
@@ -271,23 +270,242 @@ function StartInfoCard({
           경기가 위 시간에 시작될 예정이므로 준비해주세요.
         </p>
       </div>
-      {canReserve ? (
+      <button
+        className="mt-auto w-full py-4 rounded-lg bg-gray-200 text-gray-700 font-extrabold"
+        disabled
+        type="button"
+      >
+        남은시간 {remaining}
+      </button>
+    </section>
+  );
+}
+
+function BookingCalendarCard({ onBook }: { onBook: () => void }) {
+  const today = new Date();
+  const todayStart = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate()
+  );
+  const [month, setMonth] = useState<number>(today.getMonth());
+  const [year, setYear] = useState<number>(today.getFullYear());
+  const [selectedDate, setSelectedDate] = useState<Date | null>(today);
+  const [selectedSlot, setSelectedSlot] = useState<string>("1회 14:30");
+  const [isCalendarOpen, setIsCalendarOpen] = useState<boolean>(true);
+  const [isTimesOpen, setIsTimesOpen] = useState<boolean>(true);
+
+  const monthStart = new Date(year, month, 1);
+  const startDay = monthStart.getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const weeks: Array<Array<number | null>> = [];
+  let day = 1 - startDay; // Sunday-first grid
+  for (let w = 0; w < 6; w++) {
+    const week: Array<number | null> = [];
+    for (let d = 0; d < 7; d++) {
+      const dateNum = day;
+      if (dateNum < 1 || dateNum > daysInMonth) week.push(null);
+      else week.push(dateNum);
+      day++;
+    }
+    weeks.push(week);
+  }
+
+  const monthLabel = `${year}. ${(month + 1).toString().padStart(2, "0")}`;
+
+  const isSelected = (d: number) => {
+    if (!selectedDate) return false;
+    return (
+      selectedDate.getFullYear() === year &&
+      selectedDate.getMonth() === month &&
+      selectedDate.getDate() === d
+    );
+  };
+
+  const changeMonth = (delta: number) => {
+    const base = new Date(year, month + delta, 1);
+    setYear(base.getFullYear());
+    setMonth(base.getMonth());
+  };
+
+  const dateMeta = (d: number) => {
+    const dateObj = new Date(year, month, d);
+    const isSunday = dateObj.getDay() === 0;
+    const isDisabled = dateObj < todayStart; // disable strictly past days
+    const selected = isSelected(d);
+    return { dateObj, isSunday, isDisabled, selected };
+  };
+
+  const formatSelectedDate = (date: Date) => {
+    const y = date.getFullYear();
+    const m = (date.getMonth() + 1).toString().padStart(2, "0");
+    const d = date.getDate().toString().padStart(2, "0");
+    const weekday = "일월화수목금토"[date.getDay()];
+    return `${y}.${m}.${d} (${weekday})`;
+  };
+
+  return (
+    <section className="bg-white rounded-xl p-4 border border-neutral-200 shadow flex flex-col">
+      {/* Calendar header */}
+      <div className="flex items-center justify-between">
         <button
-          className="mt-auto w-full py-4 rounded-lg bg-blue-600 text-white font-extrabold hover:bg-blue-700"
-          onClick={onReserve}
           type="button"
+          className="text-base font-bold text-gray-900"
+          onClick={() => setIsCalendarOpen((v) => !v)}
+          aria-label="toggle-calendar"
+        >
+          관람일
+        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            className="h-7 w-7 grid place-items-center rounded-full text-gray-600 "
+            onClick={() => changeMonth(-1)}
+            aria-label="prev-month"
+          >
+            ‹
+          </button>
+          <div className="min-w-[120px] text-center font-semibold">
+            {monthLabel}
+          </div>
+          <button
+            type="button"
+            className="h-7 w-7 grid place-items-center rounded-full text-gray-600 "
+            onClick={() => changeMonth(1)}
+            aria-label="next-month"
+          >
+            ›
+          </button>
+          <IconButton
+            size="small"
+            onClick={() => {
+              setIsCalendarOpen((v) => !v);
+              setIsTimesOpen(true);
+            }}
+            aria-label="collapse-calendar"
+            className={`transition-transform ${isCalendarOpen ? "rotate-180" : ""}`}
+            sx={{ color: "#6b7280", p: 0.5 }}
+          >
+            <ExpandMoreIcon fontSize="small" />
+          </IconButton>
+        </div>
+      </div>
+
+      <div className="mt-3 rounded-xl bg-white p-3">
+        {/* Condensed date when collapsed */}
+        {!isCalendarOpen && selectedDate && (
+          <div className="text-lg font-semibold text-gray-900">
+            {formatSelectedDate(selectedDate)}
+          </div>
+        )}
+
+        <Collapse in={isCalendarOpen} timeout="auto">
+          <div>
+            {/* Weekday bar */}
+            <div className="grid grid-cols-7 text-center text-xs text-gray-600 bg-gray-50 rounded-xl py-1">
+              {"일월화수목금토".split("").map((ch) => (
+                <div key={ch} className="py-1 font-medium">
+                  {ch}
+                </div>
+              ))}
+            </div>
+
+            {/* Dates grid */}
+            <div className="mt-2 grid grid-cols-7 gap-y-1 text-center">
+              {weeks.map((wk, wi) => (
+                <div key={wi} className="contents">
+                  {wk.map((d, di) => {
+                    if (!d) return <div key={di} className="py-2" />;
+                    const { isSunday, isDisabled, selected } = dateMeta(d);
+                    const baseColor = isDisabled
+                      ? isSunday
+                        ? "text-red-300"
+                        : "text-gray-300"
+                      : isSunday
+                        ? "text-red-500"
+                        : "text-gray-900";
+                    return (
+                      <button
+                        key={di}
+                        type="button"
+                        disabled={isDisabled}
+                        onClick={() =>
+                          setSelectedDate(new Date(year, month, d))
+                        }
+                        className={`mx-auto h-10 w-10 rounded-full text-sm transition-colors ${
+                          selected
+                            ? "bg-indigo-600 text-white"
+                            : `${baseColor} hover:bg-gray-100`
+                        } ${isDisabled ? "cursor-not-allowed" : ""}`}
+                      >
+                        {d}
+                      </button>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          </div>
+        </Collapse>
+
+        {/* Divider */}
+        <div className="my-3 h-px bg-gray-100" />
+
+        {/* Times header with toggle */}
+        <div className="flex items-center justify-between">
+          <h4 className="text-sm font-semibold text-gray-900">회차</h4>
+          <IconButton
+            size="small"
+            onClick={() => setIsTimesOpen((v) => !v)}
+            aria-label="toggle-times"
+            className={`transition-transform ${isTimesOpen ? "rotate-180" : ""}`}
+            sx={{ color: "#6b7280", p: 0.5 }}
+          >
+            <ExpandMoreIcon fontSize="small" />
+          </IconButton>
+        </div>
+
+        <Collapse in={isTimesOpen} timeout="auto">
+          <div className="mt-2">
+            <div className="grid grid-cols-2 gap-2">
+              {[{ label: "1회 14:30" }].map((s) => (
+                <button
+                  key={s.label}
+                  type="button"
+                  onClick={() => setSelectedSlot(s.label)}
+                  className={`rounded-lg border px-3 py-2 text-sm ${
+                    selectedSlot === s.label
+                      ? "border-indigo-500 text-indigo-700"
+                      : "border-gray-200 hover:bg-gray-50"
+                  }`}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+            <div className="mt-3 text-xs text-gray-700">
+              R석 147 / S석 134 / A석 224 / B석 288
+            </div>
+          </div>
+        </Collapse>
+      </div>
+
+      {/* Actions inside same container, without outer border */}
+      <div className="mt-4 flex flex-col gap-3">
+        <button
+          type="button"
+          onClick={onBook}
+          className="w-full py-4 rounded-xl bg-indigo-600 text-white font-extrabold hover:bg-indigo-700"
         >
           예매하기
         </button>
-      ) : (
         <button
-          className="mt-auto w-full py-4 rounded-lg bg-gray-200 text-gray-700 font-extrabold"
-          disabled
           type="button"
+          className="w-full py-3 rounded-xl border text-indigo-600 border-indigo-200 hover:bg-indigo-50 text-sm font-semibold"
         >
-          남은시간 {remaining}
+          BOOKING / 外國語
         </button>
-      )}
+      </div>
     </section>
   );
 }
