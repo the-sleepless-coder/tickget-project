@@ -14,11 +14,17 @@ interface OAuthUserInfo {
 export default function SignupPage() {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [currentStep, setCurrentStep] = useState(1);
+  const totalSteps = 2;
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     nickname: "",
     birthDate: "",
     profileImage: "",
+    gender: "",
+    name: "",
+    address: "",
+    phoneNumber: "",
   });
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
@@ -74,13 +80,30 @@ export default function SignupPage() {
     fileInputRef.current?.click();
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const handleNext = () => {
+    // Step 1 검증: 닉네임과 생년월일은 필수
+    if (currentStep === 1) {
+      if (!formData.nickname.trim() || !formData.birthDate) {
+        openSnackbar("닉네임과 생년월일을 입력해주세요.", "warning");
+        return;
+      }
+    }
+    setCurrentStep((prev) => Math.min(prev + 1, totalSteps));
+  };
+
+  const handlePrev = () => {
+    setCurrentStep((prev) => Math.max(prev - 1, 1));
+  };
+
+  const handleSubmit = async (e?: React.FormEvent<HTMLFormElement>) => {
+    if (e) e.preventDefault();
     setIsSubmitting(true);
 
     try {
@@ -111,7 +134,7 @@ export default function SignupPage() {
       {/* 중앙 흰색 카드 */}
       <div className="bg-white rounded-2xl shadow-lg p-8 w-full mx-4 max-w-sm md:max-w-md lg:max-w-lg">
         {/* 로고와 제목 */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-6">
           <div
             className="flex justify-center items-center mb-4 cursor-pointer"
             onClick={handleLogoClick}
@@ -122,113 +145,260 @@ export default function SignupPage() {
               className="h-12 w-auto"
             />
           </div>
-          <p className="text-gray-600 text-sm">
+          <p className="text-gray-600 text-sm mb-4">
             구글 계정 인증이 완료되었습니다. 추가 정보를 입력해주세요.
           </p>
-        </div>
-
-        {/* 프로필 이미지 */}
-        <div className="mb-6">
-          <div className="flex justify-center mb-4">
-            <div className="relative">
-              <img
-                src={formData.profileImage || userInfo.picture}
-                alt="프로필"
-                className="w-24 h-24 rounded-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
-                onClick={handleProfileImageClick}
-              />
-              <div className="absolute bottom-0 right-0 bg-violet-600 text-white rounded-full p-2 cursor-pointer hover:bg-violet-700 transition-colors">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-4 w-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
+          
+          {/* 단계 표시 */}
+          <div className="flex items-center justify-center gap-2 mb-2">
+            {[1, 2].map((step) => (
+              <div key={step} className="flex items-center">
+                <div
+                  className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                    step === currentStep
+                      ? "bg-violet-600 text-white"
+                      : step < currentStep
+                      ? "bg-violet-300 text-white"
+                      : "bg-gray-200 text-gray-500"
+                  }`}
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
+                  {step}
+                </div>
+                {step < totalSteps && (
+                  <div
+                    className={`w-12 h-0.5 mx-1 ${
+                      step < currentStep ? "bg-violet-300" : "bg-gray-200"
+                    }`}
                   />
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
-                  />
-                </svg>
+                )}
               </div>
-            </div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handleFileChange}
-              className="hidden"
-            />
+            ))}
           </div>
-          <p className="text-xs text-gray-500 text-center">
-            프로필 사진을 클릭하여 변경할 수 있습니다
+          <p className="text-xs text-gray-500">
+            {currentStep === 1 ? "기본 정보" : "추가 정보"}
           </p>
         </div>
 
-        {/* 추가 정보 입력 폼 */}
-        <form onSubmit={handleSubmit} className="space-y-4 mb-6">
-          <div>
-            <label
-              htmlFor="nickname"
-              className="block text-sm font-medium text-gray-700 mb-2"
+        {/* 단계별 컨텐츠 */}
+        <div className="mb-6">
+          {/* Step 1: 기본 정보 */}
+          {currentStep === 1 && (
+            <div className="space-y-6">
+              {/* 프로필 이미지 */}
+              <div>
+                <div className="flex justify-center mb-4">
+                  <div className="relative">
+                    <img
+                      src={formData.profileImage || userInfo.picture}
+                      alt="프로필"
+                      className="w-24 h-24 rounded-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
+                      onClick={handleProfileImageClick}
+                    />
+                    <div className="absolute bottom-0 right-0 bg-violet-600 text-white rounded-full p-2 cursor-pointer hover:bg-violet-700 transition-colors">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-4 w-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
+                        />
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
+                        />
+                      </svg>
+                    </div>
+                  </div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+                </div>
+                <p className="text-xs text-gray-500 text-center">
+                  프로필 사진을 클릭하여 변경할 수 있습니다
+                </p>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="nickname"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  닉네임
+                </label>
+                <input
+                  id="nickname"
+                  name="nickname"
+                  type="text"
+                  value={formData.nickname}
+                  onChange={handleInputChange}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                  placeholder="닉네임을 입력하세요"
+                />
+              </div>
+              <div>
+                <label
+                  htmlFor="birthDate"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  생년월일
+                </label>
+                <input
+                  id="birthDate"
+                  name="birthDate"
+                  type="date"
+                  value={formData.birthDate}
+                  onChange={handleInputChange}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Step 2: 추가 정보 */}
+          {currentStep === 2 && (
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label
+                  htmlFor="gender"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  성별 <span className="text-gray-400 text-xs">(선택사항)</span>
+                </label>
+                <select
+                  id="gender"
+                  name="gender"
+                  value={formData.gender}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                >
+                  <option value="">선택하지 않음</option>
+                  <option value="male">남성</option>
+                  <option value="female">여성</option>
+                </select>
+              </div>
+              <div>
+                <label
+                  htmlFor="name"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  이름 <span className="text-gray-400 text-xs">(선택사항)</span>
+                </label>
+                <input
+                  id="name"
+                  name="name"
+                  type="text"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                  placeholder="이름을 입력하세요"
+                />
+              </div>
+              <div>
+                <label
+                  htmlFor="address"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  주소 <span className="text-gray-400 text-xs">(선택사항)</span>
+                </label>
+                <input
+                  id="address"
+                  name="address"
+                  type="text"
+                  value={formData.address}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                  placeholder="주소를 입력하세요"
+                />
+              </div>
+              <div>
+                <label
+                  htmlFor="phoneNumber"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  전화번호 <span className="text-gray-400 text-xs">(선택사항)</span>
+                </label>
+                <input
+                  id="phoneNumber"
+                  name="phoneNumber"
+                  type="tel"
+                  value={formData.phoneNumber}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                  placeholder="전화번호를 입력하세요"
+                />
+              </div>
+            </form>
+          )}
+        </div>
+
+        {/* 네비게이션 버튼 */}
+        <div className="flex gap-3 mb-6">
+          {currentStep > 1 && (
+            <Button
+              onClick={handlePrev}
+              size="medium"
+              fullWidth
+              className="h-12"
+              sx={{
+                backgroundColor: "#F3F4F6",
+                color: "#6B7280",
+                textTransform: "none",
+                "&:hover": { backgroundColor: "#E5E7EB" },
+              }}
             >
-              닉네임
-            </label>
-            <input
-              id="nickname"
-              name="nickname"
-              type="text"
-              value={formData.nickname}
-              onChange={handleInputChange}
-              required
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
-              placeholder="닉네임을 입력하세요"
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="birthDate"
-              className="block text-sm font-medium text-gray-700 mb-2"
+              <span className="text-sm font-medium">이전</span>
+            </Button>
+          )}
+          {currentStep < totalSteps ? (
+            <Button
+              onClick={handleNext}
+              size="medium"
+              fullWidth
+              className="h-12"
+              sx={{
+                backgroundColor: "#7C3AED",
+                color: "#ffffff",
+                textTransform: "none",
+                "&:hover": { backgroundColor: "#6D28D9" },
+              }}
             >
-              생년월일
-            </label>
-            <input
-              id="birthDate"
-              name="birthDate"
-              type="date"
-              value={formData.birthDate}
-              onChange={handleInputChange}
-              required
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
-            />
-          </div>
-          <Button
-            type="submit"
-            size="medium"
-            fullWidth
-            disabled={isSubmitting}
-            className="h-12"
-            sx={{
-              backgroundColor: "#7C3AED",
-              color: "#ffffff",
-              textTransform: "none",
-              "&:hover": { backgroundColor: "#6D28D9" },
-              "&:disabled": { backgroundColor: "#D1D5DB", color: "#9CA3AF" },
-            }}
-          >
-            <span className="text-sm font-medium">
-              {isSubmitting ? "가입 중..." : "회원가입 완료"}
-            </span>
-          </Button>
-        </form>
+              <span className="text-sm font-medium">다음</span>
+            </Button>
+          ) : (
+            <Button
+              onClick={handleSubmit}
+              size="medium"
+              fullWidth
+              disabled={isSubmitting}
+              className="h-12"
+              sx={{
+                backgroundColor: "#7C3AED",
+                color: "#ffffff",
+                textTransform: "none",
+                "&:hover": { backgroundColor: "#6D28D9" },
+                "&:disabled": { backgroundColor: "#D1D5DB", color: "#9CA3AF" },
+              }}
+            >
+              <span className="text-sm font-medium">
+                {isSubmitting ? "가입 중..." : "회원가입 완료"}
+              </span>
+            </Button>
+          )}
+        </div>
 
         {/* 로그인 링크 */}
         <div className="text-center">
