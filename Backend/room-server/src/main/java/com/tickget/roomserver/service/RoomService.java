@@ -1,11 +1,14 @@
 package com.tickget.roomserver.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tickget.roomserver.domain.entity.PresetHall;
 import com.tickget.roomserver.domain.entity.Room;
 import com.tickget.roomserver.domain.enums.RoomStatus;
 import com.tickget.roomserver.domain.enums.ThumbnailType;
 import com.tickget.roomserver.domain.repository.PresetHallRepository;
 import com.tickget.roomserver.domain.repository.RoomRepository;
+import com.tickget.roomserver.dto.cache.MemberCache;
 import com.tickget.roomserver.dto.request.CreateRoomRequest;
 import com.tickget.roomserver.dto.request.ExitRoomRequest;
 import com.tickget.roomserver.dto.request.JoinRoomRequest;
@@ -26,10 +29,13 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -41,24 +47,54 @@ public class RoomService {
 
     private final RoomRepository roomRepository;
     private final PresetHallRepository  presetHallRepository;
+    private final RedisTemplate<String,String> redisTemplate;
+    private final ObjectMapper mapper = new ObjectMapper();
     private final MinioService minioService;
     private final WebSocketSessionManager sessionManager;
     private final RoomEventProducer roomEventProducer;
 
     @Transactional
-    public CreateRoomResponse createRoom(CreateRoomRequest createRoomRequest, MultipartFile thumbnail) {
+    public CreateRoomResponse createRoom(CreateRoomRequest request, MultipartFile thumbnail) throws JsonProcessingException {
+
         //TODO: AI 생성 맵 추가 시 분기점 구현
-        PresetHall presetHall = presetHallRepository.findById(createRoomRequest.getHallId()).orElseThrow(
-                () -> new PresetHallNotFoundException(createRoomRequest.getHallId())
+        PresetHall presetHall = presetHallRepository.findById(request.getHallId()).orElseThrow(
+                () -> new PresetHallNotFoundException(request.getHallId())
         );
-        String thumbnailValue = createRoomRequest.getThumbnailValue();
-        if (createRoomRequest.getThumbnailType() == ThumbnailType.UPLOADED) {
+        String thumbnailValue = request.getThumbnailValue();
+        if (request.getThumbnailType() == ThumbnailType.UPLOADED) {
             thumbnailValue = minioService.uploadFile(thumbnail);
         }
 
-        Room room = Room.of(createRoomRequest,presetHall,thumbnailValue);
+        Room room = Room.of(request,presetHall,thumbnailValue);
         room = roomRepository.save(room); // 알아서 id값 반영되지만 명시
+
+        //세션에 정보 저장
+        sessionManager.addUserToRoom(request.getUserId(), request.getUsername(),room.getId());
+
         //TODO: 매치 생성 요청
+
+        //Redis에 정보 저장
+        String infoKey = "room:" + room.getId()+ ":info";
+        String memberKey ="room:" + room.getId()+ ":member";
+
+        Map<String, String> roomInfo = new HashMap<>();
+        roomInfo.put("maxUserCount", String.valueOf(request.getMaxUserCount()));
+        roomInfo.put("host", String.valueOf(request.getUserId()));
+        roomInfo.put("title", request.getMatchName());
+        roomInfo.put("difficulty",request.getDifficulty().toString());
+        roomInfo.put("createdAt", String.valueOf(System.currentTimeMillis()));
+
+        MemberCache memberCache = new MemberCache(request.getUserId(), request.getUsername(), System.currentTimeMillis());
+        String json = mapper.writeValueAsString(memberCache);
+
+        redisTemplate.opsForHash().putAll(infoKey, roomInfo);
+        redisTemplate.opsForHash().put(memberKey, request.getUserId(), json);
+
+        redisTemplate.expire(infoKey, 24, TimeUnit.HOURS);
+        redisTemplate.expire(memberKey, 24, TimeUnit.HOURS);
+
+        log.debug("사용자  {}(id:{})(이)가 방 {}을 생성 후 입장",request.getUsername(), request.getUserId(), room.getId());
+
 
 
         return CreateRoomResponse.from(room);
@@ -165,5 +201,10 @@ public class RoomService {
         }
 
         return ExitRoomResponse.of(room, leftUserCount);
+    }
+
+    private Long getRoomMemberCount(Long roomId) {
+        String memberKey = "room:"+roomId+":members";
+        return redisTemplate.opsForHash().size(memberKey);
     }
 }

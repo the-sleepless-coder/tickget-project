@@ -1,5 +1,6 @@
 package com.tickget.roomserver.controller;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.tickget.roomserver.dto.request.CreateRoomRequest;
 import com.tickget.roomserver.dto.request.ExitRoomRequest;
 import com.tickget.roomserver.dto.request.JoinRoomRequest;
@@ -66,7 +67,7 @@ public class RoomController {
     // 방생성
     @PostMapping
     public ResponseEntity<CreateRoomResponse> createRoom(@RequestBody CreateRoomRequest createRoomRequest,
-                                                         @RequestPart(value = "file", required = false) MultipartFile thumbnail){
+                                                         @RequestPart(value = "file", required = false) MultipartFile thumbnail) throws JsonProcessingException {
         CreateRoomResponse response = roomService.createRoom(createRoomRequest,thumbnail);
         return ResponseEntity
                 .status(HttpStatus.CREATED)
