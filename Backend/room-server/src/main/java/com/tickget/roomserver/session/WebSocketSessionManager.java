@@ -34,17 +34,17 @@ public class WebSocketSessionManager {
     // sessionId -> userId
     private final Map<String, Long> sessionToUser = new ConcurrentHashMap<>();
 
-    // sessionId - > roomId;
+//    // sessionId - > roomId;
     private final Map<String,Long> sessionToRoom = new ConcurrentHashMap<>();
-
-    // roomId -> Set<userId>
-    private final Map<Long, Set<Long>> roomUsers = new ConcurrentHashMap<>();
-
-    // userId -> roomId (한 유저는 한 방에만)
-    private final Map<Long, Long> userToRoom = new ConcurrentHashMap<>();
-
-    // userId -> userName
-    private final Map<Long, String> userToName = new ConcurrentHashMap<>();
+//
+//    // roomId -> Set<userId>
+//    private final Map<Long, Set<Long>> roomUsers = new ConcurrentHashMap<>();
+//
+//    // userId -> roomId (한 유저는 한 방에만)
+//    private final Map<Long, Long> userToRoom = new ConcurrentHashMap<>();
+//
+//    // userId -> userName
+//    private final Map<Long, String> userToName = new ConcurrentHashMap<>();
 
     //새롭게 세션등록
     public void registerSession(String sessionId, Long userId){
@@ -101,25 +101,10 @@ public class WebSocketSessionManager {
     //세션데이터 삭제: section이 닫힌 상황에서만 호출됨
     public void removeSessionData(String sessionId) {
         Long userId = sessionToUser.remove(sessionId);
-        userToName.remove(userId);
 
         if (userId != null) {
             userToSession.remove(userId);
-
-            // 방에서도 제거
-            Long roomId = userToRoom.remove(userId);
-            if (roomId != null) {
-                Set<Long> users = roomUsers.get(roomId);
-                if (users != null) {
-                    users.remove(userId);
-                    if (users.isEmpty()) {
-                        roomUsers.remove(roomId);
-                    }
-                }
-            }
-
             sessions.remove(sessionId);
-            sessionToRoom.remove(sessionId);
             log.info("세션 데이터 삭제: sessionId={}, userId={}", sessionId, userId);
         }
 
@@ -139,90 +124,16 @@ public class WebSocketSessionManager {
         }
     }
 
-    // 유저를 방에 추가
-    public void addUserToRoom(Long userId,String userName, Long roomId) {
-        // 기존 방에서 제거
-        Long oldRoomId = userToRoom.get(userId);
-        if (oldRoomId != null && !oldRoomId.equals(roomId)) {
-            removeUserFromRoom(userId, oldRoomId);
-        }
-
-        //이름과 id 매핑
-        userToName.put(userId, userName);
-
-        // 새 방에 추가
-        userToRoom.put(userId, roomId);
-        roomUsers.computeIfAbsent(roomId, k -> ConcurrentHashMap.newKeySet()).add(userId);
-        String sessionId = userToSession.get(userId);
-        if (sessionId != null) {
-            sessionToRoom.put(sessionId, roomId);
-        }
-
-        log.info("유저 방 추가: userId={}, roomId={}", userId, roomId);
-    }
-
-    // 유저를 방에서 제거
-    public void removeUserFromRoom(Long userId, Long roomId) {
-        userToRoom.remove(userId);
-        userToName.remove(userId);
-
-        Set<Long> users = roomUsers.get(roomId);
-        if (users != null) {
-            users.remove(userId);
-            if (users.isEmpty()) {
-                roomUsers.remove(roomId);
-            }
-        }
-        //TODO: 제거된 유저가 방장일시, 방장위임 로직
-
-        log.info("유저 방 제거: userId={}, roomId={}", userId, roomId);
-    }
-
-    //방의 모든 유저 조회 id:name 꼴
-    public Map<Long,String> getUsersInRoom(Long roomId) {
-        Set<Long> users = roomUsers.get(roomId);
-        if (users == null) {
-            roomUsers.put(roomId, ConcurrentHashMap.newKeySet());
-            users = roomUsers.get(roomId);
-        }
-        HashMap<Long,String> usersInRoom = new HashMap<>();
-
-        for (Long userId : users) {
-            usersInRoom.put(userId, userToName.get(userId));
-        }
-
-        return usersInRoom;
-    }
-
-    // 유저가 속한 방 조회
-    public Long getRoomByUser(Long userId) {
-        return userToRoom.get(userId);
-    }
-
-    //웹소켓 sessionId로 방 조회
-    public Long getRoomBySessionId(String sessionId) {
-        return sessionToRoom.get(sessionId);
-    }
 
     // 전체 연결 수
     public int getConnectionCount() {
         return sessions.size();
     }
 
-    //전체 방 수
-    public int getRoomCount() {
-        return roomUsers.size();
-    }
-
     //디버깅용 메서드 - 현재 상태 출력
     public void printStatus() {
         log.info("=== WebSocket Session Manager Status ===");
         log.info("총 연결 수: {}", sessions.size());
-        log.info("총 방 수: {}", roomUsers.size());
-
-        roomUsers.forEach((roomId, users) -> {
-            log.info("방 {}: {} 명", roomId, users.size());
-        });
     }
 
 

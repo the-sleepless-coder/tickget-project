@@ -32,7 +32,6 @@ public class RoomCacheRepository {
         roomInfo.put("difficulty",request.getDifficulty().toString());
         roomInfo.put("createdAt", String.valueOf(System.currentTimeMillis()));
 
-        addMemberToRoom(roomId, request.getUserId(), request.getUsername());
         redisTemplate.opsForHash().putAll(infoKey, roomInfo);
 
         redisTemplate.expire(infoKey, 24, TimeUnit.HOURS);
@@ -85,5 +84,10 @@ public class RoomCacheRepository {
     public Integer getRoomCurrentUserCount(Long roomId){
         String memberKey = "room:" + roomId+ ":members";
         return Math.toIntExact(redisTemplate.opsForHash().size(memberKey));
+    }
+
+    public void removeMemberFromRoom(Long roomId, Long userId) {
+        String memberKey = "room:" + roomId+ ":members";
+        redisTemplate.opsForHash().delete(memberKey, userId);
     }
 }

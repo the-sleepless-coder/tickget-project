@@ -65,14 +65,11 @@ public class RoomService {
         Room room = Room.of(request,presetHall,thumbnailValue);
         room = roomRepository.save(room); // 알아서 id값 반영되지만 명시
 
-        //세션에 정보 저장
-        sessionManager.addUserToRoom(request.getUserId(), request.getUsername(),room.getId());
-
         //TODO: 매치 생성 요청
 
         //Redis에 정보 저장
-
         roomCacheRepository.saveRoom(room.getId(),request);
+        roomCacheRepository.addMemberToRoom(room.getId(),request.getUserId(), request.getUsername() );
 
         log.debug("사용자  {}(id:{})(이)가 방 {}을 생성 후 입장",request.getUsername(), request.getUserId(), room.getId());
 
@@ -120,8 +117,33 @@ public class RoomService {
 
     @Transactional(readOnly = true)
     public JoinRoomResponse joinRoom(JoinRoomRequest joinRoomRequest, Long roomId) throws JsonProcessingException {
+
+        validateRoomAvailable(roomId);
+
         Long userId = joinRoomRequest.getUserId();
         String userName = joinRoomRequest.getUserName();
+
+        int currentUserCount = roomCacheRepository.addMemberToRoom(roomId, userId, userName);
+        List<RoomMember> roomMembers = roomCacheRepository.getRoomMembers(roomId);
+
+        log.debug("사용자  {}(id:{})(이)가 방 {}에 입장 - 현재 인원: {}",userName, userId, roomId, currentUserCount);
+
+        UserJoinedRoomEvent event = UserJoinedRoomEvent.of(userId, roomId, currentUserCount);
+        roomEventProducer.publishUserJoinedEvent(event);
+
+        Room room = roomRepository.findById(roomId).orElseThrow(
+                () -> new RoomNotFoundException(roomId));
+
+        return JoinRoomResponse.of(room, currentUserCount, roomMembers);
+
+    }
+
+    private void validateRoomAvailable(Long roomId) {
+        RoomInfo roomInfo = roomCacheRepository.getRoomInfo(roomId);
+
+        if (roomInfo == null) {
+            throw new RoomNotFoundException(roomId);
+        }
 
         Room room = roomRepository.findById(roomId).orElseThrow(
                 () -> new RoomNotFoundException(roomId));
@@ -133,28 +155,6 @@ public class RoomService {
         }
         if (roomStatus == RoomStatus.CLOSED) {
             throw new RoomClosedException("이미 종료된 방에는 참가할 수 없습니다.");
-        }
-
-        validateRoomAvailable(roomId);
-
-        sessionManager.addUserToRoom(userId,userName,roomId);
-        int currentUserCount = roomCacheRepository.addMemberToRoom(roomId, userId, userName);
-        List<RoomMember> roomMembers = roomCacheRepository.getRoomMembers(roomId);
-
-        log.debug("사용자  {}(id:{})(이)가 방 {}에 입장 - 현재 인원: {}",userName, userId, roomId, currentUserCount);
-
-        UserJoinedRoomEvent event = UserJoinedRoomEvent.of(userId, roomId, currentUserCount);
-        roomEventProducer.publishUserJoinedEvent(event);
-
-        return JoinRoomResponse.of(room, currentUserCount, roomMembers);
-
-    }
-
-    private void validateRoomAvailable(Long roomId) {
-        RoomInfo roomInfo = roomCacheRepository.getRoomInfo(roomId);
-
-        if (roomInfo == null) {
-            throw new RoomNotFoundException(roomId);
         }
 
         Integer maxUserCount = roomInfo.getMaxUserCount();
@@ -172,12 +172,8 @@ public class RoomService {
         Room room = roomRepository.findById(roomId).orElseThrow(
                 () -> new RoomNotFoundException(roomId));
 
-        if(!sessionManager.getRoomByUser(userId).equals(roomId)){
-            throw new IllegalStateException("사용자가 속해있는 방이 아닙니다");
-        }
-
-        sessionManager.removeUserFromRoom(userId,roomId);
-        int leftUserCount = sessionManager.getUsersInRoom(roomId).size();
+        roomCacheRepository.removeMemberFromRoom(roomId, userId);
+        int leftUserCount = roomCacheRepository.getRoomCurrentUserCount(roomId);
         log.debug("사용자 {}(id:{})(이)가 방 {}에서 퇴장 - 현재 잔존 인원: {}",userName,userId,roomId,leftUserCount);
 
         UserLeftRoomEvent event = UserLeftRoomEvent.of(userId, roomId, leftUserCount);
