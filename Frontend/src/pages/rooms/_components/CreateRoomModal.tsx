@@ -1,12 +1,13 @@
-import { useMemo, useState } from "react";
-import { Modal } from "../../../shared/ui/common/Modal";
+import { useEffect, useMemo, useState } from "react";
+import type { ChangeEvent } from "react";
+ 
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { TimePicker } from "@mui/x-date-pickers/TimePicker";
-import SettingsOutlined from "@mui/icons-material/SettingsOutlined";
-import RestoreOutlined from "@mui/icons-material/RestoreOutlined";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import InsertPhotoOutlined from "@mui/icons-material/InsertPhotoOutlined";
 import dayjs, { Dayjs } from "dayjs";
+import "dayjs/locale/ko";
 import InfoOutlined from "@mui/icons-material/InfoOutlined";
 
 export default function CreateRoomModal({
@@ -16,6 +17,8 @@ export default function CreateRoomModal({
   open: boolean;
   onClose: () => void;
 }) {
+  dayjs.locale("ko");
+  const [startDate, setStartDate] = useState<Dayjs | null>(dayjs());
   const [startTime, setStartTime] = useState<Dayjs | null>(dayjs());
   const [title, setTitle] = useState("");
   const [size, setSize] = useState<"소형" | "중형" | "대형">("소형");
@@ -23,75 +26,133 @@ export default function CreateRoomModal({
     "쉬움"
   );
   const [venue, setVenue] = useState("");
+  const [platform, setPlatform] = useState<string>("익스터파크");
+  const [botCount, setBotCount] = useState<string>("");
+  const [participantCount, setParticipantCount] = useState<string>("");
+  const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
   const sizeOptions = useMemo(() => ["소형", "중형", "대형"] as const, []);
   const diffOptions = useMemo(() => ["쉬움", "보통", "어려움"] as const, []);
+  const sizeToVenues: Record<typeof sizeOptions[number], string[]> = {
+    소형: ["샤롯데씨어터"],
+    중형: ["올림픽공원 올림픽홀"],
+    대형: ["올림픽 주경기장"],
+  };
+  const allowedVenues = sizeToVenues[size];
+  const handleSelectSize = (label: typeof sizeOptions[number]) => {
+    setSize(label);
+    const [first] = sizeToVenues[label];
+    setVenue(first);
+  };
+  const onThumbnailChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const nextUrl = URL.createObjectURL(file);
+    if (thumbnailUrl) URL.revokeObjectURL(thumbnailUrl);
+    setThumbnailUrl(nextUrl);
+  };
+  useEffect(() => {
+    if (!open) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [open, onClose]);
+
+  if (!open) return null;
+
   return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      title={<TitleWithInfo />}
-      headerActions={
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            className="text-sm text-gray-400 hover:text-gray-700 inline-flex items-center gap-1"
-            title="설정 저장하기"
-          >
-            <SettingsOutlined fontSize="small" />
-            <span className="hidden sm:inline">설정 저장하기</span>
-          </button>
-          <button
-            type="button"
-            className="text-sm text-purple-600 hover:text-purple-700 inline-flex items-center gap-1"
-            title="설정 불러오기"
-          >
-            <RestoreOutlined fontSize="small" />
-            <span className="hidden sm:inline">설정 불러오기</span>
-          </button>
-        </div>
-      }
-      footer={
-        <div className="h-full flex items-center justify-end gap-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-1.5 rounded-md text-gray-700 hover:bg-gray-100"
-          >
-            취소하기
-          </button>
-          <button
-            type="button"
-            className="px-4 py-1.5 rounded-md bg-purple-600 text-white hover:bg-purple-700"
-          >
-            방 생성하기
-          </button>
-        </div>
-      }
-    >
-      <div className="grid grid-cols-[360px_1fr] gap-8">
-        <div className="flex flex-col">
-          <div className="grid place-items-center border rounded-xl text-gray-600 bg-gray-100 aspect-[1/1]">
-            <div className="text-center">
-              <div className="mx-auto mb-3 grid h-20 w-20 place-items-center rounded-lg border bg-white text-gray-400">
-                <InsertPhotoOutlined sx={{ fontSize: 36 }} />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
+      <div className="absolute inset-0 bg-black/30" onClick={onClose} aria-hidden />
+      <div className="relative bg-white rounded-xl shadow-lg w-full max-w-[1000px] max-h-[90vh] flex flex-col">
+        {/* Header */}
+        <div className="mt-4 px-8 bg-white rounded-t-xl flex-shrink-0">
+          <div className="flex items-center justify-between h-[50px]">
+            <div className="flex items-center gap-3">
+              <h3 className="text-lg font-bold"><TitleWithInfo /></h3>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="hidden md:flex items-center gap-2">
+                <button
+                  type="button"
+                  className="text-sm text-gray-400 hover:text-gray-500 inline-flex items-center gap-1"
+                  title="현재 설정 저장"
+                >
+                  <span className="hidden sm:inline">현재 설정 저장</span>
+                </button>
+                <button
+                  type="button"
+                  className="text-sm text-gray-600 hover:text-gray-900 inline-flex items-center gap-1"
+                  title="설정 불러오기"
+                >
+                  <span className="hidden sm:inline">설정 불러오기</span>
+                </button>
               </div>
-              <div className="text-gray-500">공연장 썸네일</div>
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="모달 닫기"
+                className="text-2xl leading-none text-gray-400 hover:text-gray-600"
+              >
+                ×
+              </button>
             </div>
           </div>
-          <div className="mt-3 flex gap-2">
-            <span className="rounded-full bg-c-purple-100 text-purple-700 px-3 py-1 text-xs">
-              익스터파크
-            </span>
-            <span className="rounded-full bg-green-100 text-green-700 px-3 py-1 text-xs">
-              워터멜론
-            </span>
-            <span className="rounded-full bg-orange-100 text-orange-700 px-3 py-1 text-xs">
-              NO24
-            </span>
+          {/* small screens: actions in separate row, right-aligned */}
+          <div className="mt-2 flex justify-end gap-2 md:hidden">
+            <button
+              type="button"
+              className="text-sm text-gray-400 hover:text-gray-500 inline-flex items-center gap-1"
+              title="현재 설정 저장"
+            >
+              <span className="inline">현재 설정 저장</span>
+            </button>
+            <button
+              type="button"
+              className="text-sm text-gray-600 hover:text-gray-900 inline-flex items-center gap-1"
+              title="설정 불러오기"
+            >
+              <span className="inline">설정 불러오기</span>
+            </button>
           </div>
+        </div>
+        <div className="px-8 py-6 flex-1 overflow-y-auto">
+          <div className="grid grid-cols-1 md:grid-cols-[300px_1fr] gap-6">
+        <div className="flex flex-col">
+          <label htmlFor="room-thumbnail" className="cursor-pointer">
+                <div className="grid place-items-center rounded-md text-gray-600 bg-gray-300 w-[240px] h-[320px] md:w-[260px] md:h-[347px] mx-auto md:mx-0 overflow-hidden">
+              {thumbnailUrl ? (
+                <img
+                  src={thumbnailUrl}
+                  alt="썸네일 미리보기"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="text-center">
+                  <div className="mx-auto mt-4 grid h-8 w-8 place-items-center text-gray-500">
+                    <InsertPhotoOutlined sx={{ fontSize: 48 }} />
+                  </div>
+                  <div className="text-gray-500 mt-3 text-sm font-medium">방 썸네일을 <br />업로드할 수 있습니다</div>
+                </div>
+              )}
+            </div>
+          </label>
+          <input
+            id="room-thumbnail"
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={onThumbnailChange}
+          />
         </div>
 
         <div className="flex-1 space-y-5">
+          {/* Title at top */}
           <div className="relative">
             <label className="sr-only">방 제목</label>
             <input
@@ -107,75 +168,137 @@ export default function CreateRoomModal({
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            {sizeOptions.map((label) => (
-              <button
-                key={label}
-                type="button"
-                onClick={() => setSize(label)}
-                className={`px-4 py-2 rounded-full text-sm transition-colors ${
-                  size === label
-                    ? "bg-purple-100 text-purple-700"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
+          {/* Middle: two columns */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Left: platform, difficulty, size */}
+            <div className="space-y-4">
+              {/* Platform select */}
+              <div>
+                <select
+                  value={platform}
+                  onChange={(e) => setPlatform(e.target.value)}
+                  className="w-full border-b px-2 py-3 text-gray-700"
+                >
+                  <option value="익스터파크">익스터파크</option>
+                  <option value="워터멜론">워터멜론</option>
+                  <option value="NO24">NO24</option>
+                </select>
+              </div>
+
+              {/* Difficulty */}
+              <div className="flex items-center gap-2">
+                {diffOptions.map((label) => (
+                  <button
+                    key={label}
+                    type="button"
+                    onClick={() => setDifficulty(label)}
+                    className={`px-4 py-2 rounded-full text-sm transition-colors ${
+                      difficulty === label
+                        ? "bg-purple-100 text-purple-700"
+                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Size */}
+              <div className="flex items-center gap-2">
+                {sizeOptions.map((label) => (
+                  <button
+                    key={label}
+                    type="button"
+                    onClick={() => handleSelectSize(label)}
+                    className={`px-4 py-2 rounded-full text-sm transition-colors ${
+                      size === label
+                        ? "bg-purple-100 text-purple-700"
+                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Right: participant, bot, venue */}
+            <div className="space-y-4">
+              {/* Participant count */}
+              <div className="relative">
+                <input
+                  value={participantCount}
+                  onChange={(e) =>
+                    setParticipantCount(e.target.value.replace(/[^0-9]/g, ""))
+                  }
+                  className="w-full border-b px-2 py-3 pr-20"
+                  placeholder="참여 인원"
+                  inputMode="numeric"
+                />
+                <div className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-sm text-gray-400">/20 명</div>
+              </div>
+
+              {/* Bot count */}
+              <div className="relative">
+                <input
+                  value={botCount}
+                  onChange={(e) => setBotCount(e.target.value.replace(/[^0-9]/g, ""))}
+                  className="w-full border-b px-2 py-3 pr-24"
+                  placeholder="봇 인원수"
+                  inputMode="numeric"
+                />
+                <div className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-sm text-gray-400">/2000 명</div>
+              </div>
+
+              {/* Venue select (filtered by size) */}
+              <div>
+                <select
+                  value={venue}
+                  onChange={(e) => setVenue(e.target.value)}
+                  className="w-full border-b px-2 py-3 text-gray-700"
+                >
+                  {allowedVenues.map((v) => (
+                    <option key={v} value={v}>{v}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            {diffOptions.map((label) => (
-              <button
-                key={label}
-                type="button"
-                onClick={() => setDifficulty(label)}
-                className={`px-4 py-2 rounded-full text-sm transition-colors ${
-                  difficulty === label
-                    ? "bg-purple-100 text-purple-700"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-
-          <div>
-            <select
-              value={venue}
-              onChange={(e) => setVenue(e.target.value)}
-              className="w-full border-b px-2 py-3 text-gray-700"
-            >
-              <option value="">공연장 선택</option>
-              <option value="샤롯데씨어터">샤롯데씨어터</option>
-              <option value="올림픽홀">올림픽공원 올림픽홀</option>
-              <option value="올림픽주경기장">올림픽 주경기장</option>
-            </select>
-          </div>
-
-          <div className="grid grid-cols-[1fr_120px] items-center gap-4">
-            <input className="border-b px-2 py-3" placeholder="봇 인원수" />
-            <div className="text-right text-gray-400">/2000 명</div>
-          </div>
-
-          <div className="grid grid-cols-[1fr_120px] items-center gap-4">
-            <input className="border-b px-2 py-3" placeholder="참여 인원" />
-            <div className="text-right text-gray-400">/20 명</div>
-          </div>
-
-          <div className="grid grid-cols-[1fr_180px] items-center gap-4">
-            <div className="text-gray-700">시작 시간</div>
+          {/* Bottom: start time and date/time inputs */}
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_240px_160px] items-center gap-4">
+            <div className="text-gray-700">경기 일시</div>
+            <LocalizationProvider dateAdapter={AdapterDayjs}>
+              <DatePicker
+                label={undefined}
+                format="YYYY년 MM월 DD일"
+                value={startDate}
+                onChange={(v: Dayjs | null) => setStartDate(v)}
+                slotProps={{
+                  textField: {
+                    size: "small",
+                    fullWidth: true,
+                    sx: {
+                      "& .MuiInputBase-root": {
+                        borderRadius: "8px",
+                        backgroundColor: "#f3f4f6",
+                      },
+                    },
+                  },
+                }}
+              />
+            </LocalizationProvider>
             <LocalizationProvider dateAdapter={AdapterDayjs}>
               <TimePicker
                 label={undefined}
+                ampm
+                format="A hh:mm"
                 value={startTime}
                 onChange={(v: Dayjs | null) => setStartTime(v)}
                 slotProps={{
                   textField: {
                     size: "small",
                     fullWidth: true,
-                    placeholder: "타임피커",
                     sx: {
                       "& .MuiInputBase-root": {
                         borderRadius: "8px",
@@ -188,8 +311,26 @@ export default function CreateRoomModal({
             </LocalizationProvider>
           </div>
         </div>
+        </div>
+        </div>
+        {/* Footer */}
+        <div className="mb-4 h-[50px] px-8 rounded-b-xl flex-shrink-0 flex items-center justify-end gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-1.5 rounded-md bg-gray-200 text-gray-700 hover:bg-gray-300"
+          >
+            취소하기
+          </button>
+          <button
+            type="button"
+            className="px-4 py-1.5 rounded-md bg-purple-600 text-white hover:bg-purple-700"
+          >
+            방 생성하기
+          </button>
+        </div>
       </div>
-    </Modal>
+    </div>
   );
 }
 
@@ -208,7 +349,7 @@ function InfoBubble() {
       <button
         type="button"
         aria-label="방 만들기 도움말"
-        className="grid h-6 w-6 place-items-center rounded-full bg-purple-600 text-white shadow-md focus:outline-none"
+        className="grid h-6 w-6 place-items-center rounded-full bg-purple-600 text-white shadow-md focus:outline-none cursor-pointer"
       >
         <InfoOutlined sx={{ fontSize: 14 }} />
       </button>
