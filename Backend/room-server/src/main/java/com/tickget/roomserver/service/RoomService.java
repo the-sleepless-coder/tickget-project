@@ -1,7 +1,6 @@
 package com.tickget.roomserver.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tickget.roomserver.domain.entity.PresetHall;
 import com.tickget.roomserver.domain.entity.Room;
 import com.tickget.roomserver.domain.enums.RoomStatus;
@@ -17,7 +16,6 @@ import com.tickget.roomserver.dto.request.JoinRoomRequest;
 import com.tickget.roomserver.dto.response.CreateRoomResponse;
 import com.tickget.roomserver.dto.response.ExitRoomResponse;
 import com.tickget.roomserver.dto.response.JoinRoomResponse;
-import com.tickget.roomserver.dto.response.MatchResponse;
 import com.tickget.roomserver.dto.response.RoomDetailResponse;
 import com.tickget.roomserver.dto.response.RoomResponse;
 import com.tickget.roomserver.event.UserJoinedRoomEvent;
@@ -36,7 +34,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -110,17 +107,15 @@ public class RoomService {
     }
 
     @Transactional(readOnly = true)
-    public RoomDetailResponse getRoom(Long roomId) {
+    public RoomDetailResponse getRoom(Long roomId) throws JsonProcessingException {
         Room room = roomRepository.findById(roomId).orElseThrow(
-                () -> new RoomNotFoundException(roomId)
-        );
+                () -> new RoomNotFoundException(roomId));
 
-        //TODO: 로직 구현 시 대체
-        MatchResponse matchResponse = null;
-        int currentUserCount = 1;
-        List<String> userNames = new ArrayList<>();
+        //우선 매치서버에서 받아오는것이 아닌, redis 사용하는 방식으로 사용
+        RoomInfo roomInfo = roomCacheRepository.getRoomInfo(roomId);
+        List<RoomMember> roomMembers = roomCacheRepository.getRoomMembers(roomId);
 
-        return RoomDetailResponse.of(room, matchResponse, currentUserCount,userNames);
+        return RoomDetailResponse.of(room, roomInfo,roomMembers);
     }
 
     @Transactional(readOnly = true)

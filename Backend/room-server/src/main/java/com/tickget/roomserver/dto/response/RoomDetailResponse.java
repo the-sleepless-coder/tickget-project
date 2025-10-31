@@ -7,6 +7,10 @@ import com.tickget.roomserver.domain.enums.RoomType;
 import com.tickget.roomserver.domain.enums.ThumbnailType;
 import java.time.LocalDateTime;
 import java.util.List;
+
+import com.tickget.roomserver.dto.cache.RoomInfo;
+import com.tickget.roomserver.dto.cache.RoomMember;
+import com.tickget.roomserver.util.TimeConverter;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -23,7 +27,7 @@ public class RoomDetailResponse {
     private int botCount;
     private int maxUserCount;
     private int currentUserCount;
-    private List<String> users;
+    private List<RoomMember> roomMembers;
 
     private String difficulty;
     private RoomType roomType;
@@ -36,18 +40,19 @@ public class RoomDetailResponse {
     private ThumbnailType thumbnailType;
     private String thumbnailValue;
 
-    public static RoomDetailResponse of (Room room, MatchResponse matchResponse, int currentUserCount, List<String> users ){
+
+    public static RoomDetailResponse of(Room room, RoomInfo roomInfo, List<RoomMember> roomMembers) {
         return RoomDetailResponse.builder()
                 .roomId(room.getId())
-                .roomName(matchResponse.getMatchTitle())
+                .roomName(roomInfo.getTitle())
                 .botCount(room.getBotCount())
-                .maxUserCount(matchResponse.getMaxUserCount())
-                .currentUserCount(currentUserCount)
-                .users(users)
-                .difficulty(matchResponse.getDifficulty())
+                .maxUserCount(roomInfo.getMaxUserCount())
+                .currentUserCount(roomMembers.size())
+                .roomMembers(roomMembers)
+                .difficulty(roomInfo.getDifficulty())
                 .roomType(room.getRoomType())
                 .status(room.getStatus())
-                .startTime(matchResponse.getStartTime())
+                .startTime(TimeConverter.toLocalDateTime(roomInfo.getStartTime()))
                 .hallSize(room.getHallSize())
                 .hallName(room.getHallName())
                 .thumbnailType(room.getThumbnailType())

@@ -52,7 +52,7 @@ public class RoomController {
 
     // 특정 방 상세 정보 조회
     @GetMapping("/{roomId}")
-    public ResponseEntity<RoomDetailResponse> getRoom(@PathVariable("roomId") Long roomId){
+    public ResponseEntity<RoomDetailResponse> getRoom(@PathVariable("roomId") Long roomId) throws JsonProcessingException {
         RoomDetailResponse response = roomService.getRoom(roomId);
         return ResponseEntity.ok()
                 .body(response);
