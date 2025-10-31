@@ -101,8 +101,8 @@ export default function RoomsPage() {
       </div>
 
       {/* Heading + Controls */}
-      <div className="mt-6 flex items-center justify-between">
-        <div className="flex items-center gap-2">
+      <div className="mt-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="flex items-center gap-2 whitespace-nowrap overflow-x-auto md:overflow-visible">
           <h1 className="text-xl font-semibold text-gray-900">전체 방 목록</h1>
           <div className="hidden md:block">
             <Tooltip
@@ -159,7 +159,7 @@ export default function RoomsPage() {
             입장 가능
           </button>
         </div>
-        <div className="flex items-center gap-2 text-sm">
+        <div className="flex items-center gap-2 text-sm self-end md:self-auto">
           <button
             type="button"
             aria-pressed={activeSort === "start"}

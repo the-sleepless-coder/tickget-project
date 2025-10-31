@@ -4,6 +4,7 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import PeopleIcon from "@mui/icons-material/People";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import { paths } from "../../app/routes/paths";
+import CreateRoomModal from "../rooms/_components/CreateRoomModal";
 
 type Participant = {
   name: string;
@@ -21,6 +22,7 @@ export default function ITicketPage() {
   );
   const [nonReserveClickCount, setNonReserveClickCount] = useState<number>(0);
   const [isTrackingClicks, setIsTrackingClicks] = useState<boolean>(false);
+  const [isRoomModalOpen, setIsRoomModalOpen] = useState<boolean>(false);
 
   const participants: Participant[] = Array.from({ length: 18 }, (_, i) => ({
     name: "닉네임123",
@@ -112,6 +114,7 @@ export default function ITicketPage() {
   };
 
   return (
+    <>
     <div className="min-h-screen">
       {showBanner && (
         <TopBanner
@@ -127,7 +130,7 @@ export default function ITicketPage() {
 
       <div className="productWrapper w-[1280px] mx-auto px-4 md:px-6">
         <TagsRow />
-        <TitleSection />
+        <TitleSection onOpenSettings={() => setIsRoomModalOpen(true)} />
 
         <div className="mt-6 flex flex-row gap-8">
           <div className="summary w-[830px]">
@@ -153,6 +156,11 @@ export default function ITicketPage() {
         </div>
       </div>
     </div>
+    <CreateRoomModal
+      open={isRoomModalOpen}
+      onClose={() => setIsRoomModalOpen(false)}
+    />
+    </>
   );
 }
 
@@ -218,7 +226,7 @@ function TagsRow() {
   );
 }
 
-function TitleSection() {
+function TitleSection({ onOpenSettings }: { onOpenSettings: () => void }) {
   return (
     <div>
       <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900">
@@ -231,7 +239,8 @@ function TitleSection() {
         <span className="text-gray-300">|</span>
         <button
           type="button"
-          className="inline-flex items-center gap-1 text-gray-500 hover:text-gray-600"
+          className="inline-flex items-center gap-1 text-gray-500 cursor-pointer"
+          onClick={onOpenSettings}
         >
           <SettingsOutlinedIcon fontSize="small" />
           <span>방 설정</span>

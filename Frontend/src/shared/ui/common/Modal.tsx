@@ -50,7 +50,7 @@ export function Modal({
         aria-hidden
       />
       <div className="relative bg-white rounded-xl shadow-lg w-[900px] max-w-[90vw] flex flex-col">
-        <div className="flex items-center justify-between h-[50px] px-6 border-b bg-white rounded-t-xl flex-shrink-0">
+        <div className="flex items-center justify-between h-[50px] px-6 bg-white rounded-t-xl flex-shrink-0">
           <div className="flex items-center gap-3">
             <h3 className="text-lg font-bold">{title}</h3>
           </div>
@@ -68,7 +68,7 @@ export function Modal({
         </div>
         <div className="px-6 py-6">{children}</div>
         {footer ? (
-          <div className="h-[50px] px-6 border-t bg-[rgb(244,246,249)] rounded-b-xl flex-shrink-0">
+          <div className="h-[50px] px-6 rounded-b-xl flex-shrink-0">
             {footer}
           </div>
         ) : null}
