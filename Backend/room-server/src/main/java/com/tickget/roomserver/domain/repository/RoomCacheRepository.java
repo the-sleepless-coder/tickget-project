@@ -20,7 +20,7 @@ import java.util.concurrent.TimeUnit;
 public class RoomCacheRepository {
 
     private final RedisTemplate<String,String> redisTemplate;
-    private final ObjectMapper mapper = new ObjectMapper();
+    private final ObjectMapper mapper;
 
     public void saveRoom(Long roomId, CreateRoomRequest request) throws JsonProcessingException {
         String infoKey = "room:" + roomId+ ":info";
@@ -38,12 +38,11 @@ public class RoomCacheRepository {
     }
 
     public Integer addMemberToRoom(Long roomId, Long userId, String username) throws JsonProcessingException {
-        String memberKey ="room:" + roomId+ ":member";
+        String memberKey ="room:" + roomId+ ":members";
 
         RoomMember roomMember = new RoomMember(userId, username, System.currentTimeMillis());
         String json = mapper.writeValueAsString(roomMember);
-        redisTemplate.opsForHash().put(memberKey, userId, json);
-        redisTemplate.expire(memberKey, 24, TimeUnit.HOURS);
+        redisTemplate.opsForHash().put(memberKey, String.valueOf(userId), json);
 
         return Math.toIntExact(redisTemplate.opsForHash().size(memberKey));
     }
@@ -88,6 +87,13 @@ public class RoomCacheRepository {
 
     public void removeMemberFromRoom(Long roomId, Long userId) {
         String memberKey = "room:" + roomId+ ":members";
-        redisTemplate.opsForHash().delete(memberKey, userId);
+        redisTemplate.opsForHash().delete(memberKey, String.valueOf(userId));
+    }
+
+    public void deleteRoom(Long roomId) {
+        String memberKey = "room:" + roomId+ ":members";
+        String infoKey = "room:" + roomId + ":info";
+        redisTemplate.delete(memberKey);
+        redisTemplate.delete(infoKey);
     }
 }

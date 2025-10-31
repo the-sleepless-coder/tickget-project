@@ -183,6 +183,7 @@ public class RoomService {
         // 마지막 유저가 나갔으면 방 닫음
         if (leftUserCount == 0) {
             room.setStatus(RoomStatus.CLOSED);
+            roomCacheRepository.deleteRoom(roomId);
         }
 
         return ExitRoomResponse.of(room, leftUserCount);
