@@ -7,13 +7,21 @@ import com.tickget.roomserver.domain.enums.ThumbnailType;
 import com.tickget.roomserver.domain.repository.PresetHallRepository;
 import com.tickget.roomserver.domain.repository.RoomRepository;
 import com.tickget.roomserver.dto.request.CreateRoomRequest;
+import com.tickget.roomserver.dto.request.ExitRoomRequest;
+import com.tickget.roomserver.dto.request.JoinRoomRequest;
 import com.tickget.roomserver.dto.response.CreateRoomResponse;
+import com.tickget.roomserver.dto.response.ExitRoomResponse;
+import com.tickget.roomserver.dto.response.JoinRoomResponse;
 import com.tickget.roomserver.dto.response.MatchResponse;
 import com.tickget.roomserver.dto.response.RoomDetailResponse;
 import com.tickget.roomserver.dto.response.RoomResponse;
+import com.tickget.roomserver.event.UserJoinedRoomEvent;
+import com.tickget.roomserver.event.UserLeftRoomEvent;
 import com.tickget.roomserver.exception.PresetHallNotFoundException;
 
 import com.tickget.roomserver.exception.RoomNotFoundException;
+import com.tickget.roomserver.kafaka.RoomEventProducer;
+import com.tickget.roomserver.session.WebSocketSessionManager;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -32,8 +40,10 @@ import org.springframework.web.multipart.MultipartFile;
 public class RoomService {
 
     private final RoomRepository roomRepository;
-    private final MinioService minioService;
     private final PresetHallRepository  presetHallRepository;
+    private final MinioService minioService;
+    private final WebSocketSessionManager sessionManager;
+    private final RoomEventProducer roomEventProducer;
 
     @Transactional
     public CreateRoomResponse createRoom(CreateRoomRequest createRoomRequest, MultipartFile thumbnail) {
@@ -83,6 +93,7 @@ public class RoomService {
                         ));
     }
 
+    @Transactional(readOnly = true)
     public RoomDetailResponse getRoom(Long roomId) {
         Room room = roomRepository.findById(roomId).orElseThrow(
                 () -> new RoomNotFoundException(roomId)
@@ -94,5 +105,65 @@ public class RoomService {
         List<String> userNames = new ArrayList<>();
 
         return RoomDetailResponse.of(room, matchResponse, currentUserCount,userNames);
+    }
+
+    @Transactional(readOnly = true)
+    public JoinRoomResponse joinRoom(JoinRoomRequest joinRoomRequest, Long roomId) {
+        Long userId = joinRoomRequest.getUserId();
+        String userName = joinRoomRequest.getUserName();
+
+        Room room = roomRepository.findById(roomId).orElseThrow(
+                () -> new RoomNotFoundException(roomId));
+
+        RoomStatus roomStatus = room.getStatus();
+
+        if (roomStatus == RoomStatus.PLAYING) {
+            throw new IllegalArgumentException("게임이 진행중이여서 입장할 수 없는 방입니다");
+        }
+        if (roomStatus == RoomStatus.CLOSED) {
+            throw new IllegalStateException("이미 종료된 방에는 참가할 수 없습니다.");
+        }
+
+        Map<Long,String> users = sessionManager.getUsersInRoom(roomId);
+        //TODO: 로직 변경해서 room에서 최대 인원수를 들고 있게 한 후, 이를 기반으로 요청 거절
+
+        sessionManager.addUserToRoom(userId,userName,roomId);
+        users.put(userId,userName);
+        int currentUserCount = users.size();
+        log.debug("사용자  {}(id:{})(이)가 방 {}에 입장 - 현재 인원: {}",userName, userId, roomId, currentUserCount);
+
+        UserJoinedRoomEvent event = UserJoinedRoomEvent.of(userId, roomId, currentUserCount);
+        roomEventProducer.publishUserJoinedEvent(event);
+
+        return JoinRoomResponse.of(room, currentUserCount, users);
+
+    }
+
+    @Transactional
+    public ExitRoomResponse exitRoom(ExitRoomRequest exitRoomRequest, Long roomId) {
+        Long userId = exitRoomRequest.getUserId();
+        String userName = exitRoomRequest.getUserName();
+
+        Room room = roomRepository.findById(roomId).orElseThrow(
+                () -> new RoomNotFoundException(roomId));
+
+        if(!sessionManager.getRoomByUser(userId).equals(roomId)){
+            throw new IllegalStateException("사용자가 속해있는 방이 아닙니다");
+        }
+
+        sessionManager.removeUserFromRoom(userId,roomId);
+        int leftUserCount = sessionManager.getUsersInRoom(roomId).size();
+        log.debug("사용자 {}(id:{})(이)가 방 {}에서 퇴장 - 현재 잔존 인원: {}",userName,userId,roomId,leftUserCount);
+
+        UserLeftRoomEvent event = UserLeftRoomEvent.of(userId, roomId, leftUserCount);
+        roomEventProducer.publishUserLeftEvent(event);
+
+        //TODO: 유저 판단을 다른 서버도 확인하는 로직으로
+        // 마지막 유저가 나갔으면 방 닫음
+        if (leftUserCount == 0) {
+            room.setStatus(RoomStatus.CLOSED);
+        }
+
+        return ExitRoomResponse.of(room, leftUserCount);
     }
 }

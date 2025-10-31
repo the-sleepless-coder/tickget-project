@@ -17,10 +17,12 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 import org.hibernate.annotations.ColumnDefault;
 
 @Entity
 @Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -42,6 +44,7 @@ public class Room extends BaseTimeEntity{
     private String hallName;
 
     @Column(name = "hall_size")
+    @Enumerated(EnumType.STRING)
     private HallSize hallSize;
 
     @Column(name = "is_ai_generated")
