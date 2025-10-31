@@ -23,6 +23,7 @@ import com.tickget.roomserver.event.UserJoinedRoomEvent;
 import com.tickget.roomserver.event.UserLeftRoomEvent;
 import com.tickget.roomserver.exception.PresetHallNotFoundException;
 
+import com.tickget.roomserver.exception.RoomFullException;
 import com.tickget.roomserver.exception.RoomNotFoundException;
 import com.tickget.roomserver.kafaka.RoomEventProducer;
 import com.tickget.roomserver.session.WebSocketSessionManager;
@@ -180,7 +181,8 @@ public class RoomService {
         }
 
         Map<Long,String> users = sessionManager.getUsersInRoom(roomId);
-        //TODO: 로직 변경해서 room에서 최대 인원수를 들고 있게 한 후, 이를 기반으로 요청 거절
+        validateRoomAvailable(roomId);
+
 
         sessionManager.addUserToRoom(userId,userName,roomId);
         users.put(userId,userName);
@@ -192,6 +194,22 @@ public class RoomService {
 
         return JoinRoomResponse.of(room, currentUserCount, users);
 
+    }
+
+    private void validateRoomAvailable(Long roomId) {
+        String memberKey ="room:" + roomId+ ":member";
+        String infoKey = "room:" + roomId+ ":info";
+        Map<Object, Object> info = redisTemplate.opsForHash().entries(infoKey);
+
+        if (info.isEmpty()) {
+            throw new RoomNotFoundException(roomId);
+        }
+
+        int maxUserCount = (int) info.get("maxUserCount");
+        int currentCount = Math.toIntExact(redisTemplate.opsForHash().size(memberKey));
+        if (currentCount == maxUserCount ) {
+            throw new RoomFullException(roomId, maxUserCount);
+        }
     }
 
     @Transactional
