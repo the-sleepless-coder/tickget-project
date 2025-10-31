@@ -35,6 +35,7 @@ interface PersonalStatsProps {
 
 export default function PersonalStats({ matchHistory }: PersonalStatsProps) {
   const [visibleRows, setVisibleRows] = useState(5);
+  const [matchFilter, setMatchFilter] = useState<"all" | "match" | "solo">("all");
 
   const computeRankAmongUsers = (
     users?: Array<{ id: number; rank: number }>,
@@ -332,18 +333,55 @@ export default function PersonalStats({ matchHistory }: PersonalStatsProps) {
       {/* 데이터 테이블 */}
       <div className="rounded-xl border border-neutral-200 bg-white shadow-sm">
         <div className="border-b border-neutral-200 px-6 py-4">
-          <h3 className="text-lg font-bold text-neutral-900">상세 기록</h3>
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-bold text-neutral-900">상세 기록</h3>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setMatchFilter("all")}
+                className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                  matchFilter === "all"
+                    ? "bg-purple-500 text-white"
+                    : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"
+                }`}
+              >
+                전체
+              </button>
+              <button
+                onClick={() => setMatchFilter("match")}
+                className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                  matchFilter === "match"
+                    ? "bg-purple-500 text-white"
+                    : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"
+                }`}
+              >
+                대결
+              </button>
+              <button
+                onClick={() => setMatchFilter("solo")}
+                className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                  matchFilter === "solo"
+                    ? "bg-purple-500 text-white"
+                    : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"
+                }`}
+              >
+                솔로
+              </button>
+            </div>
+          </div>
         </div>
         <div className="overflow-x-auto overflow-y-visible">
           <table className="w-full">
             <thead className="bg-neutral-50">
               <tr>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-neutral-700">
+                  날짜/시간
+                </th>
+                <th className="px-6 py-3 text-left text-sm font-semibold text-neutral-700">
                   경기 정보
                 </th>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-neutral-700">
                   <span className="relative flex items-center gap-1">
-                    퍼센트
+                    상위 비율
                     <div className="group relative">
                       <span className="cursor-help text-neutral-400 hover:text-neutral-600">
                         (?)
@@ -373,11 +411,29 @@ export default function PersonalStats({ matchHistory }: PersonalStatsProps) {
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-200">
-              {chartData.slice(0, visibleRows).map((data, index) => (
+              {chartData
+                .filter((data) => {
+                  if (matchFilter === "all") return true;
+                  if (matchFilter === "match") return data.matchType === "대결";
+                  if (matchFilter === "solo") return data.matchType === "솔로";
+                  return true;
+                })
+                .slice(0, visibleRows)
+                .map((data, index) => (
                 <tr key={index} className="hover:bg-neutral-50">
                   <td className="px-6 py-4 text-sm text-neutral-900">
-                    {data.dateTime}
+                    <div className="flex flex-col">
+                      <span>
+                        {data.date
+                          ? data.date.length >= 3
+                            ? data.date.slice(2)
+                            : data.date
+                          : "-"}
+                      </span>
+                      <span className="text-neutral-500">{data.time || "-"}</span>
+                    </div>
                   </td>
+                  <td className="px-6 py-4 text-sm text-neutral-900">{data.matchType}</td>
                   <td className="px-6 py-4 text-sm font-semibold text-purple-600">
                     {data.percentile}%
                   </td>
@@ -411,18 +467,26 @@ export default function PersonalStats({ matchHistory }: PersonalStatsProps) {
         </div>
 
         {/* 더보기 버튼 */}
-        {visibleRows < chartData.length && (
-          <div className="flex justify-center border-t border-neutral-200 px-6 py-4">
-            <button
-              onClick={() =>
-                setVisibleRows((prev) => Math.min(prev + 5, chartData.length))
-              }
-              className="rounded-md border border-neutral-300 bg-white px-6 py-2 text-sm text-neutral-700 transition-colors hover:bg-neutral-50"
-            >
-              더보기
-            </button>
-          </div>
-        )}
+        {(() => {
+          const filteredData = chartData.filter((data) => {
+            if (matchFilter === "all") return true;
+            if (matchFilter === "match") return data.matchType === "대결";
+            if (matchFilter === "solo") return data.matchType === "솔로";
+            return true;
+          });
+          return visibleRows < filteredData.length ? (
+            <div className="flex justify-center border-t border-neutral-200 px-6 py-4">
+              <button
+                onClick={() =>
+                  setVisibleRows((prev) => Math.min(prev + 5, filteredData.length))
+                }
+                className="rounded-md border border-neutral-300 bg-white px-6 py-2 text-sm text-neutral-700 transition-colors hover:bg-neutral-50"
+              >
+                더보기
+              </button>
+            </div>
+          ) : null;
+        })()}
       </div>
     </div>
   );
