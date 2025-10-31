@@ -23,6 +23,7 @@ public class CreateRoomResponse {
     private int totalSeat;
     private int botCount;
     private int maxBooking;
+    private String subscriptionTopic;
     private ThumbnailType thumbnailType;
     private String thumbnailValue;
 
@@ -35,6 +36,7 @@ public class CreateRoomResponse {
                 .totalSeat(room.getTotalSeat())
                 .botCount(room.getBotCount())
                 .maxBooking(room.getMaxBooking())
+                .subscriptionTopic("/topic/rooms/" + room.getId())
                 .thumbnailType(room.getThumbnailType())
                 .thumbnailValue(room.getThumbnailValue())
                 .build();
