@@ -9,6 +9,7 @@ import com.tickget.roomserver.domain.enums.ThumbnailType;
 import com.tickget.roomserver.domain.repository.PresetHallRepository;
 import com.tickget.roomserver.domain.repository.RoomRepository;
 import com.tickget.roomserver.dto.cache.MemberCache;
+import com.tickget.roomserver.dto.cache.RoomInfo;
 import com.tickget.roomserver.dto.request.CreateRoomRequest;
 import com.tickget.roomserver.dto.request.ExitRoomRequest;
 import com.tickget.roomserver.dto.request.JoinRoomRequest;
@@ -113,20 +114,38 @@ public class RoomService {
                 .map(Room::getId)
                 .toList();
 
-        //TODO: 각 방 유저 수 반환 로직 도입
-        //TODO: 매치에 대한 정보 배치 요청
-        //Map<Long, MatchResponse> matchMap = getMatchResponses(roomIds);
-        //Map<Long, Integer> userCountMap = getCurrentUserCounts(roomIds);
-        Map<Long, MatchResponse> matchMap = new HashMap<>(roomIds.size());
-        Map<Long, Integer> userCountMap = new HashMap<>(roomIds.size());
+        // 관련 정보 Redis를 통해 얻어옴
+        Map<Long, RoomInfo> roomInfoMap = new HashMap<>(roomIds.size());
+        for (Long roomId : roomIds) {
+            roomInfoMap.put(roomId, getRoomInfoByCache(roomId));
+        }
 
         // 3. map으로 일괄로 변환
         return rooms.map(room ->
                         RoomResponse.of(
                                 room,
-                                matchMap.get(room.getId()),
-                                userCountMap.get(room.getId())
+                                roomInfoMap.get(room.getId())
                         ));
+    }
+
+    private RoomInfo getRoomInfoByCache(Long roomId) {
+        String infoKey = "room:" + roomId + ":info";
+        String memberKey = "room:" + roomId + ":members";
+
+        Map<Object, Object> info = redisTemplate.opsForHash().entries(infoKey);
+
+        // 현재 인원 수
+        Long currentCount = redisTemplate.opsForHash().size(memberKey);
+
+        return RoomInfo.builder()
+                .roomId(roomId)
+                .title(info.get("title").toString())
+                .host( info.get("host").toString())
+                .difficulty(info.get("difficulty").toString())
+                .maxUserCount(Integer.parseInt(info.get("maxUserCount").toString()))
+                .currentUserCount(Math.toIntExact(currentCount))
+                .createdAt(Long.parseLong(info.get("createdAt").toString()))
+                .build();
     }
 
     @Transactional(readOnly = true)
