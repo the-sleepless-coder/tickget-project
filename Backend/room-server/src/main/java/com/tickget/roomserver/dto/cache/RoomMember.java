@@ -5,7 +5,7 @@ import lombok.Getter;
 
 @Getter
 @AllArgsConstructor
-public class MemberCache {
+public class RoomMember {
     private Long userId;
     private String username;
     private long enteredAt;

@@ -5,7 +5,7 @@ public class RoomFullException extends RuntimeException {
     super(message);
   }
 
-  public RoomFullException(Long roomId, int maxUserCount) {
+  public RoomFullException(Long roomId, Integer maxUserCount) {
     super(String.format("방 ID %d는 최대 인원(%d명)으로 가득 찼습니다.", roomId, maxUserCount));
   }
 }
