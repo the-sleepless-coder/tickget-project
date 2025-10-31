@@ -83,7 +83,7 @@ public class RoomController {
     // 방 입장
     @PostMapping("/{roomId}/join")
     public ResponseEntity<?> joinRoom(@PathVariable("roomId") Long roomId,
-                                      @RequestBody JoinRoomRequest joinRoomRequest){
+                                      @RequestBody JoinRoomRequest joinRoomRequest) throws JsonProcessingException {
         //TODO: 현재 회원 정보가 어떻게 구성되고, 무엇을 프론트에 보여줄지가 결정안됨. 그에 따른 로직 변경이 필요할수도
 
         JoinRoomResponse joinRoomResponse = roomService.joinRoom(joinRoomRequest, roomId);

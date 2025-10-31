@@ -23,6 +23,7 @@ import com.tickget.roomserver.event.UserJoinedRoomEvent;
 import com.tickget.roomserver.event.UserLeftRoomEvent;
 import com.tickget.roomserver.exception.PresetHallNotFoundException;
 
+import com.tickget.roomserver.exception.RoomClosedException;
 import com.tickget.roomserver.exception.RoomFullException;
 import com.tickget.roomserver.exception.RoomNotFoundException;
 import com.tickget.roomserver.kafaka.RoomEventProducer;
@@ -164,7 +165,7 @@ public class RoomService {
     }
 
     @Transactional(readOnly = true)
-    public JoinRoomResponse joinRoom(JoinRoomRequest joinRoomRequest, Long roomId) {
+    public JoinRoomResponse joinRoom(JoinRoomRequest joinRoomRequest, Long roomId) throws JsonProcessingException {
         Long userId = joinRoomRequest.getUserId();
         String userName = joinRoomRequest.getUserName();
 
@@ -177,7 +178,7 @@ public class RoomService {
             throw new IllegalArgumentException("게임이 진행중이여서 입장할 수 없는 방입니다");
         }
         if (roomStatus == RoomStatus.CLOSED) {
-            throw new IllegalStateException("이미 종료된 방에는 참가할 수 없습니다.");
+            throw new RoomClosedException("이미 종료된 방에는 참가할 수 없습니다.");
         }
 
         Map<Long,String> users = sessionManager.getUsersInRoom(roomId);
@@ -187,6 +188,15 @@ public class RoomService {
         sessionManager.addUserToRoom(userId,userName,roomId);
         users.put(userId,userName);
         int currentUserCount = users.size();
+
+        String memberKey ="room:" + room.getId()+ ":member";
+
+        // cache에 저장
+        MemberCache memberCache = new MemberCache(userId, userName, System.currentTimeMillis());
+        String json = mapper.writeValueAsString(memberCache);
+        redisTemplate.opsForHash().put(memberKey, userId, json);
+        redisTemplate.expire(memberKey, 24, TimeUnit.HOURS);
+
         log.debug("사용자  {}(id:{})(이)가 방 {}에 입장 - 현재 인원: {}",userName, userId, roomId, currentUserCount);
 
         UserJoinedRoomEvent event = UserJoinedRoomEvent.of(userId, roomId, currentUserCount);
