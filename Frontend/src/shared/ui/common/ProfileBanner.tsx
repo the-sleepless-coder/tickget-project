@@ -9,6 +9,7 @@ interface ProfileBannerProps {
   tempNickname?: string;
   tempProfileImage?: string;
   onEdit?: () => void;
+  onInfoManage?: () => void;
   onNicknameChange?: (value: string) => void;
   onProfileImageChange?: (file: File) => void;
   onSave?: () => void;
@@ -24,6 +25,7 @@ export default function ProfileBanner({
   tempNickname,
   tempProfileImage,
   onEdit,
+  onInfoManage,
   onNicknameChange,
   onProfileImageChange,
   onSave,
@@ -107,7 +109,16 @@ export default function ProfileBanner({
                 className="rounded-lg bg-white/90 px-4 py-2 text-2xl font-bold text-neutral-900"
               />
             ) : (
-              <h2 className="text-3xl font-bold">{nickname}</h2>
+              <div className="flex items-center gap-3">
+                <h2 className="text-3xl font-bold">{nickname}</h2>
+                <span className="text-white/70">|</span>
+                <button
+                  onClick={onInfoManage}
+                  className="text-sm text-white/90 hover:text-white underline transition-colors"
+                >
+                  내정보 관리
+                </button>
+              </div>
             )}
             {!isEditing && (
               <button

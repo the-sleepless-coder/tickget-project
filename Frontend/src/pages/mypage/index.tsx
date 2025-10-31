@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import ProfileBanner from "../../shared/ui/common/ProfileBanner";
+import ProfileInfoModal from "../../shared/ui/common/ProfileInfoModal";
 import TabNavigation from "../../shared/ui/common/TabNavigation";
 import SearchBar from "../../shared/ui/common/SearchBar";
 import MatchHistoryCard from "../../shared/ui/common/MatchHistoryCard";
@@ -19,10 +20,17 @@ export default function MyPageIndex() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedUser, setSelectedUser] = useState<UserRank | null>(null);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [isProfileInfoModalOpen, setIsProfileInfoModalOpen] = useState(false);
   const [nickname, setNickname] = useState("닉네임");
+  const [birthDate, setBirthDate] = useState("99.01.28");
+  const [email, setEmail] = useState("tickget.gmail.com");
   const [profileImage, setProfileImage] = useState<string | undefined>(
     undefined
   );
+  const [gender, setGender] = useState<string>("");
+  const [name, setName] = useState<string>("");
+  const [address, setAddress] = useState<string>("");
+  const [phoneNumber, setPhoneNumber] = useState<string>("");
   const [tempNickname, setTempNickname] = useState("닉네임");
   const [tempProfileImage, setTempProfileImage] = useState<string | undefined>(
     undefined
@@ -122,8 +130,8 @@ export default function MyPageIndex() {
       {/* Profile Banner */}
       <ProfileBanner
         nickname={nickname}
-        birthDate="99.01.28"
-        email="tickget.gmail.com"
+        birthDate={birthDate}
+        email={email}
         profileImage={profileImage}
         isEditing={isEditingProfile}
         tempNickname={tempNickname}
@@ -133,6 +141,7 @@ export default function MyPageIndex() {
           setTempProfileImage(profileImage);
           setIsEditingProfile(true);
         }}
+        onInfoManage={() => setIsProfileInfoModalOpen(true)}
         onNicknameChange={(value) => setTempNickname(value)}
         onProfileImageChange={(file) => {
           const reader = new FileReader();
@@ -150,6 +159,24 @@ export default function MyPageIndex() {
           setTempNickname(nickname);
           setTempProfileImage(profileImage);
           setIsEditingProfile(false);
+        }}
+      />
+
+      {/* Profile Info Modal */}
+      <ProfileInfoModal
+        open={isProfileInfoModalOpen}
+        onClose={() => setIsProfileInfoModalOpen(false)}
+        initialData={{
+          gender,
+          name,
+          address,
+          phoneNumber,
+        }}
+        onSave={(data) => {
+          setGender(data.gender || "");
+          setName(data.name || "");
+          setAddress(data.address || "");
+          setPhoneNumber(data.phoneNumber || "");
         }}
       />
 
