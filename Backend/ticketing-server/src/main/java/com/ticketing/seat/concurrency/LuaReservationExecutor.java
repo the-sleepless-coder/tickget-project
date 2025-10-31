@@ -29,6 +29,7 @@ public class LuaReservationExecutor {
     private final DefaultRedisScript<Long> reserveSeatsLuaScript = new DefaultRedisScript<>(
             """
             local seatCount = tonumber(ARGV[2])
+            local totalSeats = tonumber(ARGV[3])
             
             -- check phase: 모든 좌석이 비어있는지 확인
             for i = 1, seatCount do
@@ -43,7 +44,12 @@ public class LuaReservationExecutor {
             end
             
             -- 카운터 증가
-            redis.call('INCRBY', KEYS[seatCount + 1], seatCount)
+            local newCount = redis.call('INCRBY', KEYS[seatCount + 1], seatCount)
+            
+            -- 만석 체크: 전체 좌석에 도달하면 상태를 CLOSED로 자동 변경
+            if newCount >= totalSeats then
+                redis.call('SET', KEYS[seatCount + 2], 'CLOSED')
+            end
     
             return 1
             """,
@@ -52,19 +58,22 @@ public class LuaReservationExecutor {
 
     public boolean tryReserveSeatsAtomically(Long matchId,
                                              List<String> seatIds,
-                                             Long userId) {
+                                             Long userId,
+                                             int totalSeats) {
 
-        // seat:{matchId}:{seatId} 키들 + match:{matchId}:reserved_count 카운터 키
-        List<String> keys = Stream.concat(
+        // KEYS: seat 키들 + reserved_count + status
+        List<String> keys = Stream.of(
                 seatIds.stream().map(seatId -> "seat:" + matchId + ":" + seatId),
-                Stream.of("match:" + matchId + ":reserved_count")
-        ).toList();
+                Stream.of("match:" + matchId + ":reserved_count"),
+                Stream.of("match:" + matchId + ":status")
+        ).flatMap(s -> s).toList();
 
         Long result = redisTemplate.execute(
                 reserveSeatsLuaScript,
                 keys,
                 userId.toString(),
-                String.valueOf(seatIds.size())
+                String.valueOf(seatIds.size()),
+                String.valueOf(totalSeats)
         );
 
         return result != null && result == 1L;
