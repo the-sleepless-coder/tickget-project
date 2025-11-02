@@ -1,0 +1,77 @@
+### Gradle ###
+HELP.md
+.gradle
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### STS / Eclipse ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+bin/
+!**/src/main/**/bin/
+!**/src/test/**/bin/
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+### VS Code ###
+.vscode/
+
+### Logs ###
+logs/
+*.log
+*.log.*
+
+### OS junk ###
+.DS_Store
+Thumbs.db
+
+### Editor swap / temp ###
+*.swp
+*.swo
+*.bak
+*.tmp
+
+### Runtime / coverage output ###
+/test-output/
+/target/
+coverage/
+jacoco/
+*.exec
+
+### Local / secret config ###
+application.yml
+application.yaml
+application.properties
+application-*.yml
+application-*.yaml
+application-*.properties
+.env
+*.env
+
+### Docker local volumes (optional if you add later) ###
+docker-data/
+db-data/
+
+### Lombok config (optional) ###
+lombok.config
