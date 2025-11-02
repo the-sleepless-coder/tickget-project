@@ -25,16 +25,8 @@ public class SeatConfirmationService {
     private final MatchRepository matchRepository;
     private final MatchStatusRepository matchStatusRepository;
     private final SeatReservationRedisRepository seatReservationRedisRepository;
-    private final SeatMetaService seatMetaService;
     private final EventPublisherService eventPublisherService;
 
-    /**
-     * 좌석 확정 서비스
-     * 1. 매치 상태 확인
-     * 2. Redis에서 좌석 상태 확인
-     * 3. 좌석 확정 처리
-     * 4. 카프카를 통해 이벤트 발행
-     */
     @Transactional(readOnly = true)
     public SeatConfirmationResponse confirmSeats(Long matchId, SeatConfirmationRequest request) {
         long startTime = System.currentTimeMillis();
@@ -44,76 +36,64 @@ public class SeatConfirmationService {
         }
 
         try {
-            // 1. 매치 상태 확인
             Match match = matchRepository.findById(matchId)
                     .orElseThrow(() -> new MatchNotFoundException(matchId));
 
             if (match.getStatus() != Match.MatchStatus.PLAYING) {
                 SeatConfirmationResponse response = buildClosedResponse(matchId, request.getUserId().toString());
-
-                // 실패 이벤트 발행
                 publishConfirmationEvent(request.getUserId(), matchId, request.getSeatIds(), null,
                         false, response.getMessage(), startTime);
-
                 return response;
             }
 
             String redisStatus = matchStatusRepository.getMatchStatus(matchId);
             if (!"OPEN".equalsIgnoreCase(redisStatus)) {
                 SeatConfirmationResponse response = buildClosedResponse(matchId, request.getUserId().toString());
-
-                // 실패 이벤트 발행
                 publishConfirmationEvent(request.getUserId(), matchId, request.getSeatIds(), null,
                         false, response.getMessage(), startTime);
-
                 return response;
             }
 
-            // 2. Redis에서 좌석 상태 확인
             List<String> requestedSeats = request.getSeatIds();
             Long userId = request.getUserId();
 
+            // Redis에서 좌석 소유자 확인
             for (String seatId : requestedSeats) {
-                Optional<Long> ownerOpt = seatReservationRedisRepository.findOwner(matchId, seatId);
+                String sectionId = extractSection(seatId);
+                String rowNumber = extractRowNumber(seatId);
 
-                // 좌석이 선점되지 않았거나 다른 사용자가 선점한 경우
+                Optional<Long> ownerOpt = seatReservationRedisRepository.findOwner(matchId, sectionId, rowNumber);
+
                 if (ownerOpt.isEmpty()) {
                     SeatConfirmationResponse response = buildErrorResponse("좌석 " + seatId + "는 선점되지 않았습니다.");
-
-                    // 실패 이벤트 발행
                     publishConfirmationEvent(request.getUserId(), matchId, request.getSeatIds(), null,
                             false, response.getMessage(), startTime);
-
                     return response;
                 }
 
                 if (!ownerOpt.get().equals(userId)) {
                     SeatConfirmationResponse response = buildConflictResponse(matchId, userId.toString(), requestedSeats);
-
-                    // 실패 이벤트 발행
                     publishConfirmationEvent(request.getUserId(), matchId, request.getSeatIds(), null,
                             false, response.getMessage(), startTime);
-
                     return response;
                 }
             }
 
-            // 3. 좌석이 유효하고 해당 사용자가 선점한 상태 → 확정 처리
+            // 좌석 확정 처리
             List<ConfirmedSeatDto> confirmedSeats = new ArrayList<>();
             List<String> sectionIds = new ArrayList<>();
 
             for (String seatId : requestedSeats) {
-                SeatMetaService.SeatMeta meta = seatMetaService.resolve(matchId, seatId);
+                String sectionId = extractSection(seatId);
 
                 confirmedSeats.add(ConfirmedSeatDto.builder()
                         .seatId(seatId)
-                        .sectionId(meta.getSectionId())
+                        .sectionId(sectionId)
                         .build());
 
-                sectionIds.add(meta.getSectionId());
+                sectionIds.add(sectionId);
             }
 
-            // 4. 성공 응답 생성
             SeatConfirmationResponse response = SeatConfirmationResponse.builder()
                     .success(true)
                     .message("예약 확정")
@@ -122,7 +102,6 @@ public class SeatConfirmationService {
                     .userId(userId.toString())
                     .build();
 
-            // 5. Kafka로 이벤트 발행 (비동기)
             publishConfirmationEvent(userId, matchId, requestedSeats, sectionIds,
                     true, "예약 확정", startTime);
 
@@ -131,8 +110,6 @@ public class SeatConfirmationService {
             log.error("좌석 확정 중 오류 발생: {}", e.getMessage(), e);
 
             SeatConfirmationResponse response = buildErrorResponse("좌석 확정 처리 중 오류가 발생했습니다: " + e.getMessage());
-
-            // 실패 이벤트 발행
             publishConfirmationEvent(request.getUserId(), matchId, request.getSeatIds(), null,
                     false, e.getMessage(), startTime);
 
@@ -141,8 +118,23 @@ public class SeatConfirmationService {
     }
 
     /**
-     * 좌석 확정 이벤트 발행 헬퍼 메서드
+     * seatId에서 sectionId 추출
+     * 예: "008-9-15" -> "008"
      */
+    private String extractSection(String seatId) {
+        String[] parts = seatId.split("-");
+        return parts.length >= 1 ? parts[0] : "";
+    }
+
+    /**
+     * seatId에서 rowNumber 추출
+     * 예: "008-9-15" -> "9-15"
+     */
+    private String extractRowNumber(String seatId) {
+        int firstDash = seatId.indexOf("-");
+        return firstDash > 0 ? seatId.substring(firstDash + 1) : "";
+    }
+
     private void publishConfirmationEvent(
             Long userId,
             Long matchId,

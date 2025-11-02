@@ -24,8 +24,6 @@ public class SeatReservationService {
     private final MatchRepository matchRepository;
     private final MatchStatusRepository matchStatusRepository;
     private final LuaReservationExecutor luaReservationExecutor;
-    private final SeatMetaService seatMetaService;
-    private final SeatCountService seatCountService;
 
     @Transactional(readOnly = true)
     public SeatReservationResponse reserveSeats(SeatReservationRequest req) {
@@ -52,33 +50,46 @@ public class SeatReservationService {
             throw new MatchClosedException(matchId);
         }
 
-        // 4. Redis 원자적 선점 시도 (좌석 선점 + 카운트 증가 + 만석 시 자동 CLOSED)
+        // 4. seatId -> rowNumber 변환 (예: "008-9-15" -> "9-15")
+        List<String> rowNumbers = req.getSeatIds().stream()
+                .map(this::extractRowNumber)
+                .toList();
+
+        // 5. Redis 원자적 선점 시도 (좌석 선점 + 카운트 증가 + 만석 시 자동 CLOSED)
         boolean ok = luaReservationExecutor.tryReserveSeatsAtomically(
                 matchId,
-                req.getSeatIds(),
+                req.getSectionId(),
+                rowNumbers,
                 userId,
+                req.getGrade(),
                 match.getMaxUser()
         );
 
         if (!ok) {
-            return buildFailureResponse(matchId, req.getSeatIds(), "Seats already taken");
+            return buildFailureResponse(req);
         }
 
-        return buildSuccessResponse(matchId, req.getSeatIds());
+        return buildSuccessResponse(req);
     }
 
-    private SeatReservationResponse buildFailureResponse(Long matchId, List<String> seatIds, String reason) {
-        List<ReservedSeatInfoDto> failed = seatIds.stream()
-                .map(seatId -> {
-                    SeatMetaService.SeatMeta meta = seatMetaService.resolve(matchId, seatId);
-                    return ReservedSeatInfoDto.builder()
-                            .sectionId(meta.getSectionId())
-                            .seatId(seatId)
-                            .grade(meta.getGrade())
-                            .expiresAt(null)
-                            .matchId(matchId)
-                            .build();
-                })
+    /**
+     * seatId에서 rowNumber 추출
+     * 예: "008-9-15" -> "9-15"
+     */
+    private String extractRowNumber(String seatId) {
+        int firstDash = seatId.indexOf("-");
+        return firstDash > 0 ? seatId.substring(firstDash + 1) : seatId;
+    }
+
+    private SeatReservationResponse buildFailureResponse(SeatReservationRequest req) {
+        List<ReservedSeatInfoDto> failed = req.getSeatIds().stream()
+                .map(seatId -> ReservedSeatInfoDto.builder()
+                        .sectionId(req.getSectionId())
+                        .seatId(seatId)
+                        .grade(req.getGrade())
+                        .expiresAt(null)
+                        .matchId(req.getMatchId())
+                        .build())
                 .toList();
 
         return SeatReservationResponse.builder()
@@ -88,18 +99,15 @@ public class SeatReservationService {
                 .build();
     }
 
-    private SeatReservationResponse buildSuccessResponse(Long matchId, List<String> seatIds) {
-        List<ReservedSeatInfoDto> held = seatIds.stream()
-                .map(seatId -> {
-                    SeatMetaService.SeatMeta meta = seatMetaService.resolve(matchId, seatId);
-                    return ReservedSeatInfoDto.builder()
-                            .sectionId(meta.getSectionId())
-                            .seatId(seatId)
-                            .grade(meta.getGrade())
-                            .expiresAt(null)
-                            .matchId(matchId)
-                            .build();
-                })
+    private SeatReservationResponse buildSuccessResponse(SeatReservationRequest req) {
+        List<ReservedSeatInfoDto> held = req.getSeatIds().stream()
+                .map(seatId -> ReservedSeatInfoDto.builder()
+                        .sectionId(req.getSectionId())
+                        .seatId(seatId)
+                        .grade(req.getGrade())
+                        .expiresAt(null)
+                        .matchId(req.getMatchId())
+                        .build())
                 .toList();
 
         return SeatReservationResponse.builder()
