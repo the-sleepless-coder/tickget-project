@@ -10,11 +10,14 @@ import com.ticketing.seat.exception.TooManySeatsRequestedException;
 import com.ticketing.seat.redis.MatchStatusRepository;
 import com.ticketing.seat.repository.MatchRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class SeatReservationService {
@@ -25,7 +28,7 @@ public class SeatReservationService {
     private final MatchStatusRepository matchStatusRepository;
     private final LuaReservationExecutor luaReservationExecutor;
 
-    @Transactional(readOnly = true)
+    @Transactional
     public SeatReservationResponse reserveSeats(SeatReservationRequest req) {
         Long matchId = req.getMatchId();
         Long userId  = req.getUserId();
@@ -56,7 +59,7 @@ public class SeatReservationService {
                 .toList();
 
         // 5. Redis 원자적 선점 시도 (좌석 선점 + 카운트 증가 + 만석 시 자동 CLOSED)
-        boolean ok = luaReservationExecutor.tryReserveSeatsAtomically(
+        Long result = luaReservationExecutor.tryReserveSeatsAtomically(
                 matchId,
                 req.getSectionId(),
                 rowNumbers,
@@ -65,11 +68,33 @@ public class SeatReservationService {
                 match.getMaxUser()
         );
 
-        if (!ok) {
+        // 6. 결과 처리
+        if (result == null || result == 0L) {
+            // 실패: 좌석 이미 선점됨
             return buildFailureResponse(req);
         }
 
+        if (result == 2L) {
+            // 성공 + 만석: DB 상태를 FINISHED로 변경
+            log.info("만석 감지: matchId={}, DB 상태를 FINISHED로 변경합니다.", matchId);
+            finishMatchDueToFullCapacity(match);
+        }
+
+        // 성공 응답
         return buildSuccessResponse(req);
+    }
+
+    /**
+     * 만석으로 인한 경기 종료 처리
+     * DB의 matches.status를 FINISHED로 변경하고 ended_at 기록
+     */
+    private void finishMatchDueToFullCapacity(Match match) {
+        match.setStatus(Match.MatchStatus.FINISHED);
+        match.setEndedAt(LocalDateTime.now());
+        matchRepository.save(match);
+
+        log.info("경기 자동 종료 완료: matchId={}, status=FINISHED, endedAt={}",
+                match.getMatchId(), match.getEndedAt());
     }
 
     /**

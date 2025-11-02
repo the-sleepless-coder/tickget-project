@@ -12,6 +12,11 @@ import java.util.stream.Stream;
  * 여러 좌석을 한 번에 선점(확정) 처리하고, 동시에 카운트를 원자적으로 증가시킨다.
  * Redis 키: seat:{matchId}:{sectionId}:{row-number}
  * Redis 값: {userId}:{grade}
+ *
+ * 반환값:
+ * - 0: 실패 (좌석 이미 선점됨)
+ * - 1: 성공 (일반)
+ * - 2: 성공 + 만석으로 CLOSED 처리됨
  */
 @Component
 @RequiredArgsConstructor
@@ -43,9 +48,10 @@ public class LuaReservationExecutor {
             -- 만석 체크: 전체 좌석에 도달하면 상태를 CLOSED로 자동 변경
             if newCount >= totalSeats then
                 redis.call('SET', KEYS[seatCount + 2], 'CLOSED')
+                return 2  -- 성공 + 만석으로 CLOSED 처리됨
             end
     
-            return 1
+            return 1  -- 일반 성공
             """,
             Long.class
     );
@@ -58,13 +64,14 @@ public class LuaReservationExecutor {
      * @param userId 사용자 ID
      * @param grade 좌석 등급
      * @param totalSeats 전체 좌석 수
+     * @return 0: 실패, 1: 성공, 2: 성공+만석
      */
-    public boolean tryReserveSeatsAtomically(Long matchId,
-                                             String sectionId,
-                                             List<String> rowNumbers,
-                                             Long userId,
-                                             String grade,
-                                             int totalSeats) {
+    public Long tryReserveSeatsAtomically(Long matchId,
+                                          String sectionId,
+                                          List<String> rowNumbers,
+                                          Long userId,
+                                          String grade,
+                                          int totalSeats) {
 
         // KEYS: seat 키들 + reserved_count + status
         List<String> keys = Stream.of(
@@ -85,6 +92,6 @@ public class LuaReservationExecutor {
                 String.valueOf(totalSeats)
         );
 
-        return result != null && result == 1L;
+        return result;
     }
 }
