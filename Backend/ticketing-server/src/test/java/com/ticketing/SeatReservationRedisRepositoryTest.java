@@ -16,14 +16,22 @@ class SeatReservationRedisRepositoryTest {
     @Test
     void 좌석_선점_키_남겨두기() {
         Long matchId = 100L;
-        String seatId = "A-10";
-        Long userId  = 1L;
+        String sectionId = "008";
+        String rowNumber = "9-15";
+        Long userId = 1L;
+        String grade = "R석";
 
-        // 선점 (키 생성)
-        boolean ok = repo.tryReserveSingleSeat(matchId, seatId, userId);
+        // 선점 (키 생성): seat:100:008:9-15 → "1:R석"
+        boolean ok = repo.tryReserveSingleSeat(matchId, sectionId, rowNumber, userId, grade);
         assertThat(ok).isTrue();
 
-        // 👇 지우지 말고 남겨둠 (releaseSeat 호출 X)
-        assertThat(repo.findOwner(matchId, seatId)).contains(userId);
+        // 소유자 확인
+        assertThat(repo.findOwner(matchId, sectionId, rowNumber)).contains(userId);
+
+        // 소유자 + 등급 확인
+        var ownerInfo = repo.findOwnerWithGrade(matchId, sectionId, rowNumber);
+        assertThat(ownerInfo).isPresent();
+        assertThat(ownerInfo.get().getUserId()).isEqualTo(userId);
+        assertThat(ownerInfo.get().getGrade()).isEqualTo(grade);
     }
 }
