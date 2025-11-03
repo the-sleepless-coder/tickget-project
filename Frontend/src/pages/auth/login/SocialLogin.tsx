@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useLocation, useNavigate } from "react-router";
+import { useLocation, useNavigate, Link } from "react-router";
 import Button from "@mui/material/Button";
 import Snackbar from "@mui/material/Snackbar";
 import Alert from "@mui/material/Alert";
@@ -167,91 +167,122 @@ export default function SocialLogin() {
 
   return (
     // 전체 컨테이너
-    <div className="fixed inset-0 flex bg-white">
-      {/* 좌측 로그인 폼 */}
-      <div className="flex items-center justify-start w-full lg:w-1/2 pl-8 md:pl-16 lg:pl-24">
-        {/* 흰색 카드 */}
-        <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-sm md:max-w-md">
-          {/* 로고와 제목 */}
-          <div className="text-center mb-8">
-            <div
-              className="flex justify-center items-center mb-4 cursor-pointer"
-              onClick={handleLogoClick}
-            >
+    <div
+      className="fixed inset-0 flex flex-col"
+      style={{ backgroundColor: "#E9EBF4" }}
+    >
+      {/* 헤더 */}
+      <header className="border-b border-neutral-200 bg-white">
+        <div className="w-full px-5 py-3">
+          <div className="flex items-center justify-between">
+            <Link to="/" className="flex items-center gap-3">
               <img
                 src="/header-logo-violet.svg"
-                alt="Tickget Logo"
-                className="h-12 w-auto"
+                alt="Tickget"
+                className="h-7 w-auto"
               />
-            </div>
-            <p className="text-gray-600 text-sm">
-              서비스 이용을 위해 로그인이 필요합니다.
-            </p>
-          </div>
-
-          {/* 소셜 로그인 버튼 */}
-          <div className="space-y-3 mb-6">
-            {socialButtons.map((button) => (
-              <Button
-                key={button.provider}
-                size="medium"
-                fullWidth
-                className="h-12 flex items-center justify-center rounded-lg font-medium"
-                sx={{
-                  backgroundColor: button.bgColor,
-                  color: button.textColor,
-                  border: "1px solid #e5e7eb",
-                  textTransform: "none",
-                  "&:hover": { backgroundColor: "#f9fafb" },
-                }}
-                onClick={() => handleSocialLogin(button.provider)}
-                disabled={isLoading !== null}
-              >
-                <div className="mr-3">{button.icon}</div>
-                <span className="text-sm">{button.text}</span>
-              </Button>
-            ))}
-          </div>
-
-          {/* 회원가입 링크 */}
-          <div className="text-center mb-8">
-            <button
-              onClick={() => handleSocialSignup("google")}
-              disabled={isLoading !== null}
-              className="text-sm text-gray-600 hover:text-gray-800 underline transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              회원가입 하러가기
-            </button>
-          </div>
-
-          {/* 하단 저작권 정보 */}
-          <div className="text-center text-xs text-gray-500 space-y-1">
-            <p>© 2025 Tickget, All Right reserved</p>
-            <p>
-              <a href="#" className="hover:text-gray-700">
-                Terms of Use
-              </a>
-              {" · "}
-              <a href="#" className="hover:text-gray-700">
-                Privacy Policy
-              </a>
-            </p>
+            </Link>
           </div>
         </div>
-      </div>
+      </header>
 
-      {/* 우측 비디오 영역 */}
-      <div className="hidden lg:flex lg:w-1/2 items-stretch justify-end bg-white overflow-hidden">
-        <video
-          autoPlay
-          loop
-          muted
-          playsInline
-          className="h-full w-auto object-contain object-right"
+      {/* 메인 컨텐츠 영역 */}
+      <div className="flex-1 flex relative overflow-hidden">
+        {/* 좌측 배경 이미지 */}
+        <div
+          className="absolute left-0 top-0 bottom-0 w-full lg:w-1/2 bg-cover bg-no-repeat bg-left-bottom"
+          style={{ backgroundImage: "url(/login_bg.png)" }}
+        />
+
+        {/* 좌측 로그인 폼 */}
+        <div className="relative z-10 flex items-center justify-center w-full lg:w-1/2 px-4 md:px-8 lg:px-12">
+          {/* 흰색 카드 */}
+          <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-sm md:max-w-md">
+            {/* 로고와 제목 */}
+            <div className="text-center mb-8">
+              <div
+                className="flex justify-center items-center mb-4 cursor-pointer"
+                onClick={handleLogoClick}
+              >
+                <img
+                  src="/header-logo-violet.svg"
+                  alt="Tickget Logo"
+                  className="h-12 w-auto"
+                />
+              </div>
+              <p className="text-gray-600 text-sm">
+                서비스 이용을 위해 로그인이 필요합니다.
+              </p>
+            </div>
+
+            {/* 소셜 로그인 버튼 */}
+            <div className="space-y-3 mb-6">
+              {socialButtons.map((button) => (
+                <Button
+                  key={button.provider}
+                  size="medium"
+                  fullWidth
+                  className="h-12 flex items-center justify-center rounded-lg font-medium"
+                  sx={{
+                    backgroundColor: button.bgColor,
+                    color: button.textColor,
+                    border: "1px solid #e5e7eb",
+                    textTransform: "none",
+                    "&:hover": { backgroundColor: "#f9fafb" },
+                  }}
+                  onClick={() => handleSocialLogin(button.provider)}
+                  disabled={isLoading !== null}
+                >
+                  <div className="mr-3">{button.icon}</div>
+                  <span className="text-sm">{button.text}</span>
+                </Button>
+              ))}
+            </div>
+
+            {/* 회원가입 링크 */}
+            <div className="text-center mb-8">
+              <button
+                onClick={() => handleSocialSignup("google")}
+                disabled={isLoading !== null}
+                className="text-sm text-gray-600 hover:text-gray-800 underline transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                회원가입 하러가기
+              </button>
+            </div>
+
+            {/* 하단 저작권 정보 */}
+            <div className="text-center text-xs text-gray-500 space-y-1">
+              <p>© 2025 Tickget, All Right reserved</p>
+              <p>
+                <a href="#" className="hover:text-gray-700">
+                  Terms of Use
+                </a>
+                {" · "}
+                <a href="#" className="hover:text-gray-700">
+                  Privacy Policy
+                </a>
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* 우측 비디오 영역 */}
+        <div
+          className="hidden lg:flex lg:w-1/2 items-stretch justify-center overflow-hidden"
+          style={{ backgroundColor: "#E9EBF4" }}
         >
-          <source src="/tickget.mp4" type="video/mp4" />
-          Your browser does not support the video tag.
-        </video>
+          <video
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="h-full w-auto object-contain object-center outline-none"
+            style={{ border: "none", outline: "none" }}
+          >
+            <source src="/tickget.mp4" type="video/mp4" />
+            Your browser does not support the video tag.
+          </video>
+        </div>
       </div>
       <Snackbar
         open={snackbar.open}
