@@ -5,23 +5,28 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ticketing.KafkaTopic;
 import com.ticketing.queue.DTO.QueueDTO;
 import com.ticketing.queue.DTO.QueueLogDTO;
+import lombok.RequiredArgsConstructor;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 
 @Service
+@RequiredArgsConstructor
 public class QueueService {
     // private final repository
+    private final KafkaTemplate<String, String> kafkaTemplate;
+    private final ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
 
     // Test 시, 지정한 사용자 수 만큼 queue에 쌓는다.
     public List<Map<String, Object>> testingProducer(int playerNum) throws ExecutionException, InterruptedException {
-        Properties props = new Properties();
-        props.put("bootstrap.servers", "localhost:9092");
+
         /*
          * props
          * Parameters config, key Serializer, value serializer
@@ -30,6 +35,8 @@ public class QueueService {
          * Producer Record를 통해서, topic, key, value/ timestamp, partition, headers 설정
          * Value는 DTO생성해서 보내면 된다.
          */
+        Properties props = new Properties();
+        props.put("bootstrap.servers", "localhost:9092");
         KafkaProducer<String, String> producer = new KafkaProducer<>(props, new StringSerializer(), new StringSerializer());
 
         String topic = KafkaTopic.USER_QUEUE.getTopicName();
@@ -63,11 +70,25 @@ public class QueueService {
     }
 
     // 대기열 생성을 위한 요청을 보낸다.
-    public Map<String, Object> queueProducer(QueueDTO userInfo){
+    public Map<String, Object> queueProducer(QueueDTO userInfo) throws JsonProcessingException, ExecutionException, InterruptedException {
+        String topic = KafkaTopic.USER_QUEUE.getTopicName();
+        int key = 1;
+        String keyString = String.valueOf(key);
 
+        String jsonValue = mapper.writeValueAsString(userInfo);
 
+        // KakfkaProducer -> Producer Record
+        // Spring => Kafka Queue
+        SendResult<String, String> result = kafkaTemplate.send(topic, keyString, jsonValue).get();
 
-        return null;
+        Map<String, Object> message = new HashMap<>();
+        message.put("key", key);
+        message.put("value", jsonValue);
+        message.put("topic", topic);
+        message.put("partition", result.getRecordMetadata().partition());
+        message.put("offset", result.getRecordMetadata().offset());
+
+        return message;
     }
 
 
@@ -87,18 +108,20 @@ public class QueueService {
 
         String topic = KafkaTopic.USER_QUEUE.getTopicName();
 
-        ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
         // Key 값을 늘려주고, Value 값을 지정해준다.
         // 전체 키 값 어떻게 관리해주지 사람마다?
         // DTO -> JSON
         int key = 1;
         String keyString = String.valueOf(key);
-        QueueLogDTO dto = new QueueLogDTO(UUID.randomUUID().toString(), userInfo.getRoomId(),userInfo.getPlayerType(), userInfo.getPlayerId(), userInfo.getQueueRank(), userInfo.getClickMiss(), userInfo.getDuration());
-        String jsonValue = mapper.writeValueAsString(dto);
+
+        userInfo.setEventId(UUID.randomUUID());
+        String jsonValue = mapper.writeValueAsString(userInfo);
 
         ProducerRecord<String, String> record = new ProducerRecord<>(topic, keyString, jsonValue);
-
         RecordMetadata meta = producer.send(record).get();
+
+        // ✅ Spring이 관리하는 KafkaTemplate으로 전송
+        // SendResult<String, String> result = kafkaTemplate.send(topic, key, jsonValue).get();
 
         Map<String, Object> message = new HashMap<>();
         message.put("key", keyString);

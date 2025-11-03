@@ -5,6 +5,8 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.util.UUID;
+
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
@@ -20,4 +22,8 @@ public class QueueLogDTO {
     private int clickMiss;
     private int duration;
 
+    //eventId만 따로 설정
+    public void setEventId(UUID uuid){
+        this.eventId = uuid.toString();
+    }
 }

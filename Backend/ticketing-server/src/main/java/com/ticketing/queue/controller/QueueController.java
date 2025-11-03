@@ -39,7 +39,7 @@ public class QueueController {
     // 예매 확인 시, 요청하는 API
     // 실제 사용자용 producer API, Log데이터 저장까지 이어짐.
     @PostMapping("/produceQueue")
-    public ResponseEntity<?> kafkaQueueProducer(@RequestBody QueueDTO userQueue) {
+    public ResponseEntity<?> kafkaQueueProducer(@RequestBody QueueDTO userQueue) throws ExecutionException, JsonProcessingException, InterruptedException {
         Map<String, Object> result = service.queueProducer(userQueue);
 
         return ResponseEntity.ok(result);
