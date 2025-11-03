@@ -56,6 +56,18 @@ public class RoomCacheRepository {
 
         Map<Object, Object> info = redisTemplate.opsForHash().entries(infoKey);
 
+        if (info.get("title")==null) {
+            return RoomInfo.builder()
+                    .roomId(roomId)
+                    .title("title")
+                    .host( "host")
+                    .difficulty("difficulty")
+                    .maxUserCount(10)
+                    .currentUserCount(0)
+                    .createdAt(1l)
+                    .build();
+        }
+
         // 현재 인원 수
         Long currentCount = redisTemplate.opsForHash().size(memberKey);
 
