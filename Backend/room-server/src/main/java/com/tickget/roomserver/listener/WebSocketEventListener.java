@@ -1,9 +1,13 @@
 package com.tickget.roomserver.listener;
 
 import com.tickget.roomserver.domain.repository.RoomCacheRepository;
+import com.tickget.roomserver.dto.cache.GlobalSessionInfo;
 import com.tickget.roomserver.dto.request.ExitRoomRequest;
+import com.tickget.roomserver.event.SessionCloseEvent;
+import com.tickget.roomserver.kafaka.RoomEventProducer;
 import com.tickget.roomserver.service.RoomService;
 import com.tickget.roomserver.session.WebSocketSessionManager;
+import com.tickget.roomserver.util.ServerIdProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
@@ -23,6 +27,8 @@ public class WebSocketEventListener {
     private final WebSocketSessionManager sessionManager;
     private final RoomService roomService; // TODO: 나중에 추가
     private final RoomCacheRepository roomCacheRepository;
+    private RoomEventProducer roomEventProducer;
+    private ServerIdProvider serverIdProvider;
 
     // 소켓 연결 시 (SessionConnectedEvent 발생 시)
     @EventListener
@@ -31,18 +37,44 @@ public class WebSocketEventListener {
         String sessionId = headers.getSessionId();
 
         //TODO: JWT에서 유저 ID 추출
-        Long userId = generateTempUserId(sessionId); // 현재 임시로 세션ID 기반으로 유저 ID 생성
+        Long userId = generateTempUserId(sessionId);
 
-        //기존에 세션이 있다면 끊고 새 새션만 유지
-        if (sessionManager.hasSession(userId)){
-            log.warn("유저 {}의 기존 세션 감지. 기존 세션 종료", userId);
-            sessionManager.closeSession(sessionManager.getSessionByUserId(userId));
+        String serverId = serverIdProvider.getServerId();
+
+        // Redis에서 전역 세션 확인
+        GlobalSessionInfo globalSession = roomCacheRepository.getGlobalSession(userId);
+
+        if (globalSession != null) {
+            log.warn("유저 {}의 기존 전역 세션 발견 - sessionId: {}, serverId: {}",
+                    userId, globalSession.getSessionId(), globalSession.getServerId());
+
+            // 같은 서버의 기존 세션
+            if (serverId.equals(globalSession.getServerId())) {
+                if (sessionManager.hasSession(userId)) {
+                    log.warn("같은 서버의 기존 세션 종료: userId={}", userId);
+                    sessionManager.closeSession(sessionManager.getSessionByUserId(userId));
+                }
+            } else {
+                // 다른 서버의 기존 세션 → Kafka로 종료 요청
+                log.warn("다른 서버({})의 기존 세션 종료 요청 전송", globalSession.getServerId());
+
+                SessionCloseEvent closeEvent = SessionCloseEvent.of(
+                        userId,
+                        globalSession.getSessionId(),
+                        globalSession.getServerId()
+                );
+                roomEventProducer.publishSessionCloseEvent(closeEvent);
+            }
         }
 
+        // 로컬 세션 등록
         sessionManager.registerSession(sessionId, userId);
-        //TODO: Redis에 전역 세션 등록
-        log.info("WebSocket 연결 성립: sessionId={}, userId={}", sessionId, userId);
-        //TODO: 연결 성공 메시지 전송
+
+        // Redis 전역 세션 등록
+        roomCacheRepository.registerGlobalSession(userId, sessionId, serverId);
+
+        log.info("WebSocket 연결 성립: sessionId={}, userId={}, serverId={}",
+                sessionId, userId, serverId);
     }
 
     @EventListener
@@ -55,27 +87,36 @@ public class WebSocketEventListener {
             return;
         }
 
-        // 세션에서 유저 ID 조회
         Long userId = sessionManager.getUserId(sessionId);
 
         if (userId == null) {
             log.warn("유저 정보 없는 세션 해제: sessionId={}", sessionId);
             return;
         }
+
         Long roomId = sessionManager.getRoomBySessionId(sessionId);
 
-        log.debug("WebSocket 연결 해제: sessionId={}, userId={}", sessionId, userId);
+        log.info("WebSocket 연결 해제: sessionId={}, userId={}", sessionId, userId);
 
-        // 1. 비즈니스 로직: 방 퇴장 처리
+        // 방 퇴장 처리
         if (roomId != null) {
-            log.debug("연결 해제로 인한 자동 퇴장 처리: userId={}, roomId={}", userId, roomId);
+            log.info("연결 해제로 인한 자동 퇴장 처리: userId={}, roomId={}", userId, roomId);
             String userName = roomCacheRepository.getUserName(roomId, userId);
-
             roomService.exitRoom(new ExitRoomRequest(userId, userName), roomId);
         }
 
-        // 2. 데이터 정리: 세션 정보 제거
+        // 로컬 세션 정리
         sessionManager.removeSessionData(sessionId);
+
+        // Redis 전역 세션 제거 (같은 세션일 때만)
+        GlobalSessionInfo globalSession = roomCacheRepository.getGlobalSession(userId);
+
+        if (globalSession != null && globalSession.getSessionId().equals(sessionId)) {
+            roomCacheRepository.removeGlobalSession(userId);
+            log.debug("Redis 전역 세션 제거: userId={}, sessionId={}", userId, sessionId);
+        } else {
+            log.debug("Redis 전역 세션 유지 (다른 세션이 등록됨): userId={}", userId);
+        }
 
         log.debug("세션 정리 완료: sessionId={}, userId={}", sessionId, userId);
     }

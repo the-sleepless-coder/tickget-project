@@ -2,10 +2,12 @@ package com.tickget.roomserver.domain.repository;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tickget.roomserver.dto.cache.GlobalSessionInfo;
 import com.tickget.roomserver.dto.cache.RoomMember;
 import com.tickget.roomserver.dto.cache.RoomInfo;
 import com.tickget.roomserver.dto.request.CreateRoomRequest;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 
@@ -15,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class RoomCacheRepository {
@@ -131,5 +134,52 @@ public class RoomCacheRepository {
         } catch (JsonProcessingException e) {
             return "Unknown";
         }
+    }
+
+
+    public void registerGlobalSession(Long userId, String sessionId, String serverId) {
+        String sessionKey = "user:" + userId + ":session";
+        String serverKey = "user:" + userId + ":server";
+
+        // 기존 세션 정보 조회
+        String oldSessionId = redisTemplate.opsForValue().get(sessionKey);
+        String oldServerId = redisTemplate.opsForValue().get(serverKey);
+
+        if (oldSessionId != null) {
+            log.warn("유저 {}의 기존 전역 세션 발견 - sessionId: {}, serverId: {}",
+                    userId, oldSessionId, oldServerId);
+        }
+
+        // 새 세션 정보 저장
+        redisTemplate.opsForValue().set(sessionKey, sessionId, 24, TimeUnit.HOURS);
+        redisTemplate.opsForValue().set(serverKey, serverId, 24, TimeUnit.HOURS);
+
+        log.debug("전역 세션 등록: userId={}, sessionId={}, serverId={}", userId, sessionId, serverId);
+    }
+
+
+    public GlobalSessionInfo getGlobalSession(Long userId) {
+        String sessionKey = "user:" + userId + ":session";
+        String serverKey = "user:" + userId + ":server";
+
+        String sessionId = redisTemplate.opsForValue().get(sessionKey);
+        String serverId = redisTemplate.opsForValue().get(serverKey);
+
+        if (sessionId == null) {
+            return null;
+        }
+
+        return new GlobalSessionInfo(sessionId, serverId);
+    }
+
+    // 전역 세션 제거
+    public void removeGlobalSession(Long userId) {
+        String sessionKey = "user:" + userId + ":session";
+        String serverKey = "user:" + userId + ":server";
+
+        redisTemplate.delete(sessionKey);
+        redisTemplate.delete(serverKey);
+
+        log.debug("전역 세션 제거: userId={}", userId);
     }
 }
