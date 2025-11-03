@@ -27,6 +27,7 @@ public class RoomDetailResponse {
     private int botCount;
     private int maxUserCount;
     private int currentUserCount;
+    private Long hostId;
     private List<RoomMember> roomMembers;
 
     private String difficulty;
@@ -48,6 +49,7 @@ public class RoomDetailResponse {
                 .botCount(room.getBotCount())
                 .maxUserCount(roomInfo.getMaxUserCount())
                 .currentUserCount(roomMembers.size())
+                .hostId(roomInfo.getHostId())
                 .roomMembers(roomMembers)
                 .difficulty(roomInfo.getDifficulty())
                 .roomType(room.getRoomType())

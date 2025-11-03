@@ -11,7 +11,7 @@ public class RoomInfo {
 
     private Long roomId;
     private String title;
-    private String host;
+    private Long hostId;
     private String difficulty;
     private int maxUserCount;
     private int currentUserCount;

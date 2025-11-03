@@ -58,12 +58,6 @@ public class RoomController {
                 .body(response);
     }
 
-    // 방 멤버리스트 조회
-    @GetMapping("/{roomId}/members")
-    public ResponseEntity<?> getRoomMembers(@PathVariable("roomId") Long roomId){
-        return ResponseEntity.ok().build();
-    }
-
     // 방생성
     @PostMapping
     public ResponseEntity<CreateRoomResponse> createRoom(@RequestBody CreateRoomRequest createRoomRequest,

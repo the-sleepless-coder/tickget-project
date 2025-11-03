@@ -187,7 +187,7 @@ public class RoomService {
                 () -> new RoomNotFoundException(roomId));
 
         RoomInfo roomInfo = roomCacheRepository.getRoomInfo(roomId);
-        boolean isHost = roomInfo.getHost().equals(String.valueOf(userId));
+        boolean isHost = roomInfo.getHostId().equals(userId);
 
         roomCacheRepository.removeMemberFromRoom(roomId, userId);
 
@@ -218,5 +218,4 @@ public class RoomService {
 
         return ExitRoomResponse.of(room, leftUserCount);
     }
-
 }
