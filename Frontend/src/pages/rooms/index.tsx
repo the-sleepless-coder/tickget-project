@@ -4,6 +4,12 @@ import Tooltip from "@mui/material/Tooltip";
 import InfoOutlined from "@mui/icons-material/InfoOutlined";
 import SearchIcon from "@mui/icons-material/Search";
 import CreateRoomModal from "./_components/CreateRoomModal";
+import Thumbnail01 from "../../shared/images/thumbnail/Thumbnail01.jpg";
+import Thumbnail02 from "../../shared/images/thumbnail/Thumbnail02.jpg";
+import Thumbnail03 from "../../shared/images/thumbnail/Thumbnail03.jpg";
+import Thumbnail04 from "../../shared/images/thumbnail/Thumbnail04.jpg";
+import Thumbnail05 from "../../shared/images/thumbnail/Thumbnail05.jpg";
+import Thumbnail06 from "../../shared/images/thumbnail/Thumbnail06.jpg";
 
 type SortKey = "start" | "latest";
 
@@ -21,6 +27,7 @@ export default function RoomsPage() {
         participants: { current: 8, capacity: 10 },
         startTime: "18:10",
         ongoing: false,
+        imageSrc: Thumbnail01,
       },
       {
         title: "록페스티벌 가즈아",
@@ -30,6 +37,7 @@ export default function RoomsPage() {
         participants: { current: 1, capacity: 1 },
         startTime: "14:20",
         ongoing: false,
+        imageSrc: Thumbnail02,
       },
       {
         title: "뮤지컬 킹키부츠 예매",
@@ -39,6 +47,7 @@ export default function RoomsPage() {
         participants: { current: 15, capacity: 20 },
         startTime: "13:50",
         ongoing: true,
+        imageSrc: Thumbnail03,
       },
       {
         title: "팬미팅 연습하실 분",
@@ -48,6 +57,7 @@ export default function RoomsPage() {
         participants: { current: 10, capacity: 10 },
         startTime: "18:10",
         ongoing: true,
+        imageSrc: Thumbnail04,
       },
       {
         title: "센과 치히로 내한",
@@ -57,6 +67,7 @@ export default function RoomsPage() {
         participants: { current: 4, capacity: 5 },
         startTime: "14:30",
         ongoing: false,
+        imageSrc: Thumbnail05,
       },
       {
         title: "B-Dragon 컴백콘서트",
@@ -66,6 +77,7 @@ export default function RoomsPage() {
         participants: { current: 15, capacity: 20 },
         startTime: "14:50",
         ongoing: false,
+        imageSrc: Thumbnail06,
       },
     ],
     []
@@ -189,7 +201,7 @@ export default function RoomsPage() {
 
       <CreateRoomModal open={openCreate} onClose={() => setOpenCreate(false)} />
 
-      <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-2">
         {filteredRooms.map((room) => (
           <RoomCard
             key={room.id}
@@ -200,6 +212,7 @@ export default function RoomsPage() {
             participants={room.participants}
             startTime={room.startTime}
             ongoing={room.ongoing}
+            imageSrc={room.imageSrc}
           />
         ))}
       </div>

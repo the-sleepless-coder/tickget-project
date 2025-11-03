@@ -2,6 +2,12 @@ import RoomCard from "./_components/RoomCard";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { paths } from "../../app/routes/paths";
+import Thumbnail01 from "../../shared/images/thumbnail/Thumbnail01.jpg";
+import Thumbnail02 from "../../shared/images/thumbnail/Thumbnail02.jpg";
+import Thumbnail03 from "../../shared/images/thumbnail/Thumbnail03.jpg";
+import Thumbnail04 from "../../shared/images/thumbnail/Thumbnail04.jpg";
+import Thumbnail05 from "../../shared/images/thumbnail/Thumbnail05.jpg";
+import Thumbnail06 from "../../shared/images/thumbnail/Thumbnail06.jpg";
 
 type SortKey = "start" | "latest" | "all";
 
@@ -15,6 +21,7 @@ export default function HomePage() {
       venueName: "샤롯데씨어터",
       participants: { current: 8, capacity: 10 },
       startTime: "18:10",
+      imageSrc: Thumbnail01,
     },
     {
       title: "18시 모집합니다~~!! 18시 시작",
@@ -23,6 +30,7 @@ export default function HomePage() {
       venueName: "올림픽공원 올림픽홀",
       participants: { current: 1, capacity: 1 },
       startTime: "14:20",
+      imageSrc: Thumbnail02,
     },
     {
       title: "18시 모집합니다~~!! 18시 시작",
@@ -31,6 +39,7 @@ export default function HomePage() {
       venueName: "올림픽 주경기장",
       participants: { current: 15, capacity: 20 },
       startTime: "13:50",
+      imageSrc: Thumbnail03,
     },
     {
       title: "18시 모집합니다~~!! 18시 시작",
@@ -39,6 +48,7 @@ export default function HomePage() {
       venueName: "샤롯데씨어터",
       participants: { current: 10, capacity: 10 },
       startTime: "18:10",
+      imageSrc: Thumbnail04,
     },
     {
       title: "18시 모집합니다~~!! 18시 시작",
@@ -47,6 +57,7 @@ export default function HomePage() {
       venueName: "올림픽공원 올림픽홀",
       participants: { current: 4, capacity: 5 },
       startTime: "14:30",
+      imageSrc: Thumbnail05,
     },
     {
       title: "18시 모집합니다~~!! 18시 시작",
@@ -55,6 +66,7 @@ export default function HomePage() {
       venueName: "올림픽 주경기장",
       participants: { current: 15, capacity: 20 },
       startTime: "14:50",
+      imageSrc: Thumbnail06,
     },
   ];
   return (
@@ -115,7 +127,7 @@ export default function HomePage() {
       </div>
 
       {/* Grid */}
-      <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-2">
         {rooms.map((r, idx) => (
           <RoomCard
             key={idx}
@@ -125,6 +137,7 @@ export default function HomePage() {
             venueName={r.venueName}
             participants={r.participants}
             startTime={r.startTime}
+            imageSrc={r.imageSrc}
           />
         ))}
       </div>

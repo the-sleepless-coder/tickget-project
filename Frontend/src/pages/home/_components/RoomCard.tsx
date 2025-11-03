@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { paths } from "../../../app/routes/paths";
+import { useEffect, useMemo, useState } from "react";
 
 type RoomCardVariant = "purple" | "blue" | "green" | "orange" | "gray";
 
@@ -57,7 +58,7 @@ export default function RoomCard({
   const DEFAULT_BADGE_BY_VARIANT: Partial<Record<RoomCardVariant, string>> = {
     blue: "익스터파크",
     orange: "NO24",
-    green: "워터멜론",
+    green: "멜론티켓",
   };
   const displayedBadge = DEFAULT_BADGE_BY_VARIANT[variant] ?? badgeText;
 
@@ -82,69 +83,119 @@ export default function RoomCard({
       ? `${sizeToKorean[size]}  |  ${venueName}`
       : "돔형 콘서트장  |  커스텀");
 
+  // Extract gradient colors from the poster image
+  const [posterGradient, setPosterGradient] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    async function extract() {
+      try {
+        type VibrantPalette = {
+          Vibrant?: { hex: string };
+          Muted?: { hex: string };
+          LightVibrant?: { hex: string };
+        };
+        type VibrantNS = {
+          from: (src: string) => { getPalette: () => Promise<VibrantPalette> };
+        };
+        const imported = (await import("node-vibrant")) as unknown;
+        const vibrant =
+          (imported as { default?: VibrantNS }).default ||
+          (imported as VibrantNS);
+        const palette = await vibrant.from(resolvedImageSrc).getPalette();
+        const c1 = palette.Vibrant?.hex || gradient.from;
+        const c2 =
+          palette.Muted?.hex || palette.LightVibrant?.hex || gradient.to;
+        if (!cancelled) {
+          setPosterGradient(`linear-gradient(135deg, ${c1} 0%, ${c2} 100%)`);
+        }
+      } catch {
+        if (!cancelled) setPosterGradient(null);
+      }
+    }
+    extract();
+    return () => {
+      cancelled = true;
+    };
+  }, [resolvedImageSrc, gradient.from, gradient.to]);
+
+  // 우측 정보 영역에서 사용할 참가 인원 텍스트
+  const participantsText = useMemo(() => {
+    if (!participants) return null;
+    return `${participants.current} / ${participants.capacity}명`;
+  }, [participants]);
+
   return (
     <Link
       to={to}
       className="group relative overflow-hidden rounded-xl bg-white shadow-md transition hover:shadow-lg"
       aria-label={`${title} 연습 방 입장`}
     >
-      <div
-        className="h-12 w-full px-4 flex items-center text-white font-semibold text-sm truncate"
-        style={{
-          background: `linear-gradient(90deg, ${gradient.from} 0%, ${gradient.to} 100%)`,
-        }}
-      >
-        <span className="truncate" title={title}>
-          {title}
-        </span>
-      </div>
-      <div className="relative">
-        <div className="relative aspect-[4/3] w-full rounded-b-xl overflow-hidden">
+      <div className="flex gap-4 p-4">
+        {/* Left: Poster with gradient background derived from image */}
+        <div
+          className="relative w-[120px] sm:w-[140px] md:w-[160px] aspect-[3/4] overflow-hidden rounded-lg shrink-0"
+          style={{
+            background:
+              posterGradient ||
+              `linear-gradient(135deg, ${gradient.from} 0%, ${gradient.to} 100%)`,
+          }}
+        >
           <img
             src={resolvedImageSrc}
-            alt="좌석 배치 이미지"
-            className="absolute inset-0 h-full w-full object-contain bg-gray-50"
+            alt="포스터 이미지"
+            className="absolute inset-0 h-full w-full object-cover"
             loading="lazy"
           />
-          {/* 참가 인원 배지 (우상단) */}
-          {participants ? (
-            <div className="absolute right-3 top-3 z-20 rounded-full bg-white/95 px-3 py-1 text-[12px] font-semibold text-gray-800 shadow">
-              {participants.current} / {participants.capacity}명
+          {ongoing ? (
+            <div className="pointer-events-none absolute inset-0 z-10 grid place-items-center bg-[#4F4F4F]/50 backdrop-blur-[2px]">
+              <span className="text-white text-lg font-extrabold">
+                경기 진행중
+              </span>
             </div>
           ) : null}
-          {/* bottom overlay gradient */}
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-28 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
-          {/* overlay content */}
-          <div className="absolute inset-x-0 bottom-0 z-20 flex items-end justify-between px-4 pb-4">
-            <div className="text-white">
-              <p className="text-[12px] leading-5 opacity-90">{capacityText}</p>
-              <p className="text-[12px] leading-5 opacity-90">
-                {resolvedTagsText}
-              </p>
-            </div>
-            {startTime ? (
+        </div>
+
+        {/* Right: Info */}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <h3
+              className="text-sm sm:text-base font-semibold text-gray-900 truncate"
+              title={title}
+            >
+              {title}
+            </h3>
+            {displayedBadge ? (
               <span
-                className="rounded-full px-3 py-1 text-[12px] font-bold text-white shadow-sm"
-                style={{ backgroundColor: badgeBg }}
-              >
-                {startTime}
-              </span>
-            ) : displayedBadge ? (
-              <span
-                className="rounded-full px-3 py-1 text-[11px] font-medium text-white shadow-sm"
+                className="rounded-full px-2.5 py-1 text-[10px] sm:text-[11px] font-medium text-white shadow-sm shrink-0"
                 style={{ backgroundColor: badgeBg }}
               >
                 {displayedBadge}
               </span>
             ) : null}
           </div>
-          {ongoing ? (
-            <div className="pointer-events-none absolute inset-0 z-10 grid place-items-center bg-[#4F4F4F]/50 backdrop-blur-[2px]">
-              <span className="text-white text-2xl font-extrabold">
-                경기 진행중
+
+          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-gray-600">
+            {participantsText ? (
+              <span className="font-semibold text-gray-900">
+                {participantsText}
               </span>
-            </div>
-          ) : null}
+            ) : null}
+            <span>{capacityText}</span>
+            <span>{resolvedTagsText}</span>
+          </div>
+
+          <div className="mt-2 flex items-center justify-between">
+            {startTime ? (
+              <span
+                className="text-base sm:text-lg font-extrabold"
+                style={{ color: badgeBg }}
+              >
+                {startTime} 시작
+              </span>
+            ) : (
+              <span className="text-sm text-gray-500">상시</span>
+            )}
+          </div>
         </div>
       </div>
     </Link>
