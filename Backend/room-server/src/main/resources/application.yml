@@ -6,7 +6,19 @@ spring:
 #    driver-class-name: org.h2.Driver
   jpa:
     hibernate:
-      ddl-auto: create
+      ddl-auto: update
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password: # 있으면 설정
+      lettuce:
+        pool:
+          max-active: 10
+          max-idle: 10
+          min-idle: 2
+          max-wait: 3000
+        shutdown-timeout: 100
   kafka:
     bootstrap-servers: localhost:9092
     producer:
@@ -14,7 +26,7 @@ spring:
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
     consumer:
       bootstrap-servers: localhost:9092
-      group-id: room-server
+      group-id: room-server-${server.port}
       auto-offset-reset: earliest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer

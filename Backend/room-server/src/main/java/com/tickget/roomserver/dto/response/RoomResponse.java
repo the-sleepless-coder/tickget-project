@@ -6,6 +6,9 @@ import com.tickget.roomserver.domain.enums.RoomStatus;
 import com.tickget.roomserver.domain.enums.RoomType;
 import com.tickget.roomserver.domain.enums.ThumbnailType;
 import java.time.LocalDateTime;
+
+import com.tickget.roomserver.dto.cache.RoomInfo;
+import com.tickget.roomserver.util.TimeConverter;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -27,6 +30,7 @@ public class RoomResponse {
     private String difficulty;
     private RoomType roomType;
     private RoomStatus status;
+    private LocalDateTime createdAt;
     private LocalDateTime startTime;
 
     private HallSize hallSize;
@@ -35,17 +39,18 @@ public class RoomResponse {
     private ThumbnailType thumbnailType;
     private String thumbnailValue;
 
-    public static RoomResponse of (Room room, MatchResponse matchResponse, int currentUserCount ){
+    public static RoomResponse of (Room room, RoomInfo roomInfo ){
         return RoomResponse.builder()
                 .roomId(room.getId())
-                .roomName(matchResponse.getMatchTitle())
+                .roomName(roomInfo.getTitle())
                 .botCount(room.getBotCount())
-                .maxUserCount(matchResponse.getMaxUserCount())
-                .currentUserCount(currentUserCount)
-                .difficulty(matchResponse.getDifficulty())
+                .maxUserCount(roomInfo.getMaxUserCount())
+                .currentUserCount(roomInfo.getCurrentUserCount())
+                .difficulty(roomInfo.getDifficulty())
                 .roomType(room.getRoomType())
                 .status(room.getStatus())
-                .startTime(matchResponse.getStartTime())
+                .createdAt(TimeConverter.toLocalDateTime(roomInfo.getCreatedAt()))
+                .startTime(TimeConverter.toLocalDateTime(roomInfo.getStartTime()))
                 .hallSize(room.getHallSize())
                 .hallName(room.getHallName())
                 .thumbnailType(room.getThumbnailType())

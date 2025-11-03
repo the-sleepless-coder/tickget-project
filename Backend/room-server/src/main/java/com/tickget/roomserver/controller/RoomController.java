@@ -1,5 +1,6 @@
 package com.tickget.roomserver.controller;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.tickget.roomserver.dto.request.CreateRoomRequest;
 import com.tickget.roomserver.dto.request.ExitRoomRequest;
 import com.tickget.roomserver.dto.request.JoinRoomRequest;
@@ -51,7 +52,7 @@ public class RoomController {
 
     // 특정 방 상세 정보 조회
     @GetMapping("/{roomId}")
-    public ResponseEntity<RoomDetailResponse> getRoom(@PathVariable("roomId") Long roomId){
+    public ResponseEntity<RoomDetailResponse> getRoom(@PathVariable("roomId") Long roomId) throws JsonProcessingException {
         RoomDetailResponse response = roomService.getRoom(roomId);
         return ResponseEntity.ok()
                 .body(response);
@@ -66,7 +67,7 @@ public class RoomController {
     // 방생성
     @PostMapping
     public ResponseEntity<CreateRoomResponse> createRoom(@RequestBody CreateRoomRequest createRoomRequest,
-                                                         @RequestPart(value = "file", required = false) MultipartFile thumbnail){
+                                                         @RequestPart(value = "file", required = false) MultipartFile thumbnail) throws JsonProcessingException {
         CreateRoomResponse response = roomService.createRoom(createRoomRequest,thumbnail);
         return ResponseEntity
                 .status(HttpStatus.CREATED)
@@ -82,7 +83,7 @@ public class RoomController {
     // 방 입장
     @PostMapping("/{roomId}/join")
     public ResponseEntity<?> joinRoom(@PathVariable("roomId") Long roomId,
-                                      @RequestBody JoinRoomRequest joinRoomRequest){
+                                      @RequestBody JoinRoomRequest joinRoomRequest) throws JsonProcessingException {
         //TODO: 현재 회원 정보가 어떻게 구성되고, 무엇을 프론트에 보여줄지가 결정안됨. 그에 따른 로직 변경이 필요할수도
 
         JoinRoomResponse joinRoomResponse = roomService.joinRoom(joinRoomRequest, roomId);

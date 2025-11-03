@@ -12,6 +12,10 @@ import lombok.Getter;
 @Getter
 @AllArgsConstructor
 public class CreateRoomRequest {
+
+    private Long userId;
+    private String username;
+
     private String matchName;
 
     private RoomType roomType;

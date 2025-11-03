@@ -2,7 +2,11 @@ package com.tickget.roomserver.dto.response;
 
 import com.tickget.roomserver.domain.entity.Room;
 import com.tickget.roomserver.domain.enums.RoomStatus;
+
+import java.util.List;
 import java.util.Map;
+
+import com.tickget.roomserver.dto.cache.RoomMember;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -15,17 +19,17 @@ import lombok.NoArgsConstructor;
 public class JoinRoomResponse {
     private Long roomId;
     private int currentUserCount;
-    private Map<Long, String> user ; // id:name
+    private List<RoomMember> roomMembers ; // id:name
     private RoomStatus roomStatus;
     private String subscriptionTopic;
 
-    public static JoinRoomResponse of (Room room, int currentUserCount , Map<Long, String> user){
+    public static JoinRoomResponse of (Room room, int currentUserCount , List<RoomMember> roomMembers){
 
         return JoinRoomResponse.builder()
                 .roomId(room.getId())
                 .currentUserCount(currentUserCount)
                 .subscriptionTopic("/topic/rooms/" + room.getId())
-                .user(user)
+                .roomMembers(roomMembers)
                 .roomStatus(room.getStatus())
                 .build();
 

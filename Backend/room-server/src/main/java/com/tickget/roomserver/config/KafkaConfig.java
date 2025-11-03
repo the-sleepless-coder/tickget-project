@@ -1,5 +1,7 @@
 package com.tickget.roomserver.config;
 
+import com.tickget.roomserver.event.HostChangedEvent;
+import com.tickget.roomserver.event.SessionCloseEvent;
 import com.tickget.roomserver.event.UserJoinedRoomEvent;
 import com.tickget.roomserver.event.UserLeftRoomEvent;
 import java.util.HashMap;
@@ -29,6 +31,16 @@ public class KafkaConfig {
     // 퇴장 이벤트 Producer
     @Bean
     public KafkaTemplate<String, UserLeftRoomEvent> leftEventKafkaTemplate() {
+        return new KafkaTemplate<>(new DefaultKafkaProducerFactory<>(producerConfigs()));
+    }
+
+    @Bean
+    public KafkaTemplate<String, SessionCloseEvent> sessionCloseEventKafkaTemplate(){
+        return new KafkaTemplate<>(new DefaultKafkaProducerFactory<>(producerConfigs()));
+    }
+
+    @Bean
+    public KafkaTemplate<String, HostChangedEvent> hostChangedEventKafkaTemplate() {
         return new KafkaTemplate<>(new DefaultKafkaProducerFactory<>(producerConfigs()));
     }
 

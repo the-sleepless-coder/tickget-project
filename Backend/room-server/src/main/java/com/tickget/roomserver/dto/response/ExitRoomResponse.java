@@ -15,12 +15,14 @@ public class ExitRoomResponse {
     private Long roomId;
     private int leftUserCount;
     private RoomStatus roomStatus;
+    private String unsubscriptionTopic;
 
     public static ExitRoomResponse of (Room room, int leftUserCount){
         return ExitRoomResponse.builder()
                 .roomId(room.getId())
                 .leftUserCount(leftUserCount)
                 .roomStatus(room.getStatus())
+                .unsubscriptionTopic("/topic/rooms/" + room.getId())
                 .build();
     }
 }
