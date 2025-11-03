@@ -116,4 +116,20 @@ public class RoomCacheRepository {
 
         return newHostId;
     }
+
+    public String getUserName(Long roomId, Long userId) {
+        String memberKey = "room:" + roomId + ":members";
+        String json = (String) redisTemplate.opsForHash().get(memberKey, String.valueOf(userId));
+
+        if (json == null) {
+            return "Unknown";
+        }
+
+        try {
+            RoomMember member = mapper.readValue(json, RoomMember.class);
+            return member.getUsername();
+        } catch (JsonProcessingException e) {
+            return "Unknown";
+        }
+    }
 }
