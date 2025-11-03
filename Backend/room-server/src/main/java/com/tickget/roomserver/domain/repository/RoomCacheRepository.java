@@ -96,4 +96,24 @@ public class RoomCacheRepository {
         redisTemplate.delete(memberKey);
         redisTemplate.delete(infoKey);
     }
+
+    public String transferHost(Long roomId) {
+        String infoKey = "room:" + roomId + ":info";
+        String memberKey = "room:" + roomId + ":members";
+
+        // 1. 남은 멤버 중 첫 번째 가져오기
+        Map<Object, Object> members = redisTemplate.opsForHash().entries(memberKey);
+
+        if (members.isEmpty()) {
+            return null;
+        }
+
+        // 2. 첫 번째 멤버를 새 방장으로
+        String newHostId = (String) members.keySet().iterator().next();
+
+        // 3. Redis 업데이트
+        redisTemplate.opsForHash().put(infoKey, "host", newHostId);
+
+        return newHostId;
+    }
 }

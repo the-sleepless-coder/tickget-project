@@ -185,6 +185,9 @@ public class RoomService {
         Room room = roomRepository.findById(roomId).orElseThrow(
                 () -> new RoomNotFoundException(roomId));
 
+        RoomInfo roomInfo = roomCacheRepository.getRoomInfo(roomId);
+        boolean isHost = roomInfo.getHost().equals(String.valueOf(userId));
+
         roomCacheRepository.removeMemberFromRoom(roomId, userId);
 
         String sessionId = sessionManager.getSessionIdByUserId(userId);
@@ -194,6 +197,15 @@ public class RoomService {
 
         int leftUserCount = roomCacheRepository.getRoomCurrentUserCount(roomId);
         log.debug("사용자 {}(id:{})(이)가 방 {}에서 퇴장 - 현재 잔존 인원: {}",userName,userId,roomId,leftUserCount);
+
+        String newHostId = null;
+        if (isHost && leftUserCount > 0) {
+            newHostId = roomCacheRepository.transferHost(roomId);
+
+            //TODO: Kafka로 방장 변경 이벤트 전송
+            //HostChangedEvent hostEvent = HostChangedEvent.of(roomId, newHostId, userId);
+            //roomEventProducer.publishHostChangedEvent(hostEvent);
+        }
 
         UserLeftRoomEvent event = UserLeftRoomEvent.of(userId, roomId, leftUserCount);
         roomEventProducer.publishUserLeftEvent(event);
