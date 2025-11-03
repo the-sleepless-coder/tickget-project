@@ -112,7 +112,6 @@ public class SeatReservationService {
                         .sectionId(req.getSectionId())
                         .seatId(seatId)
                         .grade(req.getGrade())
-                        .expiresAt(null)
                         .matchId(req.getMatchId())
                         .build())
                 .toList();
@@ -130,7 +129,6 @@ public class SeatReservationService {
                         .sectionId(req.getSectionId())
                         .seatId(seatId)
                         .grade(req.getGrade())
-                        .expiresAt(null)
                         .matchId(req.getMatchId())
                         .build())
                 .toList();
