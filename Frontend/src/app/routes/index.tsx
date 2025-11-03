@@ -27,6 +27,7 @@ const ProfilePage = lazy(() => import("../../pages/profile"));
 const ITicketPage = lazy(() => import("../../pages/i-ticket/index"));
 const RoomsPage = lazy(() => import("../../pages/rooms"));
 const ThreeJsTestPage = lazy(() => import("../../pages/threejstest"));
+const SeatsTestPage = lazy(() => import("../../pages/seatstest"));
 const MyPageIndex = lazy(() => import("../../pages/mypage"));
 const MyPageReservationsPage = lazy(
   () => import("../../pages/mypage/reservations")
@@ -47,6 +48,7 @@ export const router = createBrowserRouter([
 
       { path: "i-ticket", element: withSuspense(<ITicketPage />) },
       { path: "threejstest", element: withSuspense(<ThreeJsTestPage />) },
+      { path: "seatstest", element: withSuspense(<SeatsTestPage />) },
       { path: "game-result", element: withSuspense(<GameResultPage />) },
       {
         path: "rooms",
