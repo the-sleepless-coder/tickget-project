@@ -71,6 +71,11 @@ public class RoomService {
         roomCacheRepository.saveRoom(room.getId(),request);
         roomCacheRepository.addMemberToRoom(room.getId(),request.getUserId(), request.getUsername() );
 
+        String sessionId = sessionManager.getSessionIdByUserId(request.getUserId());
+        if (sessionId != null) {
+            sessionManager.joinRoom(sessionId, room.getId());
+        }
+
         log.debug("사용자  {}(id:{})(이)가 방 {}을 생성 후 입장",request.getUsername(), request.getUserId(), room.getId());
 
         return CreateRoomResponse.from(room);
@@ -118,12 +123,21 @@ public class RoomService {
     @Transactional(readOnly = true)
     public JoinRoomResponse joinRoom(JoinRoomRequest joinRoomRequest, Long roomId) throws JsonProcessingException {
 
+        Room room = roomRepository.findById(roomId).orElseThrow(
+                () -> new RoomNotFoundException(roomId));
+
         validateRoomAvailable(roomId);
 
         Long userId = joinRoomRequest.getUserId();
         String userName = joinRoomRequest.getUserName();
 
         int currentUserCount = roomCacheRepository.addMemberToRoom(roomId, userId, userName);
+
+        String sessionId = sessionManager.getSessionIdByUserId(userId);
+        if (sessionId != null) {
+            sessionManager.joinRoom(sessionId, roomId);
+        }
+
         List<RoomMember> roomMembers = roomCacheRepository.getRoomMembers(roomId);
 
         log.debug("사용자  {}(id:{})(이)가 방 {}에 입장 - 현재 인원: {}",userName, userId, roomId, currentUserCount);
@@ -131,8 +145,7 @@ public class RoomService {
         UserJoinedRoomEvent event = UserJoinedRoomEvent.of(userId, roomId, currentUserCount);
         roomEventProducer.publishUserJoinedEvent(event);
 
-        Room room = roomRepository.findById(roomId).orElseThrow(
-                () -> new RoomNotFoundException(roomId));
+
 
         return JoinRoomResponse.of(room, currentUserCount, roomMembers);
 
@@ -173,13 +186,18 @@ public class RoomService {
                 () -> new RoomNotFoundException(roomId));
 
         roomCacheRepository.removeMemberFromRoom(roomId, userId);
+
+        String sessionId = sessionManager.getSessionIdByUserId(userId);
+        if (sessionId != null) {
+            sessionManager.leaveRoom(sessionId);
+        }
+
         int leftUserCount = roomCacheRepository.getRoomCurrentUserCount(roomId);
         log.debug("사용자 {}(id:{})(이)가 방 {}에서 퇴장 - 현재 잔존 인원: {}",userName,userId,roomId,leftUserCount);
 
         UserLeftRoomEvent event = UserLeftRoomEvent.of(userId, roomId, leftUserCount);
         roomEventProducer.publishUserLeftEvent(event);
 
-        //TODO: 유저 판단을 다른 서버도 확인하는 로직으로
         // 마지막 유저가 나갔으면 방 닫음
         if (leftUserCount == 0) {
             room.setStatus(RoomStatus.CLOSED);
