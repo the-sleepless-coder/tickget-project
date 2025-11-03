@@ -33,5 +33,5 @@ public class CreateRoomRequest {
     private LocalDateTime gameStartTime;
 
     private ThumbnailType thumbnailType;
-    private String ThumbnailValue;
+    private String thumbnailValue;
 }
