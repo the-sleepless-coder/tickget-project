@@ -169,7 +169,7 @@ export default function SocialLogin() {
     // 전체 컨테이너
     <div
       className="fixed inset-0 flex flex-col"
-      style={{ backgroundColor: "#E9EBF4" }}
+      style={{ backgroundColor: "" }}
     >
       {/* 헤더 */}
       <header className="border-b border-neutral-200 bg-white">
