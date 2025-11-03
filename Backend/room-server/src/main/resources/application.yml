@@ -64,7 +64,7 @@ logging:
   level:
     root: INFO
     com.tickget.roomserver: DEBUG
-    org.springframework.kafka: DEBUG
+#    org.springframework.kafka: DEBUG
     org.springframework.messaging: DEBUG
     org.springframework.web.socket: DEBUG
 
