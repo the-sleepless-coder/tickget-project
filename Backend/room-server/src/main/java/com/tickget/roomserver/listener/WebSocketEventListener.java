@@ -25,10 +25,10 @@ import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 public class WebSocketEventListener {
 
     private final WebSocketSessionManager sessionManager;
-    private final RoomService roomService; // TODO: 나중에 추가
+    private final RoomService roomService;
     private final RoomCacheRepository roomCacheRepository;
-    private RoomEventProducer roomEventProducer;
-    private ServerIdProvider serverIdProvider;
+    private final RoomEventProducer roomEventProducer;
+    private final ServerIdProvider serverIdProvider;
 
     // 소켓 연결 시 (SessionConnectedEvent 발생 시)
     @EventListener
