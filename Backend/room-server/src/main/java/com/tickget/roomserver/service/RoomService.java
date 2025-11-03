@@ -18,6 +18,7 @@ import com.tickget.roomserver.dto.response.ExitRoomResponse;
 import com.tickget.roomserver.dto.response.JoinRoomResponse;
 import com.tickget.roomserver.dto.response.RoomDetailResponse;
 import com.tickget.roomserver.dto.response.RoomResponse;
+import com.tickget.roomserver.event.HostChangedEvent;
 import com.tickget.roomserver.event.UserJoinedRoomEvent;
 import com.tickget.roomserver.event.UserLeftRoomEvent;
 import com.tickget.roomserver.exception.PresetHallNotFoundException;
@@ -202,9 +203,8 @@ public class RoomService {
         if (isHost && leftUserCount > 0) {
             newHostId = roomCacheRepository.transferHost(roomId);
 
-            //TODO: Kafka로 방장 변경 이벤트 전송
-            //HostChangedEvent hostEvent = HostChangedEvent.of(roomId, newHostId, userId);
-            //roomEventProducer.publishHostChangedEvent(hostEvent);
+            HostChangedEvent hostEvent = HostChangedEvent.of(roomId, newHostId, userId);
+            roomEventProducer.publishHostChangedEvent(hostEvent);
         }
 
         UserLeftRoomEvent event = UserLeftRoomEvent.of(userId, roomId, leftUserCount);

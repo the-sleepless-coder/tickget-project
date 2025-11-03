@@ -1,6 +1,7 @@
 package com.tickget.roomserver.kafaka;
 
 import com.tickget.roomserver.domain.enums.EventType;
+import com.tickget.roomserver.event.HostChangedEvent;
 import com.tickget.roomserver.event.UserJoinedRoomEvent;
 import com.tickget.roomserver.event.UserLeftRoomEvent;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +17,7 @@ public class RoomEventConsumer {
 
     private static final String ROOM_USER_JOINED_TOPIC = "room-user-joined-events";
     private static final String ROOM_USER_LEFT_TOPIC = "room-user-left-events";
+    private static final String ROOM_HOST_CHANGED_TOPIC = "room-host-changed-events";
 
     private final SimpMessagingTemplate messagingTemplate;
 
@@ -60,5 +62,25 @@ public class RoomEventConsumer {
 
         messagingTemplate.convertAndSend(destination, message);
         log.info("Broadcasted user left event to topic: {}", destination);
+    }
+
+
+    @KafkaListener(topics = ROOM_HOST_CHANGED_TOPIC)
+    public void handleHostChangedEvent(HostChangedEvent event) {
+        log.debug("Received host changed event - newHostId: {}, previousHostId: {}, roomId: {}",
+                event.getNewHostId(), event.getPreviousHostId(), event.getRoomId());
+
+        String destination = "/topic/rooms/" + event.getRoomId();
+
+        RoomEventMessage message = RoomEventMessage.builder()
+                .eventType(EventType.HOST_CHANGED)
+                .userId(Long.parseLong(event.getNewHostId()))
+                .roomId(event.getRoomId())
+                .message("방장이 변경되었습니다.")
+                .timestamp(event.getTimestamp())
+                .build();
+
+        messagingTemplate.convertAndSend(destination, message);
+        log.info("Broadcasted host changed event to topic: {}", destination);
     }
 }
