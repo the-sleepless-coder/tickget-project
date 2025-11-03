@@ -2,13 +2,17 @@ package com.tickget.roomserver.kafaka;
 
 import com.tickget.roomserver.domain.enums.EventType;
 import com.tickget.roomserver.event.HostChangedEvent;
+import com.tickget.roomserver.event.SessionCloseEvent;
 import com.tickget.roomserver.event.UserJoinedRoomEvent;
 import com.tickget.roomserver.event.UserLeftRoomEvent;
+import com.tickget.roomserver.session.WebSocketSessionManager;
+import com.tickget.roomserver.util.ServerIdProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.web.socket.WebSocketSession;
 
 @Slf4j
 @Component
@@ -20,6 +24,8 @@ public class RoomEventConsumer {
     private static final String ROOM_HOST_CHANGED_TOPIC = "room-host-changed-events";
 
     private final SimpMessagingTemplate messagingTemplate;
+    private final WebSocketSessionManager sessionManager;
+    private final ServerIdProvider serverIdProvider;
 
     //사용자 입장 이벤트 수신 및 브로드캐스트
     //구독한 모든 서버가 반영해야하기에 컨슈머 그룹 지정 X
@@ -82,5 +88,38 @@ public class RoomEventConsumer {
 
         messagingTemplate.convertAndSend(destination, message);
         log.info("Broadcasted host changed event to topic: {}", destination);
+    }
+
+
+
+    @KafkaListener(topics = "session-close-events")
+    public void handleSessionCloseEvent(SessionCloseEvent event) {
+        log.debug("Received session close event - userId: {}, targetServerId: {}",
+                event.getUserId(), event.getTargetServerId());
+
+        String myServerId = serverIdProvider.getServerId();
+
+        // 이 서버가 타겟인지 확인
+        if (!myServerId.equals(event.getTargetServerId())) {
+            return; // 다른 서버로 보낸 이벤트
+        }
+
+        Long userId = event.getUserId();
+
+        // 해당 유저의 세션이 있으면 종료
+        if (sessionManager.hasSession(userId)) {
+            log.info("다른 서버 요청으로 세션 종료: userId={}, sessionId={}",
+                    userId, event.getSessionId());
+
+            WebSocketSession session = sessionManager.getSessionByUserId(userId);
+
+            if (session != null) {
+                sessionManager.closeSession(session);
+                sessionManager.removeSessionData(session.getId());
+                log.info("세션 강제 종료 완료: userId={}", userId);
+            }
+        } else {
+            log.debug("종료 요청받았으나 해당 세션 없음: userId={}", userId);
+        }
     }
 }
