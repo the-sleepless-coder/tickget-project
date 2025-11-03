@@ -169,7 +169,7 @@ export default function SocialLogin() {
     // 전체 컨테이너
     <div
       className="fixed inset-0 flex flex-col"
-      style={{ backgroundColor: "" }}
+      style={{ backgroundColor: "#E9EBF4" }}
     >
       {/* 헤더 */}
       <header className="border-b border-neutral-200 bg-white">
@@ -276,7 +276,8 @@ export default function SocialLogin() {
             loop
             muted
             playsInline
-            className="h-full w-auto object-contain object-center"
+            className="h-full w-auto object-contain object-center outline-none"
+            style={{ border: "none", outline: "none" }}
           >
             <source src="/tickget.mp4" type="video/mp4" />
             Your browser does not support the video tag.
