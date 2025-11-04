@@ -1,38 +1,34 @@
 spring:
   application:
     name: room-server
-#  datasource:
-#    url: jdbc:h2:mem:testdb
-#    driver-class-name: org.h2.Driver
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: ${SPRING_JPA_DDL_AUTO:update}
   data:
     redis:
-      host: localhost
-      port: 6379
-      password: # 있으면 설정
+      host: ${SPRING_REDIS_HOST:localhost}
+      port: ${SPRING_REDIS_PORT:6379}
+      password: ${SPRING_REDIS_PASSWORD:}
       lettuce:
         pool:
-          max-active: 10
-          max-idle: 10
-          min-idle: 2
-          max-wait: 3000
-        shutdown-timeout: 100
+          max-active: ${SPRING_REDIS_MAX_ACTIVE:10}
+          max-idle: ${SPRING_REDIS_MAX_IDLE:10}
+          min-idle: ${SPRING_REDIS_MIN_IDLE:2}
+          max-wait: ${SPRING_REDIS_MAX_WAIT:3000}
+        shutdown-timeout: ${SPRING_REDIS_SHUTDOWN_TIMEOUT:100}
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
     consumer:
-      bootstrap-servers: localhost:9092
-      group-id: room-server-${server.port}
-      auto-offset-reset: earliest
+      bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+      group-id: ${SPRING_KAFKA_GROUP_ID:room-server-${server.port}}
+      auto-offset-reset: ${SPRING_KAFKA_AUTO_OFFSET_RESET:earliest}
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
-        spring.json.trusted.packages: "com.tickget.roomserver.event,com.tickget.roomserver.kafaka"
-
+        spring.json.trusted.packages: ${SPRING_KAFKA_TRUSTED_PACKAGES:com.tickget.roomserver.event,com.tickget.roomserver.kafaka}
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/tickget?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul}
     username: ${SPRING_DATASOURCE_USERNAME:root}
@@ -44,27 +40,24 @@ spring:
       maximum-pool-size: ${SPRING_DATASOURCE_MAX_POOL_SIZE:5}
       connection-timeout: ${SPRING_DATASOURCE_CONNECTION_TIMEOUT:600000}
 
-
 management:
   endpoints:
     web:
       exposure:
-        include: health, info
+        include: ${MANAGEMENT_ENDPOINTS_EXPOSURE:health,info}
   endpoint:
     health:
-      show-details: always
+      show-details: ${MANAGEMENT_HEALTH_SHOW_DETAILS:always}
 
 minio:
-  url: http://localhost:9000
-  access-key: minioadmin
-  secret-key: minioadmin
-  bucket-name: my-bucket
+  url: ${MINIO_URL:http://localhost:9000}
+  access-key: ${MINIO_ACCESS_KEY:minioadmin}
+  secret-key: ${MINIO_SECRET_KEY:minioadmin}
+  bucket-name: ${MINIO_BUCKET_NAME:my-bucket}
 
 logging:
   level:
-    root: INFO
-    com.tickget.roomserver: DEBUG
-#    org.springframework.kafka: DEBUG
-    org.springframework.messaging: DEBUG
-    org.springframework.web.socket: DEBUG
-
+    root: ${LOGGING_LEVEL_ROOT:INFO}
+    com.tickget.roomserver: ${LOGGING_LEVEL_TICKGET:DEBUG}
+    org.springframework.messaging: ${LOGGING_LEVEL_MESSAGING:DEBUG}
+    org.springframework.web.socket: ${LOGGING_LEVEL_WEBSOCKET:DEBUG}
