@@ -22,6 +22,8 @@ import com.tickget.roomserver.dto.response.RoomResponse;
 import com.tickget.roomserver.event.HostChangedEvent;
 import com.tickget.roomserver.event.UserJoinedRoomEvent;
 import com.tickget.roomserver.event.UserLeftRoomEvent;
+import com.tickget.roomserver.exception.CreateMatchDeclinedException;
+import com.tickget.roomserver.exception.CreateMatchFailedException;
 import com.tickget.roomserver.exception.PresetHallNotFoundException;
 
 import com.tickget.roomserver.exception.RoomClosedException;
@@ -72,22 +74,39 @@ public class RoomService {
 
         Room room = Room.of(request,presetHall,thumbnailValue);
         room = roomRepository.save(room); // 알아서 id값 반영되지만 명시
-
-
-        ticketingServiceClient.createMatch(CreateMatchRequest.of(request, room.getId()));
-
-        //Redis에 정보 저장
-        roomCacheRepository.saveRoom(room.getId(),request);
-        roomCacheRepository.addMemberToRoom(room.getId(),request.getUserId(), request.getUsername() );
-
         String sessionId = sessionManager.getSessionIdByUserId(request.getUserId());
-        if (sessionId != null) {
-            sessionManager.joinRoom(sessionId, room.getId());
+
+        try {
+            // Redis에 정보 저장
+            roomCacheRepository.saveRoom(room.getId(), request);
+            roomCacheRepository.addMemberToRoom(room.getId(), request.getUserId(), request.getUsername());
+
+            // 세션에 방 정보 등록
+            if (sessionId != null) {
+                sessionManager.joinRoom(sessionId, room.getId());
+            }
+
+            // 매치 생성 요청
+            ticketingServiceClient.createMatch(CreateMatchRequest.of(request, room.getId()));
+
+            log.info("사용자 {}(id:{})이(가) 방 {}을 생성 후 입장",
+                    request.getUsername(), request.getUserId(), room.getId());
+
+            return CreateRoomResponse.from(room);
+
+        } catch (CreateMatchFailedException | CreateMatchDeclinedException e) {
+            log.error("방 생성 중 매치 생성 실패 - roomId: {}, userId: {}, error: {}",
+                    room.getId(), request.getUserId(), e.getMessage());
+
+            roomCacheRepository.removeMemberFromRoom(room.getId(), request.getUserId());
+            roomCacheRepository.deleteRoom(room.getId());
+
+            if (sessionId != null) {
+                sessionManager.leaveRoom(sessionId);
+            }
+
+            throw e;
         }
-
-        log.info("사용자  {}(id:{})(이)가 방 {}을 생성 후 입장",request.getUsername(), request.getUserId(), room.getId());
-
-        return CreateRoomResponse.from(room);
     }
 
 
