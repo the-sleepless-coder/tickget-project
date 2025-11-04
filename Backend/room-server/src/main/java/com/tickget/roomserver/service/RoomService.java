@@ -53,10 +53,9 @@ public class RoomService {
     private final TicketingServiceClient  ticketingServiceClient;
     private final WebSocketSessionManager sessionManager;
     private final RoomEventProducer roomEventProducer;
-
+    private final RoomCacheRepository roomCacheRepository;
     private final RoomRepository roomRepository;
     private final PresetHallRepository  presetHallRepository;
-    private final RoomCacheRepository roomCacheRepository;
 
     @Transactional
     public CreateRoomResponse createRoom(CreateRoomRequest request, MultipartFile thumbnail) throws JsonProcessingException {
@@ -252,4 +251,5 @@ public class RoomService {
 
         return ExitRoomResponse.of(room, leftUserCount);
     }
+
 }
