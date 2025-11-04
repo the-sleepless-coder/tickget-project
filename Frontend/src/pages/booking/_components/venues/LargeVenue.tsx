@@ -23,6 +23,7 @@ import Inspire_31 from "../../../../shared/ui/common/Inspire/R/Inspire_31";
 import Inspire_39 from "../../../../shared/ui/common/Inspire/R/Inspire_39";
 import Inspire_42 from "../../../../shared/ui/common/Inspire/R/Inspire_42";
 import Inspire_43 from "../../../../shared/ui/common/Inspire/R/Inspire_43";
+import Inspire_1 from "../../../../shared/ui/common/Inspire/STANDING/Inspire_1";
 
 interface PolygonData {
   id: string;
@@ -186,16 +187,23 @@ export default function LargeVenue() {
       "42": { component: Inspire_42, flip: false, columns: 34, rows: 13 },
       "43": { component: Inspire_43, flip: false, columns: 25, rows: 10 },
       "44": { component: Inspire_42, flip: true, columns: 34, rows: 13 }, // 42 패턴의 좌우 반전
+      // STANDING 좌석 패턴
+      "1": { component: Inspire_1, flip: false, columns: 50, rows: 20 },
+      "2": { component: Inspire_1, flip: false, columns: 50, rows: 20 },
+      "3": { component: Inspire_1, flip: false, columns: 50, rows: 20 },
+      "4": { component: Inspire_1, flip: false, columns: 50, rows: 20 },
     };
 
     const patternConfig = seatPatternMap[data.id];
     if (patternConfig) {
-      // VIP 좌석인 경우 VIP 색상, R 좌석인 경우 R 색상, 그 외는 좌석의 fill 색상 사용
+      // VIP 좌석인 경우 VIP 색상, R 좌석인 경우 R 색상, STANDING 좌석인 경우 STANDING 색상, 그 외는 좌석의 fill 색상 사용
       let color = data.fill || "#FFCC10";
       if (data.level === "VIP") {
         color = "#68F237";
       } else if (data.level === "R") {
         color = "#4CA0FF";
+      } else if (data.level === "STANDING") {
+        color = data.fill || "#FE4AB9"; // STANDING 좌석의 fill 색상 사용 (기본값: #FE4AB9)
       }
       setDetailViewColor(color);
       setSelectedPattern(() => patternConfig.component);
