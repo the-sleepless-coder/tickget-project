@@ -95,7 +95,13 @@ export default function RoomsPage() {
     .filter((r) =>
       normalizedQuery ? r.title.toLowerCase().includes(normalizedQuery) : true
     )
-    .filter((r) => (availableOnly ? !r.ongoing : true));
+    .filter((r) => {
+      if (!availableOnly) return true;
+      const isFull = r.participants
+        ? r.participants.current >= r.participants.capacity
+        : false;
+      return !r.ongoing && !isFull;
+    });
   return (
     <div className="mx-auto max-w-7xl p-4 sm:p-6">
       {/* Search */}
@@ -104,7 +110,7 @@ export default function RoomsPage() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           type="text"
-          placeholder="방제목으로 검색"
+          placeholder="방 제목으로 검색"
           className="w-full rounded-full border border-gray-300 px-5 py-3 pr-12 text-gray-700 placeholder:text-gray-400 shadow-sm focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/40"
         />
         <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">
@@ -154,15 +160,15 @@ export default function RoomsPage() {
           <button
             type="button"
             onClick={() => setOpenCreate(true)}
-            className="rounded-full bg-purple-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-purple-600"
+            className="rounded-full bg-purple-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-purple-600 cursor-pointer"
           >
-            + 방만들기
+            + 방 만들기
           </button>
           <button
             type="button"
             aria-pressed={availableOnly}
             onClick={() => setAvailableOnly((v) => !v)}
-            className={`rounded-full px-4 py-2 text-sm font-medium shadow-sm transition-colors ${
+            className={`rounded-full px-4 py-2 text-sm font-medium shadow-sm transition-colors cursor-pointer ${
               availableOnly
                 ? "bg-purple-500 text-white hover:bg-purple-600"
                 : "bg-purple-50 text-purple-600 hover:bg-purple-100"
@@ -176,7 +182,7 @@ export default function RoomsPage() {
             type="button"
             aria-pressed={activeSort === "start"}
             onClick={() => setActiveSort("start")}
-            className={`rounded-full px-4 py-2 transition-colors ${
+            className={`rounded-full px-4 py-2 transition-colors cursor-pointer ${
               activeSort === "start"
                 ? "text-purple-600 bg-purple-50"
                 : "text-gray-900 bg-gray-100"
@@ -188,7 +194,7 @@ export default function RoomsPage() {
             type="button"
             aria-pressed={activeSort === "latest"}
             onClick={() => setActiveSort("latest")}
-            className={`rounded-full px-4 py-2 transition-colors ${
+            className={`rounded-full px-4 py-2 transition-colors cursor-pointer ${
               activeSort === "latest"
                 ? "text-purple-600 bg-purple-50"
                 : "text-gray-900 bg-gray-100"

@@ -266,6 +266,11 @@ export default function RoomCard({
     return `${participants.current} / ${participants.capacity}명`;
   }, [participants]);
 
+  // 꽉 찬 방 여부 및 오버레이 라벨 결정
+  const isFull =
+    !!participants && participants.current >= participants.capacity;
+  const overlayLabel = ongoing ? "경기 진행중" : isFull ? "최대 인원" : null;
+
   return (
     <Link
       to={to}
@@ -298,10 +303,10 @@ export default function RoomCard({
               className="absolute inset-0 h-full w-full object-cover"
               loading="lazy"
             />
-            {ongoing ? (
+            {overlayLabel ? (
               <div className="pointer-events-none absolute inset-0 z-10 grid place-items-center bg-[#4F4F4F]/50 backdrop-blur-[2px]">
                 <span className="text-white text-lg font-extrabold">
-                  경기 진행중
+                  {overlayLabel}
                 </span>
               </div>
             ) : null}
