@@ -1,6 +1,5 @@
 package com.tickget.roomserver.event;
 
-import java.time.LocalDateTime;
 import lombok.Builder;
 import lombok.Getter;
 

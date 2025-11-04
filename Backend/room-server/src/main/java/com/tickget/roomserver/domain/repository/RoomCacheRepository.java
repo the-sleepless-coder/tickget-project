@@ -7,7 +7,6 @@ import com.tickget.roomserver.dto.cache.RoomInfoUpdate;
 import com.tickget.roomserver.dto.cache.RoomMember;
 import com.tickget.roomserver.dto.cache.RoomInfo;
 import com.tickget.roomserver.dto.request.CreateRoomRequest;
-import com.tickget.roomserver.util.TimeConverter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -89,7 +88,7 @@ public class RoomCacheRepository {
                     .difficulty("difficulty")
                     .maxUserCount(10)
                     .currentUserCount(0)
-                    .createdAt(1l)
+                    .createdAt(1L)
                     .build();
         }
 

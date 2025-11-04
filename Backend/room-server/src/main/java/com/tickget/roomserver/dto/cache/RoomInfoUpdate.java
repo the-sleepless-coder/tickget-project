@@ -1,7 +1,6 @@
 package com.tickget.roomserver.dto.cache;
 
 import com.tickget.roomserver.event.MatchSettingChangedEvent;
-import java.time.LocalDateTime;
 import lombok.Builder;
 import lombok.Getter;
 
