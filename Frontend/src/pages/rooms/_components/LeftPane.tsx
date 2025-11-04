@@ -12,6 +12,7 @@ export default function LeftPane({
   size,
   venue,
   isAIMode,
+  isPresetMode,
 }: {
   step: 1 | 2;
   thumbnailUrl: string | null;
@@ -23,6 +24,7 @@ export default function LeftPane({
   size: "소형" | "중형" | "대형";
   venue: string;
   isAIMode?: boolean;
+  isPresetMode?: boolean;
 }) {
   if (step === 1) {
     return (
@@ -77,7 +79,10 @@ export default function LeftPane({
 
   return (
     <div className="mb-6 flex flex-col">
-      <label htmlFor="room-layout" className="cursor-pointer block w-[230px]">
+      <label
+        htmlFor={isPresetMode ? undefined : "room-layout"}
+        className={`block w-[230px] ${isPresetMode ? "cursor-default" : "cursor-pointer"}`}
+      >
         <div className="grid place-items-center rounded-md bg-gray-200 w-[230px] h-[307px] md:w-[230px] md:h-[307px] overflow-hidden">
           {(() => {
             const defaultSrc =
@@ -85,8 +90,8 @@ export default function LeftPane({
                 ? "/performance-halls/charlotte-theater.jpg"
                 : size === "중형" || /올림픽홀/.test(venue)
                   ? "/performance-halls/olympic-hall.jpg"
-                  : size === "대형" || /주경기장/.test(venue)
-                    ? "/performance-halls/olympic-stadium.jpg"
+                  : size === "대형" || /KSPO/.test(venue)
+                    ? "/performance-halls/kspo-dome.jpg"
                     : null;
             const src = layoutUrl || (isAIMode ? null : defaultSrc);
             return src ? (
@@ -108,13 +113,15 @@ export default function LeftPane({
           })()}
         </div>
       </label>
-      <input
-        id="room-layout"
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={onLayoutChange}
-      />
+      {!isPresetMode && (
+        <input
+          id="room-layout"
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={onLayoutChange}
+        />
+      )}
     </div>
   );
 }
