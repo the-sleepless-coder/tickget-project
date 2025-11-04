@@ -16,6 +16,13 @@ import Inspire_12 from "../../../../shared/ui/common/Inspire/VIP/Inspire_12";
 import Inspire_15 from "../../../../shared/ui/common/Inspire/VIP/Inspire_15";
 import Inspire_16 from "../../../../shared/ui/common/Inspire/VIP/Inspire_16";
 import Inspire_23 from "../../../../shared/ui/common/Inspire/VIP/Inspire_23";
+import Inspire_25 from "../../../../shared/ui/common/Inspire/R/Inspire_25";
+import Inspire_26 from "../../../../shared/ui/common/Inspire/R/Inspire_26";
+import Inspire_27 from "../../../../shared/ui/common/Inspire/R/Inspire_27";
+import Inspire_31 from "../../../../shared/ui/common/Inspire/R/Inspire_31";
+import Inspire_39 from "../../../../shared/ui/common/Inspire/R/Inspire_39";
+import Inspire_42 from "../../../../shared/ui/common/Inspire/R/Inspire_42";
+import Inspire_43 from "../../../../shared/ui/common/Inspire/R/Inspire_43";
 
 interface PolygonData {
   id: string;
@@ -158,12 +165,38 @@ export default function LargeVenue() {
       "22": { component: Inspire_12, flip: false, columns: 18, rows: 13 },
       "23": { component: Inspire_23, flip: false, columns: 24, rows: 14 },
       "24": { component: Inspire_12, flip: true, columns: 18, rows: 13 }, // 12 패턴의 좌우 반전
+      // R 좌석 패턴
+      "25": { component: Inspire_25, flip: false, columns: 38, rows: 10 },
+      "26": { component: Inspire_26, flip: false, columns: 26, rows: 13 },
+      "27": { component: Inspire_27, flip: false, columns: 22, rows: 10 },
+      "28": { component: Inspire_27, flip: false, columns: 22, rows: 10 },
+      "29": { component: Inspire_27, flip: false, columns: 22, rows: 10 },
+      "30": { component: Inspire_26, flip: true, columns: 26, rows: 13 }, // 26 패턴의 좌우 반전
+      "31": { component: Inspire_31, flip: false, columns: 41, rows: 7 },
+      "32": { component: Inspire_42, flip: false, columns: 34, rows: 13 },
+      "33": { component: Inspire_43, flip: false, columns: 25, rows: 10 },
+      "34": { component: Inspire_42, flip: true, columns: 34, rows: 13 }, // 42 패턴의 좌우 반전
+      "35": { component: Inspire_25, flip: true, columns: 38, rows: 10 }, // 25 패턴의 좌우 반전
+      "36": { component: Inspire_26, flip: false, columns: 26, rows: 13 },
+      "37": { component: Inspire_39, flip: false, columns: 22, rows: 8 },
+      "38": { component: Inspire_39, flip: false, columns: 22, rows: 8 },
+      "39": { component: Inspire_39, flip: false, columns: 22, rows: 8 },
+      "40": { component: Inspire_26, flip: true, columns: 26, rows: 13 }, // 26 패턴의 좌우 반전
+      "41": { component: Inspire_25, flip: false, columns: 38, rows: 10 },
+      "42": { component: Inspire_42, flip: false, columns: 34, rows: 13 },
+      "43": { component: Inspire_43, flip: false, columns: 25, rows: 10 },
+      "44": { component: Inspire_42, flip: true, columns: 34, rows: 13 }, // 42 패턴의 좌우 반전
     };
 
     const patternConfig = seatPatternMap[data.id];
     if (patternConfig) {
-      // VIP 좌석인 경우 VIP 색상 사용, 그 외는 좌석의 fill 색상 사용
-      const color = data.level === "VIP" ? "#68F237" : (data.fill || "#FFCC10");
+      // VIP 좌석인 경우 VIP 색상, R 좌석인 경우 R 색상, 그 외는 좌석의 fill 색상 사용
+      let color = data.fill || "#FFCC10";
+      if (data.level === "VIP") {
+        color = "#68F237";
+      } else if (data.level === "R") {
+        color = "#4CA0FF";
+      }
       setDetailViewColor(color);
       setSelectedPattern(() => patternConfig.component);
       setIsFlipped(patternConfig.flip);
