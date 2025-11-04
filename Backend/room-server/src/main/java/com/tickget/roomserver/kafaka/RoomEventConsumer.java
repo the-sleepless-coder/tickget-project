@@ -1,6 +1,5 @@
 package com.tickget.roomserver.kafaka;
 
-import com.tickget.roomserver.domain.enums.EventType;
 import com.tickget.roomserver.domain.repository.RoomCacheRepository;
 import com.tickget.roomserver.dto.cache.RoomInfoUpdate;
 import com.tickget.roomserver.event.HostChangedEvent;

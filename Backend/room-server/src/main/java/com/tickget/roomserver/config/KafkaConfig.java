@@ -1,7 +1,6 @@
 package com.tickget.roomserver.config;
 
 import com.tickget.roomserver.event.HostChangedEvent;
-import com.tickget.roomserver.event.MatchSettingChangedEvent;
 import com.tickget.roomserver.event.RoomSettingUpdatedEvent;
 import com.tickget.roomserver.event.SessionCloseEvent;
 import com.tickget.roomserver.event.UserJoinedRoomEvent;
