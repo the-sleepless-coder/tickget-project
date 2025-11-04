@@ -1,30 +1,89 @@
 spring:
   application:
     name: room-server
-  datasource:
-    url: jdbc:h2:mem:testdb
-    driver-class-name: org.h2.Driver
   jpa:
     hibernate:
-      ddl-auto: create
+      ddl-auto: ${SPRING_JPA_DDL_AUTO:update}
+  data:
+    redis:
+      host: ${SPRING_REDIS_HOST:localhost}
+      port: ${SPRING_REDIS_PORT:6379}
+      password: ${SPRING_REDIS_PASSWORD:}
+      lettuce:
+        pool:
+          max-active: ${SPRING_REDIS_MAX_ACTIVE:10}
+          max-idle: ${SPRING_REDIS_MAX_IDLE:10}
+          min-idle: ${SPRING_REDIS_MIN_IDLE:2}
+          max-wait: ${SPRING_REDIS_MAX_WAIT:3000}
+        shutdown-timeout: ${SPRING_REDIS_SHUTDOWN_TIMEOUT:100}
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    consumer:
+      bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+      group-id: ${SPRING_KAFKA_GROUP_ID:room-server-${server.port}}
+      auto-offset-reset: ${SPRING_KAFKA_AUTO_OFFSET_RESET:earliest}
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: ${SPRING_KAFKA_TRUSTED_PACKAGES:com.tickget.roomserver.event,com.tickget.roomserver.kafaka}
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/tickget?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul}
+    username: ${SPRING_DATASOURCE_USERNAME:root}
+    password: ${SPRING_DATASOURCE_PASSWORD:root}
+    driver-class-name: ${SPRING_DATASOURCE_DRIVER:com.mysql.cj.jdbc.Driver}
+    hikari:
+      idle-timeout: ${SPRING_DATASOURCE_IDLE_TIMEOUT:300000}
+      minimum-idle: ${SPRING_DATASOURCE_MIN_IDLE:3}
+      maximum-pool-size: ${SPRING_DATASOURCE_MAX_POOL_SIZE:5}
+      connection-timeout: ${SPRING_DATASOURCE_CONNECTION_TIMEOUT:600000}
 
-#  datasource:
-#    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/tickget?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul}
-#    username: ${SPRING_DATASOURCE_USERNAME:root}
-#    password: ${SPRING_DATASOURCE_PASSWORD:root}
-#    driver-class-name: ${SPRING_DATASOURCE_DRIVER:com.mysql.cj.jdbc.Driver}
-#    hikari:
-#      idle-timeout: ${SPRING_DATASOURCE_IDLE_TIMEOUT:300000}
-#      minimum-idle: ${SPRING_DATASOURCE_MIN_IDLE:3}
-#      maximum-pool-size: ${SPRING_DATASOURCE_MAX_POOL_SIZE:5}
-#      connection-timeout: ${SPRING_DATASOURCE_CONNECTION_TIMEOUT:600000}
+  resilience4j:
+    retry:
+      instances:
+        paymentService:
+          max-attempts: ${RETRY_MAX_ATTEMPTS:3}
+          wait-duration: ${RETRY_WAIT_DURATION:1s}
+          exponential-backoff-multiplier: ${RETRY_BACKOFF_MULTIPLIER:1}
+          retry-exceptions:
+            - org.springframework.web.client.HttpServerErrorException
+            - org.springframework.web.client.ResourceAccessException
+          ignore-exceptions:
+            - com.study.order.exception.MatchCreateDeclinedException
 
+    circuitbreaker:
+      instances:
+        paymentService:
+          sliding-window-size: ${CIRCUIT_BREAKER_WINDOW_SIZE:10}
+          failure-rate-threshold: ${CIRCUIT_BREAKER_FAILURE_THRESHOLD:50}
+          wait-duration-in-open-state: ${CIRCUIT_BREAKER_WAIT_DURATION:10s}
+          permitted-number-of-calls-in-half-open-state: ${CIRCUIT_BREAKER_HALF_OPEN_CALLS:3}
+          automatic-transition-from-open-to-half-open-enabled: ${CIRCUIT_BREAKER_AUTO_TRANSITION:true}
+          register-health-indicator: true
 
 management:
   endpoints:
     web:
       exposure:
-        include: health, info
+        include: ${MANAGEMENT_ENDPOINTS_EXPOSURE:health,info}
   endpoint:
     health:
-      show-details: always
+      show-details: ${MANAGEMENT_HEALTH_SHOW_DETAILS:always}
+
+minio:
+  url: ${MINIO_URL:http://localhost:9000}
+  access-key: ${MINIO_ACCESS_KEY:minioadmin}
+  secret-key: ${MINIO_SECRET_KEY:minioadmin}
+  bucket-name: ${MINIO_BUCKET_NAME:my-bucket}
+
+logging:
+  level:
+    root: ${LOGGING_LEVEL_ROOT:INFO}
+    com.tickget.roomserver: ${LOGGING_LEVEL_TICKGET:DEBUG}
+    org.springframework.messaging: ${LOGGING_LEVEL_MESSAGING:DEBUG}
+    org.springframework.web.socket: ${LOGGING_LEVEL_WEBSOCKET:DEBUG}
+
+ticketing-service:
+  url: ${TICKETING_SERVICE_URL:http://localhost:8081}
