@@ -52,6 +52,16 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 
+    @ExceptionHandler(RoomPlayingException.class)
+    public ResponseEntity<ErrorResponse> handleRoomPlatingException(RoomPlayingException e) {
+        log.warn("Room Playing: {}", e.getMessage());
+        ErrorResponse response = ErrorResponse.of(
+                "ROOM_PLAYING",
+                e.getMessage()
+        );
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
     @ExceptionHandler(InvalidRoomSettingsException.class)
     public ResponseEntity<ErrorResponse> handleInvalidRoomSettingsException(InvalidRoomSettingsException e) {
         log.warn("Invalid room settings: {}", e.getMessage());
