@@ -1,7 +1,7 @@
 package com.tickget.roomserver.exception;
 
 public class RoomNotFoundException extends RuntimeException {
-    public RoomNotFoundException(String message) {
-        super(message);
+    public RoomNotFoundException(Long message) {
+        super(String.valueOf(message));
     }
 }
