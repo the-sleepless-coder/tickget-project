@@ -1,6 +1,8 @@
 package com.tickget.roomserver.kafaka;
 
 import com.tickget.roomserver.event.HostChangedEvent;
+import com.tickget.roomserver.event.MatchSettingChangedEvent;
+import com.tickget.roomserver.event.RoomSettingUpdatedEvent;
 import com.tickget.roomserver.event.SessionCloseEvent;
 import com.tickget.roomserver.event.UserJoinedRoomEvent;
 import com.tickget.roomserver.event.UserLeftRoomEvent;
@@ -17,11 +19,13 @@ public class RoomEventProducer {
     private static final String ROOM_USER_LEFT_TOPIC = "room-user-left-events";
     private static final String ROOM_HOST_CHANGED_TOPIC = "room-host-changed-events";
     private static final String SESSION_CLOSE_TOPIC = "session-close-events";
+    private static final String ROOM_SETTING_UPDATED_TOPIC = "room-setting-updated-events";
 
     private final KafkaTemplate<String, UserJoinedRoomEvent> joinedEventKafkaTemplate;
     private final KafkaTemplate<String, UserLeftRoomEvent> leftEventKafkaTemplate;
     private final KafkaTemplate<String, HostChangedEvent> hostChangedEventKafkaTemplate;
     private final KafkaTemplate<String, SessionCloseEvent> sessionCloseEventKafkaTemplate;
+    private final KafkaTemplate<String, RoomSettingUpdatedEvent> roomSettingUpdatedEventKafkaTemplate;
 
     public void publishUserJoinedEvent(UserJoinedRoomEvent event) {
         String key = event.getRoomId().toString();
@@ -51,4 +55,12 @@ public class RoomEventProducer {
     }
 
 
+    public void publishRoomSettingUpdatedEvent(MatchSettingChangedEvent matchSettingChangedEvent) {
+        String key = matchSettingChangedEvent.getRoomId().toString();
+        RoomSettingUpdatedEvent event = RoomSettingUpdatedEvent.from(matchSettingChangedEvent);
+
+        roomSettingUpdatedEventKafkaTemplate.send(ROOM_SETTING_UPDATED_TOPIC, key, event);
+        log.info("Room setting updated event published - roomId: {}, difficulty: {}, maxUserCount: {}",
+                event.getRoomId(), event.getDifficulty(), event.getMaxUserCount());
+    }
 }

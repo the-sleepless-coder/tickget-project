@@ -5,6 +5,7 @@ import com.tickget.roomserver.domain.repository.RoomCacheRepository;
 import com.tickget.roomserver.dto.cache.RoomInfoUpdate;
 import com.tickget.roomserver.event.HostChangedEvent;
 import com.tickget.roomserver.event.MatchSettingChangedEvent;
+import com.tickget.roomserver.event.RoomSettingUpdatedEvent;
 import com.tickget.roomserver.event.SessionCloseEvent;
 import com.tickget.roomserver.event.UserJoinedRoomEvent;
 import com.tickget.roomserver.event.UserLeftRoomEvent;
@@ -26,7 +27,9 @@ public class RoomEventConsumer {
     private static final String ROOM_USER_LEFT_TOPIC = "room-user-left-events";
     private static final String ROOM_HOST_CHANGED_TOPIC = "room-host-changed-events";
     private static final String MATCH_SETTING_CHANGED_TOPIC = "match-setting-changed-events";
+    private static final String ROOM_SETTING_UPDATED_TOPIC = "room-setting-updated-events";
 
+    private final RoomEventProducer roomEventProducer;
     private final SimpMessagingTemplate messagingTemplate;
     private final WebSocketSessionManager sessionManager;
     private final ServerIdProvider serverIdProvider;
@@ -139,13 +142,20 @@ public class RoomEventConsumer {
             roomCacheRepository.updateRoomInfo(infoUpdate);
             
             //TODO: 이 변경사항을 소켓통신을 통해 모두에게 알리는 로직
+            roomEventProducer.publishRoomSettingUpdatedEvent(event);
 
         } catch (Exception e) {
             log.error("매치 설정 변경 이벤트 처리 중 오류 발생 - roomId: {}, error: {}",
                     event.getRoomId(), e.getMessage(), e);
         }
+    }
 
+    @KafkaListener(topics =ROOM_SETTING_UPDATED_TOPIC)
+    public void handleRoomSettingUpdatedEvent(RoomSettingUpdatedEvent event) {
+        String destination = "/topic/rooms/" + event.getRoomId();
+        RoomSettingUpdatedMessage message = RoomSettingUpdatedMessage.from(event);
 
+        messagingTemplate.convertAndSend(destination, message);
 
     }
 }
