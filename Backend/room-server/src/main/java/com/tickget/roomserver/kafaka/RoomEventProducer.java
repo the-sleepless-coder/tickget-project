@@ -30,37 +30,37 @@ public class RoomEventProducer {
     public void publishUserJoinedEvent(UserJoinedRoomEvent event) {
         String key = event.getRoomId().toString();
         joinedEventKafkaTemplate.send(ROOM_USER_JOINED_TOPIC, key, event);
-        log.debug("User joined event published - userId: {}, roomId: {}", event.getUserId(), event.getRoomId());
+        log.debug("사용자 입장 이벤트 발행: userId={}, roomId={}, 현재인원={}",
+                event.getUserId(), event.getRoomId(), event.getTotalUsersInRoom());
     }
 
     public void publishUserLeftEvent(UserLeftRoomEvent event) {
         String key = event.getRoomId().toString();
         leftEventKafkaTemplate.send(ROOM_USER_LEFT_TOPIC, key, event);
-        log.debug("User left event published - userId: {}, roomId: {}",
-                event.getUserId(), event.getRoomId());
+        log.debug("사용자 퇴장 이벤트 발행: userId={}, roomId={}, 남은인원={}",
+                event.getUserId(), event.getRoomId(), event.getTotalUsersInRoom());
     }
 
     public void publishHostChangedEvent(HostChangedEvent event) {
         String key = event.getRoomId().toString();
         hostChangedEventKafkaTemplate.send(ROOM_HOST_CHANGED_TOPIC, key, event);
-        log.debug("Host changed event published - newHostId: {}, previousHostId: {}, roomId: {}",
-                event.getNewHostId(), event.getPreviousHostId(), event.getRoomId());
+        log.debug("호스트 변경 이벤트 발행: 방={}, 이전호스트={}, 새호스트={}",
+                event.getRoomId(), event.getPreviousHostId(), event.getNewHostId());
     }
 
     public void publishSessionCloseEvent(SessionCloseEvent event) {
         String key = event.getUserId().toString();
         sessionCloseEventKafkaTemplate.send(SESSION_CLOSE_TOPIC, key, event);
-        log.debug("Session close event published - userId: {}, sessionId: {}, targetServerId: {}",
+        log.debug("세션 강제 종료 이벤트 발행: userId={}, sessionId={}, 대상서버={}",
                 event.getUserId(), event.getSessionId(), event.getTargetServerId());
     }
-
 
     public void publishRoomSettingUpdatedEvent(MatchSettingChangedEvent matchSettingChangedEvent) {
         String key = matchSettingChangedEvent.getRoomId().toString();
         RoomSettingUpdatedEvent event = RoomSettingUpdatedEvent.from(matchSettingChangedEvent);
 
         roomSettingUpdatedEventKafkaTemplate.send(ROOM_SETTING_UPDATED_TOPIC, key, event);
-        log.info("Room setting updated event published - roomId: {}, difficulty: {}, maxUserCount: {}",
+        log.debug("방 설정 업데이트 이벤트 발행: 방={}, 난이도={}, 최대인원={}",
                 event.getRoomId(), event.getDifficulty(), event.getMaxUserCount());
     }
 }

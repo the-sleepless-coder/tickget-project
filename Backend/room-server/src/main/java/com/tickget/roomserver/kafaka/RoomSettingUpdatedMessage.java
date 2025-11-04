@@ -1,6 +1,5 @@
 package com.tickget.roomserver.kafaka;
 
-import com.tickget.roomserver.domain.enums.Difficulty;
 import com.tickget.roomserver.domain.enums.EventType;
 import com.tickget.roomserver.event.RoomSettingUpdatedEvent;
 import java.time.LocalDateTime;
