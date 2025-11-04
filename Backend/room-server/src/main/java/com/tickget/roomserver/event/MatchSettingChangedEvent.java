@@ -12,6 +12,6 @@ public class MatchSettingChangedEvent {
     private String matchName;
     private String difficulty;
     private Integer maxUserCount;
-    private LocalDateTime startTime;
+    private Long startTime;
 
 }

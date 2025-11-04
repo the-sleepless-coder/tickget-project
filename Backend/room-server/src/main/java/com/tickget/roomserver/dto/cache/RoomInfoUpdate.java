@@ -13,7 +13,7 @@ public class RoomInfoUpdate {
     private String matchName;
     private String difficulty;
     private Integer maxUserCount;
-    private LocalDateTime startTime;
+    private Long startTime;
 
     static public RoomInfoUpdate from(MatchSettingChangedEvent event){
         return RoomInfoUpdate.builder()
