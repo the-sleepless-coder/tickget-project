@@ -50,7 +50,7 @@ export default function CreateRoomModal({
     () => ({
       소형: ["샤롯데씨어터"],
       중형: ["올림픽공원 올림픽홀"],
-      대형: ["올림픽 주경기장"],
+      대형: ["KSPO DOME"],
     }),
     []
   );
@@ -254,6 +254,7 @@ export default function CreateRoomModal({
               size={size}
               venue={venue}
               isAIMode={step === 2 && step2Mode === "ai"}
+              isPresetMode={step === 2 && step2Mode === "preset"}
             />
 
             {step === 1 ? (
