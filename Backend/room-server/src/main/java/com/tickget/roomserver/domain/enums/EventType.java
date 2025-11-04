@@ -5,4 +5,5 @@ public enum EventType {
     USER_LEFT,
     HOST_CHANGED,
     MATCH_SETTING_CHANGED,
+    ROOM_SETTING_UPDATED,
 }
