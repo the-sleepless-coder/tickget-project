@@ -86,4 +86,4 @@ logging:
     org.springframework.web.socket: ${LOGGING_LEVEL_WEBSOCKET:DEBUG}
 
 ticketing-service:
-  url:${TICKETING_SERVICE_URL:http://localhost:8081}
+  url: ${TICKETING_SERVICE_URL:http://localhost:8081}
