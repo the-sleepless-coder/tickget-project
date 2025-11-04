@@ -63,7 +63,7 @@ variables:
   
 # --- 3. 환경/서버별 작업 정의 ---
 # 
-# ============ test-server (tst) ============
+# ============ test-server (tst) -> test-dev 브랜치 전용 ============
 #
 build:test-server:test-dev:
   extends: .docker-build-template
@@ -82,8 +82,9 @@ update:test-server:test-dev:
   rules:
     - if: '$CI_COMMIT_BRANCH == "test-dev"'
       needs: ["build:test-server:test-dev"]
+
 # 
-# ============ ticketing-server (tkt) ============
+# ============ ticketing-server (tkt) -> dev, master 브랜치 전용 ============
 #
 build:ticketing-server:dev:
   extends: .docker-build-template
@@ -122,7 +123,7 @@ update:ticketing-server:master:
       needs: ["build:ticketing-server:master"]
 
 # 
-# ============ room-server (rms) ============
+# ============ room-server (rms) -> dev, master 브랜치 전용 ============
 #
 build:room-server:dev:
   extends: .docker-build-template
