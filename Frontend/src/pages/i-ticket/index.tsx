@@ -5,6 +5,7 @@ import PeopleIcon from "@mui/icons-material/People";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import { paths } from "../../app/routes/paths";
 import CreateRoomModal from "../rooms/_components/CreateRoomModal";
+import Thumbnail03 from "../../shared/images/thumbnail/Thumbnail03.jpg";
 
 type Participant = {
   name: string;
@@ -115,51 +116,51 @@ export default function ITicketPage() {
 
   return (
     <>
-    <div className="min-h-screen">
-      {showBanner && (
-        <TopBanner
-          onClose={(hideFor3Days) => {
-            if (hideFor3Days) {
-              const until = Date.now() + 3 * 24 * 60 * 60 * 1000;
-              localStorage.setItem(BANNER_HIDE_KEY, String(until));
-            }
-            setShowBanner(false);
-          }}
-        />
-      )}
+      <div className="min-h-screen">
+        {showBanner && (
+          <TopBanner
+            onClose={(hideFor3Days) => {
+              if (hideFor3Days) {
+                const until = Date.now() + 3 * 24 * 60 * 60 * 1000;
+                localStorage.setItem(BANNER_HIDE_KEY, String(until));
+              }
+              setShowBanner(false);
+            }}
+          />
+        )}
 
-      <div className="productWrapper w-[1280px] mx-auto px-4 md:px-6">
-        <TagsRow />
-        <TitleSection onOpenSettings={() => setIsRoomModalOpen(true)} />
+        <div className="productWrapper w-[1280px] mx-auto px-4 md:px-6">
+          <TagsRow />
+          <TitleSection onOpenSettings={() => setIsRoomModalOpen(true)} />
 
-        <div className="mt-6 flex flex-row gap-8">
-          <div className="summary w-[830px]">
-            <div className="flex items-start">
-              <PosterBox />
-              <div className="ml-[25px] my-0 mr-0 w-[400px]">
-                <ParticipantList
-                  participants={participants}
-                  capacity={capacity}
-                />
+          <div className="mt-6 flex flex-row gap-8">
+            <div className="summary w-[830px]">
+              <div className="flex items-start">
+                <PosterBox />
+                <div className="ml-[25px] my-0 mr-0 w-[400px]">
+                  <ParticipantList
+                    participants={participants}
+                    capacity={capacity}
+                  />
+                </div>
               </div>
             </div>
+            <aside className="productSide w-[370px]">
+              <StartInfoCard
+                openText="티켓오픈"
+                openAt="2025.10.23 18:00"
+                remaining={formatted}
+                canReserve={secondsLeft === 0}
+                onReserve={openQueueWindow}
+              />
+            </aside>
           </div>
-          <aside className="productSide w-[370px]">
-            <StartInfoCard
-              openText="티켓오픈"
-              openAt="2025.10.23 18:00"
-              remaining={formatted}
-              canReserve={secondsLeft === 0}
-              onReserve={openQueueWindow}
-            />
-          </aside>
         </div>
       </div>
-    </div>
-    <CreateRoomModal
-      open={isRoomModalOpen}
-      onClose={() => setIsRoomModalOpen(false)}
-    />
+      <CreateRoomModal
+        open={isRoomModalOpen}
+        onClose={() => setIsRoomModalOpen(false)}
+      />
     </>
   );
 }
@@ -217,10 +218,10 @@ function TagsRow() {
         어려움
       </Pill>
       <Pill bgVar="--color-c-blue-100" colorVar="--color-c-blue-200">
-        최대 10명
+        봇 3000명
       </Pill>
       <Pill bgVar="--color-c-blue-100" colorVar="--color-c-blue-200">
-        봇 3000명
+        익스터파크
       </Pill>
     </div>
   );
@@ -233,9 +234,9 @@ function TitleSection({ onOpenSettings }: { onOpenSettings: () => void }) {
         18시에 티켓팅하실 분 모집합니다
       </h1>
       <div className="mt-2 flex items-center gap-3 text-sm text-gray-500">
-        <span>돔형 콘서트장</span>
+        <span>소형</span>
         <span className="text-gray-300">|</span>
-        <span>커스텀</span>
+        <span>샤롯데씨어터</span>
         <span className="text-gray-300">|</span>
         <button
           type="button"
@@ -254,7 +255,7 @@ function PosterBox() {
   return (
     <div>
       <img
-        src="/performance-halls/olympic-hall.jpg"
+        src={Thumbnail03}
         alt="포스터 이미지"
         className="posterBoxImage w-[300px] h-[400px] object-cover rounded-lg border border-neutral-200"
       />
