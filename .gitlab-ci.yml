@@ -58,7 +58,7 @@ variables:
     - kustomize edit set image kkaebu/$SERVER_NAME=kkaebu/$SERVER_NAME:$CI_COMMIT_SHORT_SHA
     # - cd - # 루트 디렉토리로 복귀
     # 변경사항 커밋 및 푸시
-    - git commit -am "CI: Update $SERVER_NAME ($CI_COMMIT_BRANCH) to $CI_COMMIT_SHORT_SHA"
+    - 'git commit -am "CI: Update $SERVER_NAME ($CI_COMMIT_BRANCH) to $CI_COMMIT_SHORT_SHA"'
     - git push
   
 # --- 3. 환경/서버별 작업 정의 ---
