@@ -46,7 +46,7 @@ public class TicketingServiceClient {
 
     private MatchResponse createMatchFallBack(CreateMatchRequest request, Exception e) {
         log.error("매치 생성 폴백 실행 : roomId={}, error={}", request.getRoomId(), e.getMessage());
-        throw new CreateMatchFailedException("티케팅(매치) 서비스 호출 실패",e);
+        throw new CreateMatchFailedException("티케팅(매치) 서비스 호출 실패");
     }
 
 }
