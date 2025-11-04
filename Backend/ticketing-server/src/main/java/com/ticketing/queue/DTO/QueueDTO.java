@@ -15,7 +15,10 @@ public class QueueDTO {
     String roomId;
     String playerType;
     String playerId;
-    Long queueRank;
+    String status;
+    long positionAhead;
+    long positionBehind;
+    Long totalNum;
 
     // private Instant occuredAt;   // 클라이언트 송신 시각
     // private Instant receivedAt;  // 서버 수신 시각

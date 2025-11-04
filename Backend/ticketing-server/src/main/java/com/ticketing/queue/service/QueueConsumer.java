@@ -1,52 +1,90 @@
 package com.ticketing.queue.service;
 
-import com.google.common.util.concurrent.RateLimiter;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.springframework.kafka.support.Acknowledgment;
-import org.springframework.kafka.annotation.KafkaListener;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ticketing.KafkaTopic;
+import com.ticketing.queue.QueueKeys;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ZSetOperations;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
+import java.util.Map;
+import java.util.Set;
+
 @Service
+@Slf4j
+@RequiredArgsConstructor
 public class QueueConsumer {
-    private final RateLimiter limiter = RateLimiter.create(10.0);
 
-    private int messageCount = 1;
-    @KafkaListener(id="userQueueListener",
-    topics = "user-queue",
-    concurrency="3",
-    groupId = "user-queue-group"
-    )
-    public void onMessage(ConsumerRecord<String, String> record, Acknowledgment ack) throws InterruptedException {
+    private final StringRedisTemplate redis;
+    private final KafkaTemplate<String, String> kafkaTemplate;
+    private final ObjectMapper mapper;
 
-        if(record.key()==null){
-            ack.acknowledge();
-            return;
+    private static final int CONSUME_RATE = 1;
+    private static final String DEQUEUED = "DEQUEUED";
+
+    @Scheduled(fixedRate = 15000)
+    public void consumeFixedRate() {
+        ZSetOperations<String, String> zset = redis.opsForZSet();
+
+        // queue:*:waiting 패턴으로 모든 room 대기열 찾기
+        Set<String> roomKeys = redis.keys("queue:*:waiting");
+        if (roomKeys == null ) return;
+
+        // 각 방을 키별로 조회
+        for (String zsetKey : roomKeys) {
+            // key에서 roomId 추출
+            // 예: "queue:roomA:waiting" → "roomA"
+            String roomId = zsetKey.replace("queue:", "").replace(":waiting", "");
+
+            // 주어진 방에서, N명 감소 시키기.
+            Set<ZSetOperations.TypedTuple<String>> popped = zset.popMin(zsetKey, CONSUME_RATE);
+            if (popped == null || popped.isEmpty()) continue;
+
+            for (ZSetOperations.TypedTuple<String> t : popped) {
+                String userId = t.getValue();
+                if (userId == null) continue;
+
+                // 상태 변경
+                /**
+                 * Duration 변경
+                 **/
+                redis.opsForHash().put(QueueKeys.userStateKey(roomId, userId), "state", DEQUEUED);
+                redis.expire(QueueKeys.userStateKey(roomId, userId), Duration.ofMinutes(10));
+
+                // Kafka 발행
+                /**
+                 * Outbox pattern 구현
+                 **/
+                Map<String, Object> payload = Map.of(
+                        "roomId", roomId,
+                        "userId", userId,
+                        "ts", System.currentTimeMillis()
+                );
+
+                // Kafka Queue
+                // user-log-queue 토픽에 이벤트 발행
+                try {
+                    kafkaTemplate.send(KafkaTopic.USER_LOG_QUEUE.getTopicName(), userId, mapper.writeValueAsString(payload));
+                    log.info("Dequeued user {} from room {}", userId, roomId);
+                } catch (Exception e) {
+                    log.error("Kafka send failed for user {} in room {}", userId, roomId, e);
+                    // 복구 로직: 다시 대기열에 추가
+                    redis.opsForHash().put(QueueKeys.userStateKey(roomId, userId), "state", "WAITING");
+                }
+            }
+
+            // 방에서 누적으로 빠진 사람 계산
+            redis.opsForValue().increment(QueueKeys.roomOffset(roomId), popped.size());
+            Long tot = zset.zCard(zsetKey);
+            redis.opsForValue().set(QueueKeys.roomTotal(roomId), String.valueOf(tot==null?0:tot));
+
+
         }
-
-        // 초기 로직은 10개의 메시지만 대기열에서 빠져나갈 수 있게 한다.
-
-        // (추가)redis-key를 읽어서 Lock으로 잡혀 있는 개수가 차감되면,
-        // Queue에서 빼내는 로직을 구현한다.
-        limiter.acquire();
-
-        // 대기열 속도를 Redis에 Lock을 잡을 수 있는만큼만 줄 세우고,
-        // 빠져나가는 인원수만큼 추가해준다.
-        System.out.printf("topic=%s, key=%s, partition=%d, offset=%d, value=%s \n",
-                record.topic(),
-                record.key(),
-                record.partition(),
-                record.offset(),
-                record.value()
-        );
-
-        messageCount ++;
-        if(messageCount % 10==1){
-            System.out.printf("----second = %d ---- \n", messageCount/10);
-        }
-
-        // offset에 대한 수동 커밋.
-        ack.acknowledge();
-
     }
 
 }
