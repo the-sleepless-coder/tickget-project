@@ -26,6 +26,7 @@ import com.tickget.roomserver.exception.PresetHallNotFoundException;
 import com.tickget.roomserver.exception.RoomClosedException;
 import com.tickget.roomserver.exception.RoomFullException;
 import com.tickget.roomserver.exception.RoomNotFoundException;
+import com.tickget.roomserver.exception.RoomPlayingException;
 import com.tickget.roomserver.kafaka.RoomEventProducer;
 import com.tickget.roomserver.session.WebSocketSessionManager;
 
@@ -54,6 +55,8 @@ public class RoomService {
     @Transactional
     public CreateRoomResponse createRoom(CreateRoomRequest request, MultipartFile thumbnail) throws JsonProcessingException {
 
+        log.info("사용자  {}(id:{})(이)가 방 생성 요청",request.getUsername(), request.getUserId());
+
         //TODO: AI 생성 맵 추가 시 분기점 구현
         PresetHall presetHall = presetHallRepository.findById(request.getHallId()).orElseThrow(
                 () -> new PresetHallNotFoundException(request.getHallId()));
@@ -77,7 +80,7 @@ public class RoomService {
             sessionManager.joinRoom(sessionId, room.getId());
         }
 
-        log.debug("사용자  {}(id:{})(이)가 방 {}을 생성 후 입장",request.getUsername(), request.getUserId(), room.getId());
+        log.info("사용자  {}(id:{})(이)가 방 {}을 생성 후 입장",request.getUsername(), request.getUserId(), room.getId());
 
         return CreateRoomResponse.from(room);
     }
@@ -123,14 +126,17 @@ public class RoomService {
 
     @Transactional(readOnly = true)
     public JoinRoomResponse joinRoom(JoinRoomRequest joinRoomRequest, Long roomId) throws JsonProcessingException {
+        Long userId = joinRoomRequest.getUserId();
+        String userName = joinRoomRequest.getUserName();
 
+        log.info("사용자  {}(id:{})(이)가 방 {}에 입장 요청",userName, userId, roomId);
+        
         Room room = roomRepository.findById(roomId).orElseThrow(
                 () -> new RoomNotFoundException(roomId));
 
         validateRoomAvailable(roomId);
 
-        Long userId = joinRoomRequest.getUserId();
-        String userName = joinRoomRequest.getUserName();
+
 
         int currentUserCount = roomCacheRepository.addMemberToRoom(roomId, userId, userName);
 
@@ -141,7 +147,7 @@ public class RoomService {
 
         List<RoomMember> roomMembers = roomCacheRepository.getRoomMembers(roomId);
 
-        log.debug("사용자  {}(id:{})(이)가 방 {}에 입장 - 현재 인원: {}",userName, userId, roomId, currentUserCount);
+        log.info("사용자  {}(id:{})(이)가 방 {}에 입장 성공 - 현재 인원: {}",userName, userId, roomId, currentUserCount);
 
         UserJoinedRoomEvent event = UserJoinedRoomEvent.of(userId, roomId, currentUserCount);
         roomEventProducer.publishUserJoinedEvent(event);
@@ -165,9 +171,11 @@ public class RoomService {
         RoomStatus roomStatus = room.getStatus();
 
         if (roomStatus == RoomStatus.PLAYING) {
-            throw new IllegalArgumentException("게임이 진행중이여서 입장할 수 없는 방입니다");
+            log.info("방 {} : 현재 게임이 진행중이어서 입장 불가",room.getId());
+            throw new RoomPlayingException("게임이 진행중이여서 입장할 수 없는 방입니다");
         }
         if (roomStatus == RoomStatus.CLOSED) {
+            log.info("방 {} : 이미 종료된 방이어서 입장 불가",room.getId());
             throw new RoomClosedException("이미 종료된 방에는 참가할 수 없습니다.");
         }
 
@@ -197,11 +205,12 @@ public class RoomService {
         }
 
         int leftUserCount = roomCacheRepository.getRoomCurrentUserCount(roomId);
-        log.debug("사용자 {}(id:{})(이)가 방 {}에서 퇴장 - 현재 잔존 인원: {}",userName,userId,roomId,leftUserCount);
+        log.info("사용자 {}(id:{})(이)가 방 {}에서 퇴장 - 현재 잔존 인원: {}",userName,userId,roomId,leftUserCount);
 
         String newHostId = null;
         if (isHost && leftUserCount > 0) {
             newHostId = roomCacheRepository.transferHost(roomId);
+            log.info("방 {}의 호스트 변경: 기존={}, 새로운={}", roomId, userId, newHostId);
 
             HostChangedEvent hostEvent = HostChangedEvent.of(roomId, newHostId, userId);
             roomEventProducer.publishHostChangedEvent(hostEvent);
@@ -212,6 +221,7 @@ public class RoomService {
 
         // 마지막 유저가 나갔으면 방 닫음
         if (leftUserCount == 0) {
+            log.info("방 {} 종료 (인원 0명)", roomId);
             room.setStatus(RoomStatus.CLOSED);
             roomCacheRepository.deleteRoom(roomId);
         }

@@ -28,7 +28,7 @@ public class TicketingServiceClient {
                     request,
                     MatchResponse.class
             );
-            log.info("방 {}에 매치 {} 생성 성공", response.getBody().getId(), response.getBody().getId());;
+            log.info("방 {}에 매치 {} 생성 성공", response.getBody().getId(), response.getBody().getId());
             return response.getBody();
 
         } catch (Exception e) {
