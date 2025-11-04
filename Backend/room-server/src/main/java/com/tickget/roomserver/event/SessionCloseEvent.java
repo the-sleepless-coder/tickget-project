@@ -9,7 +9,7 @@ public class SessionCloseEvent {
     private Long userId;
     private String sessionId;
     private String targetServerId;
-    private long timestamp;
+    private Long timestamp;
 
     public static SessionCloseEvent of(Long userId, String sessionId, String targetServerId) {
         return SessionCloseEvent.builder()

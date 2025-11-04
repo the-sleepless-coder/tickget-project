@@ -20,7 +20,7 @@ public class RoomSettingUpdatedMessage {
     private String roomName;
     private String difficulty;
     private Integer maxUserCount;
-    private LocalDateTime startTime;
+    private Long startTime;
 
     static public RoomSettingUpdatedMessage from (RoomSettingUpdatedEvent roomSettingUpdatedEvent) {
         return RoomSettingUpdatedMessage.builder()

@@ -57,7 +57,7 @@ public class RoomCacheRepository {
         }
 
         if (update.getStartTime() != null) {
-            long startTimeMillis = TimeConverter.toTimestamp(update.getStartTime());
+            Long startTimeMillis = update.getStartTime();
             redisTemplate.opsForHash().put(infoKey, "startTime", String.valueOf(startTimeMillis));
         }
 
