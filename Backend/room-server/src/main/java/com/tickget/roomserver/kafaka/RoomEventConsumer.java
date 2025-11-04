@@ -44,14 +44,11 @@ public class RoomEventConsumer {
         try {
             String destination = "/topic/rooms/" + event.getRoomId();
 
-            RoomEventMessage message = RoomEventMessage.builder()
-                    .eventType(EventType.USER_JOINED)
-                    .userId(event.getUserId())
-                    .roomId(event.getRoomId())
-                    .totalUsersInRoom(event.getTotalUsersInRoom())
-                    .message(event.getUserId() + "이 방에 입장했습니다.")
-                    .timestamp(System.currentTimeMillis())
-                    .build();
+            RoomEventMessage message = RoomEventMessage.userJoined(
+                    event.getRoomId(),
+                    event.getUserId(),
+                    event.getTotalUsersInRoom()
+            );
 
             messagingTemplate.convertAndSend(destination, message);
             log.debug("사용자 입장 이벤트 브로드캐스트: 방={}, 현재인원={}", event.getRoomId(), event.getTotalUsersInRoom());
@@ -70,14 +67,11 @@ public class RoomEventConsumer {
         try {
             String destination = "/topic/rooms/" + event.getRoomId();
 
-            RoomEventMessage message = RoomEventMessage.builder()
-                    .eventType(EventType.USER_LEFT)
-                    .userId(event.getUserId())
-                    .roomId(event.getRoomId())
-                    .totalUsersInRoom(event.getTotalUsersInRoom())
-                    .message(event.getUserId() + "이 방에서 퇴장했습니다.")
-                    .timestamp(System.currentTimeMillis())
-                    .build();
+            RoomEventMessage message = RoomEventMessage.userLeft(
+                    event.getRoomId(),
+                    event.getUserId(),
+                    event.getTotalUsersInRoom()
+            );
 
             messagingTemplate.convertAndSend(destination, message);
             log.debug("사용자 퇴장 이벤트 브로드캐스트: 방={}, 남은인원={}", event.getRoomId(), event.getTotalUsersInRoom());
@@ -97,13 +91,12 @@ public class RoomEventConsumer {
         try {
             String destination = "/topic/rooms/" + event.getRoomId();
 
-            RoomEventMessage message = RoomEventMessage.builder()
-                    .eventType(EventType.HOST_CHANGED)
-                    .userId(Long.parseLong(event.getNewHostId()))
-                    .roomId(event.getRoomId())
-                    .message("방장이 변경되었습니다.")
-                    .timestamp(event.getTimestamp())
-                    .build();
+            RoomEventMessage message = RoomEventMessage.hostChanged(
+                    event.getRoomId(),
+                    event.getPreviousHostId(),
+                    event.getNewHostId(),
+                    event.getTimestamp()
+            );
 
             messagingTemplate.convertAndSend(destination, message);
             log.debug("호스트 변경 이벤트 브로드캐스트: 방={}, 새호스트={}",
@@ -145,8 +138,13 @@ public class RoomEventConsumer {
 
         try {
             String destination = "/topic/rooms/" + event.getRoomId();
-            RoomSettingUpdatedMessage message = RoomSettingUpdatedMessage.from(event);
-
+            RoomEventMessage message = RoomEventMessage.roomSettingUpdated(
+                    event.getRoomId(),
+                    event.getMatchName(),
+                    event.getDifficulty(),
+                    event.getMaxUserCount(),
+                    event.getStartTime()
+            );
             messagingTemplate.convertAndSend(destination, message);
             log.debug("방 설정 업데이트 이벤트 브로드캐스트: 방={}", event.getRoomId());
 
