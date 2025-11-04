@@ -69,7 +69,7 @@ build:test-server:test-dev:
   extends: .docker-build-template
   variables:
     SERVER_NAME: "test-server"
-    SERVER_PATH: "./Backend/test-server" # 이 경로를 사용해 캐시 키를 생성
+    SERVER_PATH: "./Backend/test-server"
   rules:
     - if: '$CI_COMMIT_BRANCH == "test-dev"'
       changes: [ "Backend/test-server/**/*" ]
@@ -82,7 +82,6 @@ update:test-server:test-dev:
   rules:
     - if: '$CI_COMMIT_BRANCH == "test-dev"'
       needs: ["build:test-server:test-dev"]
-
 # 
 # ============ ticketing-server (tkt) ============
 #
@@ -117,13 +116,14 @@ update:ticketing-server:master:
   extends: .kustomize-update-template
   variables:
     SERVER_NAME: "ticketing-server"
-    KUSTOMIZE_PATH: "apps/ticketing-server/overlays/prod" # master 브랜치는 prod 오버레이
+    KUSTOMIZE_PATH: "apps/ticketing-server/overlays/prod"
   rules:
     - if: '$CI_COMMIT_BRANCH == "master"'
       needs: ["build:ticketing-server:master"]
 
 # 
 # ============ room-server (rms) ============
+#
 build:room-server:dev:
   extends: .docker-build-template
   variables:
@@ -155,7 +155,7 @@ update:room-server:master:
   extends: .kustomize-update-template
   variables:
     SERVER_NAME: "room-server"
-    KUSTOMIZE_PATH: "apps/room-server/overlays/prod" # master 브랜치는 prod 오버레이
+    KUSTOMIZE_PATH: "apps/room-server/overlays/prod"
   rules:
     - if: '$CI_COMMIT_BRANCH == "master"'
       needs: ["build:room-server:master"]
