@@ -1,5 +1,21 @@
-import { useState, useRef } from "react";
-import { Modal } from "../../../../shared/ui/common/Modal";
+import React, { useState, useRef } from "react";
+import Inspire_45 from "../../../../shared/ui/common/Inspire/S/Inspire_45";
+import Inspire_46 from "../../../../shared/ui/common/Inspire/S/Inspire_46";
+import Inspire_47 from "../../../../shared/ui/common/Inspire/S/Inspire_47";
+import Inspire_49 from "../../../../shared/ui/common/Inspire/S/Inspire_49";
+import Inspire_50 from "../../../../shared/ui/common/Inspire/S/Inspire_50";
+import Inspire_52 from "../../../../shared/ui/common/Inspire/S/Inspire_52";
+import Inspire_55 from "../../../../shared/ui/common/Inspire/S/Inspire_55";
+import Inspire_56 from "../../../../shared/ui/common/Inspire/S/Inspire_56";
+import Inspire_57 from "../../../../shared/ui/common/Inspire/S/Inspire_57";
+import Inspire_5 from "../../../../shared/ui/common/Inspire/VIP/Inspire_5";
+import Inspire_6 from "../../../../shared/ui/common/Inspire/VIP/Inspire_6";
+import Inspire_7 from "../../../../shared/ui/common/Inspire/VIP/Inspire_7";
+import Inspire_11 from "../../../../shared/ui/common/Inspire/VIP/Inspire_11";
+import Inspire_12 from "../../../../shared/ui/common/Inspire/VIP/Inspire_12";
+import Inspire_15 from "../../../../shared/ui/common/Inspire/VIP/Inspire_15";
+import Inspire_16 from "../../../../shared/ui/common/Inspire/VIP/Inspire_16";
+import Inspire_23 from "../../../../shared/ui/common/Inspire/VIP/Inspire_23";
 
 interface PolygonData {
   id: string;
@@ -18,28 +34,7 @@ interface PolygonData {
 // - 중앙 그룹: 부채꼴 형태, 상단 5행은 각각 10개, 6번째 행은 8개 (중앙 그룹 내에서 5,8번째 위치가 빈 공간), 그 아래로 줄어듦
 // - 오른쪽 그룹: 왼쪽과 대칭 (상단 5열 4행 주황색 20개, 아래 오른쪽 3열 2행 회색 6개)
 
-const GRID_DATA = [
-  // Row 9 (맨 위) - 왼쪽 주황색 5개, 중앙 4개, 오른쪽 주황색 5개
-  "O O O O O W W O O O O W W W W W W W W W W W W O O O O O O".split(" "),
-  // Row 8 - 왼쪽 주황색 5개, 중앙 5개, 오른쪽 주황색 5개
-  "O O O O O W W O O O O O W W W W W W W W W W W W O O O O O O".split(" "),
-  // Row 7 - 왼쪽 주황색 5개, 중앙 6개, 오른쪽 주황색 5개
-  "O O O O O W W O O O O O O W W W W W W W W W W W O O O O O O".split(" "),
-  // Row 6 - 왼쪽 주황색 5개, 중앙 7개, 오른쪽 주황색 5개
-  "O O O O O W W O O O O O O O W W W W W W W W W W O O O O O O".split(" "),
-  // Row 5 - 왼쪽 회색 3개, 중앙 8개 (중앙 그룹 내에서 5,8번째 = 12,15번째 열이 빈 공간), 오른쪽 회색 3개
-  "G G G W W W W W O O O O W O O O W O O O W W W W W G G G W W".split(" "),
-  // Row 4 - 왼쪽 회색 3개, 중앙 10개, 오른쪽 회색 3개
-  "G G G W W W W W O O O O O O O O O O O O W W W W W G G G W W".split(" "),
-  // Row 3 - 왼쪽 주황색 5개, 중앙 10개, 오른쪽 주황색 5개
-  "O O O O O W W O O O O O O O O O O O O O W W O O O O O O".split(" "),
-  // Row 2 - 왼쪽 주황색 5개, 중앙 10개, 오른쪽 주황색 5개
-  "O O O O O W W O O O O O O O O O O O O O W W O O O O O O".split(" "),
-  // Row 1 - 왼쪽 주황색 5개, 중앙 10개, 오른쪽 주황색 5개
-  "O O O O O W W O O O O O O O O O O O O O W W O O O O O O".split(" "),
-  // Row 0 (맨 아래) - 왼쪽 주황색 5개, 중앙 10개, 오른쪽 주황색 5개
-  "O O O O O W W O O O O O O O O O O O O O W W O O O O O O".split(" "),
-].reverse(); // Row 0이 아래에 오도록 reverse
+
 
 export default function LargeVenue() {
   const [tooltip, setTooltip] = useState<{
@@ -48,8 +43,43 @@ export default function LargeVenue() {
     y: number;
     text: string;
   }>({ visible: false, x: 0, y: 0, text: "" });
-  const [showGridModal, setShowGridModal] = useState(false);
+  const [showDetailView, setShowDetailView] = useState(false);
+  const [detailViewColor, setDetailViewColor] = useState<string>("#FFCC10");
+  const [isFlipped, setIsFlipped] = useState(false);
+  const [selectedPattern, setSelectedPattern] = useState<React.ComponentType<{
+    className?: string;
+    cellSize?: number;
+    gap?: number;
+    activeColor?: string;
+    backgroundColor?: string;
+    flipHorizontal?: boolean;
+  }> | null>(null);
+  const [patternScale, setPatternScale] = useState<number>(1);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // 패턴 크기 계산 함수
+  const calculatePatternSize = (
+    columns: number,
+    rows: number,
+    cellSize: number = 12,
+    gap: number = 2
+  ) => {
+    const width = columns * cellSize + (columns - 1) * gap;
+    const height = rows * cellSize + (rows - 1) * gap;
+    return { width, height };
+  };
+
+  // 패턴 스케일 계산 함수
+  const calculateScale = (
+    patternWidth: number,
+    patternHeight: number,
+    containerWidth: number = 616, // 640 - 24 (padding)
+    containerHeight: number = 596  // 620 - 24 (padding)
+  ) => {
+    const scaleX = containerWidth / patternWidth;
+    const scaleY = containerHeight / patternHeight;
+    return Math.min(scaleX, scaleY, 1); // 1을 넘지 않도록
+  };
 
   const handlePolygonMouseEnter = (
     e: React.MouseEvent<SVGPolygonElement>,
@@ -86,23 +116,123 @@ export default function LargeVenue() {
     };
     console.log("[seat-click]", data);
 
-    // data-id가 "52"인 경우 그리드 모달 열기
-    if (data.id === "52") {
-      setShowGridModal(true);
+    // 좌석별 패턴 매핑 (패턴 정보 포함)
+    const seatPatternMap: Record<string, { 
+      component: React.ComponentType<any>, 
+      flip: boolean,
+      columns: number,
+      rows: number
+    }> = {
+      // S 좌석 패턴
+      "45": { component: Inspire_45, flip: false, columns: 40, rows: 10 },
+      "46": { component: Inspire_46, flip: false, columns: 45, rows: 11 },
+      "47": { component: Inspire_47, flip: false, columns: 19, rows: 11 },
+      "48": { component: Inspire_52, flip: true, columns: 45, rows: 11 }, // 52 패턴의 좌우 반전
+      "49": { component: Inspire_49, flip: false, columns: 22, rows: 11 },
+      "50": { component: Inspire_50, flip: false, columns: 23, rows: 11 },
+      "51": { component: Inspire_49, flip: true, columns: 22, rows: 11 }, // 49 패턴의 좌우 반전
+      "52": { component: Inspire_52, flip: false, columns: 45, rows: 11 },
+      "53": { component: Inspire_47, flip: true, columns: 19, rows: 11 }, // 47 패턴의 좌우 반전
+      "54": { component: Inspire_46, flip: true, columns: 45, rows: 11 }, // 46 패턴의 좌우 반전
+      "55": { component: Inspire_55, flip: false, columns: 40, rows: 10 },
+      "56": { component: Inspire_56, flip: false, columns: 46, rows: 11 },
+      "57": { component: Inspire_57, flip: false, columns: 9, rows: 11 },
+      // VIP 좌석 패턴
+      "5": { component: Inspire_5, flip: false, columns: 33, rows: 14 },
+      "6": { component: Inspire_6, flip: false, columns: 11, rows: 13 },
+      "7": { component: Inspire_7, flip: false, columns: 22, rows: 14 },
+      "8": { component: Inspire_7, flip: false, columns: 22, rows: 14 },
+      "9": { component: Inspire_7, flip: false, columns: 22, rows: 14 },
+      "10": { component: Inspire_16, flip: true, columns: 9, rows: 11 }, // 16 패턴의 좌우 반전
+      "11": { component: Inspire_11, flip: false, columns: 27, rows: 14 },
+      "12": { component: Inspire_12, flip: false, columns: 18, rows: 13 },
+      "13": { component: Inspire_23, flip: false, columns: 24, rows: 14 },
+      "14": { component: Inspire_12, flip: true, columns: 18, rows: 13 }, // 12 패턴의 좌우 반전
+      "15": { component: Inspire_15, flip: false, columns: 27, rows: 14 },
+      "16": { component: Inspire_16, flip: false, columns: 9, rows: 11 },
+      "17": { component: Inspire_7, flip: false, columns: 22, rows: 14 },
+      "18": { component: Inspire_7, flip: false, columns: 22, rows: 14 },
+      "19": { component: Inspire_7, flip: false, columns: 22, rows: 14 },
+      "20": { component: Inspire_6, flip: true, columns: 11, rows: 13 }, // 6 패턴의 좌우 반전
+      "21": { component: Inspire_5, flip: false, columns: 33, rows: 14 },
+      "22": { component: Inspire_12, flip: false, columns: 18, rows: 13 },
+      "23": { component: Inspire_23, flip: false, columns: 24, rows: 14 },
+      "24": { component: Inspire_12, flip: true, columns: 18, rows: 13 }, // 12 패턴의 좌우 반전
+    };
+
+    const patternConfig = seatPatternMap[data.id];
+    if (patternConfig) {
+      // VIP 좌석인 경우 VIP 색상 사용, 그 외는 좌석의 fill 색상 사용
+      const color = data.level === "VIP" ? "#68F237" : (data.fill || "#FFCC10");
+      setDetailViewColor(color);
+      setSelectedPattern(() => patternConfig.component);
+      setIsFlipped(patternConfig.flip);
+      
+      // 패턴 크기 계산 및 스케일 설정
+      const cellSize = 12;
+      const gap = 2;
+      const { width, height } = calculatePatternSize(
+        patternConfig.columns,
+        patternConfig.rows,
+        cellSize,
+        gap
+      );
+      const scale = calculateScale(width, height);
+      setPatternScale(scale);
+      
+      setShowDetailView(true);
     }
   };
 
   return (
-    <div className="relative" ref={containerRef}>
-      <div className="flex items-center justify-center p-4">
-        <div className="bg-white p-2 relative">
-          <svg
-            viewBox="0 0 971 735"
-            width="971"
-            height="735"
-            xmlns="http://www.w3.org/2000/svg"
-            className="w-full h-auto"
-          >
+    <div className="relative w-full h-full" ref={containerRef}>
+      {showDetailView ? (
+        <div className="relative w-full h-full">
+          <div className="absolute top-2 right-2 z-10">
+            <button
+              onClick={() => setShowDetailView(false)}
+              className="bg-purple-500 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-purple-600 transition-colors shadow-md"
+            >
+              전체 보기
+            </button>
+          </div>
+          <div className="w-full h-full flex justify-center items-center bg-neutral-100 overflow-hidden">
+            {selectedPattern && (() => {
+              const PatternComponent = selectedPattern;
+              return (
+                <div 
+                  className="flex justify-center items-center"
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                  }}
+                >
+                  <div
+                    style={{
+                      transform: `scale(${patternScale})`,
+                      transformOrigin: 'center center',
+                    }}
+                  >
+                    <PatternComponent
+                      activeColor={detailViewColor}
+                      flipHorizontal={isFlipped}
+                    />
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      ) : (
+        <div className="flex items-center justify-center p-4 w-full h-full">
+          <div className="bg-white p-2 relative w-full h-full flex items-center justify-center">
+            <svg
+              viewBox="0 0 971 735"
+              width="971"
+              height="735"
+              xmlns="http://www.w3.org/2000/svg"
+              className="w-full h-auto"
+            >
             <defs>
               <pattern
                 id="pat_poly_0007"
@@ -327,10 +457,10 @@ export default function LargeVenue() {
             </defs>
             <polygon
               points="333,64 225,64 176,117 194,136 210,124 235,150 257,132 306,132 306,87 332,85"
-              fill="#F0CC47"
+              fill="#FFCC10"
               fillOpacity="0.95"
               data-id="48"
-              data-fill="#F0CC47"
+              data-fill="#FFCC10"
               data-seat-level="S"
               data-capacity="None"
               data-component-count="None"
@@ -355,10 +485,10 @@ export default function LargeVenue() {
             </text>
             <polygon
               points="344,64 344,132 404,132 404,86 425,84 426,64"
-              fill="#EFCD46"
+              fill="#FFCC10"
               fillOpacity="0.95"
               data-id="49"
-              data-fill="#EFCD46"
+              data-fill="#FFCC10"
               data-seat-level="S"
               data-capacity="None"
               data-component-count="None"
@@ -383,10 +513,10 @@ export default function LargeVenue() {
             </text>
             <polygon
               points="441,63 441,132 528,132 527,64"
-              fill="#F0CC47"
+              fill="#FFCC10"
               fillOpacity="0.95"
               data-id="50"
-              data-fill="#F0CC47"
+              data-fill="#FFCC10"
               data-seat-level="S"
               data-capacity="None"
               data-component-count="None"
@@ -411,10 +541,10 @@ export default function LargeVenue() {
             </text>
             <polygon
               points="544,64 544,83 566,86 566,132 626,132 626,64"
-              fill="#EFCD46"
+              fill="#FFCC10"
               fillOpacity="0.95"
               data-id="51"
-              data-fill="#EFCD46"
+              data-fill="#FFCC10"
               data-seat-level="S"
               data-capacity="None"
               data-component-count="None"
@@ -439,10 +569,10 @@ export default function LargeVenue() {
             </text>
             <polygon
               points="633,64 634,85 661,87 661,132 708,132 722,142 754,109 768,123 783,112 736,64"
-              fill="#EFCD46"
+              fill="#FFCC10"
               fillOpacity="0.95"
               data-id="52"
-              data-fill="#EFCD46"
+              data-fill="#FFCC10"
               data-seat-level="S"
               data-capacity="None"
               data-component-count="None"
@@ -467,10 +597,10 @@ export default function LargeVenue() {
             </text>
             <polygon
               points="790,120 746,169 799,218 842,168"
-              fill="#EDCC48"
+              fill="#FFCC10"
               fillOpacity="0.95"
               data-id="53"
-              data-fill="#EDCC48"
+              data-fill="#FFCC10"
               data-seat-level="S"
               data-capacity="None"
               data-component-count="None"
@@ -495,10 +625,10 @@ export default function LargeVenue() {
             </text>
             <polygon
               points="165,126 129,166 180,207 213,172"
-              fill="#EDCC48"
+              fill="#FFCC10"
               fillOpacity="0.95"
               data-id="47"
-              data-fill="#EDCC48"
+              data-fill="#FFCC10"
               data-seat-level="S"
               data-capacity="None"
               data-component-count="None"
@@ -523,10 +653,10 @@ export default function LargeVenue() {
             </text>
             <polygon
               points="443,142 443,195 529,195 528,141"
-              fill="#67ABF7"
+              fill="#4CA0FF"
               fillOpacity="0.95"
               data-id="28"
-              data-fill="#67ABF7"
+              data-fill="#4CA0FF"
               data-seat-level="R"
               data-capacity="None"
               data-component-count="None"
@@ -551,10 +681,10 @@ export default function LargeVenue() {
             </text>
             <polygon
               points="540,142 540,195 623,194 622,141"
-              fill="#68ACF8"
+              fill="#4CA0FF"
               fillOpacity="0.95"
               data-id="29"
-              data-fill="#68ACF8"
+              data-fill="#4CA0FF"
               data-seat-level="R"
               data-capacity="None"
               data-component-count="None"
@@ -579,10 +709,10 @@ export default function LargeVenue() {
             </text>
             <polygon
               points="634,141 634,195 681,195 703,141"
-              fill="#69ABF5"
+              fill="#4CA0FF"
               fillOpacity="0.95"
               data-id="30"
-              data-fill="#69ABF5"
+              data-fill="#4CA0FF"
               data-seat-level="R"
               data-capacity="None"
               data-component-count="None"
@@ -607,10 +737,10 @@ export default function LargeVenue() {
             </text>
             <polygon
               points="266,143 287,195 337,195 336,142"
-              fill="#69ABF5"
+              fill="#4CA0FF"
               fillOpacity="0.95"
               data-id="26"
-              data-fill="#69ABF5"
+              data-fill="#4CA0FF"
               data-seat-level="R"
               data-capacity="None"
               data-component-count="None"
@@ -635,10 +765,10 @@ export default function LargeVenue() {
             </text>
             <polygon
               points="347,143 348,195 432,195 431,142"
-              fill="#69ABF5"
+              fill="#4CA0FF"
               fillOpacity="0.95"
               data-id="27"
-              data-fill="#69ABF5"
+              data-fill="#4CA0FF"
               data-seat-level="R"
               data-capacity="None"
               data-component-count="None"
@@ -663,10 +793,10 @@ export default function LargeVenue() {
             </text>
             <polygon
               points="257,150 154,250 204,270 277,203"
-              fill="#68ACF8"
+              fill="#4CA0FF"
               fillOpacity="0.95"
               data-id="25"
-              data-fill="#68ACF8"
+              data-fill="#4CA0FF"
               data-seat-level="R"
               data-capacity="None"
               data-component-count="None"
@@ -691,10 +821,10 @@ export default function LargeVenue() {
             </text>
             <polygon
               points="717,158 703,194 776,268 814,253"
-              fill="#67ABF7"
+              fill="#4CA0FF"
               fillOpacity="0.95"
               data-id="31"
-              data-fill="#67ABF7"
+              data-fill="#4CA0FF"
               data-seat-level="R"
               data-capacity="None"
               data-component-count="None"
@@ -719,10 +849,10 @@ export default function LargeVenue() {
             </text>
             <polygon
               points="121,175 71,223 70,334 137,334 137,250 154,230 129,205 140,191"
-              fill="#EFCB48"
+              fill="#FFCC10"
               fillOpacity="0.95"
               data-id="46"
-              data-fill="#EFCB48"
+              data-fill="#FFCC10"
               data-seat-level="S"
               data-capacity="None"
               data-component-count="None"
@@ -747,10 +877,10 @@ export default function LargeVenue() {
             </text>
             <polygon
               points="850,178 838,193 854,210 823,242 829,252 829,332 896,334 897,221"
-              fill="#EFCB48"
+              fill="#FFCC10"
               fillOpacity="0.95"
               data-id="54"
-              data-fill="#EFCB48"
+              data-fill="#FFCC10"
               data-seat-level="S"
               data-capacity="None"
               data-component-count="None"
@@ -775,10 +905,10 @@ export default function LargeVenue() {
             </text>
             <polygon
               points="292,206 309,247  314,260 325,288 336,291 337,206"
-              fill="#88F969"
+              fill="#68F237"
               fillOpacity="0.95"
               data-id="6"
-              data-fill="#88F969"
+              data-fill="#68F237"
               data-seat-level="VIP"
               data-capacity="None"
               data-component-count="None"
@@ -803,10 +933,10 @@ export default function LargeVenue() {
             </text>
             <polygon
               points="348,206 347,290 431,291 432,207"
-              fill="#8AFA6B"
+              fill="#68F237"
               fillOpacity="0.95"
               data-id="7"
-              data-fill="#8AFA6B"
+              data-fill="#68F237"
               data-seat-level="VIP"
               data-capacity="None"
               data-component-count="None"
@@ -831,10 +961,10 @@ export default function LargeVenue() {
             </text>
             <polygon
               points="442,207 442,290 529,290 528,206"
-              fill="#8AFA6B"
+              fill="#68F237"
               fillOpacity="0.95"
               data-id="8"
-              data-fill="#8AFA6B"
+              data-fill="#68F237"
               data-seat-level="VIP"
               data-capacity="None"
               data-component-count="None"
@@ -859,10 +989,10 @@ export default function LargeVenue() {
             </text>
             <polygon
               points="541,206 540,290 623,290 623,207"
-              fill="#8AFA6B"
+              fill="#68F237"
               fillOpacity="0.95"
               data-id="9"
-              data-fill="#8AFA6B"
+              data-fill="#68F237"
               data-seat-level="VIP"
               data-capacity="None"
               data-component-count="None"
@@ -887,10 +1017,10 @@ export default function LargeVenue() {
             </text>
             <polygon
               points="674,206 633,207 633,238 635,291 652,260  663,233"
-              fill="#87F96C"
+              fill="#68F237"
               fillOpacity="0.95"
               data-id="10"
-              data-fill="#87F96C"
+              data-fill="#68F237"
               data-seat-level="VIP"
               data-capacity="None"
               data-component-count="None"
@@ -915,10 +1045,10 @@ export default function LargeVenue() {
             </text>
             <polygon
               points="281,213 219,276 305,310 318,295"
-              fill="#88F969"
+              fill="#68F237"
               fillOpacity="0.95"
               data-id="5"
-              data-fill="#88F969"
+              data-fill="#68F237"
               data-seat-level="VIP"
               data-capacity="None"
               data-component-count="None"
@@ -943,10 +1073,10 @@ export default function LargeVenue() {
             </text>
             <polygon
               points="762,272 721,234 678,302 689,305"
-              fill="#86F86B"
+              fill="#68F237"
               fillOpacity="0.95"
               data-id="11"
-              data-fill="#86F86B"
+              data-fill="#68F237"
               data-seat-level="VIP"
               data-capacity="None"
               data-component-count="None"
@@ -971,10 +1101,10 @@ export default function LargeVenue() {
             </text>
             <polygon
               points="150,263 150,357 202,357 202,283"
-              fill="#67ABF7"
+              fill="#4CA0FF"
               fillOpacity="0.95"
               data-id="44"
-              data-fill="#67ABF7"
+              data-fill="#4CA0FF"
               data-seat-level="R"
               data-capacity="None"
               data-component-count="None"
@@ -999,10 +1129,10 @@ export default function LargeVenue() {
             </text>
             <polygon
               points="821,263 766,284 767,360 820,359"
-              fill="#68ACF8"
+              fill="#4CA0FF"
               fillOpacity="0.95"
               data-id="32"
-              data-fill="#68ACF8"
+              data-fill="#4CA0FF"
               data-seat-level="R"
               data-capacity="None"
               data-component-count="None"
@@ -1027,10 +1157,10 @@ export default function LargeVenue() {
             </text>
             <polygon
               points="216,289 217,358 300,357 299,321"
-              fill="#88F969"
+              fill="#68F237"
               fillOpacity="0.95"
               data-id="24"
-              data-fill="#88F969"
+              data-fill="#68F237"
               data-seat-level="VIP"
               data-capacity="None"
               data-component-count="None"
@@ -1055,10 +1185,10 @@ export default function LargeVenue() {
             </text>
             <polygon
               points="753,291 667,324 667,359 752,360"
-              fill="#8AFA6B"
+              fill="#68F237"
               fillOpacity="0.95"
               data-id="12"
-              data-fill="#8AFA6B"
+              data-fill="#68F237"
               data-seat-level="VIP"
               data-capacity="None"
               data-component-count="None"
@@ -1099,10 +1229,10 @@ export default function LargeVenue() {
             />
             <polygon
               points="349,401 357,401 453,304 350,304"
-              fill="#DD379E"
+              fill="#FE4AB9"
               fillOpacity="0.95"
               data-id="1"
-              data-fill="#DD379E"
+              data-fill="#FE4AB9"
               data-seat-level="STANDING"
               data-capacity="None"
               data-component-count="None"
@@ -1127,10 +1257,10 @@ export default function LargeVenue() {
             </text>
             <polygon
               points="486,304 555,377 615,377 614,304"
-              fill="#DE399F"
+              fill="#FE4AB9"
               fillOpacity="0.95"
               data-id="2"
-              data-fill="#DE399F"
+              data-fill="#FE4AB9"
               data-seat-level="STANDING"
               data-capacity="None"
               data-component-count="None"
@@ -1183,10 +1313,10 @@ export default function LargeVenue() {
             </text>
             <polygon
               points="71,345 70,460 137,460 137,368 92,367 90,345"
-              fill="#EFCB45"
+              fill="#FFCC10"
               fillOpacity="0.95"
               data-id="45"
-              data-fill="#EFCB45"
+              data-fill="#FFCC10"
               data-seat-level="S"
               data-capacity="None"
               data-component-count="None"
@@ -1211,10 +1341,10 @@ export default function LargeVenue() {
             </text>
             <polygon
               points="873,344 871,367 829,368 829,470 871,471 873,495 896,496 897,344"
-              fill="#EFCB48"
+              fill="#FFCC10"
               fillOpacity="0.95"
               data-id="55"
-              data-fill="#EFCB48"
+              data-fill="#FFCC10"
               data-seat-level="S"
               data-capacity="None"
               data-component-count="None"
@@ -1239,10 +1369,10 @@ export default function LargeVenue() {
             </text>
             <polygon
               points="150,369 150,460 202,460 202,369"
-              fill="#68ACF8"
+              fill="#4CA0FF"
               fillOpacity="0.95"
               data-id="43"
-              data-fill="#68ACF8"
+              data-fill="#4CA0FF"
               data-seat-level="R"
               data-capacity="None"
               data-component-count="None"
@@ -1267,10 +1397,10 @@ export default function LargeVenue() {
             </text>
             <polygon
               points="300,369 216,369 216,460 300,460"
-              fill="#8AFA6B"
+              fill="#68F237"
               fillOpacity="0.95"
               data-id="23"
-              data-fill="#8AFA6B"
+              data-fill="#68F237"
               data-seat-level="VIP"
               data-capacity="None"
               data-component-count="None"
@@ -1295,10 +1425,10 @@ export default function LargeVenue() {
             </text>
             <polygon
               points="668,370 667,465 753,465 753,371"
-              fill="#8AFA6B"
+              fill="#68F237"
               fillOpacity="0.95"
               data-id="13"
-              data-fill="#8AFA6B"
+              data-fill="#68F237"
               data-seat-level="VIP"
               data-capacity="None"
               data-component-count="None"
@@ -1323,10 +1453,10 @@ export default function LargeVenue() {
             </text>
             <polygon
               points="767,370 766,465 820,465 820,371"
-              fill="#68ACF8"
+              fill="#4CA0FF"
               fillOpacity="0.95"
               data-id="33"
-              data-fill="#68ACF8"
+              data-fill="#4CA0FF"
               data-seat-level="R"
               data-capacity="None"
               data-component-count="None"
@@ -1351,10 +1481,10 @@ export default function LargeVenue() {
             </text>
             <polygon
               points="349,428 349,525 453,525 358,429"
-              fill="#DD379E"
+              fill="#FE4AB9"
               fillOpacity="0.95"
               data-id="3"
-              data-fill="#DD379E"
+              data-fill="#FE4AB9"
               data-seat-level="STANDING"
               data-capacity="None"
               data-component-count="None"
@@ -1379,10 +1509,10 @@ export default function LargeVenue() {
             </text>
             <polygon
               points="616,454 554,453 486,525 615,525"
-              fill="#DE399F"
+              fill="#FE4AB9"
               fillOpacity="0.95"
               data-id="4"
-              data-fill="#DE399F"
+              data-fill="#FE4AB9"
               data-seat-level="STANDING"
               data-capacity="None"
               data-component-count="None"
@@ -1407,10 +1537,10 @@ export default function LargeVenue() {
             </text>
             <polygon
               points="216,471 216,543 300,508 298,471"
-              fill="#88F969"
+              fill="#68F237"
               fillOpacity="0.95"
               data-id="22"
-              data-fill="#88F969"
+              data-fill="#68F237"
               data-seat-level="VIP"
               data-capacity="None"
               data-component-count="None"
@@ -1435,10 +1565,10 @@ export default function LargeVenue() {
             </text>
             <polygon
               points="202,472 150,472 150,571 202,550"
-              fill="#68ACF8"
+              fill="#4CA0FF"
               fillOpacity="0.95"
               data-id="42"
-              data-fill="#68ACF8"
+              data-fill="#4CA0FF"
               data-seat-level="R"
               data-capacity="None"
               data-component-count="None"
@@ -1463,10 +1593,10 @@ export default function LargeVenue() {
             </text>
             <polygon
               points="667,476 667,513 753,546 752,476"
-              fill="#88F969"
+              fill="#68F237"
               fillOpacity="0.95"
               data-id="14"
-              data-fill="#88F969"
+              data-fill="#68F237"
               data-seat-level="VIP"
               data-capacity="None"
               data-component-count="None"
@@ -1491,10 +1621,10 @@ export default function LargeVenue() {
             </text>
             <polygon
               points="767,476 766,553 820,574 820,476"
-              fill="#67ABF7"
+              fill="#4CA0FF"
               fillOpacity="0.95"
               data-id="34"
-              data-fill="#67ABF7"
+              data-fill="#4CA0FF"
               data-seat-level="R"
               data-capacity="None"
               data-component-count="None"
@@ -1519,10 +1649,10 @@ export default function LargeVenue() {
             </text>
             <polygon
               points="897,503 829,503 829,581 806,607 853,651 897,609"
-              fill="#EFCB48"
+              fill="#FFCC10"
               fillOpacity="0.95"
               data-id="56"
-              data-fill="#EFCB48"
+              data-fill="#FFCC10"
               data-seat-level="S"
               data-capacity="None"
               data-component-count="None"
@@ -1547,10 +1677,10 @@ export default function LargeVenue() {
             </text>
             <polygon
               points="306,520 221,558 272,609 312,532"
-              fill="#88F969"
+              fill="#68F237"
               fillOpacity="0.95"
               data-id="21"
-              data-fill="#88F969"
+              data-fill="#68F237"
               data-seat-level="VIP"
               data-capacity="None"
               data-component-count="None"
@@ -1575,10 +1705,10 @@ export default function LargeVenue() {
             </text>
             <polygon
               points="663,523 699,605 748,559"
-              fill="#86F86B"
+              fill="#68F237"
               fillOpacity="0.95"
               data-id="15"
-              data-fill="#86F86B"
+              data-fill="#68F237"
               data-seat-level="VIP"
               data-capacity="None"
               data-component-count="None"
@@ -1603,10 +1733,10 @@ export default function LargeVenue() {
             </text>
             <polygon
               points="337,541 326,541 312,572  305,588 290,625 337,625 337,596   337,579  337,571"
-              fill="#88F969"
+              fill="#68F237"
               fillOpacity="0.95"
               data-id="20"
-              data-fill="#88F969"
+              data-fill="#68F237"
               data-seat-level="VIP"
               data-capacity="None"
               data-component-count="None"
@@ -1631,10 +1761,10 @@ export default function LargeVenue() {
             </text>
             <polygon
               points="347,541 348,625 432,624 432,541"
-              fill="#8AFA6B"
+              fill="#68F237"
               fillOpacity="0.95"
               data-id="19"
-              data-fill="#8AFA6B"
+              data-fill="#68F237"
               data-seat-level="VIP"
               data-capacity="None"
               data-component-count="None"
@@ -1659,10 +1789,10 @@ export default function LargeVenue() {
             </text>
             <polygon
               points="442,542 442,624 529,624 529,541"
-              fill="#8AFA6B"
+              fill="#68F237"
               fillOpacity="0.95"
               data-id="18"
-              data-fill="#8AFA6B"
+              data-fill="#68F237"
               data-seat-level="VIP"
               data-capacity="None"
               data-component-count="None"
@@ -1687,10 +1817,10 @@ export default function LargeVenue() {
             </text>
             <polygon
               points="540,541 540,624 623,624 623,542"
-              fill="#8AFA6B"
+              fill="#68F237"
               fillOpacity="0.95"
               data-id="17"
-              data-fill="#8AFA6B"
+              data-fill="#68F237"
               data-seat-level="VIPR"
               data-capacity="None"
               data-component-count="None"
@@ -1715,10 +1845,10 @@ export default function LargeVenue() {
             </text>
             <polygon
               points="634,541 633,624 674,625 660,590  651,570 639,542"
-              fill="#88F969"
+              fill="#68F237"
               fillOpacity="0.95"
               data-id="16"
-              data-fill="#88F969"
+              data-fill="#68F237"
               data-seat-level="VIP"
               data-capacity="None"
               data-component-count="None"
@@ -1743,10 +1873,10 @@ export default function LargeVenue() {
             </text>
             <polygon
               points="812,583 762,563 697,628 720,676"
-              fill="#68ACF8"
+              fill="#4CA0FF"
               fillOpacity="0.95"
               data-id="35"
-              data-fill="#68ACF8"
+              data-fill="#4CA0FF"
               data-seat-level="R"
               data-capacity="None"
               data-component-count="None"
@@ -1771,10 +1901,10 @@ export default function LargeVenue() {
             </text>
             <polygon
               points="156,587 247,680 271,628 207,568"
-              fill="#67ABF7"
+              fill="#4CA0FF"
               fillOpacity="0.95"
               data-id="41"
-              data-fill="#67ABF7"
+              data-fill="#4CA0FF"
               data-seat-level="R"
               data-capacity="None"
               data-component-count="None"
@@ -1799,10 +1929,10 @@ export default function LargeVenue() {
             </text>
             <polygon
               points="795,616 772,642 786,655  795,664 820,687 844,663 844,659 824,641"
-              fill="#ECCB47"
+              fill="#FFCC10"
               fillOpacity="0.95"
               data-id="57"
-              data-fill="#ECCB47"
+              data-fill="#FFCC10"
               data-seat-level="S"
               data-capacity="None"
               data-component-count="None"
@@ -1827,10 +1957,10 @@ export default function LargeVenue() {
             </text>
             <polygon
               points="285,635 254,705 337,705 337,636"
-              fill="#69ABF5"
+              fill="#4CA0FF"
               fillOpacity="0.95"
               data-id="40"
-              data-fill="#69ABF5"
+              data-fill="#4CA0FF"
               data-seat-level="R"
               data-capacity="None"
               data-component-count="None"
@@ -1855,10 +1985,10 @@ export default function LargeVenue() {
             </text>
             <polygon
               points="348,636 348,705 431,706 432,636"
-              fill="#67ABF7"
+              fill="#4CA0FF"
               fillOpacity="0.95"
               data-id="39"
-              data-fill="#67ABF7"
+              data-fill="#4CA0FF"
               data-seat-level="R"
               data-capacity="None"
               data-component-count="None"
@@ -1883,10 +2013,10 @@ export default function LargeVenue() {
             </text>
             <polygon
               points="443,636 443,705 529,705 529,636"
-              fill="#67ABF7"
+              fill="#4CA0FF"
               fillOpacity="0.95"
               data-id="38"
-              data-fill="#67ABF7"
+              data-fill="#4CA0FF"
               data-seat-level="R"
               data-capacity="None"
               data-component-count="None"
@@ -1911,10 +2041,10 @@ export default function LargeVenue() {
             </text>
             <polygon
               points="540,636 540,705 623,704 621,635"
-              fill="#67ABF7"
+              fill="#4CA0FF"
               fillOpacity="0.95"
               data-id="37"
-              data-fill="#67ABF7"
+              data-fill="#4CA0FF"
               data-seat-level="R"
               data-capacity="None"
               data-component-count="None"
@@ -1939,10 +2069,10 @@ export default function LargeVenue() {
             </text>
             <polygon
               points="634,636 634,705 671,705 704,685 680,636"
-              fill="#69ABF5"
+              fill="#4CA0FF"
               fillOpacity="0.95"
               data-id="36"
-              data-fill="#69ABF5"
+              data-fill="#4CA0FF"
               data-seat-level="R"
               data-capacity="None"
               data-component-count="None"
@@ -1966,8 +2096,9 @@ export default function LargeVenue() {
               36
             </text>
           </svg>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Tooltip */}
       {tooltip.visible && (
@@ -1983,47 +2114,6 @@ export default function LargeVenue() {
         </div>
       )}
 
-      {/* Grid Modal */}
-      <Modal
-        open={showGridModal}
-        onClose={() => setShowGridModal(false)}
-        title="좌석 배치도"
-      >
-        <div className="flex flex-col items-center gap-4">
-          <div className="flex flex-col gap-1">
-            {GRID_DATA.map((row, rowIndex) => (
-              <div key={rowIndex} className="flex gap-1">
-                {row.map((cell, colIndex) => {
-                  if (cell === "W") {
-                    return (
-                      <div
-                        key={`${rowIndex}-${colIndex}`}
-                        className="w-6 h-6 bg-transparent"
-                      />
-                    );
-                  } else if (cell === "G") {
-                    return (
-                      <div
-                        key={`${rowIndex}-${colIndex}`}
-                        className="w-6 h-6 bg-gray-300 border border-gray-400 rounded cursor-pointer hover:bg-gray-400 transition-colors"
-                        title="원래는 주황색이었습니다"
-                      />
-                    );
-                  } else {
-                    // cell === "O"
-                    return (
-                      <div
-                        key={`${rowIndex}-${colIndex}`}
-                        className="w-6 h-6 bg-orange-500 border border-orange-600 rounded cursor-pointer hover:bg-orange-600 transition-colors"
-                      />
-                    );
-                  }
-                })}
-              </div>
-            ))}
-          </div>
-        </div>
-      </Modal>
     </div>
   );
 }
