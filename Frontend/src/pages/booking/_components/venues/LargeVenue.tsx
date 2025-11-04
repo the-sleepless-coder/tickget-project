@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { Modal } from "../../../../shared/ui/common/Modal";
 
 interface PolygonData {
   id: string;
@@ -10,6 +11,36 @@ interface PolygonData {
   fill: string;
 }
 
+// 그리드 배열 데이터 (10행 x 28열)
+// O = 주황색, G = 회색 (원래는 주황색), W = 흰색/비어있음
+// 두 번째 이미지 설명 기준으로 구성:
+// - 왼쪽 그룹: 상단 5열 4행 주황색 20개, 아래 왼쪽 3열 2행 회색 6개
+// - 중앙 그룹: 부채꼴 형태, 상단 5행은 각각 10개, 6번째 행은 8개 (중앙 그룹 내에서 5,8번째 위치가 빈 공간), 그 아래로 줄어듦
+// - 오른쪽 그룹: 왼쪽과 대칭 (상단 5열 4행 주황색 20개, 아래 오른쪽 3열 2행 회색 6개)
+
+const GRID_DATA = [
+  // Row 9 (맨 위) - 왼쪽 주황색 5개, 중앙 4개, 오른쪽 주황색 5개
+  "O O O O O W W O O O O W W W W W W W W W W W W O O O O O O".split(" "),
+  // Row 8 - 왼쪽 주황색 5개, 중앙 5개, 오른쪽 주황색 5개
+  "O O O O O W W O O O O O W W W W W W W W W W W W O O O O O O".split(" "),
+  // Row 7 - 왼쪽 주황색 5개, 중앙 6개, 오른쪽 주황색 5개
+  "O O O O O W W O O O O O O W W W W W W W W W W W O O O O O O".split(" "),
+  // Row 6 - 왼쪽 주황색 5개, 중앙 7개, 오른쪽 주황색 5개
+  "O O O O O W W O O O O O O O W W W W W W W W W W O O O O O O".split(" "),
+  // Row 5 - 왼쪽 회색 3개, 중앙 8개 (중앙 그룹 내에서 5,8번째 = 12,15번째 열이 빈 공간), 오른쪽 회색 3개
+  "G G G W W W W W O O O O W O O O W O O O W W W W W G G G W W".split(" "),
+  // Row 4 - 왼쪽 회색 3개, 중앙 10개, 오른쪽 회색 3개
+  "G G G W W W W W O O O O O O O O O O O O W W W W W G G G W W".split(" "),
+  // Row 3 - 왼쪽 주황색 5개, 중앙 10개, 오른쪽 주황색 5개
+  "O O O O O W W O O O O O O O O O O O O O W W O O O O O O".split(" "),
+  // Row 2 - 왼쪽 주황색 5개, 중앙 10개, 오른쪽 주황색 5개
+  "O O O O O W W O O O O O O O O O O O O O W W O O O O O O".split(" "),
+  // Row 1 - 왼쪽 주황색 5개, 중앙 10개, 오른쪽 주황색 5개
+  "O O O O O W W O O O O O O O O O O O O O W W O O O O O O".split(" "),
+  // Row 0 (맨 아래) - 왼쪽 주황색 5개, 중앙 10개, 오른쪽 주황색 5개
+  "O O O O O W W O O O O O O O O O O O O O W W O O O O O O".split(" "),
+].reverse(); // Row 0이 아래에 오도록 reverse
+
 export default function LargeVenue() {
   const [tooltip, setTooltip] = useState<{
     visible: boolean;
@@ -17,6 +48,7 @@ export default function LargeVenue() {
     y: number;
     text: string;
   }>({ visible: false, x: 0, y: 0, text: "" });
+  const [showGridModal, setShowGridModal] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const handlePolygonMouseEnter = (
@@ -53,6 +85,11 @@ export default function LargeVenue() {
       fill: polygon.dataset.fill || "",
     };
     console.log("[seat-click]", data);
+
+    // data-id가 "52"인 경우 그리드 모달 열기
+    if (data.id === "52") {
+      setShowGridModal(true);
+    }
   };
 
   return (
@@ -389,8 +426,8 @@ export default function LargeVenue() {
               className="cursor-pointer"
             />
             <text
-              x="690"
-              y="98"
+              x="579"
+              y="94"
               fill="white"
               fontSize="16"
               fontWeight="bold"
@@ -417,8 +454,8 @@ export default function LargeVenue() {
               className="cursor-pointer"
             />
             <text
-              x="794"
-              y="169"
+              x="686"
+              y="105"
               fill="white"
               fontSize="16"
               fontWeight="bold"
@@ -445,8 +482,8 @@ export default function LargeVenue() {
               className="cursor-pointer"
             />
             <text
-              x="171"
-              y="168"
+              x="794"
+              y="169"
               fill="white"
               fontSize="16"
               fontWeight="bold"
@@ -473,7 +510,7 @@ export default function LargeVenue() {
               className="cursor-pointer"
             />
             <text
-              x="485"
+              x="172"
               y="168"
               fill="white"
               fontSize="16"
@@ -501,7 +538,7 @@ export default function LargeVenue() {
               className="cursor-pointer"
             />
             <text
-              x="581"
+              x="486"
               y="168"
               fill="white"
               fontSize="16"
@@ -529,7 +566,7 @@ export default function LargeVenue() {
               className="cursor-pointer"
             />
             <text
-              x="663"
+              x="581"
               y="168"
               fill="white"
               fontSize="16"
@@ -557,8 +594,8 @@ export default function LargeVenue() {
               className="cursor-pointer"
             />
             <text
-              x="306"
-              y="169"
+              x="663"
+              y="168"
               fill="white"
               fontSize="16"
               fontWeight="bold"
@@ -585,7 +622,7 @@ export default function LargeVenue() {
               className="cursor-pointer"
             />
             <text
-              x="389"
+              x="307"
               y="169"
               fill="white"
               fontSize="16"
@@ -613,8 +650,8 @@ export default function LargeVenue() {
               className="cursor-pointer"
             />
             <text
-              x="223"
-              y="218"
+              x="390"
+              y="169"
               fill="white"
               fontSize="16"
               fontWeight="bold"
@@ -641,7 +678,7 @@ export default function LargeVenue() {
               className="cursor-pointer"
             />
             <text
-              x="752"
+              x="223"
               y="218"
               fill="white"
               fontSize="16"
@@ -669,8 +706,8 @@ export default function LargeVenue() {
               className="cursor-pointer"
             />
             <text
-              x="114"
-              y="254"
+              x="753"
+              y="218"
               fill="white"
               fontSize="16"
               fontWeight="bold"
@@ -697,8 +734,8 @@ export default function LargeVenue() {
               className="cursor-pointer"
             />
             <text
-              x="850"
-              y="256"
+              x="120"
+              y="243"
               fill="white"
               fontSize="16"
               fontWeight="bold"
@@ -725,8 +762,8 @@ export default function LargeVenue() {
               className="cursor-pointer"
             />
             <text
-              x="318"
-              y="248"
+              x="852"
+              y="245"
               fill="white"
               fontSize="16"
               fontWeight="bold"
@@ -753,8 +790,8 @@ export default function LargeVenue() {
               className="cursor-pointer"
             />
             <text
-              x="389"
-              y="248"
+              x="319"
+              y="250"
               fill="white"
               fontSize="16"
               fontWeight="bold"
@@ -781,8 +818,8 @@ export default function LargeVenue() {
               className="cursor-pointer"
             />
             <text
-              x="485"
-              y="248"
+              x="390"
+              y="249"
               fill="white"
               fontSize="16"
               fontWeight="bold"
@@ -809,7 +846,7 @@ export default function LargeVenue() {
               className="cursor-pointer"
             />
             <text
-              x="581"
+              x="485"
               y="248"
               fill="white"
               fontSize="16"
@@ -837,8 +874,8 @@ export default function LargeVenue() {
               className="cursor-pointer"
             />
             <text
-              x="653"
-              y="239"
+              x="582"
+              y="248"
               fill="white"
               fontSize="16"
               fontWeight="bold"
@@ -865,8 +902,8 @@ export default function LargeVenue() {
               className="cursor-pointer"
             />
             <text
-              x="280"
-              y="273"
+              x="648"
+              y="239"
               fill="white"
               fontSize="16"
               fontWeight="bold"
@@ -893,8 +930,8 @@ export default function LargeVenue() {
               className="cursor-pointer"
             />
             <text
-              x="712"
-              y="278"
+              x="281"
+              y="274"
               fill="white"
               fontSize="16"
               fontWeight="bold"
@@ -921,8 +958,8 @@ export default function LargeVenue() {
               className="cursor-pointer"
             />
             <text
-              x="176"
-              y="315"
+              x="713"
+              y="278"
               fill="white"
               fontSize="16"
               fontWeight="bold"
@@ -1077,8 +1114,8 @@ export default function LargeVenue() {
               className="cursor-pointer"
             />
             <text
-              x="565"
-              y="340"
+              x="377"
+              y="353"
               fill="white"
               fontSize="16"
               fontWeight="bold"
@@ -1301,8 +1338,8 @@ export default function LargeVenue() {
               className="cursor-pointer"
             />
             <text
-              x="401"
-              y="477"
+              x="793"
+              y="418"
               fill="white"
               fontSize="16"
               fontWeight="bold"
@@ -1329,8 +1366,8 @@ export default function LargeVenue() {
               className="cursor-pointer"
             />
             <text
-              x="567"
-              y="489"
+              x="377"
+              y="477"
               fill="white"
               fontSize="16"
               fontWeight="bold"
@@ -1357,8 +1394,8 @@ export default function LargeVenue() {
               className="cursor-pointer"
             />
             <text
-              x="257"
-              y="498"
+              x="568"
+              y="489"
               fill="white"
               fontSize="16"
               fontWeight="bold"
@@ -1385,8 +1422,8 @@ export default function LargeVenue() {
               className="cursor-pointer"
             />
             <text
-              x="176"
-              y="511"
+              x="258"
+              y="498"
               fill="white"
               fontSize="16"
               fontWeight="bold"
@@ -1413,8 +1450,8 @@ export default function LargeVenue() {
               className="cursor-pointer"
             />
             <text
-              x="710"
-              y="503"
+              x="176"
+              y="516"
               fill="white"
               fontSize="16"
               fontWeight="bold"
@@ -1441,8 +1478,8 @@ export default function LargeVenue() {
               className="cursor-pointer"
             />
             <text
-              x="793"
-              y="520"
+              x="710"
+              y="503"
               fill="white"
               fontSize="16"
               fontWeight="bold"
@@ -1469,8 +1506,8 @@ export default function LargeVenue() {
               className="cursor-pointer"
             />
             <text
-              x="861"
-              y="575"
+              x="793"
+              y="520"
               fill="white"
               fontSize="16"
               fontWeight="bold"
@@ -1497,8 +1534,8 @@ export default function LargeVenue() {
               className="cursor-pointer"
             />
             <text
-              x="277"
-              y="554"
+              x="852"
+              y="576"
               fill="white"
               fontSize="16"
               fontWeight="bold"
@@ -1525,8 +1562,8 @@ export default function LargeVenue() {
               className="cursor-pointer"
             />
             <text
-              x="703"
-              y="562"
+              x="278"
+              y="555"
               fill="white"
               fontSize="16"
               fontWeight="bold"
@@ -1553,8 +1590,8 @@ export default function LargeVenue() {
               className="cursor-pointer"
             />
             <text
-              x="321"
-              y="583"
+              x="703"
+              y="562"
               fill="white"
               fontSize="16"
               fontWeight="bold"
@@ -1581,8 +1618,8 @@ export default function LargeVenue() {
               className="cursor-pointer"
             />
             <text
-              x="389"
-              y="583"
+              x="324"
+              y="582"
               fill="white"
               fontSize="16"
               fontWeight="bold"
@@ -1609,8 +1646,8 @@ export default function LargeVenue() {
               className="cursor-pointer"
             />
             <text
-              x="485"
-              y="582"
+              x="390"
+              y="583"
               fill="white"
               fontSize="16"
               fontWeight="bold"
@@ -1637,8 +1674,8 @@ export default function LargeVenue() {
               className="cursor-pointer"
             />
             <text
-              x="581"
-              y="582"
+              x="486"
+              y="583"
               fill="white"
               fontSize="16"
               fontWeight="bold"
@@ -1665,8 +1702,8 @@ export default function LargeVenue() {
               className="cursor-pointer"
             />
             <text
-              x="655"
-              y="582"
+              x="582"
+              y="583"
               fill="white"
               fontSize="16"
               fontWeight="bold"
@@ -1693,8 +1730,8 @@ export default function LargeVenue() {
               className="cursor-pointer"
             />
             <text
-              x="747"
-              y="612"
+              x="649"
+              y="582"
               fill="white"
               fontSize="16"
               fontWeight="bold"
@@ -1721,8 +1758,8 @@ export default function LargeVenue() {
               className="cursor-pointer"
             />
             <text
-              x="220"
-              y="620"
+              x="748"
+              y="613"
               fill="white"
               fontSize="16"
               fontWeight="bold"
@@ -1749,8 +1786,8 @@ export default function LargeVenue() {
               className="cursor-pointer"
             />
             <text
-              x="810"
-              y="643"
+              x="220"
+              y="616"
               fill="white"
               fontSize="16"
               fontWeight="bold"
@@ -1777,8 +1814,8 @@ export default function LargeVenue() {
               className="cursor-pointer"
             />
             <text
-              x="303"
-              y="670"
+              x="810"
+              y="653"
               fill="white"
               fontSize="16"
               fontWeight="bold"
@@ -1805,7 +1842,7 @@ export default function LargeVenue() {
               className="cursor-pointer"
             />
             <text
-              x="389"
+              x="303"
               y="670"
               fill="white"
               fontSize="16"
@@ -1833,8 +1870,8 @@ export default function LargeVenue() {
               className="cursor-pointer"
             />
             <text
-              x="486"
-              y="670"
+              x="390"
+              y="671"
               fill="white"
               fontSize="16"
               fontWeight="bold"
@@ -1861,8 +1898,8 @@ export default function LargeVenue() {
               className="cursor-pointer"
             />
             <text
-              x="581"
-              y="670"
+              x="486"
+              y="671"
               fill="white"
               fontSize="16"
               fontWeight="bold"
@@ -1889,7 +1926,7 @@ export default function LargeVenue() {
               className="cursor-pointer"
             />
             <text
-              x="664"
+              x="581"
               y="670"
               fill="white"
               fontSize="16"
@@ -1916,6 +1953,18 @@ export default function LargeVenue() {
               onClick={(e) => handlePolygonClick(e.currentTarget)}
               className="cursor-pointer"
             />
+            <text
+              x="665"
+              y="673"
+              fill="white"
+              fontSize="16"
+              fontWeight="bold"
+              textAnchor="middle"
+              dominantBaseline="middle"
+              pointerEvents="none"
+            >
+              36
+            </text>
           </svg>
         </div>
       </div>
@@ -1933,6 +1982,48 @@ export default function LargeVenue() {
           {tooltip.text}
         </div>
       )}
+
+      {/* Grid Modal */}
+      <Modal
+        open={showGridModal}
+        onClose={() => setShowGridModal(false)}
+        title="좌석 배치도"
+      >
+        <div className="flex flex-col items-center gap-4">
+          <div className="flex flex-col gap-1">
+            {GRID_DATA.map((row, rowIndex) => (
+              <div key={rowIndex} className="flex gap-1">
+                {row.map((cell, colIndex) => {
+                  if (cell === "W") {
+                    return (
+                      <div
+                        key={`${rowIndex}-${colIndex}`}
+                        className="w-6 h-6 bg-transparent"
+                      />
+                    );
+                  } else if (cell === "G") {
+                    return (
+                      <div
+                        key={`${rowIndex}-${colIndex}`}
+                        className="w-6 h-6 bg-gray-300 border border-gray-400 rounded cursor-pointer hover:bg-gray-400 transition-colors"
+                        title="원래는 주황색이었습니다"
+                      />
+                    );
+                  } else {
+                    // cell === "O"
+                    return (
+                      <div
+                        key={`${rowIndex}-${colIndex}`}
+                        className="w-6 h-6 bg-orange-500 border border-orange-600 rounded cursor-pointer hover:bg-orange-600 transition-colors"
+                      />
+                    );
+                  }
+                })}
+              </div>
+            ))}
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
