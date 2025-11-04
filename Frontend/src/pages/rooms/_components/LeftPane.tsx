@@ -90,8 +90,8 @@ export default function LeftPane({
                 ? "/performance-halls/charlotte-theater.jpg"
                 : size === "중형" || /올림픽홀/.test(venue)
                   ? "/performance-halls/olympic-hall.jpg"
-                  : size === "대형" || /KSPO/.test(venue)
-                    ? "/performance-halls/kspo-dome.jpg"
+                  : size === "대형" || /인스파이어아레나/.test(venue)
+                    ? "/performance-halls/inspire-arena.jpg"
                     : null;
             const src = layoutUrl || (isAIMode ? null : defaultSrc);
             return src ? (

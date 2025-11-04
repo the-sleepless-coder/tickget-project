@@ -50,7 +50,7 @@ export default function CreateRoomModal({
     () => ({
       소형: ["샤롯데씨어터"],
       중형: ["올림픽공원 올림픽홀"],
-      대형: ["KSPO DOME"],
+      대형: ["인스파이어 아레나"],
     }),
     []
   );
