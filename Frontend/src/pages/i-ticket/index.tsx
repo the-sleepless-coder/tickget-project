@@ -400,7 +400,10 @@ function BookingCalendarCard({ onBook }: { onBook: () => void }) {
   const dateMeta = (d: number) => {
     const dateObj = new Date(year, month, d);
     const isSunday = dateObj.getDay() === 0;
-    const isDisabled = dateObj < todayStart; // disable strictly past days
+    // 오늘부터 2일 후까지만 활성화 (총 3일)
+    const maxDate = new Date(todayStart);
+    maxDate.setDate(todayStart.getDate() + 2);
+    const isDisabled = dateObj < todayStart || dateObj > maxDate;
     const selected = isSelected(d);
     return { dateObj, isSunday, isDisabled, selected };
   };
@@ -499,13 +502,14 @@ function BookingCalendarCard({ onBook }: { onBook: () => void }) {
                         type="button"
                         disabled={isDisabled}
                         onClick={() =>
+                          !isDisabled &&
                           setSelectedDate(new Date(year, month, d))
                         }
                         className={`mx-auto h-10 w-10 rounded-full text-sm transition-colors ${
                           selected
                             ? "bg-indigo-600 text-white"
-                            : `${baseColor} hover:bg-gray-100`
-                        } ${isDisabled ? "cursor-not-allowed" : ""}`}
+                            : `${baseColor} ${isDisabled ? "" : "hover:bg-gray-100"}`
+                        } ${isDisabled ? "cursor-not-allowed pointer-events-none" : ""}`}
                       >
                         {d}
                       </button>
