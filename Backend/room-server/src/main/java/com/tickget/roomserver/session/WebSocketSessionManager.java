@@ -143,7 +143,7 @@ public class WebSocketSessionManager {
 
         if (userId != null) {
             String removedSessionId = userToSession.remove(userId);
-            sessions.remove(sessionId);
+            WebSocketSession session = sessions.remove(sessionId);
             Long removedRoomId = sessionToRoom.remove(sessionId);
 
             log.info("세션 데이터 삭제 완료: sessionId={}, userId={}, roomId={}",
@@ -166,14 +166,6 @@ public class WebSocketSessionManager {
             }
         }
     }
-
-    //디버깅용 메서드 - 현재 상태 출력
-    public void printStatus() {
-        log.info("=== WebSocket Session Manager Status ===");
-        log.info("총 연결 수: {}", sessions.size());
-    }
-
-
 
 }
 
