@@ -1,13 +1,22 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ChangeEvent } from "react";
+import { useNavigate } from "react-router-dom";
 
-import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
-import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
-import { TimePicker } from "@mui/x-date-pickers/TimePicker";
-import InsertPhotoOutlined from "@mui/icons-material/InsertPhotoOutlined";
+// moved usages into child components
 import dayjs, { Dayjs } from "dayjs";
 import "dayjs/locale/ko";
 import InfoOutlined from "@mui/icons-material/InfoOutlined";
+import Thumbnail01 from "../../../shared/images/thumbnail/Thumbnail01.jpg";
+import Thumbnail02 from "../../../shared/images/thumbnail/Thumbnail02.jpg";
+import Thumbnail03 from "../../../shared/images/thumbnail/Thumbnail03.jpg";
+import Thumbnail04 from "../../../shared/images/thumbnail/Thumbnail04.jpg";
+import Thumbnail05 from "../../../shared/images/thumbnail/Thumbnail05.jpg";
+import Thumbnail06 from "../../../shared/images/thumbnail/Thumbnail06.jpg";
+import { paths } from "../../../app/routes/paths";
+import LeftPane from "./LeftPane";
+import Step1BasicForm from "./Step1BasicForm";
+import Step2AdvancedForm from "./Step2AdvancedForm";
+import ThumbnailSelectModal from "./ThumbnailSelectModal";
 
 export default function CreateRoomModal({
   open,
@@ -16,38 +25,116 @@ export default function CreateRoomModal({
   open: boolean;
   onClose: () => void;
 }) {
+  const navigate = useNavigate();
   dayjs.locale("ko");
+  const [step, setStep] = useState<1 | 2>(1);
   const [startTime, setStartTime] = useState<Dayjs | null>(dayjs());
   const [title, setTitle] = useState("");
   const [size, setSize] = useState<"소형" | "중형" | "대형">("소형");
-  const [difficulty, setDifficulty] = useState<"쉬움" | "보통" | "어려움">(
-    "쉬움"
+  const [difficulty, setDifficulty] = useState<"초보" | "평균" | "뛰어남">(
+    "초보"
   );
+  const [step2Mode, setStep2Mode] = useState<"preset" | "ai">("preset");
   const [venue, setVenue] = useState("");
   const [platform, setPlatform] = useState<string>("익스터파크");
   const [botCount, setBotCount] = useState<string>("");
   const [participantCount, setParticipantCount] = useState<string>("");
   const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
-  const sizeOptions = useMemo(() => ["소형", "중형", "대형"] as const, []);
-  const diffOptions = useMemo(() => ["쉬움", "보통", "어려움"] as const, []);
+  const [layoutUrl, setLayoutUrl] = useState<string | null>(null);
+  const [thumbPickerOpen, setThumbPickerOpen] = useState(false);
+  const [showStep1Errors, setShowStep1Errors] = useState(false);
+  type SizeOption = "소형" | "중형" | "대형";
+  const diffOptions = useMemo(() => ["초보", "평균", "뛰어남"] as const, []);
   const botOptions = useMemo(() => [100, 500, 1000, 2000, 5000] as const, []);
-  const sizeToVenues: Record<(typeof sizeOptions)[number], string[]> = {
-    소형: ["샤롯데씨어터"],
-    중형: ["올림픽공원 올림픽홀"],
-    대형: ["올림픽 주경기장"],
-  };
-  const allowedVenues = sizeToVenues[size];
-  const handleSelectSize = (label: (typeof sizeOptions)[number]) => {
+  const sizeToVenues: Record<SizeOption, string[]> = useMemo(
+    () => ({
+      소형: ["샤롯데씨어터"],
+      중형: ["올림픽공원 올림픽홀"],
+      대형: ["올림픽 주경기장"],
+    }),
+    []
+  );
+  const handleSelectSize = (label: SizeOption) => {
     setSize(label);
     const [first] = sizeToVenues[label];
     setVenue(first);
   };
+  const thumbnails = useMemo(
+    () => [
+      Thumbnail01,
+      Thumbnail02,
+      Thumbnail03,
+      Thumbnail04,
+      Thumbnail05,
+      Thumbnail06,
+    ],
+    []
+  );
+  const setRandomThumbnail = useCallback(() => {
+    const idx = Math.floor(Math.random() * thumbnails.length);
+    setThumbnailUrl(thumbnails[idx]);
+  }, [thumbnails]);
   const onThumbnailChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const nextUrl = URL.createObjectURL(file);
-    if (thumbnailUrl) URL.revokeObjectURL(thumbnailUrl);
+    if (thumbnailUrl && thumbnailUrl.startsWith("blob:"))
+      URL.revokeObjectURL(thumbnailUrl);
     setThumbnailUrl(nextUrl);
+  };
+  const triggerUpload = () => {
+    const el = document.getElementById(
+      "room-thumbnail"
+    ) as HTMLInputElement | null;
+    el?.click();
+  };
+  const onLayoutChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const nextUrl = URL.createObjectURL(file);
+    if (layoutUrl && layoutUrl.startsWith("blob:"))
+      URL.revokeObjectURL(layoutUrl);
+    setLayoutUrl(nextUrl);
+  };
+
+  // 로컬 스토리지에 설정 저장
+  const handleSaveSettings = () => {
+    const settings = {
+      title,
+      participantCount,
+      startTime: startTime?.toISOString() || null,
+      platform,
+      size,
+      venue,
+      difficulty,
+      botCount,
+    };
+    localStorage.setItem("roomSettings", JSON.stringify(settings));
+    alert("설정이 저장되었습니다.");
+  };
+
+  // 로컬 스토리지에서 설정 불러오기
+  const handleLoadSettings = () => {
+    const saved = localStorage.getItem("roomSettings");
+    if (!saved) {
+      alert("저장된 설정이 없습니다.");
+      return;
+    }
+    try {
+      const settings = JSON.parse(saved);
+      setTitle(settings.title || "");
+      setParticipantCount(settings.participantCount || "");
+      setStartTime(settings.startTime ? dayjs(settings.startTime) : dayjs());
+      setPlatform(settings.platform || "익스터파크");
+      setSize(settings.size || "소형");
+      setVenue(settings.venue || "샤롯데씨어터");
+      setDifficulty(settings.difficulty || "초보");
+      setBotCount(settings.botCount || "");
+      alert("설정을 불러왔습니다.");
+    } catch (error) {
+      alert("설정을 불러오는데 실패했습니다.");
+      console.error(error);
+    }
   };
   useEffect(() => {
     if (!open) return;
@@ -63,6 +150,24 @@ export default function CreateRoomModal({
     };
   }, [open, onClose]);
 
+  useEffect(() => {
+    if (!open) return;
+    setStep(1);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (!thumbnailUrl) setRandomThumbnail();
+  }, [open, thumbnailUrl, setRandomThumbnail]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (!venue) {
+      const [first] = sizeToVenues[size];
+      setVenue(first);
+    }
+  }, [open, venue, size, sizeToVenues]);
+
   if (!open) return null;
 
   return (
@@ -76,7 +181,7 @@ export default function CreateRoomModal({
         onClick={onClose}
         aria-hidden
       />
-      <div className="relative bg-white rounded-xl shadow-lg w-full max-w-[900px] max-h-[90vh] flex flex-col">
+      <div className="relative bg-white rounded-xl shadow-lg w-full max-w-[105vh] max-h-[80vh] flex flex-col">
         {/* Header */}
         <div className="mt-4 px-8 bg-white rounded-t-xl flex-shrink-0">
           <div className="flex items-center justify-between h-[50px]">
@@ -89,6 +194,7 @@ export default function CreateRoomModal({
               <div className="hidden md:flex items-center gap-2">
                 <button
                   type="button"
+                  onClick={handleLoadSettings}
                   className="text-sm text-purple-300 inline-flex items-center gap-1 cursor-pointer"
                   title="설정 불러오기"
                 >
@@ -96,6 +202,7 @@ export default function CreateRoomModal({
                 </button>
                 <button
                   type="button"
+                  onClick={handleSaveSettings}
                   className="text-sm text-purple-600 inline-flex items-center gap-1 cursor-pointer"
                   title="현재 설정 저장"
                 >
@@ -106,7 +213,7 @@ export default function CreateRoomModal({
                 type="button"
                 onClick={onClose}
                 aria-label="모달 닫기"
-                className="text-2xl leading-none text-gray-400 hover:text-gray-600"
+                className="text-2xl leading-none text-gray-400 cursor-pointer"
               >
                 ×
               </button>
@@ -116,6 +223,7 @@ export default function CreateRoomModal({
           <div className="mt-2 flex justify-end gap-2 md:hidden">
             <button
               type="button"
+              onClick={handleSaveSettings}
               className="text-sm text-gray-600 hover:text-gray-500 inline-flex items-center gap-1 cursor-pointer"
               title="현재 설정 저장"
             >
@@ -123,6 +231,7 @@ export default function CreateRoomModal({
             </button>
             <button
               type="button"
+              onClick={handleLoadSettings}
               className="text-sm text-c-purple-200 inline-flex items-center gap-1 cursor-pointer"
               title="설정 불러오기"
             >
@@ -130,224 +239,118 @@ export default function CreateRoomModal({
             </button>
           </div>
         </div>
-        <div className="px-8 py-6 flex-1 overflow-y-auto">
-          <div className="grid grid-cols-1 md:grid-cols-[270px_1fr] gap-6">
-            <div className="flex flex-col">
-              <label htmlFor="room-thumbnail" className="cursor-pointer">
-                <div className="grid place-items-center rounded-md bg-gray-200 w-[240px] h-[320px] md:w-[260px] md:h-[347px] mx-auto md:mx-0 overflow-hidden">
-                  {thumbnailUrl ? (
-                    <img
-                      src={thumbnailUrl}
-                      alt="썸네일 미리보기"
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex flex-col items-center justify-center h-full text-center">
-                      <div className="grid h-12 w-12 place-items-center text-gray-500">
-                        <InsertPhotoOutlined sx={{ fontSize: 48 }} />
-                      </div>
-                      <div className="text-gray-500 mt-1 text-sm font-medium">
-                        방 썸네일을 <br />
-                        업로드할 수 있습니다
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </label>
-              <input
-                id="room-thumbnail"
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={onThumbnailChange}
+        <div className="px-8 py-2 flex-1 overflow-y-auto">
+          <div
+            className={`grid grid-cols-1 ${step === 1 ? "md:grid-cols-[230px_1fr]" : "md:grid-cols-[230px_420px]"} gap-6`}
+          >
+            <LeftPane
+              step={step}
+              thumbnailUrl={thumbnailUrl}
+              onThumbnailChange={onThumbnailChange}
+              onPresetClick={() => setThumbPickerOpen(true)}
+              onUploadClick={triggerUpload}
+              layoutUrl={layoutUrl}
+              onLayoutChange={onLayoutChange}
+              size={size}
+              venue={venue}
+              isAIMode={step === 2 && step2Mode === "ai"}
+            />
+
+            {step === 1 ? (
+              <Step1BasicForm
+                title={title}
+                setTitle={setTitle}
+                participantCount={participantCount}
+                setParticipantCount={setParticipantCount}
+                startTime={startTime}
+                setStartTime={setStartTime}
+                platform={platform}
+                setPlatform={setPlatform}
+                showErrors={showStep1Errors}
               />
-            </div>
-
-            <div className="flex-1 space-y-5">
-              {/* Title at top */}
-              <div className="relative">
-                <label className="sr-only">방 제목</label>
-                <input
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  type="text"
-                  placeholder="방 제목을 입력해주세요"
-                  className="w-full border-b-2 border-gray-300 px-2 py-3 text-xl outline-none text-gray-700 focus:border-purple-600"
-                  maxLength={50}
-                />
-                {/* <div className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-sm text-gray-300">
-                  (50자)
-                </div> */}
-              </div>
-
-              {/* Middle: two columns */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Left: platform, difficulty, size */}
-                <div className="space-y-4">
-                  {/* Platform select */}
-                  <div>
-                    <select
-                      value={platform}
-                      onChange={(e) => setPlatform(e.target.value)}
-                      className="w-full border-b-2 border-gray-300 px-2 py-3 text-gray-600 outline-none focus:border-purple-600"
-                    >
-                      <option value="">예매처 선택</option>
-                      <option value="익스터파크">익스터파크</option>
-                      <option value="워터멜론">워터멜론</option>
-                      <option value="NO24">NO24</option>
-                    </select>
-                  </div>
-
-                  {/* Difficulty */}
-                  <div className="flex items-center gap-2">
-                    {diffOptions.map((label) => (
-                      <button
-                        key={label}
-                        type="button"
-                        onClick={() => setDifficulty(label)}
-                        className={`px-4 py-2 rounded-full text-sm transition-colors ${
-                          difficulty === label
-                            ? label === "쉬움"
-                              ? "bg-[#F9FBAD] text-[#8DBA07]"
-                              : label === "보통"
-                                ? "bg-[#FFEEA2] text-[#FF8800]"
-                                : "bg-[#FFDEDE] text-[#FF4040]"
-                            : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Size */}
-                  <div className="flex items-center gap-2">
-                    {sizeOptions.map((label) => (
-                      <button
-                        key={label}
-                        type="button"
-                        onClick={() => handleSelectSize(label)}
-                        className={`px-4 py-2 rounded-full text-sm transition-colors ${
-                          size === label
-                            ? label === "소형"
-                              ? "bg-[#F9FBAD] text-[#8DBA07]"
-                              : label === "중형"
-                                ? "bg-[#FFEEA2] text-[#FF8800]"
-                                : "bg-[#FFDEDE] text-[#FF4040]"
-                            : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Right: participant, bot, venue */}
-                <div className="space-y-4">
-                  {/* Participant count */}
-                  <div className="relative">
-                    <input
-                      value={participantCount}
-                      onChange={(e) => {
-                        const digits = e.target.value.replace(/[^0-9]/g, "");
-                        if (digits === "") {
-                          setParticipantCount("");
-                          return;
-                        }
-                        const num = Math.max(
-                          1,
-                          Math.min(10, parseInt(digits, 10))
-                        );
-                        setParticipantCount(String(num));
-                      }}
-                      className="w-full text-gray-600 border-b-2 border-gray-300 px-2 py-3 pr-20 outline-none focus:border-purple-600"
-                      placeholder="참여 인원"
-                      inputMode="numeric"
-                    />
-                    <div className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-sm text-gray-400">
-                      최대 10 명
-                    </div>
-                  </div>
-
-                  {/* Bot count (dropdown) */}
-                  <div>
-                    <select
-                      value={botCount}
-                      onChange={(e) => setBotCount(e.target.value)}
-                      className="w-full border-b-2 border-gray-300 px-2 py-3 text-gray-600 outline-none focus:border-purple-600"
-                    >
-                      <option value="">봇 인원 선택</option>
-                      {botOptions.map((opt) => (
-                        <option key={opt} value={opt}>
-                          {opt} 명
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Venue select (filtered by size) */}
-                  <div>
-                    <select
-                      value={venue}
-                      onChange={(e) => setVenue(e.target.value)}
-                      className="w-full border-b-2 border-gray-300 px-2 py-3 text-gray-700 outline-none focus:border-purple-600"
-                    >
-                      {allowedVenues.map((v) => (
-                        <option key={v} value={v}>
-                          {v}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  {/* Time picker row */}
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-700">시작 시간</span>
-                    <div className="w-[160px]">
-                      <LocalizationProvider dateAdapter={AdapterDayjs}>
-                        <TimePicker
-                          label={undefined}
-                          ampm={false}
-                          format="HH:mm"
-                          value={startTime}
-                          onChange={(v: Dayjs | null) => setStartTime(v)}
-                          slotProps={{
-                            textField: {
-                              size: "small",
-                              fullWidth: true,
-                              sx: {
-                                "& .MuiInputBase-root": {
-                                  borderRadius: "8px",
-                                  backgroundColor: "#f3f4f6",
-                                },
-                              },
-                            },
-                          }}
-                        />
-                      </LocalizationProvider>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+            ) : (
+              <Step2AdvancedForm
+                step2Mode={step2Mode}
+                setStep2Mode={setStep2Mode}
+                size={size}
+                onChangeSize={(s) => handleSelectSize(s)}
+                venue={venue}
+                diffOptions={diffOptions}
+                difficulty={difficulty}
+                setDifficulty={setDifficulty}
+                botOptions={botOptions}
+                botCount={botCount}
+                setBotCount={setBotCount}
+              />
+            )}
           </div>
         </div>
         {/* Footer */}
         <div className="mb-4 h-[50px] px-8 rounded-b-xl flex-shrink-0 flex items-center justify-end gap-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-1.5 rounded-md bg-gray-200 text-gray-700 hover:bg-gray-300"
-          >
-            취소하기
-          </button>
-          <button
-            type="button"
-            className="px-4 py-1.5 rounded-md bg-purple-600 text-white hover:bg-purple-700"
-          >
-            방 생성하기
-          </button>
+          {step === 1 ? (
+            <>
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-1.5 rounded-md bg-gray-200 text-gray-700 hover:bg-gray-300 cursor-pointer"
+              >
+                취소하기
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const isTitleValid = title.trim().length > 0;
+                  const isParticipantValid = participantCount.trim().length > 0;
+                  if (isTitleValid && isParticipantValid) {
+                    setShowStep1Errors(false);
+                    setStep(2);
+                  } else {
+                    setShowStep1Errors(true);
+                  }
+                }}
+                className="px-4 py-1.5 rounded-md bg-purple-600 text-white hover:bg-purple-700 font-semibold cursor-pointer"
+              >
+                다음으로
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  setStep(1);
+                  setShowStep1Errors(false);
+                }}
+                className="px-4 py-1.5 rounded-md bg-gray-200 text-gray-700 hover:bg-gray-300 cursor-pointer"
+              >
+                이전으로
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  navigate(paths.iTicket);
+                }}
+                className="px-4 py-1.5 rounded-md bg-purple-600 text-white hover:bg-purple-700 font-semibold cursor-pointer"
+              >
+                방만들기
+              </button>
+            </>
+          )}
         </div>
+
+        {thumbPickerOpen ? (
+          <ThumbnailSelectModal
+            open={thumbPickerOpen}
+            onClose={() => setThumbPickerOpen(false)}
+            thumbnails={thumbnails}
+            onSelect={(src) => {
+              setThumbnailUrl(src);
+              setThumbPickerOpen(false);
+            }}
+            onUploadClick={triggerUpload}
+          />
+        ) : null}
       </div>
     </div>
   );
@@ -356,7 +359,7 @@ export default function CreateRoomModal({
 function TitleWithInfo() {
   return (
     <div className="flex items-center gap-2">
-      <span className="text-xl font-bold">방 만들기</span>
+      <span className="text-xl">방 만들기</span>
       <InfoBubble />
     </div>
   );
@@ -372,13 +375,14 @@ function InfoBubble() {
       >
         <InfoOutlined sx={{ fontSize: 14 }} />
       </button>
-      <div className="pointer-events-none absolute left-1/2 top-full z-10 mt-2 -translate-x-1/2 whitespace-nowrap rounded-xl bg-white px-3 py-2 text-[13px] text-gray-900 shadow-[0_6px_16px_rgba(0,0,0,0.12)] border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="pointer-events-none absolute left-1/2 top-full z-10 mt-2 -translate-x-1/4 whitespace-nowrap rounded-xl bg-white px-3 py-2 text-[13px] text-gray-900 shadow-[0_6px_16px_rgba(0,0,0,0.12)] border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity">
         <span>
           <b className="text-purple-600">AI 봇</b>이 경기에 참여해 실제와 같은
           티켓팅을 연습할 수 있습니다.
         </span>
-        <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 h-0 w-0 border-x-8 border-x-transparent border-t-8 border-t-white drop-shadow-sm" />
       </div>
     </div>
   );
 }
+
+// ThumbnailSelectModal moved to ./ThumbnailSelectModal
