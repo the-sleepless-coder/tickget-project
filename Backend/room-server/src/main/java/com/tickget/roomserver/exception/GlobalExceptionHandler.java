@@ -52,6 +52,16 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 
+    @ExceptionHandler(RoomPlayingException.class)
+    public ResponseEntity<ErrorResponse> handleRoomPlatingException(RoomPlayingException e) {
+        log.warn("Room Playing: {}", e.getMessage());
+        ErrorResponse response = ErrorResponse.of(
+                "ROOM_PLAYING",
+                e.getMessage()
+        );
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
     @ExceptionHandler(InvalidRoomSettingsException.class)
     public ResponseEntity<ErrorResponse> handleInvalidRoomSettingsException(InvalidRoomSettingsException e) {
         log.warn("Invalid room settings: {}", e.getMessage());
@@ -82,6 +92,19 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 
+    @ExceptionHandler(CreateMatchDeclinedException.class)
+    public ResponseEntity<ErrorResponse> handleCreateMatchDeclinedException(CreateMatchDeclinedException e) {
+        log.warn("Create match declined: {}", e.getMessage());
+        ErrorResponse response = ErrorResponse.of(
+                "CREATE_MATCH_DECLINED",
+                "매치 생성 요청이 거절되었습니다. 요청 정보를 확인해주세요."
+        );
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
+
+
+
     // ===== 5xx 에러: 일반 메시지만 제공 =====
 
     @ExceptionHandler(ImageUploadException.class)
@@ -90,6 +113,16 @@ public class GlobalExceptionHandler {
         ErrorResponse response = ErrorResponse.of(
                 "IMAGE_UPLOAD_ERROR",
                 "이미지 업로드에 실패했습니다. 잠시 후 다시 시도해주세요."
+        );
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    }
+
+    @ExceptionHandler(CreateMatchFailedException.class)
+    public ResponseEntity<ErrorResponse> handleCreateMatchFailedException(CreateMatchFailedException e) {
+        log.error("Create match failed: {}", e.getMessage());
+        ErrorResponse response = ErrorResponse.of(
+                "CREATE_MATCH_ERROR",
+                "매치 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요."
         );
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }

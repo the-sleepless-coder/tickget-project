@@ -40,6 +40,29 @@ spring:
       maximum-pool-size: ${SPRING_DATASOURCE_MAX_POOL_SIZE:5}
       connection-timeout: ${SPRING_DATASOURCE_CONNECTION_TIMEOUT:600000}
 
+  resilience4j:
+    retry:
+      instances:
+        paymentService:
+          max-attempts: ${RETRY_MAX_ATTEMPTS:3}
+          wait-duration: ${RETRY_WAIT_DURATION:1s}
+          exponential-backoff-multiplier: ${RETRY_BACKOFF_MULTIPLIER:1}
+          retry-exceptions:
+            - org.springframework.web.client.HttpServerErrorException
+            - org.springframework.web.client.ResourceAccessException
+          ignore-exceptions:
+            - com.study.order.exception.MatchCreateDeclinedException
+
+    circuitbreaker:
+      instances:
+        paymentService:
+          sliding-window-size: ${CIRCUIT_BREAKER_WINDOW_SIZE:10}
+          failure-rate-threshold: ${CIRCUIT_BREAKER_FAILURE_THRESHOLD:50}
+          wait-duration-in-open-state: ${CIRCUIT_BREAKER_WAIT_DURATION:10s}
+          permitted-number-of-calls-in-half-open-state: ${CIRCUIT_BREAKER_HALF_OPEN_CALLS:3}
+          automatic-transition-from-open-to-half-open-enabled: ${CIRCUIT_BREAKER_AUTO_TRANSITION:true}
+          register-health-indicator: true
+
 management:
   endpoints:
     web:
@@ -61,3 +84,6 @@ logging:
     com.tickget.roomserver: ${LOGGING_LEVEL_TICKGET:DEBUG}
     org.springframework.messaging: ${LOGGING_LEVEL_MESSAGING:DEBUG}
     org.springframework.web.socket: ${LOGGING_LEVEL_WEBSOCKET:DEBUG}
+
+ticketing-service:
+  url: ${TICKETING_SERVICE_URL:http://localhost:8081}

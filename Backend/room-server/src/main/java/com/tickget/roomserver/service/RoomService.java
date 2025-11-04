@@ -10,6 +10,7 @@ import com.tickget.roomserver.domain.repository.RoomCacheRepository;
 import com.tickget.roomserver.domain.repository.RoomRepository;
 import com.tickget.roomserver.dto.cache.RoomInfo;
 import com.tickget.roomserver.dto.cache.RoomMember;
+import com.tickget.roomserver.dto.request.CreateMatchRequest;
 import com.tickget.roomserver.dto.request.CreateRoomRequest;
 import com.tickget.roomserver.dto.request.ExitRoomRequest;
 import com.tickget.roomserver.dto.request.JoinRoomRequest;
@@ -21,11 +22,14 @@ import com.tickget.roomserver.dto.response.RoomResponse;
 import com.tickget.roomserver.event.HostChangedEvent;
 import com.tickget.roomserver.event.UserJoinedRoomEvent;
 import com.tickget.roomserver.event.UserLeftRoomEvent;
+import com.tickget.roomserver.exception.CreateMatchDeclinedException;
+import com.tickget.roomserver.exception.CreateMatchFailedException;
 import com.tickget.roomserver.exception.PresetHallNotFoundException;
 
 import com.tickget.roomserver.exception.RoomClosedException;
 import com.tickget.roomserver.exception.RoomFullException;
 import com.tickget.roomserver.exception.RoomNotFoundException;
+import com.tickget.roomserver.exception.RoomPlayingException;
 import com.tickget.roomserver.kafaka.RoomEventProducer;
 import com.tickget.roomserver.session.WebSocketSessionManager;
 
@@ -44,15 +48,20 @@ import org.springframework.web.multipart.MultipartFile;
 @RequiredArgsConstructor
 public class RoomService {
 
-    private final RoomRepository roomRepository;
-    private final PresetHallRepository  presetHallRepository;
-    private final RoomCacheRepository roomCacheRepository;
+
     private final MinioService minioService;
+    private final TicketingServiceClient  ticketingServiceClient;
     private final WebSocketSessionManager sessionManager;
     private final RoomEventProducer roomEventProducer;
 
+    private final RoomRepository roomRepository;
+    private final PresetHallRepository  presetHallRepository;
+    private final RoomCacheRepository roomCacheRepository;
+
     @Transactional
     public CreateRoomResponse createRoom(CreateRoomRequest request, MultipartFile thumbnail) throws JsonProcessingException {
+
+        log.info("사용자  {}(id:{})(이)가 방 생성 요청",request.getUsername(), request.getUserId());
 
         //TODO: AI 생성 맵 추가 시 분기점 구현
         PresetHall presetHall = presetHallRepository.findById(request.getHallId()).orElseThrow(
@@ -65,21 +74,39 @@ public class RoomService {
 
         Room room = Room.of(request,presetHall,thumbnailValue);
         room = roomRepository.save(room); // 알아서 id값 반영되지만 명시
-
-        //TODO: 매치 생성 요청
-
-        //Redis에 정보 저장
-        roomCacheRepository.saveRoom(room.getId(),request);
-        roomCacheRepository.addMemberToRoom(room.getId(),request.getUserId(), request.getUsername() );
-
         String sessionId = sessionManager.getSessionIdByUserId(request.getUserId());
-        if (sessionId != null) {
-            sessionManager.joinRoom(sessionId, room.getId());
+
+        try {
+            // Redis에 정보 저장
+            roomCacheRepository.saveRoom(room.getId(), request);
+            roomCacheRepository.addMemberToRoom(room.getId(), request.getUserId(), request.getUsername());
+
+            // 세션에 방 정보 등록
+            if (sessionId != null) {
+                sessionManager.joinRoom(sessionId, room.getId());
+            }
+
+            // 매치 생성 요청
+            ticketingServiceClient.createMatch(CreateMatchRequest.of(request, room.getId()));
+
+            log.info("사용자 {}(id:{})이(가) 방 {}을 생성 후 입장",
+                    request.getUsername(), request.getUserId(), room.getId());
+
+            return CreateRoomResponse.from(room);
+
+        } catch (CreateMatchFailedException | CreateMatchDeclinedException e) {
+            log.error("방 생성 중 매치 생성 실패 - roomId: {}, userId: {}, error: {}",
+                    room.getId(), request.getUserId(), e.getMessage());
+
+            roomCacheRepository.removeMemberFromRoom(room.getId(), request.getUserId());
+            roomCacheRepository.deleteRoom(room.getId());
+
+            if (sessionId != null) {
+                sessionManager.leaveRoom(sessionId);
+            }
+
+            throw e;
         }
-
-        log.debug("사용자  {}(id:{})(이)가 방 {}을 생성 후 입장",request.getUsername(), request.getUserId(), room.getId());
-
-        return CreateRoomResponse.from(room);
     }
 
 
@@ -123,14 +150,17 @@ public class RoomService {
 
     @Transactional(readOnly = true)
     public JoinRoomResponse joinRoom(JoinRoomRequest joinRoomRequest, Long roomId) throws JsonProcessingException {
+        Long userId = joinRoomRequest.getUserId();
+        String userName = joinRoomRequest.getUserName();
 
+        log.info("사용자  {}(id:{})(이)가 방 {}에 입장 요청",userName, userId, roomId);
+        
         Room room = roomRepository.findById(roomId).orElseThrow(
                 () -> new RoomNotFoundException(roomId));
 
         validateRoomAvailable(roomId);
 
-        Long userId = joinRoomRequest.getUserId();
-        String userName = joinRoomRequest.getUserName();
+
 
         int currentUserCount = roomCacheRepository.addMemberToRoom(roomId, userId, userName);
 
@@ -141,7 +171,7 @@ public class RoomService {
 
         List<RoomMember> roomMembers = roomCacheRepository.getRoomMembers(roomId);
 
-        log.debug("사용자  {}(id:{})(이)가 방 {}에 입장 - 현재 인원: {}",userName, userId, roomId, currentUserCount);
+        log.info("사용자  {}(id:{})(이)가 방 {}에 입장 성공 - 현재 인원: {}",userName, userId, roomId, currentUserCount);
 
         UserJoinedRoomEvent event = UserJoinedRoomEvent.of(userId, roomId, currentUserCount);
         roomEventProducer.publishUserJoinedEvent(event);
@@ -165,9 +195,11 @@ public class RoomService {
         RoomStatus roomStatus = room.getStatus();
 
         if (roomStatus == RoomStatus.PLAYING) {
-            throw new IllegalArgumentException("게임이 진행중이여서 입장할 수 없는 방입니다");
+            log.info("방 {} : 현재 게임이 진행중이어서 입장 불가",room.getId());
+            throw new RoomPlayingException("게임이 진행중이여서 입장할 수 없는 방입니다");
         }
         if (roomStatus == RoomStatus.CLOSED) {
+            log.info("방 {} : 이미 종료된 방이어서 입장 불가",room.getId());
             throw new RoomClosedException("이미 종료된 방에는 참가할 수 없습니다.");
         }
 
@@ -197,11 +229,12 @@ public class RoomService {
         }
 
         int leftUserCount = roomCacheRepository.getRoomCurrentUserCount(roomId);
-        log.debug("사용자 {}(id:{})(이)가 방 {}에서 퇴장 - 현재 잔존 인원: {}",userName,userId,roomId,leftUserCount);
+        log.info("사용자 {}(id:{})(이)가 방 {}에서 퇴장 - 현재 잔존 인원: {}",userName,userId,roomId,leftUserCount);
 
         String newHostId = null;
         if (isHost && leftUserCount > 0) {
             newHostId = roomCacheRepository.transferHost(roomId);
+            log.info("방 {}의 호스트 변경: 기존={}, 새로운={}", roomId, userId, newHostId);
 
             HostChangedEvent hostEvent = HostChangedEvent.of(roomId, newHostId, userId);
             roomEventProducer.publishHostChangedEvent(hostEvent);
@@ -212,6 +245,7 @@ public class RoomService {
 
         // 마지막 유저가 나갔으면 방 닫음
         if (leftUserCount == 0) {
+            log.info("방 {} 종료 (인원 0명)", roomId);
             room.setStatus(RoomStatus.CLOSED);
             roomCacheRepository.deleteRoom(roomId);
         }

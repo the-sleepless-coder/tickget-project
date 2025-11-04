@@ -8,9 +8,9 @@ import lombok.Getter;
 @Builder
 public class MatchResponse {
     private Long id;
-    private String matchTitle;
 
     private Long roomId;
+    private String matchName;
     private int maxUserCount;
 
     private String difficulty;
