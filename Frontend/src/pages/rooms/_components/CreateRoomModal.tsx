@@ -181,7 +181,7 @@ export default function CreateRoomModal({
         onClick={onClose}
         aria-hidden
       />
-      <div className="relative bg-white rounded-xl shadow-lg w-full max-w-[120vh] max-h-[80vh] flex flex-col">
+      <div className="relative bg-white rounded-xl shadow-lg w-full max-w-[105vh] max-h-[80vh] flex flex-col">
         {/* Header */}
         <div className="mt-4 px-8 bg-white rounded-t-xl flex-shrink-0">
           <div className="flex items-center justify-between h-[50px]">
