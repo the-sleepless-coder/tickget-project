@@ -53,6 +53,53 @@ export default function SelectSeatPage() {
         ? "중형 공연장"
         : "대형 공연장";
 
+  // URL 파라미터에서 날짜와 시간 정보 가져오기
+  const dateParam = searchParams.get("date");
+  const timeParam = searchParams.get("time");
+  const roundParam = searchParams.get("round");
+
+  // 날짜 파싱
+  const selectedDate = dateParam
+    ? new Date(dateParam + "T00:00:00")
+    : new Date();
+  const selectedTime = timeParam || "14:30";
+
+  // 선택 가능한 날짜 목록 생성 (오늘부터 2일 후까지)
+  const today = new Date();
+  const todayStart = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate()
+  );
+  const availableDates: Date[] = [];
+  for (let i = 0; i < 3; i++) {
+    const date = new Date(todayStart);
+    date.setDate(todayStart.getDate() + i);
+    availableDates.push(date);
+  }
+
+  // 시간 포맷팅 (14:30 -> 14시 30분)
+  const formatTime = (timeStr: string) => {
+    const [hour, minute] = timeStr.split(":");
+    return `${hour}시 ${minute}분`;
+  };
+
+  // 날짜 포맷팅
+  const formatDate = (date: Date) => {
+    const year = date.getFullYear();
+    const month = date.getMonth() + 1;
+    const day = date.getDate();
+    const weekday = ["일", "월", "화", "수", "목", "금", "토"][date.getDay()];
+    return `${year}년 ${month}월 ${day}일(${weekday})`;
+  };
+
+  // 다른 날짜 선택 핸들러
+  const handleDateChange = (dateStr: string) => {
+    const url = new URL(window.location.href);
+    url.searchParams.set("date", dateStr);
+    navigate(url.pathname + url.search, { replace: true });
+  };
+
   const totalPrice = useMemo(
     () => selected.reduce((sum, s) => sum + s.price, 0),
     [selected]
@@ -83,6 +130,10 @@ export default function SelectSeatPage() {
     if (nrc) nextUrl.searchParams.set("nrClicks", nrc);
     const cap = sessionStorage.getItem("reserve.captchaDurationSec");
     if (cap) nextUrl.searchParams.set("captchaSec", cap);
+    // 날짜와 회차 정보 전달
+    if (dateParam) nextUrl.searchParams.set("date", dateParam);
+    if (timeParam) nextUrl.searchParams.set("time", timeParam);
+    if (roundParam) nextUrl.searchParams.set("round", roundParam);
     navigate(nextUrl.pathname + nextUrl.search);
   };
 
@@ -135,8 +186,20 @@ export default function SelectSeatPage() {
               <select
                 id="dateSel"
                 className="border border-[#cfcfcf] rounded px-1 py-0.5 bg-white"
+                value={
+                  dateParam ||
+                  `${selectedDate.getFullYear()}-${(selectedDate.getMonth() + 1).toString().padStart(2, "0")}-${selectedDate.getDate().toString().padStart(2, "0")}`
+                }
+                onChange={(e) => handleDateChange(e.target.value)}
               >
-                <option>2025년 12월 20일(토)</option>
+                {availableDates.map((date) => {
+                  const dateStr = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, "0")}-${date.getDate().toString().padStart(2, "0")}`;
+                  return (
+                    <option key={dateStr} value={dateStr}>
+                      {formatDate(date)}
+                    </option>
+                  );
+                })}
               </select>
               <span>시간</span>
               <label htmlFor="timeSel" className="sr-only">
@@ -145,8 +208,10 @@ export default function SelectSeatPage() {
               <select
                 id="timeSel"
                 className="border border-[#cfcfcf] rounded px-1 py-0.5 bg-white"
+                value={selectedTime}
+                disabled
               >
-                <option>18시 00분</option>
+                <option value={selectedTime}>{formatTime(selectedTime)}</option>
               </select>
             </div>
           </div>

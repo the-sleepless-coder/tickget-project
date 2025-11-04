@@ -4,47 +4,73 @@ import Viewport from "../_components/Viewport";
 import { paths } from "../../../app/routes/paths";
 
 export default function BookingSelectSchedulePage() {
-  const [selectedDay, setSelectedDay] = useState<number>(20);
+  const today = new Date();
+  const todayDate = today.getDate();
+  const currentMonth = today.getMonth();
+  const currentYear = today.getFullYear();
+
+  const [selectedDate, setSelectedDate] = useState<Date>(
+    new Date(currentYear, currentMonth, todayDate)
+  );
+  const [selectedRound, setSelectedRound] = useState<string | null>(null);
+  const [month, setMonth] = useState<number>(currentMonth);
+  const [year, setYear] = useState<number>(currentYear);
   const navigate = useNavigate();
   const goPrev = () => navigate(paths.booking.waiting);
-  const goNext = () => navigate(paths.booking.selectSeat);
-  const days: (number | null)[] = [
-    null,
-    1,
-    2,
-    3,
-    4,
-    5,
-    6,
-    7,
-    8,
-    9,
-    10,
-    11,
-    12,
-    13,
-    14,
-    15,
-    16,
-    17,
-    18,
-    19,
-    20,
-    21,
-    22,
-    23,
-    24,
-    25,
-    26,
-    27,
-    28,
-    29,
-    30,
-    31,
-    null,
-    null,
-    null,
-  ];
+  const goNext = () => {
+    if (!selectedDate || !selectedRound) return;
+    const selectedRoundData = rounds.find((r) => r.id === selectedRound);
+    const dateStr = `${selectedDate.getFullYear()}-${(selectedDate.getMonth() + 1).toString().padStart(2, "0")}-${selectedDate.getDate().toString().padStart(2, "0")}`;
+    const timeStr = selectedRoundData?.time || "14:30";
+    const url = new URL(window.location.origin + paths.booking.selectSeat);
+    url.searchParams.set("date", dateStr);
+    url.searchParams.set("time", timeStr);
+    url.searchParams.set("round", selectedRound);
+    navigate(url.pathname + url.search);
+  };
+
+  // 회차 목록 (날짜 선택 시 표시)
+  const rounds = [{ id: "1", label: "1회", time: "14:30" }];
+
+  // 달력 날짜 생성
+  const monthStart = new Date(year, month, 1);
+  const startDay = monthStart.getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const days: (number | null)[] = [];
+
+  // 첫 주 빈 칸 채우기
+  for (let i = 0; i < startDay; i++) {
+    days.push(null);
+  }
+
+  // 실제 날짜들
+  for (let d = 1; d <= daysInMonth; d++) {
+    days.push(d);
+  }
+
+  // 마지막 주 빈 칸 채우기 (7의 배수가 되도록)
+  const remaining = 7 - (days.length % 7);
+  if (remaining !== 7) {
+    for (let i = 0; i < remaining; i++) {
+      days.push(null);
+    }
+  }
+
+  // 날짜가 활성화 가능한지 확인
+  const isDateAvailable = (day: number): boolean => {
+    const dateObj = new Date(year, month, day);
+    const todayStart = new Date(currentYear, currentMonth, todayDate);
+    const maxAvailableDate = new Date(currentYear, currentMonth, todayDate + 2);
+    return dateObj >= todayStart && dateObj <= maxAvailableDate;
+  };
+
+  const monthLabel = `${year}년 ${month + 1}월`;
+
+  const changeMonth = (delta: number) => {
+    const newDate = new Date(year, month + delta, 1);
+    setYear(newDate.getFullYear());
+    setMonth(newDate.getMonth());
+  };
 
   return (
     <Viewport>
@@ -84,52 +110,80 @@ export default function BookingSelectSchedulePage() {
           <div className="flex-1">
             <div className="grid grid-cols-3 gap-2">
               {/* 달력 */}
-              <div className="bg-white rounded-md shadow p-2 border border-[#e3e3e3]">
-                <div className="flex items-center justify-between text-sm font-semibold">
-                  <button className="px-2 py-1 text-gray-500" aria-label="prev">
+              <div className="bg-white rounded-md shadow p-1.5 border border-[#e3e3e3]">
+                <div className="flex items-center justify-between text-xs font-semibold">
+                  <button
+                    className="px-1.5 py-0.5 text-gray-500 hover:bg-gray-100 rounded"
+                    aria-label="prev"
+                    onClick={() => changeMonth(-1)}
+                  >
                     ‹
                   </button>
-                  <div>2025년 12월</div>
-                  <button className="px-2 py-1 text-gray-500" aria-label="next">
+                  <div>{monthLabel}</div>
+                  <button
+                    className="px-1.5 py-0.5 text-gray-500 hover:bg-gray-100 rounded"
+                    aria-label="next"
+                    onClick={() => changeMonth(1)}
+                  >
                     ›
                   </button>
                 </div>
-                <div className="mt-2 grid grid-cols-7 text-center text-[11px] text-gray-600">
+                <div className="mt-1.5 grid grid-cols-7 text-center text-[10px] text-gray-600">
                   {"일월화수목금토".split("").map((d) => (
-                    <div key={d} className="py-1 font-medium">
+                    <div key={d} className="py-0.5 font-medium">
                       {d}
                     </div>
                   ))}
                 </div>
-                <div className="grid grid-cols-7 text-center gap-y-1">
-                  {days.map((d, i) => (
-                    <div key={i} className="py-1">
-                      {d ? (
+                <div className="grid grid-cols-7 text-center gap-y-0.5">
+                  {days.map((d, i) => {
+                    if (!d) {
+                      return (
+                        <div key={i} className="py-0.5">
+                          <span className="inline-block w-6 h-6" />
+                        </div>
+                      );
+                    }
+
+                    const isAvailable = isDateAvailable(d);
+                    const isSelected =
+                      selectedDate.getFullYear() === year &&
+                      selectedDate.getMonth() === month &&
+                      selectedDate.getDate() === d;
+
+                    return (
+                      <div key={i} className="py-0.5">
                         <button
                           type="button"
-                          onClick={() => setSelectedDay(d)}
+                          disabled={!isAvailable}
+                          onClick={() => {
+                            if (isAvailable) {
+                              setSelectedDate(new Date(year, month, d));
+                              setSelectedRound(null); // 날짜 변경 시 회차 초기화
+                            }
+                          }}
                           className={
-                            "inline-flex items-center justify-center w-7 h-7 rounded " +
-                            (d === selectedDay
+                            "inline-flex items-center justify-center w-6 h-6 rounded text-xs " +
+                            (isSelected
                               ? "bg-[#c62828] text-white"
-                              : "hover:bg-gray-100")
+                              : isAvailable
+                                ? "bg-[#f6b26b] text-white hover:bg-[#f5a352]"
+                                : "text-gray-300 cursor-not-allowed pointer-events-none")
                           }
                         >
                           {d}
                         </button>
-                      ) : (
-                        <span className="inline-block w-7 h-7" />
-                      )}
-                    </div>
-                  ))}
+                      </div>
+                    );
+                  })}
                 </div>
-                <div className="mt-3 flex items-center gap-4 text-[12px] text-gray-600">
+                <div className="mt-2 flex items-center gap-3 text-[11px] text-gray-600">
                   <div className="flex items-center gap-1">
-                    <span className="inline-block w-3 h-3 rounded-sm bg-[#f6b26b]" />{" "}
+                    <span className="inline-block w-2.5 h-2.5 rounded-sm bg-[#f6b26b]" />{" "}
                     예매 가능일
                   </div>
                   <div className="flex items-center gap-1">
-                    <span className="inline-block w-3 h-3 rounded-sm bg-[#c62828]" />{" "}
+                    <span className="inline-block w-2.5 h-2.5 rounded-sm bg-[#c62828]" />{" "}
                     선택한 관람일
                   </div>
                 </div>
@@ -138,16 +192,72 @@ export default function BookingSelectSchedulePage() {
               {/* 회차 */}
               <div className="bg-white rounded-md shadow p-2 border border-[#e3e3e3]">
                 <div className="text-sm font-bold mb-2">회차(관람시간)</div>
-                <div className="h-[230px] border rounded flex items-center justify-center text-gray-500 text-sm">
-                  먼저 관람일을 선택해 주세요.
+                <div className="h-[230px] border rounded overflow-y-auto">
+                  {selectedDate ? (
+                    <div className="p-2 space-y-2">
+                      {rounds.map((round) => (
+                        <button
+                          key={round.id}
+                          type="button"
+                          onClick={() => setSelectedRound(round.id)}
+                          className={
+                            "w-full text-left p-2 rounded border text-xs transition-colors " +
+                            (selectedRound === round.id
+                              ? "border-[#c62828] bg-red-50 text-[#c62828]"
+                              : "border-gray-200 hover:bg-gray-50")
+                          }
+                        >
+                          <div className="font-semibold">{round.label}</div>
+                          <div className="text-gray-600 text-[11px]">
+                            {round.time}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="h-full flex items-center justify-center text-gray-500 text-sm">
+                      먼저 관람일을 선택해 주세요.
+                    </div>
+                  )}
                 </div>
               </div>
 
               {/* 좌석등급/잔여석 */}
               <div className="bg-white rounded-md shadow p-2 border border-[#e3e3e3]">
                 <div className="text-sm font-bold mb-2">좌석등급 / 잔여석</div>
-                <div className="h-[230px] border rounded flex items-center justify-center text-gray-500 text-sm">
-                  회차 선택 후 확인 가능합니다.
+                <div className="h-[230px] border rounded overflow-y-auto">
+                  {selectedRound ? (
+                    <div className="p-2 space-y-2">
+                      <div className="p-2 border rounded text-xs">
+                        <div className="font-semibold mb-1">R석</div>
+                        <div className="text-gray-600 text-[11px]">
+                          잔여석: 147석
+                        </div>
+                      </div>
+                      <div className="p-2 border rounded text-xs">
+                        <div className="font-semibold mb-1">S석</div>
+                        <div className="text-gray-600 text-[11px]">
+                          잔여석: 134석
+                        </div>
+                      </div>
+                      <div className="p-2 border rounded text-xs">
+                        <div className="font-semibold mb-1">A석</div>
+                        <div className="text-gray-600 text-[11px]">
+                          잔여석: 224석
+                        </div>
+                      </div>
+                      <div className="p-2 border rounded text-xs">
+                        <div className="font-semibold mb-1">B석</div>
+                        <div className="text-gray-600 text-[11px]">
+                          잔여석: 288석
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="h-full flex items-center justify-center text-gray-500 text-sm">
+                      회차 선택 후 확인 가능합니다.
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -201,7 +311,21 @@ export default function BookingSelectSchedulePage() {
               <dl className="text-sm text-gray-700">
                 <div className="flex py-1 border-b">
                   <dt className="w-24 text-gray-500">일시</dt>
-                  <dd className="flex-1">2025.12.{selectedDay} (토) 18:00</dd>
+                  <dd className="flex-1">
+                    {selectedDate.getFullYear()}.
+                    {(selectedDate.getMonth() + 1).toString().padStart(2, "0")}.
+                    {selectedDate.getDate().toString().padStart(2, "0")} (
+                    {
+                      ["일", "월", "화", "수", "목", "금", "토"][
+                        selectedDate.getDay()
+                      ]
+                    }
+                    ){" "}
+                    {selectedRound
+                      ? rounds.find((r) => r.id === selectedRound)?.time ||
+                        "18:00"
+                      : "18:00"}
+                  </dd>
                 </div>
                 <div className="flex py-1 border-b">
                   <dt className="w-24 text-gray-500">선택좌석</dt>
@@ -239,7 +363,8 @@ export default function BookingSelectSchedulePage() {
                 </button>
                 <button
                   onClick={goNext}
-                  className="flex-1 bg-[#c62828] hover:bg-[#b71c1c] text-white rounded-md py-2 font-semibold"
+                  disabled={!selectedDate || !selectedRound}
+                  className="flex-1 bg-[#c62828] hover:bg-[#b71c1c] text-white rounded-md py-2 font-semibold disabled:bg-gray-300 disabled:cursor-not-allowed disabled:hover:bg-gray-300"
                 >
                   다음단계 ▸
                 </button>
