@@ -14,11 +14,10 @@ variables:
   services:
     - docker:dind
   variables:
-    # Docker-in-Docker 설정 (중요!)
-    DOCKER_HOST: tcp://docker:2376
-    DOCKER_TLS_CERTDIR: "/certs"
-    DOCKER_TLS_VERIFY: 1
-    DOCKER_CERT_PATH: "$DOCKER_TLS_CERTDIR/client"
+    # Docker-in-Docker 설정 (TLS 비활성화)
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
+    DOCKER_DRIVER: overlay2
   cache:
     key:
       files:
@@ -30,7 +29,8 @@ variables:
     policy: pull-push # 파이프라인 시작 시 캐시를 받고, 완료 시 캐시를 업로드
   before_script:
     # Docker daemon이 준비될 때까지 대기
-    - until docker info; do sleep 1; done
+    - sleep 5
+    - docker info
     # Docker Hub 로그인 (GitLab CI 변수 사용)
     - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
     # Buildx builder 설정
