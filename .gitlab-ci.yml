@@ -7,25 +7,21 @@ variables:
   GRADLE_OPTS: "-Dorg.gradle.daemon=false" # CI 환경에서 Gradle 데몬 비활성화
   GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle-cache" # 캐시 경로를 프로젝트 디렉터리 내부로 지정
 
-# --- 1. Gradle 캐시 설정 ---
-cache:
-  key:
-    files:
-      # build.gradle 파일이 변경될 때만 캐시를 새로 만듦
-      - Backend/test-server/build.gradle
-      - Backend/ticketing-server/build.gradle
-      - Backend/room-server/build.gradle
-  paths:
-    # Gradle 라이브러리 및 래퍼 캐싱 (빌드 시간 단축)
-    - "$CI_PROJECT_DIR/.gradle-cache/caches/"
-    - "$CI_PROJECT_DIR/.gradle-cache/wrapper/"
-
-# --- 2. 공통 Docker 빌드 템플릿 ---
+# --- 1. 공통 Docker 빌드 템플릿 ---
 .docker-build-template: &docker-build
   stage: build
   image: docker:latest
   services:
     - docker:dind
+  cache:
+    key:
+      files:
+        - $SERVER_PATH/build.gradle # ★ 각 작업의 SERVER_PATH 변수에 맞는 build.gradle을 사용
+      prefix: $CI_COMMIT_REF_SLUG # 브랜치별로 캐시 분리
+    paths:
+      - "$CI_PROJECT_DIR/.gradle-cache/caches/"
+      - "$CI_PROJECT_DIR/.gradle-cache/wrapper/"
+    policy: pull-push # 파이프라인 시작 시 캐시를 받고, 완료 시 캐시를 업로드
   before_script:
     # Docker Hub 로그인 (GitLab CI 변수 사용)
     - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
@@ -43,7 +39,7 @@ cache:
         $SERVER_PATH \
         --push
 
-# --- 3. 공통 Manifest 업데이트 템플릿 (Kustomize 사용) ---
+# --- 2. 공통 Manifest 업데이트 템플릿 (Kustomize 사용) ---
 .kustomize-update-template: &kustomize-update
   stage: update-manifest
   image:
@@ -65,7 +61,7 @@ cache:
     - git commit -am "CI: Update $SERVER_NAME ($CI_COMMIT_BRANCH) to $CI_COMMIT_SHORT_SHA"
     - git push
   
-# --- 4. 환경/서버별 작업 정의 ---
+# --- 3. 환경/서버별 작업 정의 ---
 # 
 # ============ test-server (tst) ============
 #
@@ -73,7 +69,7 @@ build:test-server:test-dev:
   extends: .docker-build-template
   variables:
     SERVER_NAME: "test-server"
-    SERVER_PATH: "./Backend/test-server"
+    SERVER_PATH: "./Backend/test-server" # 이 경로를 사용해 캐시 키를 생성
   rules:
     - if: '$CI_COMMIT_BRANCH == "test-dev"'
       changes: [ "Backend/test-server/**/*" ]
@@ -87,63 +83,9 @@ update:test-server:test-dev:
     - if: '$CI_COMMIT_BRANCH == "test-dev"'
       needs: ["build:test-server:test-dev"]
 
-build:test-server:dev:
-  extends: .docker-build-template
-  variables:
-    SERVER_NAME: "test-server"
-    SERVER_PATH: "./Backend/test-server"
-  rules:
-    - if: '$CI_COMMIT_BRANCH == "dev"'
-      changes: [ "Backend/test-server/**/*" ]
-
-update:test-server:dev:
-  extends: .kustomize-update-template
-  variables:
-    SERVER_NAME: "test-server"
-    KUSTOMIZE_PATH: "apps/test-server/overlays/dev"
-  rules:
-    - if: '$CI_COMMIT_BRANCH == "dev"'
-      needs: ["build:test-server:dev"]
-
-build:test-server:master:
-  extends: .docker-build-template
-  variables:
-    SERVER_NAME: "test-server"
-    SERVER_PATH: "./Backend/test-server"
-  rules:
-    - if: '$CI_COMMIT_BRANCH == "master"'
-      changes: [ "Backend/test-server/**/*" ]
-
-update:test-server:master:
-  extends: .kustomize-update-template
-  variables:
-    SERVER_NAME: "test-server"
-    KUSTOMIZE_PATH: "apps/test-server/overlays/prod" # master 브랜치는 prod 오버레이
-  rules:
-    - if: '$CI_COMMIT_BRANCH == "master"'
-      needs: ["build:test-server:master"]
-
 # 
 # ============ ticketing-server (tkt) ============
 #
-build:ticketing-server:test-dev:
-  extends: .docker-build-template
-  variables:
-    SERVER_NAME: "ticketing-server"
-    SERVER_PATH: "./Backend/ticketing-server"
-  rules:
-    - if: '$CI_COMMIT_BRANCH == "test-dev"'
-      changes: [ "Backend/ticketing-server/**/*" ]
-
-update:ticketing-server:test-dev:
-  extends: .kustomize-update-template
-  variables:
-    SERVER_NAME: "ticketing-server"
-    KUSTOMIZE_PATH: "apps/ticketing-server/overlays/test"
-  rules:
-    - if: '$CI_COMMIT_BRANCH == "test-dev"'
-      needs: ["build:ticketing-server:test-dev"]
-
 build:ticketing-server:dev:
   extends: .docker-build-template
   variables:
@@ -182,5 +124,38 @@ update:ticketing-server:master:
 
 # 
 # ============ room-server (rms) ============
-# (room-server도 위와 동일하게 test-dev, dev, master용 build/update 작업을 추가하면 됩니다.)
-#
+build:room-server:dev:
+  extends: .docker-build-template
+  variables:
+    SERVER_NAME: "room-server"
+    SERVER_PATH: "./Backend/room-server"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "dev"'
+      changes: [ "Backend/room-server/**/*" ]
+
+update:room-server:dev:
+  extends: .kustomize-update-template
+  variables:
+    SERVER_NAME: "room-server"
+    KUSTOMIZE_PATH: "apps/room-server/overlays/dev"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "dev"'
+      needs: ["build:room-server:dev"]
+
+build:room-server:master:
+  extends: .docker-build-template
+  variables:
+    SERVER_NAME: "room-server"
+    SERVER_PATH: "./Backend/room-server"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "master"'
+      changes: [ "Backend/room-server/**/*" ]
+
+update:room-server:master:
+  extends: .kustomize-update-template
+  variables:
+    SERVER_NAME: "room-server"
+    KUSTOMIZE_PATH: "apps/room-server/overlays/prod" # master 브랜치는 prod 오버레이
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "master"'
+      needs: ["build:room-server:master"]

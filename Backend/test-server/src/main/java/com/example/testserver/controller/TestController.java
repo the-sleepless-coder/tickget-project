@@ -28,6 +28,7 @@ public class TestController {
 
     @GetMapping()
     public ResponseEntity<Map<String, String>> test() {
+        //테스트를 위한 주석
         Map<String, String> response = new HashMap<>();
         response.put("status", "UP");
         response.put("timestamp", LocalDateTime.now().toString());
