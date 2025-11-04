@@ -4,11 +4,13 @@ import { paths } from "../../../app/routes/paths";
 import {
   saveInitialReaction,
   setCaptchaEndNow,
-  getCaptchaEndMs,
   recordSeatCompleteNow,
 } from "../../../shared/utils/reserveMetrics";
 import Viewport from "../_components/Viewport";
 import CaptchaModal from "../_components/CaptchaModal";
+import SmallVenue from "../_components/venues/SmallVenue";
+import MediumVenue from "../_components/venues/MediumVenue";
+import LargeVenue from "../_components/venues/LargeVenue";
 
 type GradeKey = "SR" | "R" | "S";
 type SelectedSeat = {
@@ -27,62 +29,38 @@ const GRADE_META: Record<
   S: { name: "S석", color: "#59b3ea", price: 110000 },
 };
 
-type Block = { id: number; code: string; tier: GradeKey };
-
-const BLOCKS: Block[] = [
-  { id: 1, code: "001", tier: "R" },
-  { id: 2, code: "002", tier: "SR" },
-  { id: 3, code: "003", tier: "SR" },
-  { id: 4, code: "004", tier: "SR" },
-  { id: 5, code: "005", tier: "R" },
-  { id: 6, code: "006", tier: "S" },
-  { id: 7, code: "007", tier: "R" },
-  { id: 8, code: "008", tier: "R" },
-  { id: 9, code: "009", tier: "R" },
-  { id: 10, code: "010", tier: "S" },
-];
+type VenueKind = "small" | "medium" | "large";
 
 export default function SelectSeatPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [selected, setSelected] = useState<SelectedSeat[]>([]);
   const eventTitle = "방 이름 입력";
-  const [activeBlock, setActiveBlock] = useState<Block | null>(null);
   const [showCaptcha, setShowCaptcha] = useState<boolean>(true);
-  const [captchaSec, setCaptchaSec] = useState<number | null>(null);
   const [captchaBackspaces, setCaptchaBackspaces] = useState<number>(0);
   const [captchaWrongAttempts, setCaptchaWrongAttempts] = useState<number>(0);
-  const [captchaEndAtMs, setCaptchaEndAtMs] = useState<number | null>(null);
-  const [seatCompleteAtMs, setSeatCompleteAtMs] = useState<number | null>(null);
+
+  // venue 쿼리 처리 (small | medium | large)
+  const venueParam = searchParams.get("venue");
+  const venueKey: VenueKind =
+    venueParam === "medium" || venueParam === "large" || venueParam === "small"
+      ? venueParam
+      : "small";
+  const venueLabel =
+    venueKey === "small"
+      ? "소형 공연장"
+      : venueKey === "medium"
+        ? "중형 공연장"
+        : "대형 공연장";
 
   const totalPrice = useMemo(
     () => selected.reduce((sum, s) => sum + s.price, 0),
     [selected]
   );
 
-  const openBlock = (block: Block) => setActiveBlock(block);
-
-  const selectSeatCell = (block: Block, row: number, col: number) => {
-    const seatId = `${block.code}-${row}-${col}`;
-    // 이미 선택된 좌석이면 해제, 아니면 추가 (토글)
-    if (selected.some((s) => s.id === seatId)) {
-      setSelected((prev) => prev.filter((s) => s.id !== seatId));
-      return;
-    }
-    const seat: SelectedSeat = {
-      id: seatId,
-      grade: block.tier,
-      label: `${block.code} / ${row}열-${col}번`,
-      price: GRADE_META[block.tier].price,
-    };
-    setSelected((prev) => [...prev, seat]);
-  };
-
   const clearSelection = () => setSelected([]);
   const goPrev = () => navigate(paths.booking.selectSchedule);
   const complete = () => {
-    const now = Date.now();
-    setSeatCompleteAtMs(now);
     const durationSec = recordSeatCompleteNow();
     console.log("[ReserveTiming] Seat complete", {
       durationFromCaptchaSec: durationSec,
@@ -116,9 +94,6 @@ export default function SelectSeatPage() {
       nonReserveClickCount: nrClicks ? Number(nrClicks) : null,
     });
     saveInitialReaction(rtSec, nrClicks);
-    // load persisted captcha end timestamp if exists
-    const end = getCaptchaEndMs();
-    if (end != null) setCaptchaEndAtMs(end);
   }, [searchParams]);
 
   return (
@@ -127,11 +102,9 @@ export default function SelectSeatPage() {
         open={showCaptcha}
         onVerify={(durationMs, { backspaceCount, wrongAttempts }) => {
           const sec = Math.round(durationMs) / 1000;
-          setCaptchaSec(sec);
           setCaptchaBackspaces(backspaceCount);
           setCaptchaWrongAttempts(wrongAttempts);
-          const endMs = setCaptchaEndNow(sec, backspaceCount, wrongAttempts);
-          setCaptchaEndAtMs(endMs);
+          setCaptchaEndNow(sec, backspaceCount, wrongAttempts);
           console.log("[ReserveTiming] Captcha verified", {
             captchaSec: sec,
             backspaceCount,
@@ -189,9 +162,7 @@ export default function SelectSeatPage() {
         {/* 좌측: 좌석도 */}
         <div className="flex-1 bg-white rounded-md shadow p-3 border border-[#e3e3e3]">
           <div className="text-[12px] text-gray-600 border rounded px-3 py-2 bg-[#fafafa]">
-            {activeBlock
-              ? `${activeBlock.code} 영역의 좌석배치도입니다`
-              : "원하시는 영역을 선택해주세요. 공연장에서 위치를 클릭하거나, 오른쪽의 좌석을 선택해 주세요."}
+            {venueLabel}이(가) 선택되었습니다. 좌석 블록은 추후 추가됩니다.
           </div>
 
           <div className="mt-3 grid grid-cols-[120px_1fr] gap-3">
@@ -212,94 +183,19 @@ export default function SelectSeatPage() {
               </div>
             </div>
 
-            {/* 좌석 블록 or 상세 좌석배치 */}
-            {!activeBlock ? (
-              <div>
-                <div className="mx-auto w-64 h-5 bg-[#d8d8d8] rounded-sm text-center text-gray-700 text-sm font-extrabold tracking-wider">
-                  STAGE
-                </div>
-                <div className="mt-3 flex items-start justify-center gap-2">
-                  <SeatBlock
-                    block={BLOCKS[0]}
-                    onSelect={openBlock}
-                    size="narrow"
-                  />
-                  <SeatBlock
-                    block={BLOCKS[1]}
-                    onSelect={openBlock}
-                    size="wide"
-                    labelTop={2}
-                  />
-                  <SeatBlock
-                    block={BLOCKS[2]}
-                    onSelect={openBlock}
-                    size="wide"
-                    labelTop={3}
-                  />
-                  <SeatBlock
-                    block={BLOCKS[3]}
-                    onSelect={openBlock}
-                    size="wide"
-                    cutRight
-                    labelTop={4}
-                  />
-                  <SeatBlock
-                    block={BLOCKS[4]}
-                    onSelect={openBlock}
-                    size="narrow"
-                  />
-                </div>
-                <div className="mt-3 flex items-end justify-center gap-2">
-                  <SeatBlock
-                    block={BLOCKS[5]}
-                    onSelect={openBlock}
-                    size="narrow"
-                  />
-                  <SeatBlock
-                    block={BLOCKS[6]}
-                    onSelect={openBlock}
-                    size="wide"
-                  />
-                  <SeatBlock
-                    block={BLOCKS[7]}
-                    onSelect={openBlock}
-                    size="wide"
-                    bandBlue
-                  />
-                  <SeatBlock
-                    block={BLOCKS[8]}
-                    onSelect={openBlock}
-                    size="wide"
-                    bandBlue={false}
-                  />
-                  <SeatBlock
-                    block={BLOCKS[9]}
-                    onSelect={openBlock}
-                    size="narrow"
-                    bandBlue
-                  />
-                </div>
-                <div className="mt-3 mx-auto w-40 h-5 bg-[#d8d8d8] rounded-sm text-center text-gray-700 text-sm font-extrabold tracking-wider">
-                  CONSOLE
-                </div>
-              </div>
-            ) : (
-              <SeatGrid
-                block={activeBlock}
-                onBack={() => setActiveBlock(null)}
-                onSelectSeat={selectSeatCell}
-              />
-            )}
+            {/* 공연장 프리셋 컴포넌트만 렌더 */}
+            <div>
+              {venueKey === "small" && <SmallVenue />}
+              {venueKey === "medium" && <MediumVenue />}
+              {venueKey === "large" && <LargeVenue />}
+            </div>
           </div>
         </div>
 
         {/* 우측: 사이드 정보 */}
         <aside className="w-80 space-y-3">
           <div className="bg-white rounded-md border border-[#e3e3e3] shadow">
-            <div
-              className="px-3 py-2 bg-[#b02a2a] text-white font-bold rounded-t-md flex items-center justify-between cursor-pointer"
-              onClick={() => setActiveBlock(null)}
-            >
+            <div className="px-3 py-2 bg-[#b02a2a] text-white font-bold rounded-t-md flex items-center justify-between">
               <span>좌석도 전체보기</span>
               <span>▶</span>
             </div>
@@ -437,132 +333,5 @@ export default function SelectSeatPage() {
         </aside>
       </div>
     </Viewport>
-  );
-}
-
-function SeatBlock({
-  block,
-  onSelect,
-  size = "wide",
-  cutRight = false,
-  bandBlue = false,
-  labelTop,
-}: {
-  block: Block;
-  onSelect: (b: Block) => void;
-  size?: "narrow" | "wide";
-  cutRight?: boolean; // 우측 모서리 컷 형태
-  bandBlue?: boolean; // 하단 파란 밴드
-  labelTop?: number; // 블록 상단 중앙의 숫자
-}) {
-  const { tier } = block;
-  const bg = GRADE_META[tier].color;
-  // 블록 크기 축소
-  const widthClass = size === "narrow" ? "w-7" : "w-28";
-  const heightClass = size === "narrow" ? "h-20" : "h-24";
-  const bandHeightClass = size === "narrow" ? "h-2.5" : "h-3.5";
-  const labelSizeClass = size === "narrow" ? "text-xs" : "text-sm";
-
-  return (
-    <button
-      type="button"
-      onClick={() => onSelect(block)}
-      className={`relative ${widthClass} ${heightClass} rounded shadow-inner border border-[#e0e0e0] overflow-hidden`}
-      aria-label={`block-${block.code}`}
-    >
-      {/* 주 색상 영역 */}
-      <div
-        className={`absolute inset-0 ${cutRight ? "[clip-path:polygon(0%_0%,85%_0%,100%_15%,100%_100%,0%_100%)]" : ""}`}
-        style={{ background: bg }}
-      />
-      {/* 하단 파란 밴드 */}
-      {bandBlue && (
-        <div
-          className={`absolute bottom-0 left-0 right-0 ${bandHeightClass} bg-[#59b3ea]`}
-        />
-      )}
-
-      {/* 좌상단 블록 번호 */}
-      <div className="absolute top-1 left-1 text-white text-xs font-bold drop-shadow">
-        {block.id}
-      </div>
-      {/* 중앙 라벨 */}
-      <div className="relative z-10 flex flex-col items-center justify-center h-full text-white">
-        {labelTop && (
-          <div className={`${labelSizeClass} font-bold leading-none`}>
-            {labelTop}
-          </div>
-        )}
-        <div className="text-[10px] mt-1">{block.code}</div>
-      </div>
-    </button>
-  );
-}
-
-function SeatGrid({
-  block,
-  onBack,
-  onSelectSeat,
-}: {
-  block: Block;
-  onBack: () => void;
-  onSelectSeat: (block: Block, row: number, col: number) => void;
-}) {
-  // 임의 크기: 26행 x 26열, 오른쪽 상단 컷
-  const rows = 26;
-  const cols = 26;
-  return (
-    <div className="p-3">
-      <div className="mb-2 flex items-center gap-2 text-[12px]">
-        <button
-          onClick={onBack}
-          className="border px-2 py-1 rounded bg-[#f4f4f4] hover:bg-[#ececec]"
-        >
-          ◀ 영역으로
-        </button>
-        <span className="text-[#555]">
-          <b className="text-[#004ce6]">{block.code}</b> 영역의 좌석배치도입니다
-        </span>
-      </div>
-      <div className="flex">
-        {/* 좌측 열 번호 */}
-        <div className="text-[10px] text-gray-600 mr-2 space-y-1">
-          {Array.from({ length: rows }).map((_, r) => (
-            <div key={r} className="h-4 leading-4">
-              {r + 1}열
-            </div>
-          ))}
-        </div>
-        {/* 그리드 */}
-        <div className="overflow-auto border rounded bg-white p-4">
-          <div
-            className="grid"
-            style={{
-              gridTemplateColumns: `repeat(${cols}, 16px)`,
-              gridAutoRows: "16px",
-              gap: "2px",
-            }}
-          >
-            {Array.from({ length: rows * cols }).map((_, i) => {
-              const r = Math.floor(i / cols) + 1;
-              const c = (i % cols) + 1;
-              // 오른쪽 상단 컷 형태: 특정 삼각형 영역 비우기
-              if (r < 6 && c > cols - r)
-                return <div key={i} className="w-4 h-4" />;
-              const bg = GRADE_META[block.tier].color;
-              return (
-                <button
-                  key={i}
-                  onClick={() => onSelectSeat(block, r, c)}
-                  className="w-4 h-4 border border-white"
-                  style={{ background: bg }}
-                  aria-label={`${r}-${c}`}
-                />
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    </div>
   );
 }
