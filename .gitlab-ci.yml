@@ -13,6 +13,12 @@ variables:
   image: docker:latest
   services:
     - docker:dind
+  variables:
+    # Docker-in-Docker 설정 (중요!)
+    DOCKER_HOST: tcp://docker:2376
+    DOCKER_TLS_CERTDIR: "/certs"
+    DOCKER_TLS_VERIFY: 1
+    DOCKER_CERT_PATH: "$DOCKER_TLS_CERTDIR/client"
   cache:
     key:
       files:
@@ -23,11 +29,11 @@ variables:
       - "$CI_PROJECT_DIR/.gradle-cache/wrapper/"
     policy: pull-push # 파이프라인 시작 시 캐시를 받고, 완료 시 캐시를 업로드
   before_script:
+    # Docker daemon이 준비될 때까지 대기
+    - until docker info; do sleep 1; done
     # Docker Hub 로그인 (GitLab CI 변수 사용)
     - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
-    # - docker context create buildx-context || true # 이미 존재하면 에러 무시
-    # - docker buildx create --context buildx-context --use
-    # Buildx builder 설정 (수정됨)
+    # Buildx builder 설정
     - docker buildx create --name mybuilder --driver docker-container --use || docker buildx use mybuilder
   script:
     - |
@@ -58,7 +64,6 @@ variables:
     # Kustomize로 이미지 태그 변경
     - cd $KUSTOMIZE_PATH
     - kustomize edit set image kkaebu/$SERVER_NAME=kkaebu/$SERVER_NAME:$CI_COMMIT_SHORT_SHA
-    # - cd - # 루트 디렉토리로 복귀
     # 변경사항 커밋 및 푸시
     - 'git commit -am "CI: Update $SERVER_NAME ($CI_COMMIT_BRANCH) to $CI_COMMIT_SHORT_SHA"'
     - git push
