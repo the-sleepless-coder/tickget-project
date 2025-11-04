@@ -2,6 +2,7 @@ import RoomCard from "./_components/RoomCard";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { paths } from "../../app/routes/paths";
+import CreateRoomModal from "../rooms/_components/CreateRoomModal";
 import Thumbnail01 from "../../shared/images/thumbnail/Thumbnail01.jpg";
 import Thumbnail02 from "../../shared/images/thumbnail/Thumbnail02.jpg";
 import Thumbnail03 from "../../shared/images/thumbnail/Thumbnail03.jpg";
@@ -13,6 +14,7 @@ type SortKey = "start" | "latest" | "all";
 
 export default function HomePage() {
   const [activeSort, setActiveSort] = useState<SortKey>("start");
+  const [openCreate, setOpenCreate] = useState(false);
   const rooms = [
     {
       title: "18시 모집합니다~~!! 18시 모집합니다~~!! 18시 모집합니다~~!!",
@@ -84,16 +86,22 @@ export default function HomePage() {
       {/* Section: 추천 방 목록 */}
       <div className="mt-8 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <h2 className="text-base font-semibold text-gray-900">
-            추천 방 목록
-          </h2>
+          <h2 className="text-xl font-semibold text-gray-900">추천 방 목록</h2>
 
           <Link
             to={paths.rooms}
-            className="rounded-full bg-purple-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-purple-700"
+            className="rounded-full bg-purple-500 px-4 py-2 text-sm font-medium text-white hover:bg-purple-600 cursor-pointer"
           >
-            전체방 보기
+            전체 방 보기
           </Link>
+
+          <button
+            type="button"
+            onClick={() => setOpenCreate(true)}
+            className="rounded-full bg-purple-500 px-4 py-2 text-sm font-medium text-white hover:bg-purple-600 cursor-pointer"
+          >
+            + 방 만들기
+          </button>
         </div>
 
         <div className="flex items-center gap-3">
@@ -102,7 +110,7 @@ export default function HomePage() {
               type="button"
               aria-pressed={activeSort === "start"}
               onClick={() => setActiveSort("start")}
-              className={`rounded-full px-4 py-2 transition-colors ${
+              className={`rounded-full px-4 py-2 transition-colors cursor-pointer ${
                 activeSort === "start"
                   ? "text-purple-600 bg-purple-50"
                   : "text-gray-900 bg-gray-100"
@@ -114,7 +122,7 @@ export default function HomePage() {
               type="button"
               aria-pressed={activeSort === "latest"}
               onClick={() => setActiveSort("latest")}
-              className={`rounded-full px-4 py-2 transition-colors ${
+              className={`rounded-full px-4 py-2 transition-colors cursor-pointer ${
                 activeSort === "latest"
                   ? "text-purple-600 bg-purple-50"
                   : "text-gray-900 bg-gray-100"
@@ -125,6 +133,8 @@ export default function HomePage() {
           </div>
         </div>
       </div>
+
+      <CreateRoomModal open={openCreate} onClose={() => setOpenCreate(false)} />
 
       {/* Grid */}
       <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-2">
