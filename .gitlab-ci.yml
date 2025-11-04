@@ -56,7 +56,7 @@ variables:
     # Kustomize로 이미지 태그 변경
     - cd $KUSTOMIZE_PATH
     - kustomize edit set image kkaebu/$SERVER_NAME=kkaebu/$SERVER_NAME:$CI_COMMIT_SHORT_SHA
-    - cd - # 루트 디렉토리로 복귀
+    # - cd - # 루트 디렉토리로 복귀
     # 변경사항 커밋 및 푸시
     - git commit -am "CI: Update $SERVER_NAME ($CI_COMMIT_BRANCH) to $CI_COMMIT_SHORT_SHA"
     - git push
