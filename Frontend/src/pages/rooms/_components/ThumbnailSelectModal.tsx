@@ -34,7 +34,7 @@ export default function ThumbnailSelectModal({
               <img
                 src={src}
                 alt={`썸네일 ${idx + 1}`}
-                className="absolute inset-0 h-full w-full object-cover"
+                className="absolute inset-0 h-full w-full object-cover cursor-pointer"
               />
             </button>
           ))}
@@ -43,14 +43,14 @@ export default function ThumbnailSelectModal({
           <button
             type="button"
             onClick={onUploadClick}
-            className="px-3 py-1.5 rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200"
+            className="px-3 py-1.5 rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200 cursor-pointer"
           >
             사진 업로드
           </button>
           <button
             type="button"
             onClick={onClose}
-            className="px-3 py-1.5 rounded-md bg-purple-600 text-white hover:bg-purple-700"
+            className="px-3 py-1.5 rounded-md bg-purple-600 text-white hover:bg-purple-700 cursor-pointer"
           >
             닫기
           </button>

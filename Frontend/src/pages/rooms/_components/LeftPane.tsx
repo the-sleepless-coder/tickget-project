@@ -9,6 +9,9 @@ export default function LeftPane({
   onUploadClick,
   layoutUrl,
   onLayoutChange,
+  size,
+  venue,
+  isAIMode,
 }: {
   step: 1 | 2;
   thumbnailUrl: string | null;
@@ -17,12 +20,15 @@ export default function LeftPane({
   onUploadClick: () => void;
   layoutUrl: string | null;
   onLayoutChange: (e: ChangeEvent<HTMLInputElement>) => void;
+  size: "소형" | "중형" | "대형";
+  venue: string;
+  isAIMode?: boolean;
 }) {
   if (step === 1) {
     return (
       <div className="flex flex-col">
         <label htmlFor="room-thumbnail" className="cursor-pointer">
-          <div className="grid place-items-center rounded-md bg-gray-200 w-[240px] h-[320px] md:w-[260px] md:h-[347px] mx-auto md:mx-0 overflow-hidden">
+          <div className="grid place-items-center rounded-md bg-gray-200 w-[230px] h-[307px] md:w-[230px] md:h-[307px] mx-auto md:mx-0 overflow-hidden">
             {thumbnailUrl ? (
               <img
                 src={thumbnailUrl}
@@ -53,14 +59,14 @@ export default function LeftPane({
           <button
             type="button"
             onClick={onPresetClick}
-            className="hover:text-gray-900"
+            className="cursor-pointer"
           >
             프리셋 선택
           </button>
           <button
             type="button"
             onClick={onUploadClick}
-            className="hover:text-gray-900"
+            className="cursor-pointer"
           >
             사진 업로드
           </button>
@@ -70,25 +76,36 @@ export default function LeftPane({
   }
 
   return (
-    <div className="flex flex-col">
-      <label htmlFor="room-layout" className="cursor-pointer block">
-        <div className="grid place-items-center rounded-md bg-gray-200 w-full h-[300px] md:h-[420px] overflow-hidden">
-          {layoutUrl ? (
-            <img
-              src={layoutUrl}
-              alt="배치도 미리보기"
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="text-center">
-              <div className="mx-auto grid h-12 w-12 place-items-center text-gray-500">
-                <InsertPhotoOutlined sx={{ fontSize: 48 }} />
+    <div className="mb-6 flex flex-col">
+      <label htmlFor="room-layout" className="cursor-pointer block w-[230px]">
+        <div className="grid place-items-center rounded-md bg-gray-200 w-[230px] h-[307px] md:w-[230px] md:h-[307px] overflow-hidden">
+          {(() => {
+            const defaultSrc =
+              size === "소형" || /샤롯데/.test(venue)
+                ? "/performance-halls/charlotte-theater.jpg"
+                : size === "중형" || /올림픽홀/.test(venue)
+                  ? "/performance-halls/olympic-hall.jpg"
+                  : size === "대형" || /주경기장/.test(venue)
+                    ? "/performance-halls/olympic-stadium.jpg"
+                    : null;
+            const src = layoutUrl || (isAIMode ? null : defaultSrc);
+            return src ? (
+              <img
+                src={src}
+                alt="배치도 미리보기"
+                className="w-full h-full object-contain"
+              />
+            ) : (
+              <div className="text-center">
+                <div className="mx-auto grid h-12 w-12 place-items-center text-gray-500">
+                  <InsertPhotoOutlined sx={{ fontSize: 48 }} />
+                </div>
+                <div className="text-gray-600 mt-2 text-sm font-medium">
+                  배치도를 업로드해주세요
+                </div>
               </div>
-              <div className="text-gray-600 mt-2 text-sm font-medium">
-                배치도를 업로드해주세요
-              </div>
-            </div>
-          )}
+            );
+          })()}
         </div>
       </label>
       <input

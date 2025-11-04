@@ -1,4 +1,5 @@
 import InfoOutlined from "@mui/icons-material/InfoOutlined";
+import SearchIcon from "@mui/icons-material/Search";
 
 export default function Step2AdvancedForm({
   step2Mode,
@@ -57,14 +58,13 @@ export default function Step2AdvancedForm({
           >
             <InfoOutlined sx={{ fontSize: 18 }} /> 업로드 가이드
           </button>
-          <div className="pointer-events-none absolute left-1/2 top-full z-10 mt-2 -translate-x-1/2 whitespace-nowrap rounded-xl bg-white px-3 py-2 text-[13px] text-gray-900 shadow-[0_6px_16px_rgba(0,0,0,0.12)] border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="pointer-events-none absolute left-1/2 top-full z-10 mt-2 -translate-x-1/4 whitespace-nowrap rounded-xl bg-white px-3 py-2 text-[13px] text-gray-900 shadow-[0_6px_16px_rgba(0,0,0,0.12)] border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity">
             공연 안내 이미지 중 배치도만 보이도록 업로드해주세요!
-            <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 h-0 w-0 border-x-8 border-x-transparent border-t-8 border-t-white drop-shadow-sm" />
           </div>
         </div>
       </div>
 
-      <div className="text-gray-800 font-semibold">공연장 선택</div>
+      <div className="text-base font-semibold text-gray-900">공연장 선택</div>
       {step2Mode === "preset" ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
@@ -85,12 +85,21 @@ export default function Step2AdvancedForm({
           </div>
         </div>
       ) : (
-        <div className="text-gray-600 text-center">공연장 검색</div>
+        <div className="relative w-full">
+          <input
+            type="text"
+            placeholder="공연장 검색"
+            className="w-full rounded-full border border-gray-300 px-5 py-3 pr-12 text-gray-700 placeholder:text-gray-400 shadow-sm focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/40"
+          />
+          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">
+            <SearchIcon />
+          </span>
+        </div>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-4">
-          <div className="text-gray-800 font-semibold">봇의 실력</div>
+          <div className="text-gray-800 font-semibold">경쟁봇 설정</div>
           <div className="flex items-center gap-2">
             {diffOptions.map((label) => (
               <button
@@ -114,7 +123,7 @@ export default function Step2AdvancedForm({
         </div>
 
         <div>
-          <div className="text-gray-800 font-semibold mb-2">봇 인원수</div>
+          <div className="text-white font-semibold mb-2">봇 인원수</div>
           <select
             value={botCount}
             onChange={(e) => setBotCount(e.target.value)}

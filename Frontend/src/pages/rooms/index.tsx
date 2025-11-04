@@ -110,7 +110,7 @@ export default function RoomsPage() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           type="text"
-          placeholder="방제목으로 검색"
+          placeholder="방 제목으로 검색"
           className="w-full rounded-full border border-gray-300 px-5 py-3 pr-12 text-gray-700 placeholder:text-gray-400 shadow-sm focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/40"
         />
         <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">

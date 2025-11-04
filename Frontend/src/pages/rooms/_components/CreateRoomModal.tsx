@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ChangeEvent } from "react";
+import { useNavigate } from "react-router-dom";
 
 // moved usages into child components
 import dayjs, { Dayjs } from "dayjs";
@@ -11,6 +12,7 @@ import Thumbnail03 from "../../../shared/images/thumbnail/Thumbnail03.jpg";
 import Thumbnail04 from "../../../shared/images/thumbnail/Thumbnail04.jpg";
 import Thumbnail05 from "../../../shared/images/thumbnail/Thumbnail05.jpg";
 import Thumbnail06 from "../../../shared/images/thumbnail/Thumbnail06.jpg";
+import { paths } from "../../../app/routes/paths";
 import LeftPane from "./LeftPane";
 import Step1BasicForm from "./Step1BasicForm";
 import Step2AdvancedForm from "./Step2AdvancedForm";
@@ -23,6 +25,7 @@ export default function CreateRoomModal({
   open: boolean;
   onClose: () => void;
 }) {
+  const navigate = useNavigate();
   dayjs.locale("ko");
   const [step, setStep] = useState<1 | 2>(1);
   const [startTime, setStartTime] = useState<Dayjs | null>(dayjs());
@@ -39,6 +42,7 @@ export default function CreateRoomModal({
   const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
   const [layoutUrl, setLayoutUrl] = useState<string | null>(null);
   const [thumbPickerOpen, setThumbPickerOpen] = useState(false);
+  const [showStep1Errors, setShowStep1Errors] = useState(false);
   type SizeOption = "소형" | "중형" | "대형";
   const diffOptions = useMemo(() => ["초보", "평균", "뛰어남"] as const, []);
   const botOptions = useMemo(() => [100, 500, 1000, 2000, 5000] as const, []);
@@ -92,6 +96,46 @@ export default function CreateRoomModal({
       URL.revokeObjectURL(layoutUrl);
     setLayoutUrl(nextUrl);
   };
+
+  // 로컬 스토리지에 설정 저장
+  const handleSaveSettings = () => {
+    const settings = {
+      title,
+      participantCount,
+      startTime: startTime?.toISOString() || null,
+      platform,
+      size,
+      venue,
+      difficulty,
+      botCount,
+    };
+    localStorage.setItem("roomSettings", JSON.stringify(settings));
+    alert("설정이 저장되었습니다.");
+  };
+
+  // 로컬 스토리지에서 설정 불러오기
+  const handleLoadSettings = () => {
+    const saved = localStorage.getItem("roomSettings");
+    if (!saved) {
+      alert("저장된 설정이 없습니다.");
+      return;
+    }
+    try {
+      const settings = JSON.parse(saved);
+      setTitle(settings.title || "");
+      setParticipantCount(settings.participantCount || "");
+      setStartTime(settings.startTime ? dayjs(settings.startTime) : dayjs());
+      setPlatform(settings.platform || "익스터파크");
+      setSize(settings.size || "소형");
+      setVenue(settings.venue || "샤롯데씨어터");
+      setDifficulty(settings.difficulty || "초보");
+      setBotCount(settings.botCount || "");
+      alert("설정을 불러왔습니다.");
+    } catch (error) {
+      alert("설정을 불러오는데 실패했습니다.");
+      console.error(error);
+    }
+  };
   useEffect(() => {
     if (!open) return;
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -137,7 +181,7 @@ export default function CreateRoomModal({
         onClick={onClose}
         aria-hidden
       />
-      <div className="relative bg-white rounded-xl shadow-lg w-full max-w-[130vh] max-h-[80vh] flex flex-col">
+      <div className="relative bg-white rounded-xl shadow-lg w-full max-w-[120vh] max-h-[80vh] flex flex-col">
         {/* Header */}
         <div className="mt-4 px-8 bg-white rounded-t-xl flex-shrink-0">
           <div className="flex items-center justify-between h-[50px]">
@@ -150,6 +194,7 @@ export default function CreateRoomModal({
               <div className="hidden md:flex items-center gap-2">
                 <button
                   type="button"
+                  onClick={handleLoadSettings}
                   className="text-sm text-purple-300 inline-flex items-center gap-1 cursor-pointer"
                   title="설정 불러오기"
                 >
@@ -157,6 +202,7 @@ export default function CreateRoomModal({
                 </button>
                 <button
                   type="button"
+                  onClick={handleSaveSettings}
                   className="text-sm text-purple-600 inline-flex items-center gap-1 cursor-pointer"
                   title="현재 설정 저장"
                 >
@@ -177,6 +223,7 @@ export default function CreateRoomModal({
           <div className="mt-2 flex justify-end gap-2 md:hidden">
             <button
               type="button"
+              onClick={handleSaveSettings}
               className="text-sm text-gray-600 hover:text-gray-500 inline-flex items-center gap-1 cursor-pointer"
               title="현재 설정 저장"
             >
@@ -184,6 +231,7 @@ export default function CreateRoomModal({
             </button>
             <button
               type="button"
+              onClick={handleLoadSettings}
               className="text-sm text-c-purple-200 inline-flex items-center gap-1 cursor-pointer"
               title="설정 불러오기"
             >
@@ -191,9 +239,9 @@ export default function CreateRoomModal({
             </button>
           </div>
         </div>
-        <div className="px-8 py-6 flex-1 overflow-y-auto">
+        <div className="px-8 py-2 flex-1 overflow-y-auto">
           <div
-            className={`grid grid-cols-1 ${step === 1 ? "md:grid-cols-[270px_1fr]" : "md:grid-cols-[1fr_420px]"} gap-6`}
+            className={`grid grid-cols-1 ${step === 1 ? "md:grid-cols-[230px_1fr]" : "md:grid-cols-[230px_420px]"} gap-6`}
           >
             <LeftPane
               step={step}
@@ -203,6 +251,9 @@ export default function CreateRoomModal({
               onUploadClick={triggerUpload}
               layoutUrl={layoutUrl}
               onLayoutChange={onLayoutChange}
+              size={size}
+              venue={venue}
+              isAIMode={step === 2 && step2Mode === "ai"}
             />
 
             {step === 1 ? (
@@ -215,6 +266,7 @@ export default function CreateRoomModal({
                 setStartTime={setStartTime}
                 platform={platform}
                 setPlatform={setPlatform}
+                showErrors={showStep1Errors}
               />
             ) : (
               <Step2AdvancedForm
@@ -240,32 +292,48 @@ export default function CreateRoomModal({
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-1.5 rounded-md bg-gray-200 text-gray-700 hover:bg-gray-300"
+                className="px-4 py-1.5 rounded-md bg-gray-200 text-gray-700 hover:bg-gray-300 cursor-pointer"
               >
                 취소하기
               </button>
               <button
                 type="button"
-                onClick={() => setStep(2)}
-                className="px-4 py-1.5 rounded-md bg-purple-600 text-white hover:bg-purple-700"
+                onClick={() => {
+                  const isTitleValid = title.trim().length > 0;
+                  const isParticipantValid = participantCount.trim().length > 0;
+                  if (isTitleValid && isParticipantValid) {
+                    setShowStep1Errors(false);
+                    setStep(2);
+                  } else {
+                    setShowStep1Errors(true);
+                  }
+                }}
+                className="px-4 py-1.5 rounded-md bg-purple-600 text-white hover:bg-purple-700 font-semibold cursor-pointer"
               >
-                다음
+                다음으로
               </button>
             </>
           ) : (
             <>
               <button
                 type="button"
-                onClick={() => setStep(1)}
-                className="px-4 py-1.5 rounded-md bg-gray-200 text-gray-700 hover:bg-gray-300"
+                onClick={() => {
+                  setStep(1);
+                  setShowStep1Errors(false);
+                }}
+                className="px-4 py-1.5 rounded-md bg-gray-200 text-gray-700 hover:bg-gray-300 cursor-pointer"
               >
-                이전
+                이전으로
               </button>
               <button
                 type="button"
-                className="px-4 py-1.5 rounded-md bg-purple-600 text-white hover:bg-purple-700"
+                onClick={() => {
+                  onClose();
+                  navigate(paths.iTicket);
+                }}
+                className="px-4 py-1.5 rounded-md bg-purple-600 text-white hover:bg-purple-700 font-semibold cursor-pointer"
               >
-                방 생성하기
+                방만들기
               </button>
             </>
           )}
@@ -291,7 +359,7 @@ export default function CreateRoomModal({
 function TitleWithInfo() {
   return (
     <div className="flex items-center gap-2">
-      <span className="text-xl font-bold">방 만들기</span>
+      <span className="text-xl">방 만들기</span>
       <InfoBubble />
     </div>
   );
@@ -307,12 +375,11 @@ function InfoBubble() {
       >
         <InfoOutlined sx={{ fontSize: 14 }} />
       </button>
-      <div className="pointer-events-none absolute left-1/2 top-full z-10 mt-2 -translate-x-1/2 whitespace-nowrap rounded-xl bg-white px-3 py-2 text-[13px] text-gray-900 shadow-[0_6px_16px_rgba(0,0,0,0.12)] border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="pointer-events-none absolute left-1/2 top-full z-10 mt-2 -translate-x-1/4 whitespace-nowrap rounded-xl bg-white px-3 py-2 text-[13px] text-gray-900 shadow-[0_6px_16px_rgba(0,0,0,0.12)] border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity">
         <span>
           <b className="text-purple-600">AI 봇</b>이 경기에 참여해 실제와 같은
           티켓팅을 연습할 수 있습니다.
         </span>
-        <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 h-0 w-0 border-x-8 border-x-transparent border-t-8 border-t-white drop-shadow-sm" />
       </div>
     </div>
   );
