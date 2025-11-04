@@ -10,6 +10,7 @@ import com.tickget.roomserver.domain.repository.RoomCacheRepository;
 import com.tickget.roomserver.domain.repository.RoomRepository;
 import com.tickget.roomserver.dto.cache.RoomInfo;
 import com.tickget.roomserver.dto.cache.RoomMember;
+import com.tickget.roomserver.dto.request.CreateMatchRequest;
 import com.tickget.roomserver.dto.request.CreateRoomRequest;
 import com.tickget.roomserver.dto.request.ExitRoomRequest;
 import com.tickget.roomserver.dto.request.JoinRoomRequest;
@@ -45,12 +46,15 @@ import org.springframework.web.multipart.MultipartFile;
 @RequiredArgsConstructor
 public class RoomService {
 
+
+    private final MinioService minioService;
+    private final TicketingServiceClient  ticketingServiceClient;
+    private final WebSocketSessionManager sessionManager;
+    private final RoomEventProducer roomEventProducer;
+
     private final RoomRepository roomRepository;
     private final PresetHallRepository  presetHallRepository;
     private final RoomCacheRepository roomCacheRepository;
-    private final MinioService minioService;
-    private final WebSocketSessionManager sessionManager;
-    private final RoomEventProducer roomEventProducer;
 
     @Transactional
     public CreateRoomResponse createRoom(CreateRoomRequest request, MultipartFile thumbnail) throws JsonProcessingException {
@@ -69,7 +73,8 @@ public class RoomService {
         Room room = Room.of(request,presetHall,thumbnailValue);
         room = roomRepository.save(room); // 알아서 id값 반영되지만 명시
 
-        //TODO: 매치 생성 요청
+
+        ticketingServiceClient.createMatch(CreateMatchRequest.of(request, room.getId()));
 
         //Redis에 정보 저장
         roomCacheRepository.saveRoom(room.getId(),request);
