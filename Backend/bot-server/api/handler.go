@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"bot-server/logger"
+	"bot-server/manager"
 	"bot-server/models"
 
 	"github.com/gin-gonic/gin"
@@ -12,12 +13,14 @@ import (
 
 // Handler HTTP 요청 핸들러
 type Handler struct {
-	// 나중에 manager 등을 추가할 예정
+	matchManager *manager.MatchManager
 }
 
 // NewHandler 새로운 핸들러 인스턴스를 생성합니다
 func NewHandler() *Handler {
-	return &Handler{}
+	return &Handler{
+		matchManager: manager.NewMatchManager(),
+	}
 }
 
 // RegisterRoutes 라우트를 등록합니다
@@ -71,7 +74,18 @@ func (h *Handler) StartMatch(c *gin.Context) {
 		zap.Time("start_time", req.StartTime),
 	)
 
-	// TODO: 실제 매치 시작 로직 (manager 연동)
+	// 매치 시작
+	if err := h.matchManager.StartMatch(req); err != nil {
+		logger.Error("Failed to start match",
+			zap.String("match_id", req.MatchID),
+			zap.Error(err),
+		)
+		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+			Success: false,
+			Error:   err.Error(),
+		})
+		return
+	}
 
 	response := models.MatchStartResponse{
 		Success: true,
