@@ -4,6 +4,10 @@ import Olympic_20 from "../../../../shared/ui/common/Olympic_Hall/S/Olympic_20";
 import Olympic_21 from "../../../../shared/ui/common/Olympic_Hall/S/Olympic_21";
 import Olympic_22 from "../../../../shared/ui/common/Olympic_Hall/S/Olympic_22";
 import Olympic_23 from "../../../../shared/ui/common/Olympic_Hall/S/Olympic_23";
+import Olympic_7 from "../../../../shared/ui/common/Olympic_Hall/R/Olympic_7";
+import Olympic_9 from "../../../../shared/ui/common/Olympic_Hall/R/Olympic_9";
+import Olympic_11 from "../../../../shared/ui/common/Olympic_Hall/R/Olympic_11";
+import Olympic_12 from "../../../../shared/ui/common/Olympic_Hall/R/Olympic_12";
 
 export default function MediumVenue() {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -217,6 +221,17 @@ export default function MediumVenue() {
       if (
         id &&
         [
+          "7",
+          "8",
+          "9",
+          "10",
+          "11",
+          "12",
+          "13",
+          "14",
+          "15",
+          "16",
+          "17",
           "18",
           "19",
           "20",
@@ -326,6 +341,83 @@ export default function MediumVenue() {
             id,
             columns: 18,
             rows: 6,
+            cellSize: 12,
+            gap: 2,
+          });
+        } else if (id === "7" || id === "8") {
+          setSelectedPattern(() => Olympic_7);
+          setIsFlipped(false);
+          setSelectedMeta({
+            level,
+            id,
+            columns: 24,
+            rows: 12,
+            cellSize: 12,
+            gap: 2,
+          });
+        } else if (id === "17" || id === "16") {
+          setSelectedPattern(() => Olympic_7);
+          setIsFlipped(true);
+          setSelectedMeta({
+            level,
+            id,
+            columns: 24,
+            rows: 12,
+            cellSize: 12,
+            gap: 2,
+          });
+        } else if (id === "9" || id === "10") {
+          setSelectedPattern(() => Olympic_9);
+          setIsFlipped(false);
+          setSelectedMeta({
+            level,
+            id,
+            columns: 24,
+            rows: 9,
+            cellSize: 12,
+            gap: 2,
+          });
+        } else if (id === "14" || id === "15") {
+          setSelectedPattern(() => Olympic_9);
+          setIsFlipped(true);
+          setSelectedMeta({
+            level,
+            id,
+            columns: 24,
+            rows: 9,
+            cellSize: 12,
+            gap: 2,
+          });
+        } else if (id === "11") {
+          setSelectedPattern(() => Olympic_11);
+          setIsFlipped(false);
+          setSelectedMeta({
+            level,
+            id,
+            columns: 16,
+            rows: 5,
+            cellSize: 12,
+            gap: 2,
+          });
+        } else if (id === "13") {
+          setSelectedPattern(() => Olympic_11);
+          setIsFlipped(true);
+          setSelectedMeta({
+            level,
+            id,
+            columns: 16,
+            rows: 5,
+            cellSize: 12,
+            gap: 2,
+          });
+        } else if (id === "12") {
+          setSelectedPattern(() => Olympic_12);
+          setIsFlipped(false);
+          setSelectedMeta({
+            level,
+            id,
+            columns: 18,
+            rows: 5,
             cellSize: 12,
             gap: 2,
           });
@@ -568,6 +660,17 @@ export default function MediumVenue() {
         .wrapper{display:flex;align-items:center;justify-content:center;padding:16px}
         .card{background:#fff;padding:8px;position:relative;max-width:1100px;width:100%}
         svg{width:100%;height:auto;display:block}
+        svg polygon[data-id="7"],
+        svg polygon[data-id="8"],
+        svg polygon[data-id="9"],
+        svg polygon[data-id="10"],
+        svg polygon[data-id="11"],
+        svg polygon[data-id="12"],
+        svg polygon[data-id="13"],
+        svg polygon[data-id="14"],
+        svg polygon[data-id="15"],
+        svg polygon[data-id="16"],
+        svg polygon[data-id="17"],
         svg polygon[data-id="18"],
         svg polygon[data-id="19"],
         svg polygon[data-id="20"],
