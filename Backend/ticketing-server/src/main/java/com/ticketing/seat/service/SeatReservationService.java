@@ -27,6 +27,7 @@ public class SeatReservationService {
     private final MatchRepository matchRepository;
     private final MatchStatusRepository matchStatusRepository;
     private final LuaReservationExecutor luaReservationExecutor;
+    private final MatchStatusSyncService matchStatusSyncService;
 
     @Transactional
     public SeatReservationResponse reserveSeats(SeatReservationRequest req) {
@@ -75,8 +76,8 @@ public class SeatReservationService {
         }
 
         if (result == 2L) {
-            // 성공 + 만석: DB 상태를 FINISHED로 변경
-            log.info("만석 감지: matchId={}, DB 상태를 FINISHED로 변경합니다.", matchId);
+            // 성공 + 만석: DB 상태를 FINISHED로 변경하고 Redis 정리
+            log.info("만석 감지: matchId={}, DB 상태를 FINISHED로 변경하고 Redis 정리합니다.", matchId);
             finishMatchDueToFullCapacity(match);
         }
 
@@ -87,6 +88,7 @@ public class SeatReservationService {
     /**
      * 만석으로 인한 경기 종료 처리
      * DB의 matches.status를 FINISHED로 변경하고 ended_at 기록
+     * 경기 종료 즉시 Redis 데이터 정리
      */
     private void finishMatchDueToFullCapacity(Match match) {
         match.setStatus(Match.MatchStatus.FINISHED);
@@ -95,6 +97,9 @@ public class SeatReservationService {
 
         log.info("경기 자동 종료 완료: matchId={}, status=FINISHED, endedAt={}",
                 match.getMatchId(), match.getEndedAt());
+
+        // 경기 종료 즉시 Redis 데이터 정리
+        matchStatusSyncService.cleanupMatchRedis(match.getMatchId());
     }
 
     /**
