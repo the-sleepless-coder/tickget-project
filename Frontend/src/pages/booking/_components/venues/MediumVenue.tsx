@@ -1,7 +1,35 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import Olympic_18 from "../../../../shared/ui/common/Olympic_Hall/S/Olympic_18";
+import Olympic_20 from "../../../../shared/ui/common/Olympic_Hall/S/Olympic_20";
+import Olympic_21 from "../../../../shared/ui/common/Olympic_Hall/S/Olympic_21";
+import Olympic_22 from "../../../../shared/ui/common/Olympic_Hall/S/Olympic_22";
+import Olympic_23 from "../../../../shared/ui/common/Olympic_Hall/S/Olympic_23";
 
 export default function MediumVenue() {
   const rootRef = useRef<HTMLDivElement>(null);
+  const patternWrapperRef = useRef<HTMLDivElement>(null);
+  const [showDetailView, setShowDetailView] = useState(false);
+  const [detailViewColor, setDetailViewColor] = useState<string>("#FFCC10");
+  type PatternComponentProps = {
+    className?: string;
+    cellSize?: number;
+    gap?: number;
+    activeColor?: string;
+    backgroundColor?: string;
+    flipHorizontal?: boolean;
+  };
+  const [SelectedPattern, setSelectedPattern] =
+    useState<React.ComponentType<PatternComponentProps> | null>(null);
+  const [isFlipped, setIsFlipped] = useState(false);
+  const [selectedMeta, setSelectedMeta] = useState<{
+    level: string;
+    id: string;
+    columns: number;
+    rows: number;
+    cellSize: number;
+    gap: number;
+  } | null>(null);
+  const [emptyRows, setEmptyRows] = useState<boolean[]>([]);
   useEffect(() => {
     // interactive tooltip/hover/click removed
 
@@ -159,6 +187,8 @@ export default function MediumVenue() {
       svg.appendChild(layer);
     };
 
+    if (showDetailView) return;
+
     // initial normalize + label draw
     applyLabels();
 
@@ -177,10 +207,140 @@ export default function MediumVenue() {
       observer.observe(rootRef.current, { childList: true, subtree: true });
     }
 
+    // Click delegation to open inline detail view for blocks 18, 19, 27, 28
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as Element | null;
+      if (!target) return;
+      const polygon = (target as Element).closest?.("polygon");
+      if (!polygon) return;
+      const id = (polygon as Element).getAttribute("data-id");
+      if (
+        id &&
+        [
+          "18",
+          "19",
+          "20",
+          "21",
+          "22",
+          "23",
+          "24",
+          "25",
+          "26",
+          "27",
+          "28",
+        ].includes(id)
+      ) {
+        const level =
+          (polygon as Element).getAttribute("data-seat-level") || "";
+        // match overview colors used in MediumVenue normalization
+        let color = "#FFCC10"; // S default
+        if (level === "STANDING") color = "#FE4AB9";
+        else if (level === "VIP") color = "#7C50E4";
+        else if (level === "R") color = "#4CA0FF";
+        else if (level === "S") color = "#FFCC10";
+        setDetailViewColor(color);
+
+        // pattern mapping
+        if (["18", "19", "27", "28"].includes(id)) {
+          setSelectedPattern(() => Olympic_18);
+          setIsFlipped(false);
+          setSelectedMeta({
+            level,
+            id,
+            columns: 12,
+            rows: 12,
+            cellSize: 12,
+            gap: 2,
+          });
+        } else if (id === "20") {
+          setSelectedPattern(() => Olympic_20);
+          setIsFlipped(false);
+          setSelectedMeta({
+            level,
+            id,
+            columns: 14,
+            rows: 11,
+            cellSize: 12,
+            gap: 2,
+          });
+        } else if (id === "26") {
+          setSelectedPattern(() => Olympic_20);
+          setIsFlipped(true);
+          setSelectedMeta({
+            level,
+            id,
+            columns: 14,
+            rows: 11,
+            cellSize: 12,
+            gap: 2,
+          });
+        } else if (id === "21") {
+          setSelectedPattern(() => Olympic_21);
+          setIsFlipped(false);
+          setSelectedMeta({
+            level,
+            id,
+            columns: 4,
+            rows: 5,
+            cellSize: 12,
+            gap: 2,
+          });
+        } else if (id === "25") {
+          setSelectedPattern(() => Olympic_21);
+          setIsFlipped(true);
+          setSelectedMeta({
+            level,
+            id,
+            columns: 4,
+            rows: 5,
+            cellSize: 12,
+            gap: 2,
+          });
+        } else if (id === "22") {
+          setSelectedPattern(() => Olympic_22);
+          setIsFlipped(false);
+          setSelectedMeta({
+            level,
+            id,
+            columns: 16,
+            rows: 7,
+            cellSize: 12,
+            gap: 2,
+          });
+        } else if (id === "24") {
+          setSelectedPattern(() => Olympic_22);
+          setIsFlipped(true);
+          setSelectedMeta({
+            level,
+            id,
+            columns: 16,
+            rows: 7,
+            cellSize: 12,
+            gap: 2,
+          });
+        } else if (id === "23") {
+          setSelectedPattern(() => Olympic_23);
+          setIsFlipped(false);
+          setSelectedMeta({
+            level,
+            id,
+            columns: 18,
+            rows: 6,
+            cellSize: 12,
+            gap: 2,
+          });
+        }
+        setShowDetailView(true);
+      }
+    };
+    const root = rootRef.current;
+    root?.addEventListener("click", handleClick);
+
     return () => {
       observer.disconnect();
+      root?.removeEventListener("click", handleClick);
     };
-  }, []);
+  }, [showDetailView]);
 
   const content = `
 <div class='wrapper'>
@@ -262,14 +422,167 @@ export default function MediumVenue() {
 </div>
 `;
 
+  // calculate scale similar to LargeVenue
+  const calculatePatternSize = (
+    columns: number,
+    rows: number,
+    cellSize: number = 12,
+    gap: number = 2
+  ) => {
+    const width = columns * cellSize + (columns - 1) * gap;
+    const height = rows * cellSize + (rows - 1) * gap;
+    return { width, height };
+  };
+
+  const calculateScale = (
+    patternWidth: number,
+    patternHeight: number,
+    containerWidth: number = 616,
+    containerHeight: number = 596
+  ) => {
+    const scaleX = containerWidth / patternWidth;
+    const scaleY = containerHeight / patternHeight;
+    return Math.min(scaleX, scaleY, 1);
+  };
+
+  let patternScale = 1;
+  if (showDetailView && selectedMeta) {
+    const { width, height } = calculatePatternSize(
+      selectedMeta.columns,
+      selectedMeta.rows,
+      selectedMeta.cellSize,
+      selectedMeta.gap
+    );
+    const rowLabelWidth = Math.max(16, Math.floor(selectedMeta.cellSize * 1.5));
+    patternScale = calculateScale(width + rowLabelWidth, height);
+  }
+
+  // Analyze grid after render to determine fully empty rows
+  useEffect(() => {
+    if (!showDetailView || !patternWrapperRef.current || !selectedMeta) return;
+    const gridEl = patternWrapperRef.current.querySelector("div.grid");
+    if (!gridEl) return;
+    const cells = Array.from(gridEl.children) as HTMLElement[];
+    if (cells.length === 0) return;
+    const nextEmptyRows: boolean[] = new Array(selectedMeta.rows).fill(true);
+    cells.forEach((el, index) => {
+      const rowIndex = Math.floor(index / selectedMeta.columns);
+      const bg = getComputedStyle(el).backgroundColor;
+      const isTransparent = bg === "rgba(0, 0, 0, 0)" || bg === "transparent";
+      if (!isTransparent) {
+        nextEmptyRows[rowIndex] = false;
+      }
+    });
+    setEmptyRows(nextEmptyRows);
+  }, [showDetailView, selectedMeta]);
+
   return (
-    <div ref={rootRef}>
-      <style>{`
+    <div className="relative w-full h-full">
+      {showDetailView ? (
+        <div className="relative w-full h-full">
+          {selectedMeta && (
+            <div className="absolute left-1/2 -translate-x-1/2 top-2 z-10 px-3 py-1 rounded-md bg-black/70 text-white text-xs shadow">
+              {selectedMeta.level} • {selectedMeta.id}
+            </div>
+          )}
+          <div className="absolute top-2 right-2 z-10">
+            <button
+              onClick={() => setShowDetailView(false)}
+              className="bg-purple-500 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-purple-600 transition-colors shadow-md"
+            >
+              전체 보기
+            </button>
+          </div>
+          <div className="w-full h-full flex justify-center items-center bg-neutral-100 overflow-hidden">
+            <div
+              className="flex justify-center items-center"
+              style={{ width: "100%", height: "100%" }}
+            >
+              <div
+                style={{
+                  transform: `scale(${patternScale})`,
+                  transformOrigin: "center center",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "flex-start" }}>
+                  {selectedMeta && (
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateRows: `repeat(${selectedMeta.rows}, ${selectedMeta.cellSize}px)`,
+                        rowGap: `${selectedMeta.gap}px`,
+                        marginRight: `${selectedMeta.gap}px`,
+                        marginTop: 5,
+                        minWidth: Math.max(
+                          16,
+                          Math.floor(selectedMeta.cellSize * 1.5)
+                        ),
+                      }}
+                    >
+                      {(() => {
+                        let visibleRowNum = 0;
+                        return Array.from({ length: selectedMeta.rows }).map(
+                          (_, r) => {
+                            const isEmpty = emptyRows[r] === true;
+                            const label = isEmpty
+                              ? ""
+                              : String(++visibleRowNum);
+                            return (
+                              <div
+                                key={`row-label-${r}`}
+                                className="text-[10px] text-neutral-700"
+                                style={{
+                                  height: selectedMeta.cellSize,
+                                  lineHeight: `${selectedMeta.cellSize}px`,
+                                  textAlign: "right",
+                                  paddingRight: 4,
+                                  userSelect: "none",
+                                }}
+                              >
+                                {label}
+                              </div>
+                            );
+                          }
+                        );
+                      })()}
+                    </div>
+                  )}
+                  <div>
+                    <div ref={patternWrapperRef}>
+                      {SelectedPattern && (
+                        <SelectedPattern
+                          activeColor={detailViewColor}
+                          flipHorizontal={isFlipped}
+                        />
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div ref={rootRef}>
+          <style>{`
         .wrapper{display:flex;align-items:center;justify-content:center;padding:16px}
         .card{background:#fff;padding:8px;position:relative;max-width:1100px;width:100%}
         svg{width:100%;height:auto;display:block}
+        svg polygon[data-id="18"],
+        svg polygon[data-id="19"],
+        svg polygon[data-id="20"],
+        svg polygon[data-id="21"],
+        svg polygon[data-id="22"],
+        svg polygon[data-id="23"],
+        svg polygon[data-id="24"],
+        svg polygon[data-id="25"],
+        svg polygon[data-id="26"],
+        svg polygon[data-id="27"],
+        svg polygon[data-id="28"]{cursor:pointer}
       `}</style>
-      <div dangerouslySetInnerHTML={{ __html: content }} />
+          <div dangerouslySetInnerHTML={{ __html: content }} />
+        </div>
+      )}
     </div>
   );
 }
