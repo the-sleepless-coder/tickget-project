@@ -4,6 +4,9 @@ import Olympic_20 from "../../../../shared/ui/common/Olympic_Hall/S/Olympic_20";
 import Olympic_21 from "../../../../shared/ui/common/Olympic_Hall/S/Olympic_21";
 import Olympic_22 from "../../../../shared/ui/common/Olympic_Hall/S/Olympic_22";
 import Olympic_23 from "../../../../shared/ui/common/Olympic_Hall/S/Olympic_23";
+import Olympic_1 from "../../../../shared/ui/common/Olympic_Hall/STANDING/Olympic_1";
+import Olympic_4 from "../../../../shared/ui/common/Olympic_Hall/VIP/Olympic_4";
+import Olympic_5 from "../../../../shared/ui/common/Olympic_Hall/VIP/Olympic_5";
 import Olympic_7 from "../../../../shared/ui/common/Olympic_Hall/R/Olympic_7";
 import Olympic_9 from "../../../../shared/ui/common/Olympic_Hall/R/Olympic_9";
 import Olympic_11 from "../../../../shared/ui/common/Olympic_Hall/R/Olympic_11";
@@ -211,7 +214,7 @@ export default function MediumVenue() {
       observer.observe(rootRef.current, { childList: true, subtree: true });
     }
 
-    // Click delegation to open inline detail view for blocks 18, 19, 27, 28
+    // Click delegation to open inline detail view for supported blocks
     const handleClick = (e: MouseEvent) => {
       const target = e.target as Element | null;
       if (!target) return;
@@ -221,6 +224,12 @@ export default function MediumVenue() {
       if (
         id &&
         [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5",
+          "6",
           "7",
           "8",
           "9",
@@ -341,6 +350,39 @@ export default function MediumVenue() {
             id,
             columns: 18,
             rows: 6,
+            cellSize: 12,
+            gap: 2,
+          });
+        } else if (id === "1" || id === "2" || id === "3") {
+          setSelectedPattern(() => Olympic_1);
+          setIsFlipped(false);
+          setSelectedMeta({
+            level,
+            id,
+            columns: 50,
+            rows: 10,
+            cellSize: 12,
+            gap: 2,
+          });
+        } else if (id === "4" || id === "6") {
+          setSelectedPattern(() => Olympic_4);
+          setIsFlipped(false);
+          setSelectedMeta({
+            level,
+            id,
+            columns: 9,
+            rows: 9,
+            cellSize: 12,
+            gap: 2,
+          });
+        } else if (id === "5") {
+          setSelectedPattern(() => Olympic_5);
+          setIsFlipped(false);
+          setSelectedMeta({
+            level,
+            id,
+            columns: 22,
+            rows: 9,
             cellSize: 12,
             gap: 2,
           });
@@ -660,6 +702,12 @@ export default function MediumVenue() {
         .wrapper{display:flex;align-items:center;justify-content:center;padding:16px}
         .card{background:#fff;padding:8px;position:relative;max-width:1100px;width:100%}
         svg{width:100%;height:auto;display:block}
+        svg polygon[data-id="1"],
+        svg polygon[data-id="2"],
+        svg polygon[data-id="3"],
+        svg polygon[data-id="4"],
+        svg polygon[data-id="5"],
+        svg polygon[data-id="6"],
         svg polygon[data-id="7"],
         svg polygon[data-id="8"],
         svg polygon[data-id="9"],
