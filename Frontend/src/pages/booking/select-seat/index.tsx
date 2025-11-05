@@ -228,9 +228,22 @@ export default function SelectSeatPage() {
         </div>
         {/* 본문 880 x 680 (내부 좌우 10 마진 → 880폭) */}
         <div className="w-[880px] h-[610px]">
-          <div className="mx-[10px] h-full flex gap-0">
+          <div className="mx-[10px] h-full flex gap-2">
             {/* 좌측: 좌석 영역 660 x 620 */}
-            <div className="w-[640px] h-[620px] bg-white rounded-md shadow p-3 border border-[#e3e3e3] overflow-hidden">
+            <div
+              className="w-[640px] h-[620px] shadow overflow-hidden p-0 bg-transparent"
+              style={
+                venueKey === "small"
+                  ? {
+                      backgroundImage:
+                        "url(/performance-halls/charlotte-theater-background.jpg)",
+                      backgroundRepeat: "no-repeat",
+                      backgroundPosition: "center",
+                      backgroundSize: "contain",
+                    }
+                  : undefined
+              }
+            >
               {venueKey === "small" && <SmallVenue />}
               {venueKey === "medium" && <MediumVenue />}
               {venueKey === "large" && <LargeVenue />}
