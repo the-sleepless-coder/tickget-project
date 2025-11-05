@@ -25,11 +25,11 @@ public class User {
     @Column(nullable = false, length = 25)
     private String nickname;
 
-    @Column(name = "birth_date", nullable = false)
+    @Column(name = "birth_date")
     private LocalDate birthDate;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 10)
+    @Column(length = 10)
     private Gender gender;
 
     @Column(length = 25)
@@ -46,13 +46,6 @@ public class User {
 
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
-
-    // OAuth2 추가 필드
-    @Column(name = "provider", length = 20)
-    private String provider; // google, kakao 등
-
-    @Column(name = "provider_id", length = 100)
-    private String providerId; // OAuth2 제공자의 사용자 ID
 
     @Column(name = "profile_image_url", length = 500)
     private String profileImageUrl;
