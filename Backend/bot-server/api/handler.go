@@ -1,10 +1,11 @@
 package api
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"bot-server/logger"
+
+	"github.com/gin-gonic/gin"
 )
 
 // Handler HTTP 요청 핸들러
@@ -18,38 +19,24 @@ func NewHandler() *Handler {
 }
 
 // RegisterRoutes 라우트를 등록합니다
-func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("/health", h.HealthCheck)
-	mux.HandleFunc("/ping", h.Ping)
+func (h *Handler) RegisterRoutes(router *gin.Engine) {
+	router.GET("/health", h.HealthCheck)
+	router.GET("/ping", h.Ping)
 }
 
 // HealthCheck 서버 상태 확인 엔드포인트
-func (h *Handler) HealthCheck(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	response := map[string]string{
+func (h *Handler) HealthCheck(c *gin.Context) {
+	response := gin.H{
 		"status":  "healthy",
 		"service": "bot-server",
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(response)
-
 	logger.Debug("Health check requested")
+	c.JSON(http.StatusOK, response)
 }
 
 // Ping 간단한 ping 엔드포인트
-func (h *Handler) Ping(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"message": "pong"})
+func (h *Handler) Ping(c *gin.Context) {
+	logger.Debug("Ping requested")
+	c.JSON(http.StatusOK, gin.H{"message": "pong"})
 }
