@@ -75,6 +75,65 @@ export default function LargeVenue() {
     gap: number;
   } | null>(null);
 
+  // Enforce VIP color to #7C50E4 on overview SVG
+  useEffect(() => {
+    if (showDetailView) return; // only applies to overview SVG
+    const svg = containerRef.current?.querySelector("svg");
+    if (!svg) return;
+    const vipPolygons = Array.from(
+      svg.querySelectorAll('polygon[data-seat-level="VIP"]')
+    ) as SVGPolygonElement[];
+    vipPolygons.forEach((p) => {
+      const fill = "#7C50E4";
+      p.setAttribute("fill", fill);
+      p.setAttribute("data-fill", fill);
+      const existingStyle = p.getAttribute("style") || "";
+      const styleWithoutFill = existingStyle
+        .split(";")
+        .filter((s) => s.trim() && !s.trim().startsWith("fill:"))
+        .join(";");
+      p.setAttribute("style", `fill:${fill};${styleWithoutFill}`);
+    });
+
+    // Fit the viewBox to all polygons so they fill the SVG area
+    const polygons = Array.from(
+      svg.querySelectorAll("polygon")
+    ) as SVGPolygonElement[];
+    if (polygons.length > 0) {
+      let minX = Infinity,
+        minY = Infinity,
+        maxX = -Infinity,
+        maxY = -Infinity;
+      polygons.forEach((p) => {
+        const b = p.getBBox();
+        if (
+          !isFinite(b.x) ||
+          !isFinite(b.y) ||
+          !isFinite(b.width) ||
+          !isFinite(b.height)
+        )
+          return;
+        minX = Math.min(minX, b.x);
+        minY = Math.min(minY, b.y);
+        maxX = Math.max(maxX, b.x + b.width);
+        maxY = Math.max(maxY, b.y + b.height);
+      });
+      if (
+        isFinite(minX) &&
+        isFinite(minY) &&
+        isFinite(maxX) &&
+        isFinite(maxY)
+      ) {
+        const padding = 8;
+        const vbX = minX - padding;
+        const vbY = minY - padding;
+        const vbW = Math.max(1, maxX - minX + padding * 2);
+        const vbH = Math.max(1, maxY - minY + padding * 2);
+        svg.setAttribute("viewBox", `${vbX} ${vbY} ${vbW} ${vbH}`);
+      }
+    }
+  }, [showDetailView]);
+
   // 패턴 크기 계산 함수
   const calculatePatternSize = (
     columns: number,
@@ -2105,7 +2164,7 @@ export default function LargeVenue() {
                 fillOpacity="0.95"
                 data-id="17"
                 data-fill="#68F237"
-                data-seat-level="VIPR"
+                data-seat-level="VIP"
                 data-capacity="None"
                 data-component-count="None"
                 data-ratio="0.021042007069824703"
