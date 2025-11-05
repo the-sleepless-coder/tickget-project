@@ -15,9 +15,9 @@ import LargeVenue from "../_components/venues/LargeVenue";
 type GradeKey = "SR" | "R" | "S";
 type SelectedSeat = {
   id: string;
-  grade: GradeKey;
+  gradeLabel: string;
   label: string;
-  price: number;
+  price?: number;
 };
 
 const GRADE_META: Record<
@@ -96,7 +96,7 @@ export default function SelectSeatPage() {
   };
 
   const totalPrice = useMemo(
-    () => selected.reduce((sum, s) => sum + s.price, 0),
+    () => selected.reduce((sum, s) => sum + (s.price ?? 0), 0),
     [selected]
   );
 
@@ -228,10 +228,43 @@ export default function SelectSeatPage() {
         </div>
         {/* 본문 880 x 680 (내부 좌우 10 마진 → 880폭) */}
         <div className="w-[880px] h-[610px]">
-          <div className="mx-[10px] h-full flex gap-0">
+          <div className="mx-[10px] h-full flex gap-2">
             {/* 좌측: 좌석 영역 660 x 620 */}
-            <div className="w-[640px] h-[620px] bg-white rounded-md shadow p-3 border border-[#e3e3e3] overflow-hidden">
-              {venueKey === "small" && <SmallVenue />}
+            <div
+              className="w-[640px] h-[620px] shadow overflow-hidden p-0 bg-transparent"
+              style={
+                venueKey === "small"
+                  ? {
+                      backgroundImage:
+                        "url(/performance-halls/charlotte-theater-background.jpg)",
+                      backgroundRepeat: "no-repeat",
+                      backgroundPosition: "center",
+                      backgroundSize: "contain",
+                    }
+                  : undefined
+              }
+            >
+              {venueKey === "small" && (
+                <SmallVenue
+                  selectedIds={selected.map((s) => s.id)}
+                  onToggleSeat={(seat) => {
+                    setSelected((prev) => {
+                      const exists = prev.some((x) => x.id === seat.id);
+                      if (exists) return prev.filter((x) => x.id !== seat.id);
+                      if (prev.length >= 2) return prev;
+                      return [
+                        ...prev,
+                        {
+                          id: seat.id,
+                          gradeLabel: seat.gradeLabel,
+                          label: seat.label,
+                          price: seat.price,
+                        },
+                      ];
+                    });
+                  }}
+                />
+              )}
               {venueKey === "medium" && <MediumVenue />}
               {venueKey === "large" && <LargeVenue />}
             </div>
@@ -288,6 +321,7 @@ export default function SelectSeatPage() {
               </div>
 
               <div className="bg-white rounded-md border border-[#e3e3e3] shadow">
+                <div className="font-semibold mb-2">선택좌석</div>
                 <div className="px-3 py-2 text-[#b02a2a] text-right text-sm border-b">
                   총 {selected.length}석 선택되었습니다.
                 </div>
@@ -300,9 +334,6 @@ export default function SelectSeatPage() {
                         </th>
                         <th className="text-left font-normal whitespace-nowrap">
                           좌석번호
-                        </th>
-                        <th className="text-right font-normal w-16 whitespace-nowrap">
-                          삭제
                         </th>
                       </tr>
                     </thead>
@@ -320,7 +351,7 @@ export default function SelectSeatPage() {
                         selected.map((s) => (
                           <tr key={s.id} className="border-t">
                             <td className="py-2 whitespace-nowrap">
-                              {GRADE_META[s.grade].name}
+                              {s.gradeLabel}
                             </td>
                             <td className="whitespace-nowrap">{s.label}</td>
                             <td className="text-right">
