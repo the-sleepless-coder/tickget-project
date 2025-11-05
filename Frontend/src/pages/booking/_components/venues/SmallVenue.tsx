@@ -1,4 +1,17 @@
-export default function SmallVenue() {
+type SmallVenueSeat = {
+  id: string;
+  gradeLabel: string;
+  label: string;
+  price?: number;
+};
+
+export default function SmallVenue({
+  selectedIds = [],
+  onToggleSeat,
+}: {
+  selectedIds?: string[];
+  onToggleSeat?: (seat: SmallVenueSeat) => void;
+}) {
   // 좌석 정사각형 크기와 간격은 Tailwind + 인라인 스타일로 조절
   const seatStyle: React.CSSProperties = {
     width: 7.5,
@@ -137,6 +150,8 @@ export default function SmallVenue() {
                       ? "A석"
                       : "R석";
 
+          const seatId = `small-${floor}-${section}-${displayRow}-${displayCol}`;
+          const isSelected = selectedIds.includes(seatId);
           return (
             <div
               key={`${keyPrefix}${rowIndex}-${colIndex}`}
@@ -144,7 +159,7 @@ export default function SmallVenue() {
               title={`[${gradeLabel}] ${section}구역-${displayRow}열-${displayCol}`}
               style={{
                 ...seatStyle,
-                backgroundColor: seatColor,
+                backgroundColor: isSelected ? "#4a4a4a" : seatColor,
                 cursor: "pointer",
                 opacity: (() => {
                   if (isHiddenRow) return 0;
@@ -168,7 +183,13 @@ export default function SmallVenue() {
                   return 1;
                 })(),
               }}
-              aria-hidden
+              onClick={() => {
+                onToggleSeat?.({
+                  id: seatId,
+                  gradeLabel,
+                  label: `${section}구역-${displayRow}열-${displayCol}`,
+                });
+              }}
             />
           );
         });
