@@ -58,7 +58,7 @@ export default function Step1BasicForm({
         </div>
 
         <div className="flex items-center gap-8 flex-wrap">
-          <span className="text-gray-700 font-semibold">시작 시간</span>
+          <span className="text-gray-700 font-semibold">경기 시작</span>
           <div className="w-[160px]">
             <LocalizationProvider dateAdapter={AdapterDayjs}>
               <TimePicker

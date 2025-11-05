@@ -93,7 +93,9 @@ export default function LeftPane({
                   : size === "대형" || /인스파이어아레나/.test(venue)
                     ? "/performance-halls/inspire-arena.jpg"
                     : null;
-            const src = layoutUrl || (isAIMode ? null : defaultSrc);
+            const src = isPresetMode
+              ? defaultSrc
+              : layoutUrl || (isAIMode ? null : defaultSrc);
             return src ? (
               <img
                 src={src}
