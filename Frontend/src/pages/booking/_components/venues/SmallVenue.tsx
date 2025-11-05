@@ -1,65 +1,465 @@
-export default function SmallVenue() {
+type SmallVenueSeat = {
+  id: string;
+  gradeLabel: string;
+  label: string;
+  price?: number;
+};
+
+export default function SmallVenue({
+  selectedIds = [],
+  onToggleSeat,
+}: {
+  selectedIds?: string[];
+  onToggleSeat?: (seat: SmallVenueSeat) => void;
+}) {
   // 좌석 정사각형 크기와 간격은 Tailwind + 인라인 스타일로 조절
   const seatStyle: React.CSSProperties = {
-    width: 14,
-    height: 14,
+    width: 7.5,
+    height: 7.5,
   };
 
-  // 1F: 상단으로 갈수록 좌우 여백이 커지는 형태 (이미지의 완만한 곡선 외곽을 단순화)
-  // 값은 각 행의 좌우 여백(컬럼 수)이며, 가운데는 좌석으로 채웁니다.
-  const firstFloorLeftRightPads: number[] = [
-    12, 11, 10, 9, 8, 8, 7, 7, 6, 6, 5, 5, 4, 4, 3, 3, 2, 2, 1, 1,
-  ];
+  type BlockPos = "left" | "center" | "right";
+  const COLORS = {
+    OP: "#A0D53F",
+    VIP: "#7C68EE",
+    R: "#1CA814",
+    S: "#17B3FF",
+    A: "#FB7E4E",
+    DEFAULT: "#cfd8dc",
+  } as const;
 
-  // 2F: 상단이 더 좁고 하단으로 갈수록 서서히 넓어지는 형태
-  const secondFloorLeftRightPads: number[] = [
-    12, 11, 10, 9, 9, 8, 8, 7, 7, 6, 6, 6,
-  ];
+  // 좌석 색상 결정 (행/열 기반, 1-base)
+  const getSeatColor = (
+    floor: 1 | 2,
+    block: BlockPos,
+    row: number,
+    col: number
+  ): string => {
+    if (floor === 1) {
+      // OP: 1~2행 전체
+      if (row >= 1 && row <= 2) return COLORS.OP;
 
-  // 공통 렌더 함수: 좌우 여백 배열과 총 컬럼수로 그리드 생성
-  const renderLevel = (pads: number[], totalCols: number) => (
-    <div className="overflow-auto border rounded bg-white p-4">
-      <div
-        className="grid justify-center"
-        style={{
-          gridTemplateColumns: `repeat(${totalCols}, 14px)`,
-          gridAutoRows: "14px",
-          gap: "3px",
-        }}
-      >
-        {pads.map((pad, rowIndex) =>
-          Array.from({ length: totalCols }).map((_, colIndex) => {
-            const isSeat = colIndex >= pad && colIndex < totalCols - pad;
-            return isSeat ? (
-              <div
-                key={`${rowIndex}-${colIndex}`}
-                className="bg-white border border-[#cfd8dc] rounded-sm"
-                style={seatStyle}
-                aria-hidden
-              />
-            ) : (
-              <div
-                key={`${rowIndex}-${colIndex}`}
-                style={seatStyle}
-                aria-hidden
-              />
-            );
-          })
-        )}
-      </div>
+      // 3~20행: 좌우 블록은 세로 구간, 중앙은 VIP
+      if (row >= 3 && row <= 20) {
+        if (block === "left") {
+          // 좌 블록: VIP 9~14, R 1~8
+          if (col >= 9 && col <= 14) return COLORS.VIP;
+          if (col >= 1 && col <= 8) return COLORS.R;
+          return COLORS.DEFAULT;
+        }
+        if (block === "right") {
+          // 우 블록: VIP 1~6, R 7~14
+          if (col >= 1 && col <= 6) return COLORS.VIP;
+          if (col >= 7 && col <= 14) return COLORS.R;
+          return COLORS.DEFAULT;
+        }
+        // center
+        return COLORS.VIP;
+      }
+
+      // 21~23행: 전체 R
+      if (row >= 21 && row <= 23) return COLORS.R;
+
+      return COLORS.DEFAULT;
+    }
+
+    // 2층 세로 분할: 상단(1~7행)
+    if (row >= 1 && row <= 7) {
+      if (block === "left") {
+        // 좌 블록: 1~2행은 VIP/R 세로 분할, 3~4행 R 전체, 5~7행 S 전체
+        if (row <= 2) {
+          if (col >= 9 && col <= 14) return COLORS.VIP; // VIP 9~14
+          if (col >= 1 && col <= 8) return COLORS.R; // R 1~8
+          return COLORS.DEFAULT;
+        }
+        if (row <= 4) return COLORS.R; // 3~4행 R 전체
+        return COLORS.S; // 5~7행 S 전체
+      }
+      if (block === "right") {
+        // 우 블록: 1~2행은 VIP/R 세로 분할, 3~4행 R 전체, 5~7행 S 전체
+        if (row <= 2) {
+          if (col >= 1 && col <= 6) return COLORS.VIP; // VIP 1~6
+          if (col >= 7 && col <= 14) return COLORS.R; // R 7~14
+          return COLORS.DEFAULT;
+        }
+        if (row <= 4) return COLORS.R; // 3~4행 R 전체
+        return COLORS.S; // 5~7행 S 전체
+      }
+      // center 블록은 행 기준 유지
+      if (row <= 2) return COLORS.VIP;
+      if (row <= 4) return COLORS.R;
+      return COLORS.S; // 5~7행
+    }
+
+    // 하단(8~12행): A석
+    if (row >= 8 && row <= 12) return COLORS.A;
+    return COLORS.DEFAULT;
+  };
+
+  // 직사각형 블록 렌더링 (columns x rows)
+  const renderBlock = (
+    columns: number,
+    rows: number,
+    keyPrefix: string,
+    floor: 1 | 2,
+    block: BlockPos,
+    rowOffset: number = 0,
+    skipRows: number[] = [],
+    trimByRow?: Record<number, number>,
+    hideColsByRow?: Record<number, Array<number | [number, number]>>,
+    columnOffsetAcross44: number = 0,
+    displayRowOffset: number = 0,
+    fixedDisplayRow?: number
+  ) => (
+    <div
+      className="grid justify-center"
+      style={{
+        gridTemplateColumns: `repeat(${columns}, 7px)`,
+        gridAutoRows: "7.1px",
+        gap: "3.05px",
+      }}
+    >
+      {Array.from({ length: rows }).map((_, rowIndex) => {
+        const rowNo = rowIndex + 1;
+        const effectiveRowNo = rowOffset + rowNo; // 전역 행 번호(1F 기준)
+        const isHiddenRow = skipRows.includes(rowNo);
+        const trim = trimByRow?.[effectiveRowNo] ?? 0;
+        const extraHides = hideColsByRow?.[effectiveRowNo];
+        return Array.from({ length: columns }).map((_, colIndex) => {
+          const section =
+            block === "left" ? "A" : block === "center" ? "B" : "C";
+          const displayRow = fixedDisplayRow ?? displayRowOffset + rowNo; // 표시용 행 번호
+          const displayCol = columnOffsetAcross44 + (colIndex + 1); // 표시용 열 번호(1..44)
+
+          const seatColor = getSeatColor(
+            floor,
+            block,
+            effectiveRowNo,
+            colIndex + 1
+          );
+          const gradeLabel =
+            seatColor === COLORS.OP
+              ? "OP석"
+              : seatColor === COLORS.VIP
+                ? "VIP석"
+                : seatColor === COLORS.R
+                  ? "R석"
+                  : seatColor === COLORS.S
+                    ? "S석"
+                    : seatColor === COLORS.A
+                      ? "A석"
+                      : "R석";
+
+          const seatId = `small-${floor}-${section}-${displayRow}-${displayCol}`;
+          const isSelected = selectedIds.includes(seatId);
+          return (
+            <div
+              key={`${keyPrefix}${rowIndex}-${colIndex}`}
+              // 원래 티켓팅 사이트에서 행, 열이 바뀌어 있음, 행, 열 순서를 바꿔서 표시
+              title={`[${gradeLabel}] ${section}구역-${displayRow}열-${displayCol}`}
+              style={{
+                ...seatStyle,
+                backgroundColor: isSelected ? "#4a4a4a" : seatColor,
+                cursor: "pointer",
+                opacity: (() => {
+                  if (isHiddenRow) return 0;
+                  if (
+                    trim > 0 &&
+                    ((block === "left" && colIndex + 1 <= trim) ||
+                      (block === "right" && colIndex + 1 > columns - trim))
+                  )
+                    return 0;
+                  if (extraHides && extraHides.length > 0) {
+                    const colNo = colIndex + 1;
+                    for (const spec of extraHides) {
+                      if (typeof spec === "number") {
+                        if (colNo === spec) return 0;
+                      } else {
+                        const [from, to] = spec as [number, number];
+                        if (colNo >= from && colNo <= to) return 0;
+                      }
+                    }
+                  }
+                  return 1;
+                })(),
+              }}
+              onClick={() => {
+                onToggleSeat?.({
+                  id: seatId,
+                  gradeLabel,
+                  label: `${section}구역-${displayRow}열-${displayCol}`,
+                });
+              }}
+            />
+          );
+        });
+      })}
     </div>
   );
 
-  // 총 컬럼 수는 너비 비율을 맞추기 위한 임의값 (이미지 대비 적정치)
-  const totalColumns = 44;
-
   return (
-    <div className="space-y-6">
-      {/* 1F 좌석만 (상단 블록) */}
-      {renderLevel(firstFloorLeftRightPads, totalColumns)}
+    <div
+      className="grid place-content-center w-full h-full"
+      style={{
+        // 3열 고정, 각 칸은 컨텐츠(블록) 크기에 맞춤
+        gridTemplateColumns: "repeat(3, max-content)",
+        columnGap: "14px",
+        rowGap: "16px",
+        transform: "translateY(25px)",
+      }}
+    >
+      {/* 1층 - 1행 (좌, 중, 우) */}
+      <div>
+        {/* 1F 좌 블록: 앞 1행(투명) + 간격 + 3~23행 */}
+        <div style={{ height: 4 }} />
+        {renderBlock(
+          14,
+          1,
+          "1F-r1-c1-front",
+          1,
+          "left",
+          0,
+          [1],
+          undefined,
+          undefined,
+          0,
+          0,
+          1
+        )}
+        <div style={{ height: 6 }} />
+        {renderBlock(
+          14,
+          21,
+          "1F-r1-c1-rest",
+          1,
+          "left",
+          2,
+          [21],
+          {
+            3: 14,
+            4: 10,
+            5: 9,
+            6: 8,
+            7: 7,
+            8: 6,
+            9: 6,
+            10: 5,
+            11: 4,
+            12: 4,
+            13: 3,
+            14: 2,
+            15: 2,
+            16: 1,
+          },
+          undefined,
+          0,
+          0
+        )}
+      </div>
+      <div>
+        {/* 1F 중앙 블록: 1행 분리 + 간격 + 3~23행 (2행 제외) */}
+        <div style={{ height: 2 }} />
+        {renderBlock(
+          15,
+          1,
+          "1F-r1-c2-front",
+          1,
+          "center",
+          0,
+          [],
+          undefined,
+          undefined,
+          14,
+          0,
+          1
+        )}
+        <div style={{ height: 8 }} />
+        {renderBlock(
+          16,
+          21,
+          "1F-r1-c2-rest",
+          1,
+          "center",
+          2,
+          [],
+          undefined,
+          {
+            5: [16],
+            7: [16],
+            9: [16],
+            11: [16],
+            13: [16],
+            15: [16],
+            17: [16],
+            19: [16],
+            21: [16],
+            23: [
+              [1, 4] as [number, number],
+              7,
+              10,
+              [13, 16] as [number, number],
+            ],
+          },
+          14,
+          0
+        )}
+      </div>
+      <div>
+        {/* 1F 우 블록: 앞 1행(투명) + 간격 + 3~23행 */}
+        <div style={{ height: 4 }} />
+        {renderBlock(
+          14,
+          1,
+          "1F-r1-c3-front",
+          1,
+          "right",
+          0,
+          [1],
+          undefined,
+          undefined,
+          30,
+          0,
+          1
+        )}
+        <div style={{ height: 6 }} />
+        {renderBlock(
+          14,
+          21,
+          "1F-r1-c3-rest",
+          1,
+          "right",
+          2,
+          [21],
+          {
+            3: 14,
+            4: 10,
+            5: 9,
+            6: 8,
+            7: 7,
+            8: 6,
+            9: 6,
+            10: 5,
+            11: 4,
+            12: 4,
+            13: 3,
+            14: 2,
+            15: 2,
+            16: 1,
+          },
+          undefined,
+          30,
+          0
+        )}
+      </div>
 
-      {/* 2F 좌석만 (하단 블록) */}
-      {renderLevel(secondFloorLeftRightPads, totalColumns)}
+      {/* 층 사이 여백 */}
+      <div style={{ gridColumn: "1 / 4", height: 39 }} />
+
+      {/* 2층 - 1행/2행: 줄간 간격 축소 */}
+      <div style={{ gridColumn: "1 / 4" }}>
+        <div
+          className="grid justify-center"
+          style={{
+            gridTemplateColumns: "repeat(3, max-content)",
+            columnGap: "14px",
+            rowGap: "13px",
+          }}
+        >
+          {/* 2층 1행 */}
+          <div>
+            {renderBlock(
+              14,
+              7,
+              "2F-r1-c1-",
+              2,
+              "left",
+              0,
+              [],
+              undefined,
+              { 1: [1], 2: [1] },
+              0,
+              0
+            )}
+          </div>
+          <div>
+            {renderBlock(
+              16,
+              7,
+              "2F-r1-c2-",
+              2,
+              "center",
+              0,
+              [],
+              undefined,
+              { 2: [16], 4: [16], 6: [16] },
+              14,
+              0
+            )}
+          </div>
+          <div>
+            {renderBlock(
+              14,
+              7,
+              "2F-r1-c3-",
+              2,
+              "right",
+              0,
+              [],
+              undefined,
+              { 1: [14], 2: [14] },
+              30,
+              0
+            )}
+          </div>
+
+          {/* 2층 2행 */}
+          <div>
+            {renderBlock(
+              14,
+              5,
+              "2F-r2-c1-",
+              2,
+              "left",
+              7,
+              [],
+              undefined,
+              undefined,
+              0,
+              7
+            )}
+          </div>
+          <div>
+            {renderBlock(
+              16,
+              5,
+              "2F-r2-c2-",
+              2,
+              "center",
+              7,
+              [],
+              undefined,
+              { 1: [16], 3: [16], 5: [3, 13, 16] },
+              14,
+              7
+            )}
+          </div>
+          <div>
+            {renderBlock(
+              14,
+              5,
+              "2F-r2-c3-",
+              2,
+              "right",
+              7,
+              [],
+              undefined,
+              undefined,
+              30,
+              7
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
