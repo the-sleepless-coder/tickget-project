@@ -40,6 +40,11 @@ public class SeatReservationService {
             throw new TooManySeatsRequestedException(requested);
         }
 
+        // 1-1. totalSeats 필수 검증
+        if (req.getTotalSeats() == null || req.getTotalSeats() <= 0) {
+            throw new IllegalArgumentException("Total seats must be provided and greater than 0");
+        }
+
         // 2. Redis 경기 상태 확인 (OPEN이면 예약 가능)
         boolean redisOpen = matchStatusRepository.isOpen(matchId);
         if (!redisOpen) {
@@ -54,19 +59,28 @@ public class SeatReservationService {
             throw new MatchClosedException(matchId);
         }
 
+        // 3-1. 프론트에서 받은 totalSeats를 DB에 저장
+        if (!match.getMaxUser().equals(req.getTotalSeats())) {
+            log.info("totalSeats 업데이트: matchId={}, 기존값={}, 새로운값={}",
+                    matchId, match.getMaxUser(), req.getTotalSeats());
+            match.setMaxUser(req.getTotalSeats());
+            match.setUpdatedAt(LocalDateTime.now());
+            matchRepository.save(match);
+        }
+
         // 4. seatId -> rowNumber 변환 (예: "008-9-15" -> "9-15")
         List<String> rowNumbers = req.getSeatIds().stream()
                 .map(this::extractRowNumber)
                 .toList();
 
-        // 5. Redis 원자적 선점 시도 (좌석 선점 + 카운트 증가 + 만석 시 자동 CLOSED)
+        // 5. Redis 원자적 선점 시도 (프론트에서 받은 totalSeats 사용)
         Long result = luaReservationExecutor.tryReserveSeatsAtomically(
                 matchId,
                 req.getSectionId(),
                 rowNumbers,
                 userId,
                 req.getGrade(),
-                match.getMaxUser()
+                req.getTotalSeats()  // ← 프론트에서 받은 전체 좌석 수 사용
         );
 
         // 6. 결과 처리

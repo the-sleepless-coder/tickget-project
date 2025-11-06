@@ -16,4 +16,5 @@ public class SeatReservationRequest {
     private String sectionId;
     private String grade;
     private Long matchId;
+    private Integer totalSeats;
 }
