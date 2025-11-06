@@ -67,7 +67,11 @@ public class QueueWriter {
                     m.put("lastUpdated", String.valueOf(now));
 
                     c.hMSet(hkey, m);
-                    // (선택) 짧은 TTL: c.expire(hkey, 60);
+                    /**
+                     * 조정 필요
+                     * */
+                    // (선택) 짧은 TTL:
+                    c.expire(hkey, 600);
                     i++;
                 }
                 return null;

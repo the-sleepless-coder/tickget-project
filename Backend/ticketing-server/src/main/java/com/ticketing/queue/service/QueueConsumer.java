@@ -54,7 +54,7 @@ public class QueueConsumer {
                  * Duration 변경
                  **/
                 redis.opsForHash().put(QueueKeys.userStateKey(roomId, userId), "state", DEQUEUED);
-                redis.expire(QueueKeys.userStateKey(roomId, userId), Duration.ofMinutes(10));
+                redis.expire(QueueKeys.userStateKey(roomId, userId), Duration.ofSeconds(3));
 
                 // Kafka 발행
                 /**

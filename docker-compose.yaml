@@ -35,5 +35,19 @@ services:
       - redis-data:/data
     restart: unless-stopped
 
+
+  captcha-api:
+    build:
+      context: ./Backend/captcha-server   # ← 기존 '.' 대신 captcha 소스 폴더를 지정
+      # dockerfile: Dockerfile         # Dockerfile이 기본 이름이 아니면 명시
+    image: captcha-api:latest
+    container_name: captcha
+    ports:
+      - "8080:8080"
+    environment:
+      CAPTCHA_API_CONFIG: /app/config/captcha.cfg
+    volumes:
+      - ./captcha/captcha.cfg:/app/config/captcha.cfg:ro  # ← 루트 기준으로 경로 수정
+
 volumes:
-  redis-data:
+  redis-data:      
