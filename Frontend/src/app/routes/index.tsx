@@ -4,38 +4,60 @@ import type { ReactElement } from "react";
 import MainLayout from "../layouts/MainLayout";
 import PlainLayout from "../layouts/PlainLayout";
 import AuthLayout from "../layouts/AuthLayout";
-import AuthGuard from "./guards/AuthGuard";
+// AuthGuard removed because dashboard/profile routes were removed
 
 const HomePage = lazy(() => import("../../pages/home"));
 // Removed BookingIndexPage usage for plain booking flow
-const SelectVenuePage = lazy(() => import("../../pages/booking/select-venue"));
-const SelectSeatPage = lazy(() => import("../../pages/booking/select-seat"));
-const PricePage = lazy(() => import("../../pages/booking/price"));
+const SelectVenuePage = lazy(
+  () =>
+    import("../../pages/ticketing/exterpark-site/exterpark-booking/SelectVenue")
+);
+const SelectSeatPage = lazy(
+  () =>
+    import("../../pages/ticketing/exterpark-site/exterpark-booking/SelectSeat")
+);
+const PricePage = lazy(
+  () => import("../../pages/ticketing/exterpark-site/exterpark-booking/Price")
+);
 const OrderConfirmPage = lazy(
-  () => import("../../pages/booking/order-confirm")
+  () =>
+    import(
+      "../../pages/ticketing/exterpark-site/exterpark-booking/OrderConFirm"
+    )
 );
-const PaymentPage = lazy(() => import("../../pages/booking/payment"));
-const CancelFeePage = lazy(() => import("../../pages/booking/cancel-fee"));
-const CompletePage = lazy(() => import("../../pages/booking/complete"));
-const BookingWaitingPage = lazy(() => import("../../pages/booking/waiting"));
-const GameResultPage = lazy(() => import("../../pages/game-result"));
+const PaymentPage = lazy(
+  () => import("../../pages/ticketing/exterpark-site/exterpark-booking/Payment")
+);
+const CancelFeePage = lazy(
+  () =>
+    import("../../pages/ticketing/exterpark-site/exterpark-booking/CancelFee")
+);
+const CompletePage = lazy(
+  () =>
+    import("../../pages/ticketing/exterpark-site/exterpark-booking/Complete")
+);
+const BookingWaitingPage = lazy(
+  () => import("../../pages/ticketing/exterpark-site/exterpark-booking/Waiting")
+);
+const GameResultPage = lazy(() => import("../../pages/ticketing/GameResult"));
 const BookingSelectSchedulePage = lazy(
-  () => import("../../pages/booking/select-schedule")
+  () =>
+    import(
+      "../../pages/ticketing/exterpark-site/exterpark-booking/SelectSchedule"
+    )
 );
-const DashboardPage = lazy(() => import("../../pages/dashboard"));
-const ProfilePage = lazy(() => import("../../pages/profile"));
 const ITicketPage = lazy(
-  () => import("../../pages/Ticketing/Exterpark/Exterpark")
+  () => import("../../pages/ticketing/exterpark-site/Exterpark")
 );
-const RoomsPage = lazy(() => import("../../pages/rooms"));
-const SeatsTestPage = lazy(() => import("../../pages/seatstest"));
-const MyPageIndex = lazy(() => import("../../pages/mypage"));
+const RoomsPage = lazy(() => import("../../pages/room/RoomsList"));
+const SeatsTestPage = lazy(() => import("../../pages/test/NotFound"));
+const MyPageIndex = lazy(() => import("../../pages/my-page/MyPage"));
 const MyPageReservationsPage = lazy(
-  () => import("../../pages/mypage/reservations")
+  () => import("../../pages/my-page/MockReservations")
 );
-const LoginPage = lazy(() => import("../../pages/auth/login"));
-const SignupPage = lazy(() => import("../../pages/auth/signup"));
-const NotFoundPage = lazy(() => import("../../pages/not-found"));
+const LoginPage = lazy(() => import("../../pages/auth/login/SocialLogin"));
+const SignupPage = lazy(() => import("../../pages/auth/sign-up/SignUp"));
+const NotFoundPage = lazy(() => import("../../pages/test/NotFound"));
 
 function withSuspense(el: ReactElement) {
   return <Suspense fallback={null}>{el}</Suspense>;
@@ -65,22 +87,7 @@ export const router = createBrowserRouter([
           },
         ],
       },
-      {
-        path: "dashboard",
-        element: withSuspense(
-          <AuthGuard>
-            <DashboardPage />
-          </AuthGuard>
-        ),
-      },
-      {
-        path: "profile",
-        element: withSuspense(
-          <AuthGuard>
-            <ProfilePage />
-          </AuthGuard>
-        ),
-      },
+      // dashboard/profile routes removed
       { path: "*", element: withSuspense(<NotFoundPage />) },
     ],
   },
