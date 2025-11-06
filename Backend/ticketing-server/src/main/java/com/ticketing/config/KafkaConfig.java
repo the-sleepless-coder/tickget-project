@@ -8,6 +8,19 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.core.*;
+import org.apache.kafka.clients.admin.AdminClientConfig;
+import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.common.serialization.StringSerializer;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.kafka.config.TopicBuilder;
+import org.springframework.kafka.core.DefaultKafkaProducerFactory;
+import org.springframework.kafka.core.KafkaAdmin;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.core.ProducerFactory;
+import org.springframework.kafka.support.serializer.JsonSerializer;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -15,29 +28,46 @@ import java.util.Map;
 @Configuration
 @EnableKafka
 public class KafkaConfig {
-    // Kafka Producer -> Producer Record
+
+    @Value("${spring.kafka.bootstrap-servers:localhost:9092}")
+    private String bootstrapServers;
+
     @Bean
-    public KafkaTemplate<String, String> kafkaTemplate(ProducerFactory<String, String> pf){
-       return new KafkaTemplate<>(pf);
+    public KafkaAdmin kafkaAdmin() {
+        Map<String, Object> configs = new HashMap<>();
+        configs.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        return new KafkaAdmin(configs);
     }
 
-    // Kafka Cluster의 Meta-data 관리용 Bean 생성.
-    /*
-    * @Bean
-    public AdminClient adminClient(KafkaProperties props){
-        return AdminClient.create(props.buildAdminProperties(null));
+    @Bean
+    public ProducerFactory<String, Object> producerFactory() {
+        Map<String, Object> configProps = new HashMap<>();
+        configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+        configProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
+        return new DefaultKafkaProducerFactory<>(configProps);
     }
 
-    // AdminClient에서 Meta-data를 처리하는 Consumer Bean 생성.
     @Bean
-    @Qualifier("monitorCf")
-    public ConsumerFactory<String, String> monitorConsumerFactory(KafkaProperties props){
-        Map<String, Object> cfg = new HashMap<>(props.buildConsumerProperties());
-        cfg.put(ConsumerConfig.GROUP_ID_CONFIG, "monitor-client");
-        cfg.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
+    public KafkaTemplate<String, Object> kafkaTemplate() {
+        return new KafkaTemplate<>(producerFactory());
+    }
 
-        return new DefaultKafkaConsumerFactory<>(cfg);
-    }*/
+    // 좌석 선택 토픽
+    @Bean
+    public NewTopic seatSelectedTopic() {
+        return TopicBuilder.name("match.seat.selected")
+                .partitions(3)
+                .replicas(1)
+                .build();
+    }
 
-
+    // 좌석 확정 토픽
+    @Bean
+    public NewTopic seatConfirmedTopic() {
+        return TopicBuilder.name("match.seat.confirmed")
+                .partitions(3)
+                .replicas(1)
+                .build();
+    }
 }
