@@ -23,7 +23,7 @@ type Config struct {
 func Load() *Config {
 	// .env 파일 로드 시도 (없어도 오류 무시)
 	if err := godotenv.Load(); err != nil {
-		log.Println("No .env file found, using environment variables")
+		log.Println(".env 파일이 없습니다. 환경 변수를 사용합니다")
 	}
 
 	config := &Config{
@@ -33,7 +33,7 @@ func Load() *Config {
 		MaxConcurrentBots: getEnvAsInt("MAX_CONCURRENT_BOTS", 50000),
 	}
 
-	logger.Info("Config loaded",
+	logger.Info("설정 로드됨",
 		zap.String("port", config.ServerPort),
 		zap.String("ticketing_api", config.TicketingAPIURL),
 		zap.Int("max_bots", config.MaxConcurrentBots),

@@ -26,7 +26,6 @@ func NewHandler(MaxConcurrentBots int) *Handler {
 // RegisterRoutes 라우트를 등록합니다
 func (h *Handler) RegisterRoutes(router *gin.Engine) {
 	router.GET("/health", h.HealthCheck)
-	router.GET("/ping", h.Ping)
 	router.GET("/bots/count", h.BotCount)
 
 	// 매치 관련 라우트
@@ -43,14 +42,8 @@ func (h *Handler) HealthCheck(c *gin.Context) {
 		"service": "bot-server",
 	}
 
-	logger.Debug("Health check requested")
+	logger.Debug("헬스체크 요청됨")
 	c.JSON(http.StatusOK, response)
-}
-
-// Ping 간단한 ping 엔드포인트
-func (h *Handler) Ping(c *gin.Context) {
-	logger.Debug("Ping requested")
-	c.JSON(http.StatusOK, gin.H{"message": "pong"})
 }
 
 func (h *Handler) BotCount(c *gin.Context) {
@@ -69,7 +62,7 @@ func (h *Handler) StartMatch(c *gin.Context) {
 
 	// JSON 바인딩 및 검증
 	if err := c.ShouldBindJSON(&req); err != nil {
-		logger.Warn("Invalid match start request",
+		logger.Warn("잘못된 매치 시작 요청",
 			zap.Error(err),
 		)
 		c.JSON(http.StatusBadRequest, models.ErrorResponse{
@@ -79,7 +72,7 @@ func (h *Handler) StartMatch(c *gin.Context) {
 		return
 	}
 
-	logger.Info("Match start requested",
+	logger.Info("매치 시작 요청됨",
 		zap.Int64("match_id", req.MatchID),
 		zap.Int("bot_count", req.BotCount),
 		zap.Time("start_time", req.StartTime),
@@ -87,7 +80,7 @@ func (h *Handler) StartMatch(c *gin.Context) {
 
 	// 매치 시작
 	if err := h.matchManager.StartMatch(req); err != nil {
-		logger.Error("Failed to start match",
+		logger.Error("매치 시작 실패",
 			zap.Int64("match_id", req.MatchID),
 			zap.Error(err),
 		)
@@ -100,7 +93,7 @@ func (h *Handler) StartMatch(c *gin.Context) {
 
 	response := models.MatchStartResponse{
 		Success: true,
-		Message: "Match scheduled successfully",
+		Message: "매치가 성공적으로 스케줄되었습니다",
 		MatchID: req.MatchID,
 	}
 

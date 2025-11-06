@@ -30,7 +30,7 @@ func NewBot(id int, matchID int64, logger *zap.Logger) *Bot {
 func (b *Bot) Run(ctx context.Context) error {
 	b.startTime = time.Now()
 
-	b.logger.Debug("Bot started",
+	b.logger.Debug("봇 시작됨",
 		zap.Int("bot_id", b.ID),
 		zap.Int64("match_id", b.MatchID),
 	)
@@ -51,7 +51,7 @@ func (b *Bot) Run(ctx context.Context) error {
 	}
 
 	duration := time.Since(b.startTime)
-	b.logger.Info("Bot completed successfully",
+	b.logger.Info("봇 성공적으로 완료됨",
 		zap.Int("bot_id", b.ID),
 		zap.Int64("match_id", b.MatchID),
 		zap.Duration("duration", duration),
@@ -67,7 +67,7 @@ func (b *Bot) selectDay(ctx context.Context) error {
 
 	select {
 	case <-time.After(delay):
-		b.logger.Debug("Day selected",
+		b.logger.Debug("요일 선택됨",
 			zap.Int("bot_id", b.ID),
 			zap.Duration("delay", delay),
 		)
@@ -84,7 +84,7 @@ func (b *Bot) solveCaptcha(ctx context.Context) error {
 
 	select {
 	case <-time.After(delay):
-		b.logger.Debug("Captcha solved",
+		b.logger.Debug("보안문자 통과",
 			zap.Int("bot_id", b.ID),
 			zap.Duration("delay", delay),
 		)
@@ -103,14 +103,14 @@ func (b *Bot) selectSeat(ctx context.Context) error {
 	case <-time.After(delay):
 		// 90% 성공 확률
 		if rand.Float32() > 0.1 {
-			b.logger.Debug("Seat selected successfully",
+			b.logger.Debug("좌석 선택 성공",
 				zap.Int("bot_id", b.ID),
 				zap.Duration("delay", delay),
 			)
 			return nil
 		}
 		// 10% 실패
-		return fmt.Errorf("seat already taken")
+		return fmt.Errorf("좌석이 이미 선점됨")
 	case <-ctx.Done():
 		return ctx.Err()
 	}

@@ -58,10 +58,10 @@ func (s *Server) Start() error {
 		IdleTimeout:  60 * time.Second,
 	}
 
-	logger.Info("Starting Gin server", zap.String("port", s.config.ServerPort))
+	logger.Info("Gin 서버 시작", zap.String("port", s.config.ServerPort))
 
 	if err := s.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		return fmt.Errorf("server failed to start: %w", err)
+		return fmt.Errorf("서버 시작 실패: %w", err)
 	}
 
 	return nil
@@ -69,12 +69,12 @@ func (s *Server) Start() error {
 
 // Shutdown 서버를 gracefully 종료합니다
 func (s *Server) Shutdown(ctx context.Context) error {
-	logger.Info("Shutting down server")
+	logger.Info("서버 종료 중")
 
 	if err := s.httpServer.Shutdown(ctx); err != nil {
-		return fmt.Errorf("server shutdown failed: %w", err)
+		return fmt.Errorf("서버 종료 실패: %w", err)
 	}
 
-	logger.Info("Server stopped gracefully")
+	logger.Info("서버 정상 종료됨")
 	return nil
 }

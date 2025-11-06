@@ -3,6 +3,7 @@ package manager
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	"bot-server/bot"
 	"bot-server/logger"
@@ -42,20 +43,25 @@ func (m *MatchManager) GetBotCount() (total int, available int) {
 func (m *MatchManager) StartMatch(req models.MatchStartRequest) error {
 	matchLogger := logger.WithMatchContext(req.MatchID)
 
+	// 0. 시작 시간 검증 (과거 시간 거부)
+	if req.StartTime.Before(time.Now()) {
+		return fmt.Errorf("시작 시간은 현재 시간보다 이후여야 합니다")
+	}
+
 	// 매치 등록 + 가용 봇 체크 및 차감
 	m.mu.Lock()
 
 	// 1. 가용 봇 수 체크
 	if m.availableBots < req.BotCount {
 		m.mu.Unlock()
-		return fmt.Errorf("not enough bots available (requested: %d, available: %d)",
+		return fmt.Errorf("가용 봇이 부족합니다 (요청: %d, 가용: %d)",
 			req.BotCount, m.availableBots)
 	}
 
 	// 2. 중복 매치 체크
 	if _, exists := m.matches[req.MatchID]; exists {
 		m.mu.Unlock()
-		return fmt.Errorf("match %d already exists", req.MatchID)
+		return fmt.Errorf("매치 %d가 이미 존재합니다", req.MatchID)
 	}
 
 	// 3. 봇 할당 (차감)
@@ -67,7 +73,7 @@ func (m *MatchManager) StartMatch(req models.MatchStartRequest) error {
 
 	m.mu.Unlock()
 
-	matchLogger.Info("Match registered",
+	matchLogger.Info("매치 등록됨",
 		zap.Int("bot_count", req.BotCount),
 		zap.Time("start_time", req.StartTime),
 	)
@@ -84,13 +90,13 @@ func (m *MatchManager) StartMatch(req models.MatchStartRequest) error {
 		})
 
 		if err != nil {
-			matchLogger.Error("Match failed", zap.Error(err))
+			matchLogger.Error("매치 실패", zap.Error(err))
 			matchCtx.SetStatus(match.StatusFailed)
 			return
 		}
 
 		matchCtx.SetStatus(match.StatusCompleted)
-		matchLogger.Info("Match completed successfully")
+		matchLogger.Info("매치 성공적으로 완료됨")
 	}()
 
 	return nil
@@ -101,7 +107,7 @@ func (m *MatchManager) runMatch(matchCtx *match.MatchContext) error {
 	matchLogger := logger.WithMatchContext(matchCtx.MatchID)
 	matchCtx.SetStatus(match.StatusRunning)
 
-	matchLogger.Info("Starting bots",
+	matchLogger.Info("봇 시작 중",
 		zap.Int("count", matchCtx.BotCount),
 	)
 
@@ -116,7 +122,7 @@ func (m *MatchManager) runMatch(matchCtx *match.MatchContext) error {
 			b := bot.NewBot(botID, matchCtx.MatchID, botLogger)
 
 			if err := b.Run(matchCtx.Context()); err != nil {
-				botLogger.Warn("Bot failed", zap.Error(err))
+				botLogger.Warn("봇 실행 실패", zap.Error(err))
 			}
 		}(i)
 	}
@@ -124,7 +130,7 @@ func (m *MatchManager) runMatch(matchCtx *match.MatchContext) error {
 	// 모든 봇 완료 대기
 	matchCtx.Wait()
 
-	matchLogger.Info("All bots completed")
+	matchLogger.Info("모든 봇 완료됨")
 	return nil
 }
 
