@@ -15,7 +15,7 @@ public class QueueLogDTO {
     // Queue(예매 단계)에서 Log 정보 저장을 위한 DTO
     // 계층 간 넘나들 정보를 다 정의.
     String eventId;
-    String roomId;
+    String matchId;
     String playerType;
     String playerId;
     Long queueRank;

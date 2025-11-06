@@ -13,9 +13,11 @@ import org.springframework.stereotype.Service;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 
+import static com.ticketing.KafkaTopic.USER_LOG_QUEUE;
+
 @Service
 @RequiredArgsConstructor
-public class QueueProducerKafka {
+public class QueueLogProducerKafka {
     // private final repository
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
@@ -23,7 +25,7 @@ public class QueueProducerKafka {
     // Test 시, 지정한 사용자 수 만큼 queue에 쌓는다.
     public List<Map<String, Object>> testingProducer(int playerNum) throws ExecutionException, InterruptedException {
 
-        String topic = KafkaTopic.USER_QUEUE.getTopicName();
+        String topic = USER_LOG_QUEUE.getTopicName();
 
         List<Map<String, Object>> result = new ArrayList<>();
         long key = 1;
@@ -55,7 +57,7 @@ public class QueueProducerKafka {
         /*
         * 이거 반드시 key값을 바꿔주야 해!
         * */
-        String topic = KafkaTopic.USER_QUEUE.getTopicName();
+        String topic = USER_LOG_QUEUE.getTopicName();
         int key = 1;
         String keyString = String.valueOf(key);
 
@@ -78,7 +80,7 @@ public class QueueProducerKafka {
 
     // 로그 기록용 실제 사용자 정보를 보낸다.
     public Map<String, Object> queueLogProducer(QueueLogDTO userInfo) throws ExecutionException, InterruptedException, JsonProcessingException {
-        String topic = KafkaTopic.USER_QUEUE.getTopicName();
+        String topic = USER_LOG_QUEUE.getTopicName();
         /*
          * 이거 반드시 key값을 바꿔주야 해!
          * */

@@ -12,7 +12,7 @@ public class QueueDTO {
 
     // Queue 대기열 정보 전달을 위한 DTO
     String eventId;
-    String roomId;
+    String matchId;
     String playerType;
     String playerId;
     String status;

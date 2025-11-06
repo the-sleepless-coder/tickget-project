@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ticketing.captcha.DTO.CaptchaDTO;
 import com.ticketing.captcha.DTO.HttpResultDTO;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -21,16 +22,20 @@ import java.util.Map;
 public class CaptchaService {
     // 환경변수
     // application.yaml
-    private static final String ADDRESS = "http://localhost:8080/api/v1.0/captcha/";
-    private static final Integer TIME_OUT = 5000;
+    private final String address;
+    private final int timeout;
     private static final String ID = "id";
     private static final String IMAGE = "image";
 
 
     private final ObjectMapper mapper;
 
-    public CaptchaService(ObjectMapper mapper){
+    public CaptchaService(ObjectMapper mapper,
+                          @Value("${captcha.address}") String address,
+                          @Value("${captcha.timeout}") int timeout){
+        this.address = address;
         this.mapper = mapper;
+        this.timeout = timeout;
     }
     /**
      * env파일로 주소 관리
@@ -40,7 +45,7 @@ public class CaptchaService {
          // Captcha가 맞는지 확인한다.
          String id = userInput.getCaptchaId();
          // POST메서드를 통한 답안 검증.
-         URL postUrl = new URL(ADDRESS);
+         URL postUrl = new URL(address);
          HttpURLConnection postCon = (HttpURLConnection) postUrl.openConnection();
          postCon.setRequestMethod("POST");
          postCon.setRequestProperty("Content-Type", "application/json");
@@ -94,11 +99,11 @@ public class CaptchaService {
         }
 
         // 사용자면 문자열 id에 대한 응답을 받는다.
-        URL url = new URL(ADDRESS);
+        URL url = new URL(address);
         HttpURLConnection con = (HttpURLConnection) url.openConnection();
         con.setRequestMethod("GET");
 
-        con.setConnectTimeout(TIME_OUT);
+        con.setConnectTimeout(timeout);
 
         // Captcha id값을 응답 받는다.
         int getStatus = con.getResponseCode();

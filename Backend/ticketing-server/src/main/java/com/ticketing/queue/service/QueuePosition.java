@@ -16,7 +16,7 @@ import java.util.concurrent.ExecutionException;
 
 @Service
 public class QueuePosition {
-    private final AdminClient admin;
+    /*private final AdminClient admin;
     private final Consumer<String, String> monitorConsumer;
 
     // KafkaConfig에서 만든 메타 데이터 관리하는 admin,
@@ -69,7 +69,7 @@ public class QueuePosition {
         }
 
     }
-
+    */
 
 
 

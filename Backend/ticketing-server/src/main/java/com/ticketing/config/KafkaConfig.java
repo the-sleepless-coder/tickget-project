@@ -22,7 +22,8 @@ public class KafkaConfig {
     }
 
     // Kafka Cluster의 Meta-data 관리용 Bean 생성.
-    @Bean
+    /*
+    * @Bean
     public AdminClient adminClient(KafkaProperties props){
         return AdminClient.create(props.buildAdminProperties(null));
     }
@@ -36,6 +37,7 @@ public class KafkaConfig {
         cfg.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
 
         return new DefaultKafkaConsumerFactory<>(cfg);
-    }
+    }*/
+
 
 }

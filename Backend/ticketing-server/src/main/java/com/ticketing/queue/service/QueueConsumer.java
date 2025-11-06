@@ -37,9 +37,9 @@ public class QueueConsumer {
 
         // 각 방을 키별로 조회
         for (String zsetKey : roomKeys) {
-            // key에서 roomId 추출
+            // key에서 matchId 추출
             // 예: "queue:roomA:waiting" → "roomA"
-            String roomId = zsetKey.replace("queue:", "").replace(":waiting", "");
+            String matchId = zsetKey.replace("queue:", "").replace(":waiting", "");
 
             // 주어진 방에서, N명 감소 시키기.
             Set<ZSetOperations.TypedTuple<String>> popped = zset.popMin(zsetKey, CONSUME_RATE);
@@ -53,15 +53,15 @@ public class QueueConsumer {
                 /**
                  * Duration 변경
                  **/
-                redis.opsForHash().put(QueueKeys.userStateKey(roomId, userId), "state", DEQUEUED);
-                redis.expire(QueueKeys.userStateKey(roomId, userId), Duration.ofSeconds(3));
+                redis.opsForHash().put(QueueKeys.userStateKey(matchId, userId), "state", DEQUEUED);
+                redis.expire(QueueKeys.userStateKey(matchId, userId), Duration.ofSeconds(3));
 
                 // Kafka 발행
                 /**
                  * Outbox pattern 구현
                  **/
                 Map<String, Object> payload = Map.of(
-                        "roomId", roomId,
+                        "matchId", matchId,
                         "userId", userId,
                         "ts", System.currentTimeMillis()
                 );
@@ -70,18 +70,18 @@ public class QueueConsumer {
                 // user-log-queue 토픽에 이벤트 발행
                 try {
                     kafkaTemplate.send(KafkaTopic.USER_LOG_QUEUE.getTopicName(), userId, mapper.writeValueAsString(payload));
-                    log.info("Dequeued user {} from room {}", userId, roomId);
+                    log.info("Dequeued user {} from room {}", userId, matchId);
                 } catch (Exception e) {
-                    log.error("Kafka send failed for user {} in room {}", userId, roomId, e);
+                    log.error("Kafka send failed for user {} in room {}", userId, matchId, e);
                     // 복구 로직: 다시 대기열에 추가
-                    redis.opsForHash().put(QueueKeys.userStateKey(roomId, userId), "state", "WAITING");
+                    redis.opsForHash().put(QueueKeys.userStateKey(matchId, userId), "state", "WAITING");
                 }
             }
 
             // 방에서 누적으로 빠진 사람 계산
-            redis.opsForValue().increment(QueueKeys.roomOffset(roomId), popped.size());
+            redis.opsForValue().increment(QueueKeys.roomOffset(matchId), popped.size());
             Long tot = zset.zCard(zsetKey);
-            redis.opsForValue().set(QueueKeys.roomTotal(roomId), String.valueOf(tot==null?0:tot));
+            redis.opsForValue().set(QueueKeys.roomTotal(matchId), String.valueOf(tot==null?0:tot));
 
 
         }

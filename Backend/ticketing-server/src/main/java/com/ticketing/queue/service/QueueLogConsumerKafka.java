@@ -1,20 +1,17 @@
 package com.ticketing.queue.service;
 
-import com.google.common.util.concurrent.RateLimiter;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.springframework.kafka.support.Acknowledgment;
-import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 
 @Service
-public class QueueConsumerKafka {
+public class QueueLogConsumerKafka {
+    /*
     private final RateLimiter limiter = RateLimiter.create(2.0);
 
     private int messageCount = 1;
-    @KafkaListener(id="userQueueListener",
-    topics = "user-queue",
+    @KafkaListener(id="userLogListener",
+    topics = "user-log",
     concurrency="3",
-    groupId = "user-queue-group"
+    groupId = "user-log-group"
     )
     public void onMessage(ConsumerRecord<String, String> record, Acknowledgment ack) throws InterruptedException {
         if(record.key()==null){
@@ -48,5 +45,5 @@ public class QueueConsumerKafka {
         ack.acknowledge();
 
     }
-
+    */
 }

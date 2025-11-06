@@ -3,17 +3,14 @@ package com.ticketing;
 // Topic에 대한 ENUM 클래스 생성
 // 컴파일 타임에서의 에러 방지.
 public enum KafkaTopic {
-    USER_QUEUE("user-queue"),
-    CAPTCHA_QUEUE("captcha-queue"),
-    SEAT_QUEUE("seat"),
 
-    USER_LOG_QUEUE("user-log-queue"),
-    CAPTCHA_LOG_QUEUE("captcha-log-queue"),
-    SEAT_LOG_QUEUE("seat-log-queue"),
+    USER_LOG_QUEUE("user-log"),
+    CAPTCHA_LOG_QUEUE("captcha-log"),
+    SEAT_LOG_QUEUE("seat-log"),
 
-    USER_QUEUE_GROUP("user-queue-group"),
-    CAPTCHA_QUEUE_GROUP("captcha-queue-group"),
-    SEAT_QUEUE_GROUP("seat-queue-group")
+    USER_LOG_GROUP("user-log-group"),
+    CAPTCHA_LOG_GROUP("captcha-log-group"),
+    SEAT_LOG_GROUP("seat-log-group")
     ;
 
     // 설정한 topicName을 ENUM에 박아주고,

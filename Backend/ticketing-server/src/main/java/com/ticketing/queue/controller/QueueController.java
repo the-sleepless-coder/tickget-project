@@ -3,7 +3,7 @@ package com.ticketing.queue.controller;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.ticketing.queue.DTO.QueueDTO;
 import com.ticketing.queue.DTO.QueueLogDTO;
-import com.ticketing.queue.service.QueueProducerKafka;
+import com.ticketing.queue.service.QueueLogProducerKafka;
 import com.ticketing.queue.service.QueueService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -16,7 +16,7 @@ import java.util.concurrent.ExecutionException;
 @RequestMapping("/ticketing")
 public class QueueController {
     @Autowired
-    QueueProducerKafka producerService;
+    QueueLogProducerKafka producerService;
 
     @Autowired
     QueueService service;
@@ -52,10 +52,10 @@ public class QueueController {
     }
 
     // 사용자 Enqueue하는 API
-    @PostMapping("/queue/{roomId}")
-    public ResponseEntity<?> enterQueue(@PathVariable String roomId, @RequestBody Map<String, String> body){
+    @PostMapping("/queue/{matchId}")
+    public ResponseEntity<?> enterQueue(@PathVariable String matchId, @RequestBody Map<String, String> body){
         String userId = body.get("userId");
-        QueueDTO result = service.enqueue(roomId, userId);
+        QueueDTO result = service.enqueue(matchId, userId);
         return ResponseEntity.ok(result);
     }
 

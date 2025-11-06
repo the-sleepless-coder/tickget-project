@@ -29,8 +29,8 @@ public class QueueWriter {
         if (roomKeys == null || roomKeys.isEmpty()) return;
 
         for (String zkey : roomKeys) {
-            // roomId 추출: "queue:roomA:waiting" -> "roomA"
-            String roomId = zkey.replace("queue:", "").replace(":waiting", "");
+            // matchId 추출: "queue:roomA:waiting" -> "roomA"
+            String matchId = zkey.replace("queue:", "").replace(":waiting", "");
 
             Long totL = zset.zCard(zkey);
             long total = (totL == null) ? 0L : totL;
@@ -51,7 +51,7 @@ public class QueueWriter {
                 for (String userId : members) {
                     long ahead  = i;
                     long behind = total - 1 - ahead;
-                    String hkey = QueueKeys.userStateKey(roomId, userId);
+                    String hkey = QueueKeys.userStateKey(matchId, userId);
 
                     String type = (String) redis.opsForHash().get(hkey,"playerType");
                     // 봇이면 해시 갱신 건너뛰되, i(순위)는 증가시켜야 함
