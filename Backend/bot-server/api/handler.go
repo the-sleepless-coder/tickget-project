@@ -17,9 +17,9 @@ type Handler struct {
 }
 
 // NewHandler 새로운 핸들러 인스턴스를 생성합니다
-func NewHandler() *Handler {
+func NewHandler(MaxConcurrentBots int) *Handler {
 	return &Handler{
-		matchManager: manager.NewMatchManager(),
+		matchManager: manager.NewMatchManager(MaxConcurrentBots),
 	}
 }
 
@@ -27,6 +27,7 @@ func NewHandler() *Handler {
 func (h *Handler) RegisterRoutes(router *gin.Engine) {
 	router.GET("/health", h.HealthCheck)
 	router.GET("/ping", h.Ping)
+	router.GET("/bots/count", h.BotCount)
 
 	// 매치 관련 라우트
 	match := router.Group("/match")
@@ -50,6 +51,16 @@ func (h *Handler) HealthCheck(c *gin.Context) {
 func (h *Handler) Ping(c *gin.Context) {
 	logger.Debug("Ping requested")
 	c.JSON(http.StatusOK, gin.H{"message": "pong"})
+}
+
+func (h *Handler) BotCount(c *gin.Context) {
+	total, available := h.matchManager.GetBotCount()
+	response := models.BotCountResponse{
+		TotalBotCount:     total,
+		AvailableBotCount: available,
+	}
+
+	c.JSON(http.StatusOK, response)
 }
 
 // StartMatch 매치 시작 요청 처리

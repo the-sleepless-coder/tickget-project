@@ -15,17 +15,27 @@ import (
 
 // MatchManager 매치 관리자
 type MatchManager struct {
-	matches   map[string]*match.MatchContext
-	scheduler *scheduler.Scheduler
-	mu        sync.RWMutex
+	matches       map[string]*match.MatchContext
+	scheduler     *scheduler.Scheduler
+	maxBots       int // 최대
+	availableBots int // 현재 가용 가능 봇 수
+	mu            sync.RWMutex
 }
 
 // NewMatchManager 새로운 매치 매니저를 생성합니다
-func NewMatchManager() *MatchManager {
+func NewMatchManager(maxBots int) *MatchManager {
 	return &MatchManager{
-		matches:   make(map[string]*match.MatchContext),
-		scheduler: scheduler.NewScheduler(logger.Get()),
+		matches:       make(map[string]*match.MatchContext),
+		scheduler:     scheduler.NewScheduler(logger.Get()),
+		maxBots:       maxBots,
+		availableBots: maxBots,
 	}
+}
+
+func (m *MatchManager) GetBotCount() (total int, available int) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.maxBots, m.availableBots
 }
 
 // StartMatch 매치를 시작합니다

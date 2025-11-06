@@ -36,7 +36,7 @@ func NewServer(cfg *config.Config) *Server {
 	engine.Use(gin.Recovery()) // panic 복구
 
 	// 핸들러 생성 및 라우트 등록
-	handler := NewHandler()
+	handler := NewHandler(cfg.MaxConcurrentBots)
 	handler.RegisterRoutes(engine)
 
 	server := &Server{
