@@ -1,6 +1,6 @@
 package com.tickget.roomserver.dto.cache;
 
-import com.tickget.roomserver.event.MatchSettingChangedEvent;
+import com.tickget.roomserver.dto.request.MatchSettingUpdateRequest;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -14,7 +14,7 @@ public class RoomInfoUpdate {
     private Integer maxUserCount;
     private Long startTime;
 
-    static public RoomInfoUpdate from(MatchSettingChangedEvent event){
+    static public RoomInfoUpdate from(MatchSettingUpdateRequest event){
         return RoomInfoUpdate.builder()
                 .matchId(event.getMatchId())
                 .matchName(event.getMatchName())

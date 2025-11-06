@@ -1,7 +1,7 @@
 package com.tickget.roomserver.kafaka;
 
+import com.tickget.roomserver.dto.request.MatchSettingUpdateRequest;
 import com.tickget.roomserver.event.HostChangedEvent;
-import com.tickget.roomserver.event.MatchSettingChangedEvent;
 import com.tickget.roomserver.event.RoomSettingUpdatedEvent;
 import com.tickget.roomserver.event.SessionCloseEvent;
 import com.tickget.roomserver.event.UserJoinedRoomEvent;
@@ -55,9 +55,9 @@ public class RoomEventProducer {
                 event.getUserId(), event.getSessionId(), event.getTargetServerId());
     }
 
-    public void publishRoomSettingUpdatedEvent(MatchSettingChangedEvent matchSettingChangedEvent) {
-        String key = matchSettingChangedEvent.getRoomId().toString();
-        RoomSettingUpdatedEvent event = RoomSettingUpdatedEvent.from(matchSettingChangedEvent);
+    public void publishRoomSettingUpdatedEvent(MatchSettingUpdateRequest matchSettingUpdateRequest) {
+        String key = matchSettingUpdateRequest.getRoomId().toString();
+        RoomSettingUpdatedEvent event = RoomSettingUpdatedEvent.from(matchSettingUpdateRequest);
 
         roomSettingUpdatedEventKafkaTemplate.send(ROOM_SETTING_UPDATED_TOPIC, key, event);
         log.debug("방 설정 업데이트 이벤트 발행: 방={}, 난이도={}, 최대인원={}",

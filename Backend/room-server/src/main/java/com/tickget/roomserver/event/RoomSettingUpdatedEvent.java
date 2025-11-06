@@ -1,5 +1,6 @@
 package com.tickget.roomserver.event;
 
+import com.tickget.roomserver.dto.request.MatchSettingUpdateRequest;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -13,14 +14,14 @@ public class RoomSettingUpdatedEvent {
     private Integer maxUserCount;
     private Long startTime;
 
-    static public RoomSettingUpdatedEvent from (MatchSettingChangedEvent event){
+    static public RoomSettingUpdatedEvent from (MatchSettingUpdateRequest request){
         return RoomSettingUpdatedEvent.builder()
-                .roomId(event.getRoomId())
-                .matchId(event.getMatchId())
-                .matchName(event.getMatchName())
-                .difficulty(event.getDifficulty())
-                .maxUserCount(event.getMaxUserCount())
-                .startTime(event.getStartTime())
+                .roomId(request.getRoomId())
+                .matchId(request.getMatchId())
+                .matchName(request.getMatchName())
+                .difficulty(request.getDifficulty())
+                .maxUserCount(request.getMaxUserCount())
+                .startTime(request.getStartTime())
                 .build();
     }
 }

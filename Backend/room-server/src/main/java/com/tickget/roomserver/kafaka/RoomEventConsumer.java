@@ -1,9 +1,6 @@
 package com.tickget.roomserver.kafaka;
 
 import com.tickget.roomserver.event.HostChangedEvent;
-import com.tickget.roomserver.event.MatchEndedEvent;
-import com.tickget.roomserver.event.MatchSettingChangedEvent;
-import com.tickget.roomserver.event.MatchStartedEvent;
 import com.tickget.roomserver.event.RoomSettingUpdatedEvent;
 import com.tickget.roomserver.event.SessionCloseEvent;
 import com.tickget.roomserver.event.UserJoinedRoomEvent;
@@ -23,10 +20,7 @@ public class RoomEventConsumer {
     private static final String ROOM_USER_JOINED_TOPIC = "room-user-joined-events";
     private static final String ROOM_USER_LEFT_TOPIC = "room-user-left-events";
     private static final String ROOM_HOST_CHANGED_TOPIC = "room-host-changed-events";
-    private static final String MATCH_SETTING_CHANGED_TOPIC = "match-setting-changed-events";
     private static final String ROOM_SETTING_UPDATED_TOPIC = "room-setting-updated-events";
-    private static final String ROOM_MATCH_STARTED_TOPIC = "room-match-started-events";
-    private static final String ROOM_MATCH_ENDED_TOPIC = "room-match-ended-events";
 
     private final RoomEventHandler roomEventHandler;
 
@@ -51,24 +45,6 @@ public class RoomEventConsumer {
 
     }
 
-    @KafkaListener(topics = ROOM_MATCH_STARTED_TOPIC, groupId = "room-status-updater")
-    public void handleMatchStartedEvent(MatchStartedEvent event) {
-
-        roomEventHandler.processMatchStarted(event);
-    }
-
-    @KafkaListener(topics = ROOM_MATCH_ENDED_TOPIC, groupId = "room-status-updater")
-    public void handleMatchEndedEvent(MatchEndedEvent event) {
-
-        roomEventHandler.processMatchEnded(event);
-    }
-
-    // ===== 매치 설정 변경: 하나의 서버만 수신 (groupId = "room-setting-updater") =====
-    @KafkaListener(topics = MATCH_SETTING_CHANGED_TOPIC, groupId = "room-setting-updater")
-    public void handleMatchSettingChangedEvent(MatchSettingChangedEvent event) {
-        roomEventHandler.processMatchSettingChanged(event);
-
-    }
 
     // ===== 방 설정 업데이트: 모든 서버가 수신 (그룹 없음) =====
     @KafkaListener(topics = ROOM_SETTING_UPDATED_TOPIC)

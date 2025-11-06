@@ -9,11 +9,13 @@ import com.tickget.roomserver.domain.repository.PresetHallRepository;
 import com.tickget.roomserver.domain.repository.RoomCacheRepository;
 import com.tickget.roomserver.domain.repository.RoomRepository;
 import com.tickget.roomserver.dto.cache.RoomInfo;
+import com.tickget.roomserver.dto.cache.RoomInfoUpdate;
 import com.tickget.roomserver.dto.cache.RoomMember;
 import com.tickget.roomserver.dto.request.CreateMatchRequest;
 import com.tickget.roomserver.dto.request.CreateRoomRequest;
 import com.tickget.roomserver.dto.request.ExitRoomRequest;
 import com.tickget.roomserver.dto.request.JoinRoomRequest;
+import com.tickget.roomserver.dto.request.MatchSettingUpdateRequest;
 import com.tickget.roomserver.dto.response.CreateRoomResponse;
 import com.tickget.roomserver.dto.response.ExitRoomResponse;
 import com.tickget.roomserver.dto.response.JoinRoomResponse;
@@ -252,4 +254,41 @@ public class RoomService {
         return ExitRoomResponse.of(room, leftUserCount);
     }
 
+    @Transactional
+    public void startRoomMatch(Long roomId) {
+        Room room = roomRepository.findById(roomId).orElseThrow(
+                () -> new RoomNotFoundException(roomId));
+
+        room.setStatus(RoomStatus.PLAYING);
+        log.debug("방 {}에서 매치 시작. status를 {} 로 변경", roomId, room.getStatus());
+    }
+
+    @Transactional
+    public void endRoomMatch(Long roomId) {
+        Room room = roomRepository.findById(roomId).orElseThrow(
+                () -> new RoomNotFoundException(roomId));
+
+        room.setStatus(RoomStatus.WAITING);
+        log.debug("방 {}에서 매치 종료. status를 {} 로 변경", roomId, room.getStatus());
+    }
+
+    public void updateMatchSetting(MatchSettingUpdateRequest request) {
+        log.debug("매치 설정 변경 : 방={}, 난이도={}, 최대인원={}",
+                request.getRoomId(), request.getDifficulty(), request.getMaxUserCount());
+
+        try {
+            // 1. Redis 업데이트 (하나의 서버만 실행)
+            RoomInfoUpdate infoUpdate = RoomInfoUpdate.from(request);
+            roomCacheRepository.updateRoomInfo(infoUpdate);
+            log.debug("Redis 방 정보 업데이트 완료: 방={}",  request.getRoomId());
+
+            // 2. 다시 발행 (모든 서버가 구독하도록)
+            roomEventProducer.publishRoomSettingUpdatedEvent(request);
+            log.debug("방 설정 업데이트 이벤트 재발행: 방={}", request.getRoomId());
+
+        } catch (Exception e) {
+            log.error("매치 설정 변경 이벤트 처리 중 오류: 방={}, error={}",
+                    request.getRoomId(), e.getMessage(), e);
+        }
+    }
 }
