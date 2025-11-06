@@ -12,14 +12,14 @@ type Scheduler struct {
 	logger *zap.Logger
 }
 
-// NewScheduler 새로운 스케줄러를 생성합니다
+// NewScheduler 새로운 스케줄러를 생성
 func NewScheduler(logger *zap.Logger) *Scheduler {
 	return &Scheduler{
 		logger: logger,
 	}
 }
 
-// ScheduleAt 지정된 시간에 함수를 실행합니다
+// ScheduleAt 지정된 시간에 함수를 실행
 func (s *Scheduler) ScheduleAt(ctx context.Context, startTime time.Time, fn func() error) error {
 	delay := startTime.Sub(time.Now())
 

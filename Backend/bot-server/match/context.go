@@ -20,7 +20,7 @@ type MatchContext struct {
 	mu sync.RWMutex
 }
 
-// NewMatchContext 새로운 매치 컨텍스트를 생성합니다
+// NewMatchContext 새로운 매치 컨텍스트를 생성
 func NewMatchContext(matchID int64, botCount int, startTime time.Time) *MatchContext {
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -34,39 +34,39 @@ func NewMatchContext(matchID int64, botCount int, startTime time.Time) *MatchCon
 	}
 }
 
-// Context 컨텍스트를 반환합니다
+// Context 컨텍스트를 반환
 func (mc *MatchContext) Context() context.Context {
 	return mc.ctx
 }
 
-// Cancel 매치를 취소합니다
+// Cancel 매치를 취소
 func (mc *MatchContext) Cancel() {
 	mc.cancel()
 }
 
-// Wait 모든 봇이 완료될 때까지 대기합니다
+// Wait 모든 봇이 완료될 때까지 대기
 func (mc *MatchContext) Wait() {
 	mc.wg.Wait()
 }
 
-// AddBot 봇을 추가합니다
+// AddBot 봇을 추가
 func (mc *MatchContext) AddBot() {
 	mc.wg.Add(1)
 }
 
-// DoneBot 봇 완료를 알립니다
+// DoneBot 봇 완료를 알림
 func (mc *MatchContext) DoneBot() {
 	mc.wg.Done()
 }
 
-// SetStatus 매치 상태를 변경합니다
+// SetStatus 매치 상태를 변경
 func (mc *MatchContext) SetStatus(status MatchStatus) {
 	mc.mu.Lock()
 	defer mc.mu.Unlock()
 	mc.Status = status
 }
 
-// GetStatus 매치 상태를 반환합니다
+// GetStatus 매치 상태를 반환
 func (mc *MatchContext) GetStatus() MatchStatus {
 	mc.mu.RLock()
 	defer mc.mu.RUnlock()

@@ -23,7 +23,7 @@ type MatchManager struct {
 	mu            sync.RWMutex
 }
 
-// NewMatchManager 새로운 매치 매니저를 생성합니다
+// NewMatchManager 새로운 매치 매니저를 생성
 func NewMatchManager(maxBots int) *MatchManager {
 	return &MatchManager{
 		matches:       make(map[int64]*match.MatchContext),
@@ -39,7 +39,7 @@ func (m *MatchManager) GetBotCount() (total int, available int) {
 	return m.maxBots, m.availableBots
 }
 
-// StartMatch 매치를 시작합니다
+// StartMatch 매치를 시작
 func (m *MatchManager) StartMatch(req models.MatchStartRequest) error {
 	matchLogger := logger.WithMatchContext(req.MatchID)
 
@@ -102,7 +102,7 @@ func (m *MatchManager) StartMatch(req models.MatchStartRequest) error {
 	return nil
 }
 
-// runMatch 매치를 실행합니다
+// runMatch 매치를 실행
 func (m *MatchManager) runMatch(matchCtx *match.MatchContext) error {
 	matchLogger := logger.WithMatchContext(matchCtx.MatchID)
 	matchCtx.SetStatus(match.StatusRunning)
@@ -134,7 +134,7 @@ func (m *MatchManager) runMatch(matchCtx *match.MatchContext) error {
 	return nil
 }
 
-// cleanupMatch 매치를 정리합니다
+// cleanupMatch 매치를 정리
 func (m *MatchManager) cleanupMatch(matchID int64) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -149,7 +149,7 @@ func (m *MatchManager) cleanupMatch(matchID int64) {
 	}
 }
 
-// GetMatch 매치 정보를 반환합니다
+// GetMatch 매치 정보를 반환
 func (m *MatchManager) GetMatch(matchID int64) (*match.MatchContext, bool) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()

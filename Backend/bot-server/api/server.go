@@ -22,7 +22,7 @@ type Server struct {
 	handler    *Handler
 }
 
-// NewServer 새로운 서버 인스턴스를 생성합니다
+// NewServer 새로운 서버 인스턴스를 생성
 func NewServer(cfg *config.Config) *Server {
 	// 프로덕션 모드 설정
 	if os.Getenv("ENVIRONMENT") == "production" {
@@ -48,7 +48,7 @@ func NewServer(cfg *config.Config) *Server {
 	return server
 }
 
-// Start 서버를 시작합니다
+// Start 서버를 시작
 func (s *Server) Start() error {
 	s.httpServer = &http.Server{
 		Addr:         ":" + s.config.ServerPort,
@@ -67,7 +67,7 @@ func (s *Server) Start() error {
 	return nil
 }
 
-// Shutdown 서버를 gracefully 종료합니다
+// Shutdown 서버를 gracefully 종료
 func (s *Server) Shutdown(ctx context.Context) error {
 	logger.Info("서버 종료 중")
 

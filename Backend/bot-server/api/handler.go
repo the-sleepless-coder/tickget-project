@@ -16,22 +16,22 @@ type Handler struct {
 	matchManager *manager.MatchManager
 }
 
-// NewHandler 새로운 핸들러 인스턴스를 생성합니다
+// NewHandler 새로운 핸들러 인스턴스를 생성
 func NewHandler(MaxConcurrentBots int) *Handler {
 	return &Handler{
 		matchManager: manager.NewMatchManager(MaxConcurrentBots),
 	}
 }
 
-// RegisterRoutes 라우트를 등록합니다
+// RegisterRoutes 라우트를 등록합
 func (h *Handler) RegisterRoutes(router *gin.Engine) {
 	router.GET("/health", h.HealthCheck)
 	router.GET("/bots/count", h.BotCount)
 
 	// 매치 관련 라우트
-	match := router.Group("/match")
+	matches := router.Group("/matches")
 	{
-		match.POST("/start", h.StartMatch)
+		matches.POST("", h.StartMatch)
 	}
 }
 
