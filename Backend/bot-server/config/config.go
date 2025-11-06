@@ -1,11 +1,13 @@
 package config
 
 import (
+	"log"
 	"os"
 	"strconv"
 
 	"bot-server/logger"
 
+	"github.com/joho/godotenv"
 	"go.uber.org/zap"
 )
 
@@ -19,6 +21,11 @@ type Config struct {
 
 // Load 환경변수에서 설정을 로드합니다
 func Load() *Config {
+	// .env 파일 로드 시도 (없어도 오류 무시)
+	if err := godotenv.Load(); err != nil {
+		log.Println("No .env file found, using environment variables")
+	}
+
 	config := &Config{
 		ServerPort:        getEnv("SERVER_PORT", "8080"),
 		TicketingAPIURL:   getEnv("TICKETING_API_URL", "http://localhost:3000"),

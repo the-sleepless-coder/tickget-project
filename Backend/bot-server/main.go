@@ -15,15 +15,15 @@ import (
 )
 
 func main() {
+	// 설정 로드 (.env 파일 로드 포함)
+	cfg := config.Load()
+
 	// 로거 초기화 (개발 모드)
 	isDev := os.Getenv("ENVIRONMENT") != "production"
 	if err := logger.Init(isDev); err != nil {
 		panic("Failed to initialize logger: " + err.Error())
 	}
 	defer logger.Sync()
-
-	// 설정 로드
-	cfg := config.Load()
 
 	// 서버 생성
 	server := api.NewServer(cfg)
