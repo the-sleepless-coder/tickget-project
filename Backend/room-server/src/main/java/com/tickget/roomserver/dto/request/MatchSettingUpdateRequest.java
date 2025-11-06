@@ -1,16 +1,15 @@
-package com.tickget.roomserver.event;
+package com.tickget.roomserver.dto.request;
 
-import lombok.Builder;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 
 @Getter
-@Builder
-public class MatchSettingChangedEvent {
+@AllArgsConstructor
+public class MatchSettingUpdateRequest {
     private Long roomId;
     private Long matchId;
     private String matchName;
     private String difficulty;
     private Integer maxUserCount;
     private Long startTime;
-
 }

@@ -1,28 +1,17 @@
 package com.tickget.roomserver.service;
 
-import com.tickget.roomserver.domain.entity.Room;
-import com.tickget.roomserver.domain.enums.RoomStatus;
-import com.tickget.roomserver.domain.repository.RoomCacheRepository;
-import com.tickget.roomserver.domain.repository.RoomRepository;
-import com.tickget.roomserver.dto.cache.RoomInfoUpdate;
 import com.tickget.roomserver.event.HostChangedEvent;
-import com.tickget.roomserver.event.MatchEndedEvent;
-import com.tickget.roomserver.event.MatchSettingChangedEvent;
-import com.tickget.roomserver.event.MatchStartedEvent;
 import com.tickget.roomserver.event.RoomSettingUpdatedEvent;
 import com.tickget.roomserver.event.SessionCloseEvent;
 import com.tickget.roomserver.event.UserJoinedRoomEvent;
 import com.tickget.roomserver.event.UserLeftRoomEvent;
-import com.tickget.roomserver.exception.RoomNotFoundException;
 import com.tickget.roomserver.kafaka.RoomEventMessage;
-import com.tickget.roomserver.kafaka.RoomEventProducer;
 import com.tickget.roomserver.session.WebSocketSessionManager;
 import com.tickget.roomserver.util.ServerIdProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.socket.WebSocketSession;
 
 @Slf4j
@@ -31,12 +20,9 @@ import org.springframework.web.socket.WebSocketSession;
 public class RoomEventHandler {
 
     private final WebSocketSessionManager sessionManager;
-    private final RoomEventProducer roomEventProducer;
     private final SimpMessagingTemplate messagingTemplate;
 
     private final ServerIdProvider serverIdProvider;
-    private final RoomCacheRepository roomCacheRepository;
-    private final RoomRepository roomRepository;
 
     public void processUserJoined(UserJoinedRoomEvent event) {
         log.debug("사용자 입장 이벤트 수신: userId={}, roomId={}", event.getUserId(), event.getRoomId());
@@ -100,49 +86,6 @@ public class RoomEventHandler {
 
         } catch (Exception e) {
             log.error("호스트 변경 이벤트 처리 중 오류: 방={}, error={}",
-                    event.getRoomId(), e.getMessage(), e);
-        }
-    }
-
-    @Transactional
-    public void processMatchStarted(MatchStartedEvent event) {
-        log.debug("방 {} 에서 매치 {} 시작 이벤트 수신", event.getRoomId(), event.getMatchId());
-
-        Room room = roomRepository.findById(event.getRoomId()).orElseThrow(
-                () -> new RoomNotFoundException(event.getRoomId()));
-
-        room.setStatus(RoomStatus.PLAYING);
-
-        log.debug("방 {}의 status를 {} 로 변경", event.getRoomId(), room.getStatus());
-    }
-
-    @Transactional
-    public void processMatchEnded(MatchEndedEvent event) {
-        log.debug("방 {} 에서 매치 {} 종료 이벤트 수신", event.getRoomId(), event.getMatchId());
-        Room room = roomRepository.findById(event.getRoomId()).orElseThrow(
-                () -> new RoomNotFoundException(event.getRoomId()));
-
-        room.setStatus(RoomStatus.WAITING);
-
-        log.debug("방 {}의 status를 {} 로 변경", event.getRoomId(), room.getStatus());
-    }
-
-    public void processMatchSettingChanged(MatchSettingChangedEvent event) {
-        log.debug("매치 설정 변경 이벤트 수신 (단일 컨슈머): 방={}, 난이도={}, 최대인원={}",
-                event.getRoomId(), event.getDifficulty(), event.getMaxUserCount());
-
-        try {
-            // 1. Redis 업데이트 (하나의 서버만 실행)
-            RoomInfoUpdate infoUpdate = RoomInfoUpdate.from(event);
-            roomCacheRepository.updateRoomInfo(infoUpdate);
-            log.debug("Redis 방 정보 업데이트 완료: 방={}",  event.getRoomId());
-
-            // 2. 다시 발행 (모든 서버가 구독하도록)
-            roomEventProducer.publishRoomSettingUpdatedEvent(event);
-            log.debug("방 설정 업데이트 이벤트 재발행: 방={}", event.getRoomId());
-
-        } catch (Exception e) {
-            log.error("매치 설정 변경 이벤트 처리 중 오류: 방={}, error={}",
                     event.getRoomId(), e.getMessage(), e);
         }
     }
