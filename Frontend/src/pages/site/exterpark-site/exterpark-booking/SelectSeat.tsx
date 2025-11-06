@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { paths } from "../../../../app/routes/paths";
 import {
@@ -49,17 +49,11 @@ export default function SelectSeatPage() {
   // 현재 venueLabel은 UI 문구 노출에 사용하지 않음 (필요 시 추가 표시)
 
   // URL 파라미터에서 날짜와 시간 정보 가져오기
-  const dateParam = searchParams.get("date");
-  const timeParam = searchParams.get("time");
+  const dateParam = searchParams.get("date") || "";
+  const timeParam = searchParams.get("time") || "";
   const roundParam = searchParams.get("round");
 
-  // 날짜 파싱
-  const selectedDate = dateParam
-    ? new Date(dateParam + "T00:00:00")
-    : new Date();
-  const selectedTime = timeParam || "14:30";
-
-  // 선택 가능한 날짜 목록 생성 (오늘부터 2일 후까지)
+  // 선택 가능한 날짜 목록 생성 (오늘부터 3일)
   const today = new Date();
   const todayStart = new Date(
     today.getFullYear(),
@@ -88,12 +82,58 @@ export default function SelectSeatPage() {
     return `${year}년 ${month}월 ${day}일(${weekday})`;
   };
 
+  // 요일에 따른 드롭다운 option 색상 (토: 파란색, 일: 빨간색)
+  const getDateOptionStyle = (date: Date): CSSProperties => {
+    const day = date.getDay(); // 0: 일요일, 6: 토요일
+    if (day === 0) return { color: "#d32f2f" }; // 일요일: 빨간색
+    if (day === 6) return { color: "#1e3a8a" }; // 토요일: 파란색
+    return {};
+  };
+
+  // 시간 목록 (현재 14:30 하나만 노출)
+  const availableTimes: string[] = ["14:30"];
+
+  // 시간 placeholder 라벨
+  const timePlaceholderLabel = "선택하세요!";
+  // 좌석 클릭 차단 여부 (둘 중 하나라도 비어있으면 차단)
+  const isSeatBlocked = dateParam === "" || timeParam === "";
+
+  // 선택된 날짜 기준으로 시간 옵션 색상 지정 (토: 파랑, 일: 빨강)
+  const getTimeOptionStyle = (): CSSProperties => {
+    if (!dateParam) return {};
+    const d = new Date(dateParam + "T00:00:00");
+    const day = d.getDay(); // 0: 일, 6: 토
+    if (day === 0) return { color: "#d32f2f" };
+    if (day === 6) return { color: "#1e3a8a" };
+    return {};
+  };
   // 다른 날짜 선택 핸들러
   const handleDateChange = (dateStr: string) => {
     const url = new URL(window.location.href);
-    url.searchParams.set("date", dateStr);
+    if (dateStr === "") {
+      url.searchParams.delete("date");
+      // 일자 placeholder를 선택하면 시간도 placeholder로 초기화
+      url.searchParams.delete("time");
+    } else {
+      url.searchParams.set("date", dateStr);
+    }
     navigate(url.pathname + url.search, { replace: true });
   };
+
+  // 시간 선택 핸들러
+  const handleTimeChange = (timeStr: string) => {
+    const url = new URL(window.location.href);
+    if (timeStr === "") url.searchParams.delete("time");
+    else url.searchParams.set("time", timeStr);
+    navigate(url.pathname + url.search, { replace: true });
+  };
+
+  // 좌석 차단 시 현재 선택 좌석 초기화
+  useEffect(() => {
+    if (isSeatBlocked) {
+      setSelected((prev) => (prev.length > 0 ? [] : prev));
+    }
+  }, [isSeatBlocked]);
 
   const totalPrice = useMemo(
     () => selected.reduce((sum, s) => sum + (s.price ?? 0), 0),
@@ -169,35 +209,41 @@ export default function SelectSeatPage() {
       <div className="mx-auto w-[880px] h-[670px]">
         {/* 헤더 900 x 50 */}
         <div className="w-[880px] h-[50px] bg-[linear-gradient(to_bottom,#f2f2f2,#dbdbdb)] border-b border-[#bdbdbd]">
-          <div className="h-full px-2 flex items-center gap-3">
-            <div className="flex items-center bg-[#b02a2a] text-white rounded-none border border-[#8f1c1c] px-3 h-7 shadow-inner">
-              <span className="bg-[#ffcc33] text-[#222] font-extrabold text-[11px] rounded-full w-6 h-6 flex items-center justify-center mr-2">
+          <div className="h-full flex items-center gap-3">
+            <div className="flex items-center bg-[#b02a2a] text-white rounded-none px-12 h-12.5">
+              <span className="bg-[#ffcc33] text-black font-extrabold text-[11px] rounded-full w-6 h-6 flex items-center justify-center mr-2">
                 02
               </span>
-              <span className="text-sm font-bold">좌석 선택</span>
+              <span className="text-md font-semibold">좌석 선택</span>
             </div>
             <div className="flex-1">
               <div className="text-[15px] font-bold text-[#222]">
                 {eventTitle}
+                <span className="text-[12px] text-gray-400 ml-5">
+                  | 공연장 이름
+                </span>
               </div>
-              <div className="flex items-center gap-2 text-[12px] text-[#555] mt-1">
+              <div className="flex items-center gap-2 text-[12px] text-[#555]">
                 <span>› 다른 관람일자 선택 :</span>
+                <span>일자</span>
                 <label htmlFor="dateSel" className="sr-only">
                   일자
                 </label>
                 <select
                   id="dateSel"
                   className="border border-[#cfcfcf] rounded px-1 py-0.5 bg-white"
-                  value={
-                    dateParam ||
-                    `${selectedDate.getFullYear()}-${(selectedDate.getMonth() + 1).toString().padStart(2, "0")}-${selectedDate.getDate().toString().padStart(2, "0")}`
-                  }
+                  value={dateParam}
                   onChange={(e) => handleDateChange(e.target.value)}
                 >
+                  <option value="">선택하세요!</option>
                   {availableDates.map((date) => {
                     const dateStr = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, "0")}-${date.getDate().toString().padStart(2, "0")}`;
                     return (
-                      <option key={dateStr} value={dateStr}>
+                      <option
+                        key={dateStr}
+                        value={dateStr}
+                        style={getDateOptionStyle(date)}
+                      >
                         {formatDate(date)}
                       </option>
                     );
@@ -210,12 +256,15 @@ export default function SelectSeatPage() {
                 <select
                   id="timeSel"
                   className="border border-[#cfcfcf] rounded px-1 py-0.5 bg-white"
-                  value={selectedTime}
-                  disabled
+                  value={timeParam}
+                  onChange={(e) => handleTimeChange(e.target.value)}
                 >
-                  <option value={selectedTime}>
-                    {formatTime(selectedTime)}
-                  </option>
+                  <option value="">{timePlaceholderLabel}</option>
+                  {availableTimes.map((t) => (
+                    <option key={t} value={t} style={getTimeOptionStyle()}>
+                      {formatTime(t)}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>

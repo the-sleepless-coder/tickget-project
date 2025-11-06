@@ -152,6 +152,27 @@ export default function SmallVenue({
 
           const seatId = `small-${floor}-${section}-${displayRow}-${displayCol}`;
           const isSelected = selectedIds.includes(seatId);
+          const opacityVal = (() => {
+            if (isHiddenRow) return 0;
+            if (
+              trim > 0 &&
+              ((block === "left" && colIndex + 1 <= trim) ||
+                (block === "right" && colIndex + 1 > columns - trim))
+            )
+              return 0;
+            if (extraHides && extraHides.length > 0) {
+              const colNo = colIndex + 1;
+              for (const spec of extraHides) {
+                if (typeof spec === "number") {
+                  if (colNo === spec) return 0;
+                } else {
+                  const [from, to] = spec as [number, number];
+                  if (colNo >= from && colNo <= to) return 0;
+                }
+              }
+            }
+            return 1;
+          })();
           return (
             <div
               key={`${keyPrefix}${rowIndex}-${colIndex}`}
@@ -160,30 +181,12 @@ export default function SmallVenue({
               style={{
                 ...seatStyle,
                 backgroundColor: isSelected ? "#4a4a4a" : seatColor,
-                cursor: "pointer",
-                opacity: (() => {
-                  if (isHiddenRow) return 0;
-                  if (
-                    trim > 0 &&
-                    ((block === "left" && colIndex + 1 <= trim) ||
-                      (block === "right" && colIndex + 1 > columns - trim))
-                  )
-                    return 0;
-                  if (extraHides && extraHides.length > 0) {
-                    const colNo = colIndex + 1;
-                    for (const spec of extraHides) {
-                      if (typeof spec === "number") {
-                        if (colNo === spec) return 0;
-                      } else {
-                        const [from, to] = spec as [number, number];
-                        if (colNo >= from && colNo <= to) return 0;
-                      }
-                    }
-                  }
-                  return 1;
-                })(),
+                cursor: opacityVal === 0 ? "default" : "pointer",
+                opacity: opacityVal,
+                pointerEvents: opacityVal === 0 ? "none" : "auto",
               }}
               onClick={() => {
+                if (opacityVal === 0) return;
                 onToggleSeat?.({
                   id: seatId,
                   gradeLabel,
