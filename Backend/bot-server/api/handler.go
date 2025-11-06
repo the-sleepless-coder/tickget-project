@@ -80,7 +80,7 @@ func (h *Handler) StartMatch(c *gin.Context) {
 	}
 
 	logger.Info("Match start requested",
-		zap.String("match_id", req.MatchID),
+		zap.Int64("match_id", req.MatchID),
 		zap.Int("bot_count", req.BotCount),
 		zap.Time("start_time", req.StartTime),
 	)
@@ -88,7 +88,7 @@ func (h *Handler) StartMatch(c *gin.Context) {
 	// 매치 시작
 	if err := h.matchManager.StartMatch(req); err != nil {
 		logger.Error("Failed to start match",
-			zap.String("match_id", req.MatchID),
+			zap.Int64("match_id", req.MatchID),
 			zap.Error(err),
 		)
 		c.JSON(http.StatusInternalServerError, models.ErrorResponse{

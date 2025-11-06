@@ -8,7 +8,7 @@ import (
 
 // MatchContext 매치별 실행 컨텍스트
 type MatchContext struct {
-	MatchID   string
+	MatchID   int64
 	BotCount  int
 	StartTime time.Time
 	Status    MatchStatus
@@ -21,7 +21,7 @@ type MatchContext struct {
 }
 
 // NewMatchContext 새로운 매치 컨텍스트를 생성합니다
-func NewMatchContext(matchID string, botCount int, startTime time.Time) *MatchContext {
+func NewMatchContext(matchID int64, botCount int, startTime time.Time) *MatchContext {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &MatchContext{

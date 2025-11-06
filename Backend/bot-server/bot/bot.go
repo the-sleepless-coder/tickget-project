@@ -12,13 +12,13 @@ import (
 // Bot 티케팅 봇
 type Bot struct {
 	ID        int
-	MatchID   string
+	MatchID   int64
 	logger    *zap.Logger
 	startTime time.Time
 }
 
 // NewBot 새로운 봇을 생성합니다
-func NewBot(id int, matchID string, logger *zap.Logger) *Bot {
+func NewBot(id int, matchID int64, logger *zap.Logger) *Bot {
 	return &Bot{
 		ID:      id,
 		MatchID: matchID,
@@ -32,7 +32,7 @@ func (b *Bot) Run(ctx context.Context) error {
 
 	b.logger.Debug("Bot started",
 		zap.Int("bot_id", b.ID),
-		zap.String("match_id", b.MatchID),
+		zap.Int64("match_id", b.MatchID),
 	)
 
 	// 단계 1: 요일 선택 (Mock)
@@ -53,7 +53,7 @@ func (b *Bot) Run(ctx context.Context) error {
 	duration := time.Since(b.startTime)
 	b.logger.Info("Bot completed successfully",
 		zap.Int("bot_id", b.ID),
-		zap.String("match_id", b.MatchID),
+		zap.Int64("match_id", b.MatchID),
 		zap.Duration("duration", duration),
 	)
 

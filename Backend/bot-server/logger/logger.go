@@ -53,16 +53,16 @@ func Sync() {
 }
 
 // WithMatchContext 매치 컨텍스트를 포함한 로거를 반환합니다
-func WithMatchContext(matchID string) *zap.Logger {
+func WithMatchContext(matchID int64) *zap.Logger {
 	return Get().With(
-		zap.String("match_id", matchID),
+		zap.Int64("match_id", matchID),
 	)
 }
 
 // WithBotContext 봇 컨텍스트를 포함한 로거를 반환합니다
-func WithBotContext(matchID string, botID int) *zap.Logger {
+func WithBotContext(matchID int64, botID int) *zap.Logger {
 	return Get().With(
-		zap.String("match_id", matchID),
+		zap.Int64("match_id", matchID),
 		zap.Int("bot_id", botID),
 	)
 }

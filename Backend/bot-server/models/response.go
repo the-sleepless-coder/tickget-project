@@ -9,7 +9,7 @@ type BotCountResponse struct {
 type MatchStartResponse struct {
 	Success bool   `json:"success"`
 	Message string `json:"message"`
-	MatchID string `json:"match_id"`
+	MatchID int64  `json:"match_id"`
 }
 
 // ErrorResponse 에러 응답

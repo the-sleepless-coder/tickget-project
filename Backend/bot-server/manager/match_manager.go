@@ -15,7 +15,7 @@ import (
 
 // MatchManager 매치 관리자
 type MatchManager struct {
-	matches       map[string]*match.MatchContext
+	matches       map[int64]*match.MatchContext
 	scheduler     *scheduler.Scheduler
 	maxBots       int // 최대
 	availableBots int // 현재 가용 가능 봇 수
@@ -25,7 +25,7 @@ type MatchManager struct {
 // NewMatchManager 새로운 매치 매니저를 생성합니다
 func NewMatchManager(maxBots int) *MatchManager {
 	return &MatchManager{
-		matches:       make(map[string]*match.MatchContext),
+		matches:       make(map[int64]*match.MatchContext),
 		scheduler:     scheduler.NewScheduler(logger.Get()),
 		maxBots:       maxBots,
 		availableBots: maxBots,
@@ -42,16 +42,29 @@ func (m *MatchManager) GetBotCount() (total int, available int) {
 func (m *MatchManager) StartMatch(req models.MatchStartRequest) error {
 	matchLogger := logger.WithMatchContext(req.MatchID)
 
-	// 매치 컨텍스트 생성
-	matchCtx := match.NewMatchContext(req.MatchID, req.BotCount, req.StartTime)
-
-	// 매치 등록
+	// 매치 등록 + 가용 봇 체크 및 차감
 	m.mu.Lock()
+
+	// 1. 가용 봇 수 체크
+	if m.availableBots < req.BotCount {
+		m.mu.Unlock()
+		return fmt.Errorf("not enough bots available (requested: %d, available: %d)",
+			req.BotCount, m.availableBots)
+	}
+
+	// 2. 중복 매치 체크
 	if _, exists := m.matches[req.MatchID]; exists {
 		m.mu.Unlock()
-		return fmt.Errorf("match %s already exists", req.MatchID)
+		return fmt.Errorf("match %d already exists", req.MatchID)
 	}
+
+	// 3. 봇 할당 (차감)
+	m.availableBots -= req.BotCount
+
+	// 4. 매치 등록
+	matchCtx := match.NewMatchContext(req.MatchID, req.BotCount, req.StartTime)
 	m.matches[req.MatchID] = matchCtx
+
 	m.mu.Unlock()
 
 	matchLogger.Info("Match registered",
@@ -116,14 +129,22 @@ func (m *MatchManager) runMatch(matchCtx *match.MatchContext) error {
 }
 
 // cleanupMatch 매치를 정리합니다
-func (m *MatchManager) cleanupMatch(matchID string) {
+func (m *MatchManager) cleanupMatch(matchID int64) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	delete(m.matches, matchID)
+
+	// 매치 정보 가져오기
+	if matchCtx, exists := m.matches[matchID]; exists {
+		// 봇 해제 (복구)
+		m.availableBots += matchCtx.BotCount
+
+		// 매치 삭제
+		delete(m.matches, matchID)
+	}
 }
 
 // GetMatch 매치 정보를 반환합니다
-func (m *MatchManager) GetMatch(matchID string) (*match.MatchContext, bool) {
+func (m *MatchManager) GetMatch(matchID int64) (*match.MatchContext, bool) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	matchCtx, exists := m.matches[matchID]
