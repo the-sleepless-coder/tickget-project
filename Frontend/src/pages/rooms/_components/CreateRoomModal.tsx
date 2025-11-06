@@ -13,10 +13,10 @@ import Thumbnail04 from "../../../shared/images/thumbnail/Thumbnail04.jpg";
 import Thumbnail05 from "../../../shared/images/thumbnail/Thumbnail05.jpg";
 import Thumbnail06 from "../../../shared/images/thumbnail/Thumbnail06.jpg";
 import { paths } from "../../../app/routes/paths";
-import LeftPane from "./LeftPane";
-import Step1BasicForm from "./Step1BasicForm";
-import Step2AdvancedForm from "./Step2AdvancedForm";
-import ThumbnailSelectModal from "./ThumbnailSelectModal";
+import LeftPane from "./CreateRoomLeftPane";
+import CreateRoomStep1 from "./CreateRoomStep1";
+import CreateRoomStep2 from "./CreateRoomStep2";
+import ThumbnailSelectModal from "./CreateRoomThumbnailSelect";
 
 export default function CreateRoomModal({
   open,
@@ -50,7 +50,7 @@ export default function CreateRoomModal({
     () => ({
       소형: ["샤롯데씨어터"],
       중형: ["올림픽공원 올림픽홀"],
-      대형: ["KSPO DOME"],
+      대형: ["인스파이어 아레나"],
     }),
     []
   );
@@ -258,7 +258,7 @@ export default function CreateRoomModal({
             />
 
             {step === 1 ? (
-              <Step1BasicForm
+              <CreateRoomStep1
                 title={title}
                 setTitle={setTitle}
                 participantCount={participantCount}
@@ -270,7 +270,7 @@ export default function CreateRoomModal({
                 showErrors={showStep1Errors}
               />
             ) : (
-              <Step2AdvancedForm
+              <CreateRoomStep2
                 step2Mode={step2Mode}
                 setStep2Mode={setStep2Mode}
                 size={size}

@@ -367,13 +367,13 @@ export default function UserStats({
           <table className="w-full">
             <thead className="bg-neutral-50">
               <tr>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-neutral-700">
+                <th className="px-2 py-3 text-left text-sm font-semibold text-neutral-700" style={{ width: '12px' }}>
                   날짜/시간
                 </th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-neutral-700">
+                <th className="px-2 py-3 text-left text-sm font-semibold text-neutral-700" style={{ width: '16px' }}>
                   경기 정보
                 </th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-neutral-700">
+                <th className="px-2 py-3 text-left text-sm font-semibold text-neutral-700" style={{ width: '18px' }}>
                   <span className="relative flex items-center gap-1">
                     상위 비율
                     <div className="group relative">
@@ -387,20 +387,29 @@ export default function UserStats({
                     </div>
                   </span>
                 </th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-neutral-700">
+                <th className="px-2 py-3 text-left text-sm font-semibold text-neutral-700" style={{ width: '19px' }}>
                   등수 정보
                 </th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-neutral-700">
+                <th className="px-2 py-3 text-left text-sm font-semibold text-neutral-700" style={{ width: '21px' }}>
                   예매 클릭 (초)
                 </th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-neutral-700">
+                <th className="px-2 py-3 text-left text-sm font-semibold text-neutral-700" style={{ width: '22px' }}>
                   보안 문자 (초)
                 </th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-neutral-700">
+                <th className="px-2 py-3 text-left text-sm font-semibold text-neutral-700" style={{ width: '24px' }}>
                   좌석 선정 (초)
                 </th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-neutral-700">
+                <th className="px-2 py-3 text-left text-sm font-semibold text-neutral-700" style={{ width: '31px' }}>
                   총 소요시간 (초)
+                </th>
+                <th className="px-2 py-3 text-left text-sm font-semibold text-neutral-700" style={{ width: '40px' }}>
+                  전체 등수
+                </th>
+                <th className="px-2 py-3 text-left text-sm font-semibold text-neutral-700" style={{ width: '42px' }}>
+                  전체 참가자
+                </th>
+                <th className="px-2 py-3 text-left text-sm font-semibold text-neutral-700" style={{ width: '44px' }}>
+                  봇 중 등수
                 </th>
               </tr>
             </thead>
@@ -415,7 +424,7 @@ export default function UserStats({
                 .slice(0, visibleRows)
                 .map((data, index) => (
                 <tr key={index} className="hover:bg-neutral-50">
-                  <td className="px-6 py-4 text-sm text-neutral-900">
+                  <td className="px-2 py-4 text-sm text-neutral-900" style={{ width: '12px' }}>
                     <div className="flex flex-col">
                       <span>
                         {data.date
@@ -427,11 +436,13 @@ export default function UserStats({
                       <span className="text-neutral-500">{data.time || "-"}</span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-sm text-neutral-900">{data.matchType}</td>
-                  <td className="px-6 py-4 text-sm font-semibold text-purple-600">
+                  <td className="px-2 py-4 text-sm text-neutral-900" style={{ width: '16px' }}>
+                    {data.matchType}
+                  </td>
+                  <td className="px-2 py-4 text-sm font-semibold text-purple-600" style={{ width: '18px' }}>
                     {data.percentile}%
                   </td>
-                  <td className="px-6 py-4 text-sm text-neutral-700">
+                  <td className="px-2 py-4 text-sm text-neutral-700" style={{ width: '19px' }}>
                     {data.humanParticipants &&
                     data.humanParticipants > 1 &&
                     data.rankAmongUsers ? (
@@ -442,17 +453,26 @@ export default function UserStats({
                       <div className="text-sm text-neutral-500">-</div>
                     )}
                   </td>
-                  <td className="px-6 py-4 text-sm text-neutral-700">
+                  <td className="px-2 py-4 text-sm text-neutral-700" style={{ width: '21px' }}>
                     {data.bookingClick}초
                   </td>
-                  <td className="px-6 py-4 text-sm text-neutral-700">
+                  <td className="px-2 py-4 text-sm text-neutral-700" style={{ width: '22px' }}>
                     {data.captcha}초
                   </td>
-                  <td className="px-6 py-4 text-sm text-neutral-700">
+                  <td className="px-2 py-4 text-sm text-neutral-700" style={{ width: '24px' }}>
                     {data.seatSelection}초
                   </td>
-                  <td className="px-6 py-4 text-sm text-neutral-700">
+                  <td className="px-2 py-4 text-sm text-neutral-700" style={{ width: '31px' }}>
                     {data.totalTime}초
+                  </td>
+                  <td className="px-2 py-4 text-sm text-neutral-700" style={{ width: '40px' }}>
+                    {data.rank}/{data.totalParticipants}등
+                  </td>
+                  <td className="px-2 py-4 text-sm text-neutral-700" style={{ width: '42px' }}>
+                    {data.totalParticipants}명
+                  </td>
+                  <td className="px-2 py-4 text-sm text-neutral-700" style={{ width: '44px' }}>
+                    {data.rankAmongBots ? `${data.rankAmongBots}등` : "-"}
                   </td>
                 </tr>
               ))}

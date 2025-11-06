@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import ConfirmationNumberOutlinedIcon from "@mui/icons-material/ConfirmationNumberOutlined";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { paths } from "../../../app/routes/paths";
+import Viewport from "../_components/Viewport";
 
 export default function BookingWaitingPage() {
   const navigate = useNavigate();
@@ -54,17 +55,19 @@ export default function BookingWaitingPage() {
 
   if (stage === "loading") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
-        <div className="text-center">
-          <div className="mx-auto mb-12 h-12 w-12 md:h-12 md:w-12 animate-spin rounded-full border-4 border-gray-200 border-t-gray-500" />
-          <div className="text-xl md:text-2xl font-extrabold text-gray-900 tracking-tight">
-            예매 화면을 불러오는 중입니다.
-          </div>
-          <div className="mt-2 text-lg md:text-2xl text-blue-600 font-extrabold">
-            조금만 기다려주세요.
+      <Viewport>
+        <div className="w-full h-full flex items-center justify-center bg-white">
+          <div className="text-center">
+            <div className="mx-auto mb-8 h-12 w-12 animate-spin rounded-full border-4 border-gray-200 border-t-gray-500" />
+            <div className="text-xl font-extrabold text-gray-900 tracking-tight">
+              예매 화면을 불러오는 중입니다.
+            </div>
+            <div className="mt-2 text-lg text-blue-600 font-extrabold">
+              조금만 기다려주세요.
+            </div>
           </div>
         </div>
-      </div>
+      </Viewport>
     );
   }
 
@@ -75,60 +78,62 @@ export default function BookingWaitingPage() {
     const isImminent = percent <= 20; // 진행도가 많이 줄어들면(20% 이하) 임박 상태
 
     return (
-      <div className="min-h-screen bg-white">
-        <div className="mt-8 max-w-lg mx-auto p-6">
-          <h1 className="text-2xl font-extrabold text-gray-900">
-            {isImminent
-              ? "곧 고객님의 순서가 다가옵니다."
-              : "접속 인원이 많아 대기 중입니다."}
-          </h1>
-          <div
-            className={`text-2xl mt-1 font-extrabold ${isImminent ? "text-red-600" : "text-blue-600"}`}
-          >
-            {isImminent ? "예매를 준비해주세요." : "조금만 기다려주세요."}
-          </div>
-
-          <div className="mt-2 text-gray-700">티켓을 겟하다, Tickget!</div>
-
-          <div className="mt-4 rounded-xl border-[#e3e3e3] border shadow-lg bg-white p-6">
-            <div className="text-center text-md text-black font-bold mb-2">
-              나의 대기순서
-            </div>
-            <div className="text-center text-6xl font-extrabold text-gray-900">
-              {rank}
+      <Viewport>
+        <div className="w-full h-full bg-white">
+          <div className="pt-6 max-w-lg mx-auto p-6">
+            <h1 className="text-2xl font-extrabold text-gray-900">
+              {isImminent
+                ? "곧 고객님의 순서가 다가옵니다."
+                : "접속 인원이 많아 대기 중입니다."}
+            </h1>
+            <div
+              className={`text-2xl mt-1 font-extrabold ${isImminent ? "text-red-600" : "text-blue-600"}`}
+            >
+              {isImminent ? "예매를 준비해주세요." : "조금만 기다려주세요."}
             </div>
 
-            <div className="mt-2">
-              <div className="relative h-6 rounded-full bg-gray-100">
-                <div
-                  className={`absolute left-0 top-0 h-6 rounded-full ${
-                    isImminent ? "bg-red-500" : "bg-blue-600"
-                  }`}
-                  style={{ width: `${widthPercent}%` }}
-                />
-                <ConfirmationNumberOutlinedIcon
-                  fontSize="small"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-300 rotate-[-10deg]"
-                />
+            <div className="mt-2 text-gray-700">티켓을 겟하다, Tickget!</div>
+
+            <div className="mt-4 rounded-xl border-[#e3e3e3] border shadow-lg bg-white p-6">
+              <div className="text-center text-md text-black font-bold mb-2">
+                나의 대기순서
               </div>
-              <div className="mt-4 h-px bg-gray-100" />
-              <div className="mt-3 font-regular text-md text-gray-600 flex items-center justify-between">
-                <span>현재 대기인원</span>
-                <span className="text-black font-extrabold">
-                  {totalQueue}명
-                </span>
+              <div className="text-center text-6xl font-extrabold text-gray-900">
+                {rank}
+              </div>
+
+              <div className="mt-2">
+                <div className="relative h-6 rounded-full bg-gray-100">
+                  <div
+                    className={`absolute left-0 top-0 h-6 rounded-full ${
+                      isImminent ? "bg-red-500" : "bg-blue-600"
+                    }`}
+                    style={{ width: `${widthPercent}%` }}
+                  />
+                  <ConfirmationNumberOutlinedIcon
+                    fontSize="small"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-300 rotate-[-10deg]"
+                  />
+                </div>
+                <div className="mt-4 h-px bg-gray-100" />
+                <div className="mt-3 font-regular text-md text-gray-600 flex items-center justify-between">
+                  <span>현재 대기인원</span>
+                  <span className="text-black font-extrabold">
+                    {totalQueue}명
+                  </span>
+                </div>
               </div>
             </div>
+            <ul className="mt-6 text-sm text-gray-400 list-disc pl-5 space-y-1">
+              <li>잠시만 기다려주시면, 예매하기 페이지로 연결됩니다.</li>
+              <li>
+                새로고침하거나 재접속 하시면 대기순서가 초기화되어 대기시간이 더
+                길어집니다.
+              </li>
+            </ul>
           </div>
-          <ul className="mt-6 text-sm text-gray-400 list-disc pl-5 space-y-1">
-            <li>잠시만 기다려주시면, 예매하기 페이지로 연결됩니다.</li>
-            <li>
-              새로고침하거나 재접속 하시면 대기순서가 초기화되어 대기시간이 더
-              길어집니다.
-            </li>
-          </ul>
         </div>
-      </div>
+      </Viewport>
     );
   }
 

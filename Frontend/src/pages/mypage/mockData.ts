@@ -1,7 +1,7 @@
 export interface UserRank {
   id: number;
   nickname: string;
-  rank: number; // 전체 순위 (봇 + 사람)
+  rank: number; // 전체 순위 (봇 + 사람) //dd
   rankAmongBots?: number; // 봇들 중에서의 순위
   rankAmongUsers?: number; // 다른 사용자들 중에서의 순위
   seatArea: string;

@@ -12,9 +12,9 @@ export default function Viewport({
   scroll = false,
 }: Props) {
   useEffect(() => {
-    // 내부 뷰포트가 900x682가 되도록 창 크기를 보정
-    const targetW = 900;
-    const targetH = 682;
+    // 내부 뷰포트가 900x680이 되도록 창 크기를 보정
+    const targetW = 910;
+    const targetH = 700;
     const dw = targetW - window.innerWidth;
     const dh = targetH - window.innerHeight;
     if (dw !== 0 || dh !== 0) {
@@ -46,7 +46,7 @@ export default function Viewport({
     };
   }, []);
   return (
-    <div className="w-[900px] h-[682px] bg-[#efefef] mx-auto">
+    <div className="w-[880px] h-[680px] bg-[#efefef] mx-auto">
       <div
         className={(scroll ? "h-full overflow-y-auto " : "h-full ") + className}
       >

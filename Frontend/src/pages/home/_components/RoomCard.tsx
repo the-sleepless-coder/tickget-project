@@ -66,7 +66,7 @@ export default function RoomCard({
   const imageBySize: Record<NonNullable<typeof size>, string> = {
     small: "/performance-halls/charlotte-theater.jpg",
     medium: "/performance-halls/olympic-hall.jpg",
-    large: "/performance-halls/kspo-dome.jpg",
+    large: "/performance-halls/inspire-arena.jpg",
   };
   const resolvedImageSrc =
     imageSrc ?? (size ? imageBySize[size] : "/temp-seats.jpg");
