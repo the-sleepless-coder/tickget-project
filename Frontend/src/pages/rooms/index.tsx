@@ -4,12 +4,12 @@ import Tooltip from "@mui/material/Tooltip";
 import InfoOutlined from "@mui/icons-material/InfoOutlined";
 import SearchIcon from "@mui/icons-material/Search";
 import CreateRoomModal from "./_components/CreateRoomModal";
-import Thumbnail01 from "../../shared/images/thumbnail/Thumbnail01.jpg";
-import Thumbnail02 from "../../shared/images/thumbnail/Thumbnail02.jpg";
-import Thumbnail03 from "../../shared/images/thumbnail/Thumbnail03.jpg";
-import Thumbnail04 from "../../shared/images/thumbnail/Thumbnail04.jpg";
-import Thumbnail05 from "../../shared/images/thumbnail/Thumbnail05.jpg";
-import Thumbnail06 from "../../shared/images/thumbnail/Thumbnail06.jpg";
+import Thumbnail01 from "../../shared/images/thumbnail/Thumbnail01.webp";
+import Thumbnail02 from "../../shared/images/thumbnail/Thumbnail02.webp";
+import Thumbnail03 from "../../shared/images/thumbnail/Thumbnail03.webp";
+import Thumbnail04 from "../../shared/images/thumbnail/Thumbnail04.webp";
+import Thumbnail05 from "../../shared/images/thumbnail/Thumbnail05.webp";
+import Thumbnail06 from "../../shared/images/thumbnail/Thumbnail06.webp";
 
 type SortKey = "start" | "latest";
 
