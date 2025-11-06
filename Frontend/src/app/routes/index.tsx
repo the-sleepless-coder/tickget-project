@@ -24,9 +24,10 @@ const BookingSelectSchedulePage = lazy(
 );
 const DashboardPage = lazy(() => import("../../pages/dashboard"));
 const ProfilePage = lazy(() => import("../../pages/profile"));
-const ITicketPage = lazy(() => import("../../pages/i-ticket/index"));
+const ITicketPage = lazy(
+  () => import("../../pages/Ticketing/Exterpark/Exterpark")
+);
 const RoomsPage = lazy(() => import("../../pages/rooms"));
-const ThreeJsTestPage = lazy(() => import("../../pages/threejstest"));
 const SeatsTestPage = lazy(() => import("../../pages/seatstest"));
 const MyPageIndex = lazy(() => import("../../pages/mypage"));
 const MyPageReservationsPage = lazy(
@@ -47,7 +48,6 @@ export const router = createBrowserRouter([
       { index: true, element: withSuspense(<HomePage />) },
 
       { path: "i-ticket", element: withSuspense(<ITicketPage />) },
-      { path: "threejstest", element: withSuspense(<ThreeJsTestPage />) },
       { path: "seatstest", element: withSuspense(<SeatsTestPage />) },
       { path: "game-result", element: withSuspense(<GameResultPage />) },
       {
