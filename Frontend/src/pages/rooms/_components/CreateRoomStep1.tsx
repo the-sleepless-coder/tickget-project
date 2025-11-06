@@ -6,6 +6,8 @@ import { TimePicker } from "@mui/x-date-pickers/TimePicker";
 export default function Step1BasicForm({
   title,
   setTitle,
+  matchType,
+  setMatchType,
   participantCount,
   setParticipantCount,
   startTime,
@@ -16,6 +18,8 @@ export default function Step1BasicForm({
 }: {
   title: string;
   setTitle: (v: string) => void;
+  matchType: "solo" | "versus";
+  setMatchType: (v: "solo" | "versus") => void;
   participantCount: string;
   setParticipantCount: (v: string) => void;
   startTime: Dayjs | null;
@@ -39,21 +43,61 @@ export default function Step1BasicForm({
       </div>
 
       <div className="space-y-6">
-        <div className="relative">
-          <input
-            value={participantCount}
-            onChange={(e) => {
-              const digits = e.target.value.replace(/[^0-9]/g, "");
-              if (digits === "") return setParticipantCount("");
-              const num = Math.max(1, Math.min(10, parseInt(digits, 10)));
-              setParticipantCount(String(num));
-            }}
-            className={`w-full text-gray-600 text-lg font-semibold border-b-2 ${showErrors && participantCount.trim().length === 0 ? "border-red-500" : "border-gray-300"} px-2 py-3 pr-20 outline-none focus:border-purple-600`}
-            placeholder="참가 인원"
-            inputMode="numeric"
-          />
-          <div className="pointer-events-none text-lg absolute right-0 top-1/2 -translate-y-1/2 text-sm text-gray-400">
-            (1 ~ 10 명)
+        <div className="flex items-center gap-6 min-h-[56px] whitespace-nowrap">
+          <span className="text-gray-700 font-semibold whitespace-nowrap">
+            모드
+          </span>
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={() => setMatchType("solo")}
+              className={`px-5 py-2 rounded-xl text-sm whitespace-nowrap ${
+                matchType === "solo"
+                  ? "bg-c-blue-100 text-c-blue-300"
+                  : "bg-blue-50 text-blue-700 hover:bg-blue-100"
+              }`}
+            >
+              솔로
+            </button>
+            <button
+              type="button"
+              onClick={() => setMatchType("versus")}
+              className={`px-5 py-2 rounded-xl text-sm whitespace-nowrap ${
+                matchType === "versus"
+                  ? "bg-c-blue-100 text-c-blue-300"
+                  : "bg-blue-50 text-blue-700 hover:bg-blue-100"
+              }`}
+            >
+              대결
+            </button>
+          </div>
+
+          <div
+            className={`relative min-w-[220px] ${
+              matchType === "solo" ? "invisible pointer-events-none" : ""
+            }`}
+          >
+            <input
+              value={participantCount}
+              onChange={(e) => {
+                const digits = e.target.value.replace(/[^0-9]/g, "");
+                if (digits === "") return setParticipantCount("");
+                const num = Math.max(2, Math.min(10, parseInt(digits, 10)));
+                setParticipantCount(String(num));
+              }}
+              className={`w-full text-gray-600 text-lg font-semibold border-b-2 ${
+                showErrors &&
+                matchType === "versus" &&
+                participantCount.trim().length === 0
+                  ? "border-red-500"
+                  : "border-gray-300"
+              } px-2 py-3 pr-20 outline-none focus:border-purple-600`}
+              placeholder="참가 인원"
+              inputMode="numeric"
+            />
+            <div className="pointer-events-none text-lg absolute right-0 top-1/2 -translate-y-1/2 text-sm text-gray-400">
+              (2 ~ 10 명)
+            </div>
           </div>
         </div>
 

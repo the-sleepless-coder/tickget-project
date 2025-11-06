@@ -29,6 +29,7 @@ export default function CreateRoomModal({
   const [step, setStep] = useState<1 | 2>(1);
   const [startTime, setStartTime] = useState<Dayjs | null>(dayjs());
   const [title, setTitle] = useState("");
+  const [matchType, setMatchType] = useState<"solo" | "versus">("solo");
   const [size, setSize] = useState<"소형" | "중형" | "대형">("소형");
   const [difficulty, setDifficulty] = useState<"초보" | "평균" | "뛰어남">(
     "초보"
@@ -103,6 +104,7 @@ export default function CreateRoomModal({
       participantCount,
       startTime: startTime?.toISOString() || null,
       platform,
+      matchType,
       size,
       venue,
       difficulty,
@@ -125,6 +127,7 @@ export default function CreateRoomModal({
       setParticipantCount(settings.participantCount || "");
       setStartTime(settings.startTime ? dayjs(settings.startTime) : dayjs());
       setPlatform(settings.platform || "익스터파크");
+      setMatchType(settings.matchType === "versus" ? "versus" : "solo");
       setSize(settings.size || "소형");
       setVenue(settings.venue || "샤롯데씨어터");
       setDifficulty(settings.difficulty || "초보");
@@ -242,6 +245,8 @@ export default function CreateRoomModal({
               <RoomSettingStep1
                 title={title}
                 setTitle={setTitle}
+                matchType={matchType}
+                setMatchType={setMatchType}
                 participantCount={participantCount}
                 setParticipantCount={setParticipantCount}
                 startTime={startTime}
@@ -282,7 +287,8 @@ export default function CreateRoomModal({
                 type="button"
                 onClick={() => {
                   const isTitleValid = title.trim().length > 0;
-                  const isParticipantValid = participantCount.trim().length > 0;
+                  const isParticipantValid =
+                    matchType === "solo" || participantCount.trim().length > 0;
                   if (isTitleValid && isParticipantValid) {
                     setShowStep1Errors(false);
                     setStep(2);
