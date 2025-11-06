@@ -5,7 +5,7 @@ import PeopleIcon from "@mui/icons-material/People";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import { paths } from "../../../app/routes/paths";
 import RoomSettingModal from "../_components/RoomSettingModal";
-import Thumbnail03 from "../../../shared/images/thumbnail/Thumbnail03.jpg";
+import Thumbnail03 from "../../../shared/images/thumbnail/Thumbnail03.webp";
 
 type Participant = {
   name: string;
