@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"strconv"
 
 	"bot-server/logger"
 	"bot-server/manager"
@@ -31,7 +32,7 @@ func (h *Handler) RegisterRoutes(router *gin.Engine) {
 	// 매치 관련 라우트
 	matches := router.Group("/matches")
 	{
-		matches.POST("", h.StartMatch)
+		matches.POST("/:matchId/bots", h.SetBotsForMatch)
 	}
 }
 
@@ -57,12 +58,21 @@ func (h *Handler) BotCount(c *gin.Context) {
 }
 
 // StartMatch 매치 시작 요청 처리
-func (h *Handler) StartMatch(c *gin.Context) {
-	var req models.MatchStartRequest
+func (h *Handler) SetBotsForMatch(c *gin.Context) {
+	matchIDStr := c.Param("matchId")
+	matchID, err := strconv.ParseInt(matchIDStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{
+			Success: false,
+			Error:   "유효하지 않은 matchId 형식입니다",
+		})
+		return
+	}
 
 	// JSON 바인딩 및 검증
+	var req models.MatchSettingRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		logger.Warn("잘못된 매치 시작 요청",
+		logger.Warn("잘못된 매치 및 봇 세팅 요청",
 			zap.Error(err),
 		)
 		c.JSON(http.StatusBadRequest, models.ErrorResponse{
@@ -73,15 +83,15 @@ func (h *Handler) StartMatch(c *gin.Context) {
 	}
 
 	logger.Info("매치 시작 요청됨",
-		zap.Int64("match_id", req.MatchID),
+		zap.Int64("match_id", matchID),
 		zap.Int("bot_count", req.BotCount),
 		zap.Time("start_time", req.StartTime),
 	)
 
-	// 매치 시작
-	if err := h.matchManager.StartMatch(req); err != nil {
-		logger.Error("매치 시작 실패",
-			zap.Int64("match_id", req.MatchID),
+	//매치를 위한 봇 세팅 시작
+	if err := h.matchManager.SetBotsForMatch(matchID, req); err != nil {
+		logger.Error("매치 및 봇 세팅 실패",
+			zap.Int64("match_id", matchID),
 			zap.Error(err),
 		)
 		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
@@ -91,10 +101,10 @@ func (h *Handler) StartMatch(c *gin.Context) {
 		return
 	}
 
-	response := models.MatchStartResponse{
+	response := models.MatchSettingResponse{
 		Success: true,
 		Message: "매치가 성공적으로 스케줄되었습니다",
-		MatchID: req.MatchID,
+		MatchID: matchID,
 	}
 
 	c.JSON(http.StatusOK, response)

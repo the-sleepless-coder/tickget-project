@@ -5,8 +5,8 @@ type BotCountResponse struct {
 	AvailableBotCount int `json: "available_bot_count"`
 }
 
-// MatchStartResponse 매치 시작 응답
-type MatchStartResponse struct {
+// MatchSettingResponse 매치 시작 응답
+type MatchSettingResponse struct {
 	Success bool   `json:"success"`
 	Message string `json:"message"`
 	MatchID int64  `json:"match_id"`

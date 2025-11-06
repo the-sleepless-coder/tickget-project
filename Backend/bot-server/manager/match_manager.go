@@ -39,9 +39,9 @@ func (m *MatchManager) GetBotCount() (total int, available int) {
 	return m.maxBots, m.availableBots
 }
 
-// StartMatch 매치를 시작
-func (m *MatchManager) StartMatch(req models.MatchStartRequest) error {
-	matchLogger := logger.WithMatchContext(req.MatchID)
+// 매치 및 봇 세팅 시작
+func (m *MatchManager) SetBotsForMatch(matchID int64, req models.MatchSettingRequest) error {
+	matchLogger := logger.WithMatchContext(matchID)
 
 	// 0. 시작 시간 검증 (과거 시간 거부)
 	if req.StartTime.Before(time.Now()) {
@@ -59,17 +59,17 @@ func (m *MatchManager) StartMatch(req models.MatchStartRequest) error {
 	}
 
 	// 2. 중복 매치 체크
-	if _, exists := m.matches[req.MatchID]; exists {
+	if _, exists := m.matches[matchID]; exists {
 		m.mu.Unlock()
-		return fmt.Errorf("매치 %d가 이미 존재합니다", req.MatchID)
+		return fmt.Errorf("매치 %d가 이미 존재합니다", matchID)
 	}
 
 	// 3. 봇 할당 (차감)
 	m.availableBots -= req.BotCount
 
 	// 4. 매치 등록
-	matchCtx := match.NewMatchContext(req.MatchID, req.BotCount, req.StartTime)
-	m.matches[req.MatchID] = matchCtx
+	matchCtx := match.NewMatchContext(matchID, req.BotCount, req.StartTime)
+	m.matches[matchID] = matchCtx
 
 	m.mu.Unlock()
 
@@ -80,7 +80,7 @@ func (m *MatchManager) StartMatch(req models.MatchStartRequest) error {
 
 	// 별도 goroutine에서 스케줄링 및 실행
 	go func() {
-		defer m.cleanupMatch(req.MatchID)
+		defer m.cleanupMatch(matchID)
 
 		matchCtx.SetStatus(match.StatusScheduled)
 
