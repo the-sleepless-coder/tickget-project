@@ -61,6 +61,12 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
         log.info("OAuth2 로그인 성공: userId={}, email={}",
                 customUser.getUserId(), customUser.getEmail());
 
+        // DB에서 사용자 조회하여 추가 정보 입력 필요 여부 확인
+        User user = userRepository.findById(customUser.getUserId())
+                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+
+        boolean needsAdditionalInfo = user.getNickname() == null;
+
         // JWT 토큰 생성
         String accessToken = jwtTokenProvider.createAccessToken(
                 customUser.getUserId(),
@@ -69,7 +75,7 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
         String refreshToken = jwtTokenProvider.createRefreshToken(customUser.getUserId());
 
         redirectToFrontend(request, response, accessToken, refreshToken,
-                customUser.getUserId(), customUser.getEmail(), customUser.getNickname());
+                customUser.getUserId(), customUser.getEmail(), customUser.getNickname(), needsAdditionalInfo);
     }
 
     /**
@@ -86,30 +92,33 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
 
         // DB에서 사용자 조회 또는 생성
         User user = userRepository.findByEmail(email)
-                .orElseGet(() -> createNewUser(email, name, oAuth2User.getAttribute("picture")));
+                .orElseGet(() -> createNewUser(email, name));
+
+        boolean needsAdditionalInfo = user.getNickname() == null;
 
         // JWT 토큰 생성
         String accessToken = jwtTokenProvider.createAccessToken(user.getId(), user.getEmail());
         String refreshToken = jwtTokenProvider.createRefreshToken(user.getId());
 
+        String nickname = user.getNickname() != null ? user.getNickname() : email.split("@")[0];
+
         redirectToFrontend(request, response, accessToken, refreshToken,
-                user.getId(), user.getEmail(), user.getNickname());
+                user.getId(), user.getEmail(), nickname, needsAdditionalInfo);
     }
 
     /**
      * 신규 사용자 생성
      */
-    private User createNewUser(String email, String name, String picture) {
+    private User createNewUser(String email, String name) {
         log.info("신규 사용자 생성: email={}", email);
-
-        String nickname = name != null ? name : email.split("@")[0];
 
         User newUser = User.builder()
                 .email(email)
-                .nickname(nickname)
                 .name(name)
-                .profileImageUrl(picture)
+                .nickname(null)  // 추가 정보 입력 필요
+                .profileImageUrl(null)
                 .gender(User.Gender.UNKNOWN)
+                .birthDate(null)
                 .build();
 
         return userRepository.save(newUser);
@@ -124,13 +133,19 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
                                     String refreshToken,
                                     Long userId,
                                     String email,
-                                    String nickname) throws IOException {
-        String targetUrl = UriComponentsBuilder.fromUriString(frontendUrl + "/login/success")
+                                    String nickname,
+                                    boolean needsAdditionalInfo) throws IOException {
+
+        // 추가 정보 입력이 필요한 경우 다른 경로로 리다이렉트
+        String path = needsAdditionalInfo ? "/signup/additional-info" : "/login/success";
+
+        String targetUrl = UriComponentsBuilder.fromUriString(frontendUrl + path)
                 .queryParam("accessToken", accessToken)
                 .queryParam("refreshToken", refreshToken)
                 .queryParam("userId", userId)
                 .queryParam("email", email)
                 .queryParam("nickname", nickname)
+                .queryParam("needsProfile", needsAdditionalInfo)
                 .build()
                 .toUriString();
 

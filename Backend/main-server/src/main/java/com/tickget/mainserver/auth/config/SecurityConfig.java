@@ -56,12 +56,14 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // OAuth2 로그인 관련 경로 모두 허용
                         .requestMatchers("/", "/error", "/login/**", "/oauth2/**").permitAll()
-                        // Swagger 관련 경로 허용
+                        // Swagger UI 관련 경로 허용
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**").permitAll()
+                        // 개발/테스트용 API 허용 (운영 환경에서는 제거 필요)
+                        .requestMatchers("/api/dev/**").permitAll()
                         // 인증 API 중 일부만 허용
                         .requestMatchers("/api/auth/health", "/api/auth/refresh").permitAll()
-                        // /api/auth/me는 인증 필요
-                        .requestMatchers("/api/auth/me").authenticated()
+                        // 사용자 API는 인증 필요
+                        .requestMatchers("/api/users/**").authenticated()
                         // 나머지는 모두 인증 필요
                         .anyRequest().authenticated()
                 )
@@ -85,8 +87,12 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        // 프론트엔드 URL 허용
-        configuration.setAllowedOrigins(List.of(frontendUrl));
+        // 프론트엔드 URL과 Swagger UI를 위한 로컬호스트 허용
+        configuration.setAllowedOriginPatterns(Arrays.asList(
+                frontendUrl,
+                "http://localhost:*",
+                "http://127.0.0.1:*"
+        ));
 
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));

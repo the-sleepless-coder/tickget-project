@@ -31,31 +31,33 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         String registrationId = userRequest.getClientRegistration().getRegistrationId();
         Map<String, Object> attributes = oauth2User.getAttributes();
 
-        // Google OAuth2 사용자 정보 추출
+        // Google OAuth2 사용자 정보 추출 (이메일, 이름만)
         String email = (String) attributes.get("email");
         String name = (String) attributes.get("name");
-        String picture = (String) attributes.get("picture");
 
         log.info("OAuth2 로그인: provider={}, email={}", registrationId, email);
 
         // DB에서 이메일로 사용자 조회 또는 신규 생성
         User user = userRepository.findByEmail(email)
-                .orElseGet(() -> createNewUser(email, name, picture));
+                .orElseGet(() -> createNewUser(email, name));
 
-        return new CustomOAuth2User(oauth2User, user.getId(), user.getEmail(), user.getNickname());
+        // nickname이 null이면 추가 정보 입력이 필요한 상태
+        String nickname = user.getNickname() != null ? user.getNickname() : email.split("@")[0];
+
+        return new CustomOAuth2User(oauth2User, user.getId(), user.getEmail(), nickname);
     }
 
-    private User createNewUser(String email, String name, String picture) {
+    private User createNewUser(String email, String name) {
         log.info("신규 사용자 생성: email={}", email);
 
-        String nickname = name != null ? name : email.split("@")[0];
-
+        // 최소 정보만 저장 (추가 정보는 나중에 입력)
         User newUser = User.builder()
                 .email(email)
-                .nickname(nickname)
                 .name(name)
-                .profileImageUrl(picture)
+                .nickname(null)  // 추가 정보 입력 필요
+                .profileImageUrl(null)
                 .gender(User.Gender.UNKNOWN)
+                .birthDate(null)
                 .build();
 
         return userRepository.save(newUser);
