@@ -1,4 +1,5 @@
 import type { ChangeEvent } from "react";
+import Loader from "../shared/Loader";
 import InsertPhotoOutlined from "@mui/icons-material/InsertPhotoOutlined";
 
 export default function LeftPane({
@@ -13,6 +14,7 @@ export default function LeftPane({
   venue,
   isAIMode,
   isPresetMode,
+  showLoader,
 }: {
   step: 1 | 2;
   thumbnailUrl: string | null;
@@ -25,6 +27,7 @@ export default function LeftPane({
   venue: string;
   isAIMode?: boolean;
   isPresetMode?: boolean;
+  showLoader?: boolean;
 }) {
   if (step === 1) {
     return (
@@ -83,7 +86,7 @@ export default function LeftPane({
         htmlFor={isPresetMode ? undefined : "room-layout"}
         className={`block w-[230px] ${isPresetMode ? "cursor-default" : "cursor-pointer"}`}
       >
-        <div className="grid place-items-center rounded-md bg-gray-200 w-[230px] h-[307px] md:w-[230px] md:h-[307px] overflow-hidden">
+        <div className="relative grid place-items-center rounded-md bg-gray-200 w-[230px] h-[307px] md:w-[230px] md:h-[307px] overflow-hidden">
           {(() => {
             const defaultSrc =
               size === "소형" || /샤롯데/.test(venue)
@@ -113,6 +116,11 @@ export default function LeftPane({
               </div>
             );
           })()}
+          {showLoader ? (
+            <div className="absolute inset-0 bg-black/10">
+              <Loader />
+            </div>
+          ) : null}
         </div>
       </label>
       {!isPresetMode && (
