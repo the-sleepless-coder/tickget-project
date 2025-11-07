@@ -73,7 +73,7 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
         User user = userRepository.findById(customUser.getUserId())
                 .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
 
-        boolean needsAdditionalInfo = user.getNickname() == null;
+        boolean needsAdditionalInfo = user.getName() == null;
 
         // JWT 토큰 생성
         String accessToken = jwtTokenProvider.createAccessToken(
