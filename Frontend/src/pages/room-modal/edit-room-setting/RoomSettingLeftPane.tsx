@@ -53,17 +53,17 @@ export default function LeftPane({
         <input
           id="room-thumbnail"
           type="file"
-          accept="image/*"
+          accept=".jpg,.jpeg,.png,image/jpeg,image/png"
           className="hidden"
           onChange={onThumbnailChange}
         />
-        <div className="mt-2 flex items-center justify-between text-sm text-gray-700">
+        {/* <div className="mt-2 flex items-center justify-between text-sm text-gray-700">
           <button
             type="button"
             onClick={onPresetClick}
             className="cursor-pointer"
           >
-            프리셋 선택
+            썸네일 선택
           </button>
           <button
             type="button"
@@ -72,7 +72,7 @@ export default function LeftPane({
           >
             사진 업로드
           </button>
-        </div>
+        </div> */}
       </div>
     );
   }

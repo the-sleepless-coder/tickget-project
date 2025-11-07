@@ -1,8 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import Button from "@mui/material/Button";
-import Snackbar from "@mui/material/Snackbar";
-import Alert from "@mui/material/Alert";
+import Toast from "../../../shared/ui/common/Toast";
 
 // TODO: OAuth 인증 후 실제로 받아올 사용자 정보
 interface OAuthUserInfo {
@@ -453,21 +452,14 @@ export default function SignupPage() {
           </div>
         </div>
       </div>
-      <Snackbar
+      <Toast
         open={snackbar.open}
-        autoHideDuration={3000}
         onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-      >
-        <Alert
-          onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
-          severity={snackbar.severity}
-          variant="filled"
-          sx={{ width: "100%" }}
-        >
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
+        message={snackbar.message}
+        severity={snackbar.severity}
+        autoHideDuration={3000}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+      />
     </div>
   );
 }

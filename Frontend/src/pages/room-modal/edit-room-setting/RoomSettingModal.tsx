@@ -16,6 +16,7 @@ import LeftPane from "./RoomSettingLeftPane";
 import RoomSettingStep1 from "./RoomSettingStep1";
 import RoomSettingStep2 from "./RoomSettingStep2";
 import ThumbnailSelectModal from "./RoomSettingThumbnailSelectModal";
+import Toast from "../../../shared/ui/common/Toast";
 
 export default function CreateRoomModal({
   open,
@@ -43,6 +44,7 @@ export default function CreateRoomModal({
   const [layoutUrl, setLayoutUrl] = useState<string | null>(null);
   const [thumbPickerOpen, setThumbPickerOpen] = useState(false);
   const [showStep1Errors, setShowStep1Errors] = useState(false);
+  const [toastOpen, setToastOpen] = useState(false);
   type SizeOption = "소형" | "중형" | "대형";
   const diffOptions = useMemo(() => ["초보", "평균", "뛰어남"] as const, []);
   const botOptions = useMemo(() => [100, 500, 1000, 2000, 5000] as const, []);
@@ -75,8 +77,25 @@ export default function CreateRoomModal({
     setThumbnailUrl(thumbnails[idx]);
   }, [thumbnails]);
   const onThumbnailChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+    const inputEl = e.target;
+    const file = inputEl.files?.[0];
     if (!file) return;
+
+    const isValidMime = file.type === "image/jpeg" || file.type === "image/png";
+    const isValidExt = /\.(jpe?g|png)$/i.test(file.name);
+    const isValid = isValidMime || isValidExt;
+
+    if (!isValid) {
+      setToastOpen(true);
+      inputEl.value = "";
+      // If a previous blob preview (e.g., GIF) exists, revoke and clear it
+      if (thumbnailUrl && thumbnailUrl.startsWith("blob:")) {
+        URL.revokeObjectURL(thumbnailUrl);
+        setThumbnailUrl(null);
+      }
+      return;
+    }
+
     const nextUrl = URL.createObjectURL(file);
     if (thumbnailUrl && thumbnailUrl.startsWith("blob:"))
       URL.revokeObjectURL(thumbnailUrl);
@@ -339,6 +358,12 @@ export default function CreateRoomModal({
             onUploadClick={triggerUpload}
           />
         ) : null}
+
+        <Toast
+          open={toastOpen}
+          onClose={() => setToastOpen(false)}
+          message="jpg, png 파일만 업로드 가능합니다."
+        />
       </div>
     </div>
   );

@@ -40,13 +40,13 @@ export default function ThumbnailSelectModal({
           ))}
         </div>
         <div className="mt-4 flex items-center justify-end gap-2">
-          <button
+          {/* <button
             type="button"
             onClick={onUploadClick}
             className="px-3 py-1.5 rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200 cursor-pointer"
           >
             사진 업로드
-          </button>
+          </button> */}
           <button
             type="button"
             onClick={onClose}

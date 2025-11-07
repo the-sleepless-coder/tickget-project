@@ -36,7 +36,7 @@ export default function Step1BasicForm({
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           type="text"
-          placeholder="방 제목을 입력해주세요"
+          placeholder="방 제목을 수정할 수 있습니다"
           className={`w-full border-b-2 ${showErrors && title.trim().length === 0 ? "border-red-500" : "border-gray-300"} font-semibold px-2 py-3 text-xl outline-none text-gray-700 focus:border-purple-600`}
           maxLength={50}
         />
