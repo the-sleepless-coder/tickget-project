@@ -167,13 +167,14 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
         String path = needsAdditionalInfo ? "/signup/additional-info" : "/login/success";
 
         // AccessToken만 URL 파라미터로 전달 (RefreshToken은 Cookie에 있음)
+        // 한글 등 특수문자 URL 인코딩을 위해 encode() 호출
         String targetUrl = UriComponentsBuilder.fromUriString(frontendUrl + path)
                 .queryParam("accessToken", accessToken)
                 .queryParam("userId", userId)
                 .queryParam("email", email)
                 .queryParam("nickname", nickname)
                 .queryParam("needsProfile", needsAdditionalInfo)
-                .build()
+                .encode()  // ⭐ URL 인코딩 (한글 등 특수문자 처리)
                 .toUriString();
 
         log.info("프론트엔드로 리다이렉트: path={}, userId={}, RefreshToken=Cookie", path, userId);

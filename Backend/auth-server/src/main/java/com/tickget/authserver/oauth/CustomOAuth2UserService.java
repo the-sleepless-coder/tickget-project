@@ -56,7 +56,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         User newUser = User.builder()
                 .email(email)
                 .name(name)
-                .nickname(null)  // 추가 정보 입력 필요
+                .nickname(name)  // 처음은 사용자 이름과 동일하게
                 .profileImageUrl(picture)  // Google 프로필 이미지 저장
                 .gender(User.Gender.UNKNOWN)
                 .birthDate(null)
