@@ -55,7 +55,7 @@ func (s *Service) SetBotsForMatch(matchID int64, req models.MatchSettingRequest)
 	}
 
 	// 3. 매치 등록
-	matchCtx := NewMatchContext(matchID, req.BotCount, req.StartTime)
+	matchCtx := NewMatchContext(matchID, req.BotCount, req.StartTime, req.Difficulty)
 	s.matches[matchID] = matchCtx
 
 	s.mu.Unlock()
@@ -63,6 +63,7 @@ func (s *Service) SetBotsForMatch(matchID int64, req models.MatchSettingRequest)
 	matchLogger.Info("매치 등록됨",
 		zap.Int("bot_count", req.BotCount),
 		zap.Time("start_time", req.StartTime),
+		zap.String("difficulty", string(req.Difficulty)),
 	)
 
 	// 별도 goroutine에서 스케줄링 및 실행
@@ -106,7 +107,8 @@ func (s *Service) runMatch(matchCtx *MatchContext) error {
 			defer matchCtx.DoneBot()
 
 			botLogger := logger.WithBotContext(matchCtx.MatchID, botID)
-			b := bot.NewBot(botID, matchCtx.MatchID, botLogger)
+			botLevel := matchCtx.BotLevels[botID] // 미리 생성된 레벨 사용
+			b := bot.NewBot(botID, matchCtx.MatchID, botLevel, botLogger)
 
 			if err := b.Run(matchCtx.Context()); err != nil {
 				botLogger.Warn("봇 실행 실패", zap.Error(err))

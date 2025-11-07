@@ -4,14 +4,19 @@ import (
 	"context"
 	"sync"
 	"time"
+
+	"bot-server/bot"
+	"bot-server/models"
 )
 
 // MatchContext 매치별 실행 컨텍스트
 type MatchContext struct {
-	MatchID   int64
-	BotCount  int
-	StartTime time.Time
-	Status    MatchStatus
+	MatchID    int64
+	BotCount   int
+	StartTime  time.Time
+	Difficulty models.Difficulty
+	BotLevels  []bot.Level // 각 봇의 레벨 (난이도에 따라 생성됨)
+	Status     MatchStatus
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -21,16 +26,18 @@ type MatchContext struct {
 }
 
 // NewMatchContext 새로운 매치 컨텍스트를 생성
-func NewMatchContext(matchID int64, botCount int, startTime time.Time) *MatchContext {
+func NewMatchContext(matchID int64, botCount int, startTime time.Time, difficulty models.Difficulty) *MatchContext {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &MatchContext{
-		MatchID:   matchID,
-		BotCount:  botCount,
-		StartTime: startTime,
-		Status:    StatusPending,
-		ctx:       ctx,
-		cancel:    cancel,
+		MatchID:    matchID,
+		BotCount:   botCount,
+		StartTime:  startTime,
+		Difficulty: difficulty,
+		BotLevels:  bot.GenerateLevels(difficulty, botCount), // 난이도에 따라 봇 레벨 생성
+		Status:     StatusPending,
+		ctx:        ctx,
+		cancel:     cancel,
 	}
 }
 
