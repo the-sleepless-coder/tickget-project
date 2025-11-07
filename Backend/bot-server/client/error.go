@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// APIError API 호출 실패 시 반환되는 에러
+// API 호출 실패 시 반환되는 에러
 type APIError struct {
 	StatusCode int
 	Message    string
@@ -17,7 +17,7 @@ func (e *APIError) Error() string {
 	return fmt.Sprintf("API error (status %d): %s", e.StatusCode, e.Message)
 }
 
-// NewAPIError 새로운 API 에러를 생성
+// 새로운 API 에러를 생성
 func NewAPIError(statusCode int, message string) *APIError {
 	return &APIError{
 		StatusCode: statusCode,
@@ -25,8 +25,7 @@ func NewAPIError(statusCode int, message string) *APIError {
 	}
 }
 
-// ParseStatusCode 에러에서 HTTP 상태 코드를 추출
-// 상태 코드를 찾을 수 없으면 0을 반환
+// 에러에서 HTTP 상태 코드를 추출. 상태 코드를 찾을 수 없으면 0을 반환
 func ParseStatusCode(err error) int {
 	if err == nil {
 		return 0

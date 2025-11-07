@@ -12,19 +12,19 @@ import (
 	"go.uber.org/zap"
 )
 
-// Handler 매치 HTTP 핸들러
+// 매치 HTTP 핸들러
 type Handler struct {
 	service *Service
 }
 
-// NewHandler 새로운 핸들러 인스턴스를 생성
+// 새로운 핸들러 인스턴스를 생성
 func NewHandler(service *Service) *Handler {
 	return &Handler{
 		service: service,
 	}
 }
 
-// RegisterRoutes 매치 관련 라우트를 등록
+// 매치 관련 라우트를 등록
 func (h *Handler) RegisterRoutes(router *gin.Engine) {
 	matches := router.Group("/matches")
 	{
@@ -32,7 +32,7 @@ func (h *Handler) RegisterRoutes(router *gin.Engine) {
 	}
 }
 
-// SetBotsForMatch 매치 시작 요청 처리
+// 매치 시작 요청 처리
 func (h *Handler) SetBotsForMatch(c *gin.Context) {
 	// matchID 파싱
 	matchID, err := parseMatchID(c)
@@ -70,7 +70,7 @@ func (h *Handler) SetBotsForMatch(c *gin.Context) {
 	})
 }
 
-// parseMatchID URL 파라미터에서 matchID를 파싱 (도메인 특화 헬퍼)
+// URL 파라미터에서 matchID를 파싱 (도메인 특화 헬퍼)
 func parseMatchID(c *gin.Context) (int64, error) {
 	matchIDStr := c.Param("matchId")
 	return strconv.ParseInt(matchIDStr, 10, 64)

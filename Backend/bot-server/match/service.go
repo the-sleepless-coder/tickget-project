@@ -13,7 +13,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// Service 매치 서비스
+// 매치 서비스
 type Service struct {
 	matches    map[int64]*MatchContext
 	scheduler  *scheduler.Scheduler
@@ -21,7 +21,7 @@ type Service struct {
 	mu         sync.RWMutex
 }
 
-// NewService 새로운 매치 서비스를 생성
+// 새로운 매치 서비스를 생성
 func NewService(botService *bot.Service) *Service {
 	return &Service{
 		matches:    make(map[int64]*MatchContext),
@@ -30,13 +30,14 @@ func NewService(botService *bot.Service) *Service {
 	}
 }
 
-// SetBotsForMatch 매치 및 봇 세팅 시작
+// 매치 및 봇 세팅 시작
 func (s *Service) SetBotsForMatch(matchID int64, req models.MatchSettingRequest) error {
 	matchLogger := logger.WithMatchContext(matchID)
 
-	// 0. 시작 시간 검증 (과거 시간 거부)
-	if req.StartTime.Before(time.Now()) {
-		return fmt.Errorf("시작 시간은 현재 시간보다 이후여야 합니다")
+	// 0. 시작 시간 검증 (현재 시간 + 30초 이전 거부)
+	minStartTime := time.Now().Add(30 * time.Second)
+	if req.StartTime.Before(minStartTime) {
+		return fmt.Errorf("시작 시간은 현재 시간으로부터 최소 30초 이후여야 합니다")
 	}
 
 	// 1. 봇 리소스 할당 (차감)
@@ -90,7 +91,7 @@ func (s *Service) SetBotsForMatch(matchID int64, req models.MatchSettingRequest)
 	return nil
 }
 
-// runMatch 매치를 실행
+// 매치 실행
 func (s *Service) runMatch(matchCtx *MatchContext) error {
 	matchLogger := logger.WithMatchContext(matchCtx.MatchID)
 	matchCtx.SetStatus(StatusRunning)
@@ -123,7 +124,7 @@ func (s *Service) runMatch(matchCtx *MatchContext) error {
 	return nil
 }
 
-// cleanupMatch 매치를 정리
+// 매치 정리
 func (s *Service) cleanupMatch(matchID int64) {
 	s.mu.Lock()
 	matchCtx, exists := s.matches[matchID]
@@ -138,7 +139,7 @@ func (s *Service) cleanupMatch(matchID int64) {
 	}
 }
 
-// GetMatch 매치 정보를 반환
+// 매치 정보를 반환
 func (s *Service) GetMatch(matchID int64) (*MatchContext, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()

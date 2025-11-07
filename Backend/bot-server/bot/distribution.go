@@ -5,14 +5,14 @@ import (
 	"math/rand"
 )
 
-// Distribution 난이도별 봇 레벨 분포
+// 난이도별 봇 레벨 분포
 type Distribution struct {
 	Beginner int // 초보 비율 (%)
 	Expert   int // 중수 비율 (%)
 	Pro      int // 고수 비율 (%)
 }
 
-// GetDistribution 난이도에 따른 봇 레벨 분포 반환
+// 난이도에 따른 봇 레벨 분포 반환
 func GetDistribution(difficulty models.Difficulty) Distribution {
 	switch difficulty {
 	case models.DifficultyEasy:
@@ -39,7 +39,7 @@ func GetDistribution(difficulty models.Difficulty) Distribution {
 	}
 }
 
-// GenerateLevels 난이도와 봇 개수에 따라 봇 레벨 배열 생성
+// 난이도와 봇 개수에 따라 봇 레벨 배열 생성
 func GenerateLevels(difficulty models.Difficulty, count int) []Level {
 	dist := GetDistribution(difficulty)
 	levels := make([]Level, count)
@@ -72,7 +72,7 @@ func GenerateLevels(difficulty models.Difficulty, count int) []Level {
 	return levels
 }
 
-// randomInt min ~ max 범위의 랜덤 정수 반환
+// min ~ max 범위의 랜덤 정수 반환
 func randomInt(min, max int) int {
 	if min == max {
 		return min

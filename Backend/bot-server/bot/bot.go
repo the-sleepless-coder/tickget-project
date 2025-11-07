@@ -9,7 +9,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// Bot 티케팅 봇
+// 티케팅 봇
 type Bot struct {
 	ID          int
 	MatchID     int64
@@ -19,7 +19,7 @@ type Bot struct {
 	startTime   time.Time
 }
 
-// NewBot 새로운 봇을 생성합니다
+// 새로운 봇을 생성
 func NewBot(id int, matchID int64, level Level, logger *zap.Logger) *Bot {
 	return &Bot{
 		ID:          id,
@@ -30,7 +30,7 @@ func NewBot(id int, matchID int64, level Level, logger *zap.Logger) *Bot {
 	}
 }
 
-// Run 봇을 실행합니다 (Mock 버전)
+// 봇을 실행(Mock 버전)
 func (b *Bot) Run(ctx context.Context) error {
 	b.startTime = time.Now()
 
@@ -65,7 +65,7 @@ func (b *Bot) Run(ctx context.Context) error {
 	return nil
 }
 
-// selectDay 요일 선택 (Mock)
+// 요일 선택 (Mock)
 func (b *Bot) selectDay(ctx context.Context) error {
 	delay := b.DelayConfig.RandomDelay(b.DelayConfig.SelectDayBase, b.DelayConfig.SelectDayVariance)
 
@@ -82,7 +82,7 @@ func (b *Bot) selectDay(ctx context.Context) error {
 	}
 }
 
-// solveCaptcha 보안문자 입력 (Mock)
+// 보안문자 입력 (Mock)
 func (b *Bot) solveCaptcha(ctx context.Context) error {
 	delay := b.DelayConfig.RandomDelay(b.DelayConfig.CaptchaBase, b.DelayConfig.CaptchaVariance)
 
@@ -98,7 +98,7 @@ func (b *Bot) solveCaptcha(ctx context.Context) error {
 	}
 }
 
-// selectSeat 좌석 선택 (Mock)
+// 좌석 선택 (Mock)
 func (b *Bot) selectSeat(ctx context.Context) error {
 	delay := b.DelayConfig.RandomDelay(b.DelayConfig.SelectSeatBase, b.DelayConfig.SelectSeatVariance)
 

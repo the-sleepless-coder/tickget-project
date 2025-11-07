@@ -157,7 +157,7 @@ func (c *HTTPClient) doRequest(httpReq *http.Request, respBody interface{}) erro
 	return nil
 }
 
-// Close HTTP 클라이언트 리소스를 정리
+// HTTP 클라이언트 리소스를 정리
 func (c *HTTPClient) Close() {
 	c.httpClient.CloseIdleConnections()
 }
