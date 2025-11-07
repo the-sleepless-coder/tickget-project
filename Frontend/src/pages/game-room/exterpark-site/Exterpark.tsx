@@ -26,7 +26,7 @@ export default function ITicketPage() {
   const [isRoomModalOpen, setIsRoomModalOpen] = useState<boolean>(false);
 
   const participants: Participant[] = Array.from({ length: 18 }, (_, i) => ({
-    name: "닉네임123",
+    name: "닉네임",
     isHost: i === 0,
     avatarUrl: `https://i.pravatar.cc/48?img=${(i % 70) + 1}`,
   }));
