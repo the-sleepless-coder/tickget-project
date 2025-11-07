@@ -59,7 +59,7 @@ public class SecurityConfig {
                         // Swagger UI 관련 경로 허용
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**").permitAll()
                         // 헬스체크, 토큰 검증(ForwardAuth), 토큰 재발급 허용
-                        .requestMatchers("/health", "/validate", "/refresh").permitAll()
+                        .requestMatchers("/health", "/validate", "/refresh", "/actuator/**").permitAll()
                         // 나머지 API는 인증 필요
                         .requestMatchers("/api/auth/**").authenticated()
                         // 나머지는 모두 인증 필요
