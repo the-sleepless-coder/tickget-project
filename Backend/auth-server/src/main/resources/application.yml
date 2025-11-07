@@ -7,6 +7,12 @@ spring:
     url: ${SPRING_DATASOURCE_URL}
     username: ${SPRING_DATASOURCE_USERNAME}
     password: ${SPRING_DATASOURCE_PASSWORD}
+    hikari:
+      maximum-pool-size: 5      # 기본 10 → 5으로 줄임
+      minimum-idle: 1           # 최소 유지 연결
+      connection-timeout: 20000 # 20초
+      idle-timeout: 300000      # 5분
+      max-lifetime: 1200000     # 20분
 
   jpa:
     hibernate:
