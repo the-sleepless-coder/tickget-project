@@ -83,8 +83,18 @@ export default function HomePage() {
         />
       </div>
 
+      {/* Full-width Event Banner */}
+      <div className="mt-12  relative left-1/2 right-1/2 ml-[-50vw] mr-[-50vw]">
+        <img
+          src="/event-banner.webp"
+          alt="이벤트 배너"
+          className="w-screen select-none object-cover object-center max-h-62 sm:max-h-64 lg:max-h-70"
+          draggable={false}
+        />
+      </div>
+
       {/* Section: 추천 방 목록 */}
-      <div className="mt-8 flex items-center justify-between">
+      <div className="mt-12 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <h2 className="text-xl font-semibold text-gray-900">추천 방 목록</h2>
 
