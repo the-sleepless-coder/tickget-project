@@ -135,7 +135,7 @@ func (c *HTTPClient) doRequest(httpReq *http.Request, respBody interface{}) erro
 			zap.Int("status_code", httpResp.StatusCode),
 			zap.String("response", string(body)),
 		)
-		return fmt.Errorf("request failed with status %d: %s", httpResp.StatusCode, string(body))
+		return NewAPIError(httpResp.StatusCode, string(body))
 	}
 
 	// 응답 JSON 파싱
