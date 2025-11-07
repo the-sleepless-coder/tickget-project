@@ -4,7 +4,7 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import PeopleIcon from "@mui/icons-material/People";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import { paths } from "../../../app/routes/paths";
-import RoomSettingModal from "../../game-room/_components/RoomSettingModal";
+import RoomSettingModal from "../../room-modal/edit-room-setting/RoomSettingModal";
 import Thumbnail03 from "../../../shared/images/thumbnail/Thumbnail03.webp";
 
 type Participant = {

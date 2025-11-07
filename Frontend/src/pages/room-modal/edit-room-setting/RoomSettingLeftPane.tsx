@@ -53,7 +53,7 @@ export default function LeftPane({
         <input
           id="room-thumbnail"
           type="file"
-          accept="image/*"
+          accept=".jpg,.jpeg,.png,image/jpeg,image/png"
           className="hidden"
           onChange={onThumbnailChange}
         />
@@ -63,7 +63,7 @@ export default function LeftPane({
             onClick={onPresetClick}
             className="cursor-pointer"
           >
-            프리셋 선택
+            썸네일 선택
           </button>
           <button
             type="button"
@@ -119,7 +119,7 @@ export default function LeftPane({
         <input
           id="room-layout"
           type="file"
-          accept="image/*"
+          accept=".jpg,.jpeg,.png,image/jpeg,image/png"
           className="hidden"
           onChange={onLayoutChange}
         />

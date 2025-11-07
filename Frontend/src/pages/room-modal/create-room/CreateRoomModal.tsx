@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 // moved usages into child components
 import dayjs, { Dayjs } from "dayjs";
 import "dayjs/locale/ko";
+import InfoOutlined from "@mui/icons-material/InfoOutlined";
 import Thumbnail01 from "../../../shared/images/thumbnail/Thumbnail01.webp";
 import Thumbnail02 from "../../../shared/images/thumbnail/Thumbnail02.webp";
 import Thumbnail03 from "../../../shared/images/thumbnail/Thumbnail03.webp";
@@ -12,10 +13,11 @@ import Thumbnail04 from "../../../shared/images/thumbnail/Thumbnail04.webp";
 import Thumbnail05 from "../../../shared/images/thumbnail/Thumbnail05.webp";
 import Thumbnail06 from "../../../shared/images/thumbnail/Thumbnail06.webp";
 import { paths } from "../../../app/routes/paths";
-import LeftPane from "./RoomSettingLeftPane";
-import RoomSettingStep1 from "./RoomSettingStep1";
-import RoomSettingStep2 from "./RoomSettingStep2";
-import ThumbnailSelectModal from "./RoomSettingThumbnailSelectModal";
+import LeftPane from "./CreateRoomLeftPane";
+import CreateRoomStep1 from "./CreateRoomStep1";
+import CreateRoomStep2 from "./CreateRoomStep2";
+import ThumbnailSelectModal from "./CreateRoomThumbnailSelect";
+import { Snackbar, Alert } from "@mui/material";
 
 export default function CreateRoomModal({
   open,
@@ -43,6 +45,7 @@ export default function CreateRoomModal({
   const [layoutUrl, setLayoutUrl] = useState<string | null>(null);
   const [thumbPickerOpen, setThumbPickerOpen] = useState(false);
   const [showStep1Errors, setShowStep1Errors] = useState(false);
+  const [toastOpen, setToastOpen] = useState(false);
   type SizeOption = "소형" | "중형" | "대형";
   const diffOptions = useMemo(() => ["초보", "평균", "뛰어남"] as const, []);
   const botOptions = useMemo(() => [100, 500, 1000, 2000, 5000] as const, []);
@@ -75,8 +78,25 @@ export default function CreateRoomModal({
     setThumbnailUrl(thumbnails[idx]);
   }, [thumbnails]);
   const onThumbnailChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+    const inputEl = e.target;
+    const file = inputEl.files?.[0];
     if (!file) return;
+
+    const isValidMime = file.type === "image/jpeg" || file.type === "image/png";
+    const isValidExt = /\.(jpe?g|png)$/i.test(file.name);
+    const isValid = isValidMime || isValidExt;
+
+    if (!isValid) {
+      setToastOpen(true);
+      inputEl.value = "";
+      // If a previous blob preview (e.g., GIF) exists, revoke and clear it
+      if (thumbnailUrl && thumbnailUrl.startsWith("blob:")) {
+        URL.revokeObjectURL(thumbnailUrl);
+        setThumbnailUrl(null);
+      }
+      return;
+    }
+
     const nextUrl = URL.createObjectURL(file);
     if (thumbnailUrl && thumbnailUrl.startsWith("blob:"))
       URL.revokeObjectURL(thumbnailUrl);
@@ -89,8 +109,24 @@ export default function CreateRoomModal({
     el?.click();
   };
   const onLayoutChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+    const inputEl = e.target;
+    const file = inputEl.files?.[0];
     if (!file) return;
+
+    const isValidMime = file.type === "image/jpeg" || file.type === "image/png";
+    const isValidExt = /\.(jpe?g|png)$/i.test(file.name);
+    const isValid = isValidMime || isValidExt;
+
+    if (!isValid) {
+      setToastOpen(true);
+      inputEl.value = "";
+      if (layoutUrl && layoutUrl.startsWith("blob:")) {
+        URL.revokeObjectURL(layoutUrl);
+        setLayoutUrl(null);
+      }
+      return;
+    }
+
     const nextUrl = URL.createObjectURL(file);
     if (layoutUrl && layoutUrl.startsWith("blob:"))
       URL.revokeObjectURL(layoutUrl);
@@ -193,6 +229,24 @@ export default function CreateRoomModal({
               </h3>
             </div>
             <div className="flex items-center gap-3">
+              <div className="hidden md:flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleLoadSettings}
+                  className="text-sm text-purple-300 inline-flex items-center gap-1 cursor-pointer"
+                  title="설정 불러오기"
+                >
+                  <span className="hidden sm:inline">설정 불러오기</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveSettings}
+                  className="text-sm text-purple-600 inline-flex items-center gap-1 cursor-pointer"
+                  title="현재 설정 저장"
+                >
+                  <span className="hidden sm:inline">현재 설정 저장</span>
+                </button>
+              </div>
               <button
                 type="button"
                 onClick={onClose}
@@ -242,7 +296,7 @@ export default function CreateRoomModal({
             />
 
             {step === 1 ? (
-              <RoomSettingStep1
+              <CreateRoomStep1
                 title={title}
                 setTitle={setTitle}
                 matchType={matchType}
@@ -256,7 +310,7 @@ export default function CreateRoomModal({
                 showErrors={showStep1Errors}
               />
             ) : (
-              <RoomSettingStep2
+              <CreateRoomStep2
                 step2Mode={step2Mode}
                 setStep2Mode={setStep2Mode}
                 size={size}
@@ -296,7 +350,7 @@ export default function CreateRoomModal({
                     setShowStep1Errors(true);
                   }
                 }}
-                className="px-4 py-1.5 rounded-md bg-gray-600 text-white hover:bg-purple-700 font-semibold cursor-pointer"
+                className="px-4 py-1.5 rounded-md bg-purple-600 text-white hover:bg-purple-700 font-semibold cursor-pointer"
               >
                 다음으로
               </button>
@@ -339,6 +393,22 @@ export default function CreateRoomModal({
             onUploadClick={triggerUpload}
           />
         ) : null}
+
+        <Snackbar
+          open={toastOpen}
+          autoHideDuration={2000}
+          onClose={() => setToastOpen(false)}
+          anchorOrigin={{ vertical: "top", horizontal: "center" }}
+        >
+          <Alert
+            onClose={() => setToastOpen(false)}
+            severity="error"
+            variant="filled"
+            sx={{ width: "100%" }}
+          >
+            jpg, png 파일만 업로드 가능합니다.
+          </Alert>
+        </Snackbar>
       </div>
     </div>
   );
@@ -347,9 +417,32 @@ export default function CreateRoomModal({
 function TitleWithInfo() {
   return (
     <div className="flex items-center gap-2">
-      <span className="text-xl text-gray-800">방 설정</span>
+      <span className="text-xl">방 만들기</span>
+      <InfoBubble />
+    </div>
+  );
+}
+
+function InfoBubble() {
+  return (
+    <div className="relative group">
+      <button
+        type="button"
+        aria-label="방 만들기 도움말"
+        className="grid h-6 w-6 place-items-center rounded-full bg-purple-600 text-white shadow-md focus:outline-none cursor-pointer"
+      >
+        <InfoOutlined sx={{ fontSize: 14 }} />
+      </button>
+      <div className="pointer-events-none absolute left-1/2 top-full z-10 mt-2 -translate-x-1/4 whitespace-nowrap rounded-xl bg-white px-3 py-2 text-[13px] text-gray-900 shadow-[0_6px_16px_rgba(0,0,0,0.12)] border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity">
+        <span>
+          <b className="text-purple-600">AI 봇</b>이 경기에 참여해 실제와 같은
+          티켓팅을 연습할 수 있습니다.
+        </span>
+      </div>
     </div>
   );
 }
 
 // ThumbnailSelectModal moved to ./ThumbnailSelectModal
+
+// Toast extracted to shared component
