@@ -1,4 +1,4 @@
-package manager
+package service
 
 import (
 	"fmt"
@@ -14,8 +14,8 @@ import (
 	"go.uber.org/zap"
 )
 
-// MatchManager 매치 관리자
-type MatchManager struct {
+// MatchService 매치 서비스
+type MatchService struct {
 	matches       map[int64]*match.MatchContext
 	scheduler     *scheduler.Scheduler
 	maxBots       int // 최대
@@ -23,9 +23,9 @@ type MatchManager struct {
 	mu            sync.RWMutex
 }
 
-// NewMatchManager 새로운 매치 매니저를 생성
-func NewMatchManager(maxBots int) *MatchManager {
-	return &MatchManager{
+// NewMatchService 새로운 매치 서비스를 생성
+func NewMatchService(maxBots int) *MatchService {
+	return &MatchService{
 		matches:       make(map[int64]*match.MatchContext),
 		scheduler:     scheduler.NewScheduler(logger.Get()),
 		maxBots:       maxBots,
@@ -33,14 +33,14 @@ func NewMatchManager(maxBots int) *MatchManager {
 	}
 }
 
-func (m *MatchManager) GetBotCount() (total int, available int) {
+func (m *MatchService) GetBotCount() (total int, available int) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return m.maxBots, m.availableBots
 }
 
 // 매치 및 봇 세팅 시작
-func (m *MatchManager) SetBotsForMatch(matchID int64, req models.MatchSettingRequest) error {
+func (m *MatchService) SetBotsForMatch(matchID int64, req models.MatchSettingRequest) error {
 	matchLogger := logger.WithMatchContext(matchID)
 
 	// 0. 시작 시간 검증 (과거 시간 거부)
@@ -103,7 +103,7 @@ func (m *MatchManager) SetBotsForMatch(matchID int64, req models.MatchSettingReq
 }
 
 // runMatch 매치를 실행
-func (m *MatchManager) runMatch(matchCtx *match.MatchContext) error {
+func (m *MatchService) runMatch(matchCtx *match.MatchContext) error {
 	matchLogger := logger.WithMatchContext(matchCtx.MatchID)
 	matchCtx.SetStatus(match.StatusRunning)
 
@@ -135,7 +135,7 @@ func (m *MatchManager) runMatch(matchCtx *match.MatchContext) error {
 }
 
 // cleanupMatch 매치를 정리
-func (m *MatchManager) cleanupMatch(matchID int64) {
+func (m *MatchService) cleanupMatch(matchID int64) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -150,7 +150,7 @@ func (m *MatchManager) cleanupMatch(matchID int64) {
 }
 
 // GetMatch 매치 정보를 반환
-func (m *MatchManager) GetMatch(matchID int64) (*match.MatchContext, bool) {
+func (m *MatchService) GetMatch(matchID int64) (*match.MatchContext, bool) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	matchCtx, exists := m.matches[matchID]
