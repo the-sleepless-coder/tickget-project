@@ -9,6 +9,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
@@ -103,5 +104,37 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
+    }
+
+    /**
+     * Spring Security 필터 체인에서 특정 경로를 완전히 제외
+     * - Health check, Actuator 등 공개 엔드포인트
+     * - OAuth2 로그인 리다이렉트를 방지
+     * - /health, /actuator/** 등은 인증/인가 로직이 전혀 필요 없음
+     * - .permitAll()과 달리, 아예 보안 필터를 거치지 않음
+     */
+    @Bean
+    public WebSecurityCustomizer webSecurityCustomizer() {
+        return (web) -> web.ignoring()
+                .requestMatchers(
+                        // K8s Probe 및 수동 헬스 체크 (모든 하위 경로 포함)
+                        "/health",
+                        "/actuator/**", // <-- '/**' 사용
+
+                        // 토큰 검증 및 재발급 API
+                        "/validate",
+                        "/refresh",
+
+                        // Swagger UI
+                        "/swagger-ui/**",
+                        "/v3/api-docs/**",
+                        "/swagger-resources/**",
+
+                        // OAuth2 로그인 관련 경로
+                        "/",
+                        "/error",
+                        "/login/**",
+                        "/oauth2/**"
+                );
     }
 }
