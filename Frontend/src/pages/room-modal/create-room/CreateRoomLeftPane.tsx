@@ -119,7 +119,7 @@ export default function LeftPane({
         <input
           id="room-layout"
           type="file"
-          accept="image/*"
+          accept=".jpg,.jpeg,.png,image/jpeg,image/png"
           className="hidden"
           onChange={onLayoutChange}
         />

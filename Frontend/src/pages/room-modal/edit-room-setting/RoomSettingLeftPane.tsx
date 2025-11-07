@@ -57,7 +57,7 @@ export default function LeftPane({
           className="hidden"
           onChange={onThumbnailChange}
         />
-        {/* <div className="mt-2 flex items-center justify-between text-sm text-gray-700">
+        <div className="mt-2 flex items-center justify-between text-sm text-gray-700">
           <button
             type="button"
             onClick={onPresetClick}
@@ -72,7 +72,7 @@ export default function LeftPane({
           >
             사진 업로드
           </button>
-        </div> */}
+        </div>
       </div>
     );
   }
@@ -119,7 +119,7 @@ export default function LeftPane({
         <input
           id="room-layout"
           type="file"
-          accept="image/*"
+          accept=".jpg,.jpeg,.png,image/jpeg,image/png"
           className="hidden"
           onChange={onLayoutChange}
         />

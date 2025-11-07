@@ -16,7 +16,7 @@ import LeftPane from "./RoomSettingLeftPane";
 import RoomSettingStep1 from "./RoomSettingStep1";
 import RoomSettingStep2 from "./RoomSettingStep2";
 import ThumbnailSelectModal from "./RoomSettingThumbnailSelectModal";
-import Toast from "../../../shared/ui/common/Toast";
+import { Snackbar, Alert } from "@mui/material";
 
 export default function CreateRoomModal({
   open,
@@ -108,8 +108,24 @@ export default function CreateRoomModal({
     el?.click();
   };
   const onLayoutChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+    const inputEl = e.target;
+    const file = inputEl.files?.[0];
     if (!file) return;
+
+    const isValidMime = file.type === "image/jpeg" || file.type === "image/png";
+    const isValidExt = /\.(jpe?g|png)$/i.test(file.name);
+    const isValid = isValidMime || isValidExt;
+
+    if (!isValid) {
+      setToastOpen(true);
+      inputEl.value = "";
+      if (layoutUrl && layoutUrl.startsWith("blob:")) {
+        URL.revokeObjectURL(layoutUrl);
+        setLayoutUrl(null);
+      }
+      return;
+    }
+
     const nextUrl = URL.createObjectURL(file);
     if (layoutUrl && layoutUrl.startsWith("blob:"))
       URL.revokeObjectURL(layoutUrl);
@@ -359,11 +375,21 @@ export default function CreateRoomModal({
           />
         ) : null}
 
-        <Toast
+        <Snackbar
           open={toastOpen}
+          autoHideDuration={2000}
           onClose={() => setToastOpen(false)}
-          message="jpg, png 파일만 업로드 가능합니다."
-        />
+          anchorOrigin={{ vertical: "top", horizontal: "center" }}
+        >
+          <Alert
+            onClose={() => setToastOpen(false)}
+            severity="error"
+            variant="filled"
+            sx={{ width: "100%" }}
+          >
+            jpg, png 파일만 업로드 가능합니다.
+          </Alert>
+        </Snackbar>
       </div>
     </div>
   );
