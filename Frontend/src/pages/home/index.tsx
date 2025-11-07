@@ -2,7 +2,7 @@ import RoomCard from "./_components/RoomCard";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { paths } from "../../app/routes/paths";
-import CreateRoomModal from "../rooms/_components/CreateRoomModal";
+import CreateRoomModal from "../game-room/_components/CreateRoomModal";
 import Thumbnail01 from "../../shared/images/thumbnail/Thumbnail01.webp";
 import Thumbnail02 from "../../shared/images/thumbnail/Thumbnail02.webp";
 import Thumbnail03 from "../../shared/images/thumbnail/Thumbnail03.webp";
