@@ -1,0 +1,63 @@
+spring:
+  application:
+    name: auth-server
+
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.MySQL8Dialect
+
+  data:
+    redis:
+      host: ${SPRING_REDIS_HOST:redis-service.default.svc.cluster.local}
+      port: ${SPRING_REDIS_PORT:6379}
+
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+            scope:
+              - profile
+              - email
+            redirect-uri: ${OAUTH2_REDIRECT_URI:{baseUrl}/login/oauth2/code/{registrationId}}
+
+server:
+  port: 8080
+
+# JWT 설정
+app:
+  jwt:
+    secret: ${JWT_SECRET}
+    access-token-validity: 3600000    # 1시간 (밀리초)
+    refresh-token-validity: 604800000 # 7일 (밀리초)
+
+  oauth2:
+    frontend-url: ${FRONTEND_URL:http://localhost:3000}
+
+# Springdoc OpenAPI
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: alpha
+    tags-sorter: alpha
+
+# Logging
+logging:
+  level:
+    com.tickget.authserver: DEBUG
+    org.springframework.security: DEBUG
