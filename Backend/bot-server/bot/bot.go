@@ -69,6 +69,7 @@ func (b *Bot) Run(ctx context.Context) error {
 func (b *Bot) selectDay(ctx context.Context) error {
 	delay := b.DelayConfig.RandomDelay(b.DelayConfig.SelectDayBase, b.DelayConfig.SelectDayVariance)
 
+	//무조건 현재 +3일
 	select {
 	case <-time.After(delay):
 		b.logger.Debug("요일 선택됨",

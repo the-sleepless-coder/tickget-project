@@ -1,8 +1,8 @@
 package models
 
 type BotCountResponse struct {
-	TotalBotCount     int `json: "totalBotCount"`
-	AvailableBotCount int `json: "availableBotCount"`
+	TotalBotCount     int `json:"totalBotCount"`
+	AvailableBotCount int `json:"availableBotCount"`
 }
 
 // MatchSettingResponse 매치 시작 응답
