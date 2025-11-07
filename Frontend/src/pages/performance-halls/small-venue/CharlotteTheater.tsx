@@ -126,8 +126,14 @@ export default function SmallVenue({
         const trim = trimByRow?.[effectiveRowNo] ?? 0;
         const extraHides = hideColsByRow?.[effectiveRowNo];
         return Array.from({ length: columns }).map((_, colIndex) => {
-          const section =
-            block === "left" ? "1" : block === "center" ? "2" : "3";
+          const base = floor === 1 ? 0 : 3;
+          const section = String(
+            block === "left"
+              ? base + 1
+              : block === "center"
+                ? base + 2
+                : base + 3
+          );
           const displayRow = fixedDisplayRow ?? displayRowOffset + rowNo; // 표시용 행 번호
           const displayCol = columnOffsetAcross44 + (colIndex + 1); // 표시용 열 번호(1..44)
 
@@ -149,8 +155,8 @@ export default function SmallVenue({
                     : seatColor === COLORS.A
                       ? "A석"
                       : "R석";
-
-          const seatId = `small-${floor}-${section}-${displayRow}-${displayCol}`;
+          const displaySection = seatColor === COLORS.OP ? "0" : section;
+          const seatId = `small-${floor}-${displaySection}-${displayRow}-${displayCol}`;
           const isSelected = selectedIds.includes(seatId);
           const opacityVal = (() => {
             if (isHiddenRow) return 0;
@@ -177,7 +183,7 @@ export default function SmallVenue({
             <div
               key={`${keyPrefix}${rowIndex}-${colIndex}`}
               // 원래 티켓팅 사이트에서 행, 열이 바뀌어 있음, 행, 열 순서를 바꿔서 표시
-              title={`[${gradeLabel}] ${section}구역-${displayRow}열-${displayCol}`}
+              title={`[${gradeLabel}] ${displaySection}구역-${displayRow}열-${displayCol}`}
               style={{
                 ...seatStyle,
                 backgroundColor: isSelected ? "#4a4a4a" : seatColor,
@@ -190,7 +196,7 @@ export default function SmallVenue({
                 onToggleSeat?.({
                   id: seatId,
                   gradeLabel,
-                  label: `${section}구역-${displayRow}열-${displayCol}`,
+                  label: `${displaySection}구역-${displayRow}열-${displayCol}`,
                 });
               }}
             />
