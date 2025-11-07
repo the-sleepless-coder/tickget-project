@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import Tooltip from "@mui/material/Tooltip";
 import InfoOutlined from "@mui/icons-material/InfoOutlined";
 import SearchIcon from "@mui/icons-material/Search";
-import CreateRoomModal from "./create-room/CreateRoomModal";
+import CreateRoomModal from "../room-modal/create-room/CreateRoomModal";
 import Thumbnail01 from "../../shared/images/thumbnail/Thumbnail01.webp";
 import Thumbnail02 from "../../shared/images/thumbnail/Thumbnail02.webp";
 import Thumbnail03 from "../../shared/images/thumbnail/Thumbnail03.webp";

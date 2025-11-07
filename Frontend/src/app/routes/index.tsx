@@ -9,25 +9,32 @@ import AuthLayout from "../layouts/AuthLayout";
 const HomePage = lazy(() => import("../../pages/home"));
 // Removed BookingIndexPage usage for plain booking flow
 const SelectVenuePage = lazy(
-  () => import("../../pages/game-room/exterpark-site/exterpark-booking/SelectVenue")
+  () =>
+    import("../../pages/game-room/exterpark-site/exterpark-booking/SelectVenue")
 );
 const SelectSeatPage = lazy(
-  () => import("../../pages/game-room/exterpark-site/exterpark-booking/SelectSeat")
+  () =>
+    import("../../pages/game-room/exterpark-site/exterpark-booking/SelectSeat")
 );
 const PricePage = lazy(
   () => import("../../pages/game-room/exterpark-site/exterpark-booking/Price")
 );
 const OrderConfirmPage = lazy(
-  () => import("../../pages/game-room/exterpark-site/exterpark-booking/OrderConFirm")
+  () =>
+    import(
+      "../../pages/game-room/exterpark-site/exterpark-booking/OrderConFirm"
+    )
 );
 const PaymentPage = lazy(
   () => import("../../pages/game-room/exterpark-site/exterpark-booking/Payment")
 );
 const CancelFeePage = lazy(
-  () => import("../../pages/game-room/exterpark-site/exterpark-booking/CancelFee")
+  () =>
+    import("../../pages/game-room/exterpark-site/exterpark-booking/CancelFee")
 );
 const CompletePage = lazy(
-  () => import("../../pages/game-room/exterpark-site/exterpark-booking/Complete")
+  () =>
+    import("../../pages/game-room/exterpark-site/exterpark-booking/Complete")
 );
 const BookingWaitingPage = lazy(
   () => import("../../pages/game-room/exterpark-site/exterpark-booking/Waiting")
@@ -35,12 +42,14 @@ const BookingWaitingPage = lazy(
 const GameResultPage = lazy(() => import("../../pages/game-room/GameResult"));
 const BookingSelectSchedulePage = lazy(
   () =>
-    import("../../pages/game-room/exterpark-site/exterpark-booking/SelectSchedule")
+    import(
+      "../../pages/game-room/exterpark-site/exterpark-booking/SelectSchedule"
+    )
 );
 const ITicketPage = lazy(
   () => import("../../pages/game-room/exterpark-site/Exterpark")
 );
-const RoomsPage = lazy(() => import("../../pages/room-modal/RoomsList"));
+const RoomsPage = lazy(() => import("../../pages/game-room/RoomsList"));
 const SeatsTestPage = lazy(() => import("../../pages/test/NotFound"));
 const MyPageIndex = lazy(() => import("../../pages/my-page/MyPage"));
 const MyPageReservationsPage = lazy(

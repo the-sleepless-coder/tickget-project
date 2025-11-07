@@ -49,7 +49,7 @@ export default function Header() {
               to="/auth/login"
               className="text-sm text-neutral-700 hover:text-neutral-900"
             >
-              로그인
+              로그아웃
             </Link>
           </div>
         </div>

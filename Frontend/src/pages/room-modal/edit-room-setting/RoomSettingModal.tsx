@@ -261,25 +261,6 @@ export default function CreateRoomModal({
               </button>
             </div>
           </div>
-          {/* small screens: actions in separate row, right-aligned */}
-          <div className="mt-2 flex justify-end gap-2 md:hidden">
-            <button
-              type="button"
-              onClick={handleSaveSettings}
-              className="text-sm text-gray-600 hover:text-gray-500 inline-flex items-center gap-1 cursor-pointer"
-              title="현재 설정 저장"
-            >
-              <span className="inline">현재 설정 저장</span>
-            </button>
-            <button
-              type="button"
-              onClick={handleLoadSettings}
-              className="text-sm text-c-purple-200 inline-flex items-center gap-1 cursor-pointer"
-              title="설정 불러오기"
-            >
-              <span className="inline">설정 불러오기</span>
-            </button>
-          </div>
         </div>
         <div className="px-8 py-2 flex-1 overflow-y-auto">
           <div
@@ -370,7 +351,7 @@ export default function CreateRoomModal({
                     setShowStep1Errors(true);
                   }
                 }}
-                className="px-4 py-1.5 rounded-md bg-gray-600 text-white hover:bg-purple-700 font-semibold cursor-pointer"
+                className="px-4 py-1.5 rounded-md bg-gray-600 text-white hover:bg-gray-800 font-semibold cursor-pointer"
               >
                 다음으로
               </button>
@@ -397,11 +378,11 @@ export default function CreateRoomModal({
                 }}
                 className={`px-4 py-1.5 rounded-md font-semibold ${
                   canFinalize
-                    ? "bg-purple-600 text-white hover:bg-purple-700 cursor-pointer"
+                    ? "bg-gray-600 text-white hover:bg-gray-800 cursor-pointer"
                     : "bg-gray-200 text-gray-500 cursor-not-allowed"
                 }`}
               >
-                방만들기
+                저장하기
               </button>
             </>
           )}

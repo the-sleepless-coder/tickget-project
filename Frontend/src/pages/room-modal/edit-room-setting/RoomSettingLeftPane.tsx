@@ -60,22 +60,6 @@ export default function LeftPane({
           className="hidden"
           onChange={onThumbnailChange}
         />
-        <div className="mt-2 flex items-center justify-between text-sm text-gray-700">
-          <button
-            type="button"
-            onClick={onPresetClick}
-            className="cursor-pointer"
-          >
-            썸네일 선택
-          </button>
-          <button
-            type="button"
-            onClick={onUploadClick}
-            className="cursor-pointer"
-          >
-            사진 업로드
-          </button>
-        </div>
       </div>
     );
   }

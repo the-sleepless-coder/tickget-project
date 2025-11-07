@@ -22,7 +22,7 @@ export default function BookingGameResultPage() {
     <Viewport>
       <div className="mx-auto max-w-[960px] p-4">
         <div className="rounded-md bg-[#2f56a5] text-white px-4 py-2 text-center font-semibold">
-          2분 뒤 자동으로 로비로 돌아갑니다.
+          2분 뒤 방으로 돌아갑니다.
         </div>
 
         <div className="mt-4 grid grid-cols-3 gap-4">
@@ -60,7 +60,7 @@ export default function BookingGameResultPage() {
             to={paths.rooms}
             className="inline-flex items-center gap-2 rounded-md bg-[#2f56a5] px-4 py-2 text-white"
           >
-            로비로
+            방 나가기
           </Link>
         </div>
       </div>

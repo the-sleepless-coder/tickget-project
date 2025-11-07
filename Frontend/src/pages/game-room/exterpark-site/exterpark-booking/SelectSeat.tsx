@@ -339,7 +339,7 @@ export default function SelectSeatPage() {
                                 className="inline-block w-3 h-3 rounded-sm"
                                 style={{ background: GRADE_META.SR.color }}
                               />
-                              SR석 1,820석
+                              VIP석 180석
                             </div>
                           </td>
                           <td className="text-right text-gray-700">
@@ -353,7 +353,7 @@ export default function SelectSeatPage() {
                                 className="inline-block w-3 h-3 rounded-sm"
                                 style={{ background: GRADE_META.R.color }}
                               />
-                              R석 752석
+                              R석 230석
                             </div>
                           </td>
                           <td className="text-right text-gray-700">
@@ -367,7 +367,7 @@ export default function SelectSeatPage() {
                                 className="inline-block w-3 h-3 rounded-sm"
                                 style={{ background: GRADE_META.S.color }}
                               />
-                              S석 436석
+                              S석 300석
                             </div>
                           </td>
                           <td className="text-right text-gray-700">
