@@ -9,7 +9,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
@@ -39,8 +38,40 @@ public class SecurityConfig {
     @Value("${app.oauth2.frontend-url:http://localhost:3000}")
     private String frontendUrl;
 
+    /**
+     * Public 엔드포인트용 SecurityFilterChain (우선순위 높음)
+     * - Health check, Actuator, Swagger 등 인증 불필요한 경로
+     * - OAuth2 설정 없음 → 리다이렉트 발생 안 함
+     */
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    @org.springframework.core.annotation.Order(1)
+    public SecurityFilterChain publicSecurityFilterChain(HttpSecurity http) throws Exception {
+        http
+                .securityMatcher(
+                        "/health",
+                        "/actuator/**",
+                        "/swagger-ui/**",
+                        "/v3/api-docs/**",
+                        "/swagger-resources/**",
+                        "/validate",
+                        "/refresh",
+                        "/error"
+                )
+                .csrf(AbstractHttpConfigurer::disable)
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+
+        return http.build();
+    }
+
+    /**
+     * OAuth2 로그인 및 인증 보호용 SecurityFilterChain
+     * - 나머지 모든 경로 처리
+     */
+    @Bean
+    @org.springframework.core.annotation.Order(2)
+    public SecurityFilterChain authSecurityFilterChain(HttpSecurity http) throws Exception {
         http
                 // CSRF 비활성화 (JWT 사용)
                 .csrf(AbstractHttpConfigurer::disable)
@@ -56,11 +87,7 @@ public class SecurityConfig {
                 // 요청 권한 설정
                 .authorizeHttpRequests(auth -> auth
                         // OAuth2 로그인 관련 경로 모두 허용
-                        .requestMatchers("/", "/error", "/login/**", "/oauth2/**").permitAll()
-                        // Swagger UI 관련 경로 허용
-                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**").permitAll()
-                        // 헬스체크, 토큰 검증(ForwardAuth), 토큰 재발급 허용
-                        .requestMatchers("/health", "/validate", "/refresh", "/actuator/**").permitAll()
+                        .requestMatchers("/", "/login/**", "/oauth2/**").permitAll()
                         // 나머지 API는 인증 필요
                         .requestMatchers("/api/auth/**").authenticated()
                         // 나머지는 모두 인증 필요
@@ -104,37 +131,5 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
-    }
-
-    /**
-     * Spring Security 필터 체인에서 특정 경로를 완전히 제외
-     * - Health check, Actuator 등 공개 엔드포인트
-     * - OAuth2 로그인 리다이렉트를 방지
-     * - /health, /actuator/** 등은 인증/인가 로직이 전혀 필요 없음
-     * - .permitAll()과 달리, 아예 보안 필터를 거치지 않음
-     */
-    @Bean
-    public WebSecurityCustomizer webSecurityCustomizer() {
-        return (web) -> web.ignoring()
-                .requestMatchers(
-                        // K8s Probe 및 수동 헬스 체크 (모든 하위 경로 포함)
-                        "/health",
-                        "/actuator/**", // <-- '/**' 사용
-
-                        // 토큰 검증 및 재발급 API
-                        "/validate",
-                        "/refresh",
-
-                        // Swagger UI
-                        "/swagger-ui/**",
-                        "/v3/api-docs/**",
-                        "/swagger-resources/**",
-
-                        // OAuth2 로그인 관련 경로
-                        "/",
-                        "/error",
-                        "/login/**",
-                        "/oauth2/**"
-                );
     }
 }
