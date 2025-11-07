@@ -7,8 +7,10 @@ import (
 	"os"
 	"time"
 
+	"bot-server/bot"
 	"bot-server/config"
 	"bot-server/logger"
+	"bot-server/match"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -19,7 +21,6 @@ type Server struct {
 	config     *config.Config
 	engine     *gin.Engine
 	httpServer *http.Server
-	handler    *Handler
 }
 
 // NewServer 새로운 서버 인스턴스를 생성
@@ -35,14 +36,24 @@ func NewServer(cfg *config.Config) *Server {
 	// 미들웨어 설정
 	engine.Use(gin.Recovery()) // panic 복구
 
-	// 핸들러 생성 및 라우트 등록
-	handler := NewHandler(cfg.MaxConcurrentBots)
-	handler.RegisterRoutes(engine)
+	// 도메인 서비스 생성
+	botService := bot.NewService(cfg.MaxConcurrentBots)
+	matchService := match.NewService(botService)
+
+	// 시스템 레벨 핸들러 (헬스체크)
+	systemHandler := NewSystemHandler()
+	systemHandler.RegisterRoutes(engine)
+
+	// 도메인별 핸들러
+	botHandler := bot.NewHandler(botService)
+	botHandler.RegisterRoutes(engine)
+
+	matchHandler := match.NewHandler(matchService)
+	matchHandler.RegisterRoutes(engine)
 
 	server := &Server{
-		config:  cfg,
-		engine:  engine,
-		handler: handler,
+		config: cfg,
+		engine: engine,
 	}
 
 	return server
