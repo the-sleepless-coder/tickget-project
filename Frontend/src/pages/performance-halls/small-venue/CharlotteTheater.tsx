@@ -127,7 +127,7 @@ export default function SmallVenue({
         const extraHides = hideColsByRow?.[effectiveRowNo];
         return Array.from({ length: columns }).map((_, colIndex) => {
           const section =
-            block === "left" ? "A" : block === "center" ? "B" : "C";
+            block === "left" ? "1" : block === "center" ? "2" : "3";
           const displayRow = fixedDisplayRow ?? displayRowOffset + rowNo; // 표시용 행 번호
           const displayCol = columnOffsetAcross44 + (colIndex + 1); // 표시용 열 번호(1..44)
 

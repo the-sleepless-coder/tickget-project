@@ -11,9 +11,9 @@ import {
 } from "../../../../shared/utils/reserveMetrics";
 import Viewport from "./_components/Viewport";
 import CaptchaModal from "./_components/CaptchaModal";
-import SmallVenue from "../../../hall/small-venue/CharlotteTheater";
-import MediumVenue from "../../../hall/medium-venue/OlympicHall";
-import LargeVenue from "../../../hall/large-venue/InspireArena";
+import SmallVenue from "../../../performance-halls/small-venue/CharlotteTheater";
+import MediumVenue from "../../../performance-halls/medium-venue/OlympicHall";
+import LargeVenue from "../../../performance-halls/large-venue/InspireArena";
 
 type GradeKey = "SR" | "R" | "S";
 type SelectedSeat = {

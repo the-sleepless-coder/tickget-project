@@ -116,13 +116,13 @@ export default function ProfileInfoModal({
           </div>
         </div>
 
-        {/* 전화번호 */}
+        {/* 연락처 */}
         <div>
           <label
             htmlFor="phoneNumber"
             className="block text-sm font-medium text-gray-700 mb-2"
           >
-            전화번호 <span className="text-gray-400 text-xs">(선택사항)</span>
+            연락처<span className="text-gray-400 text-xs">(선택사항)</span>
           </label>
           <input
             id="phoneNumber"
@@ -131,7 +131,7 @@ export default function ProfileInfoModal({
             value={formData.phoneNumber || ""}
             onChange={handleInputChange}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-            placeholder="전화번호를 입력하세요"
+            placeholder="연락처를 입력하세요"
           />
         </div>
 
