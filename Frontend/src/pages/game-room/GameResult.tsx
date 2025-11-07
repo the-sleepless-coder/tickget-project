@@ -153,7 +153,7 @@ export default function GameResultPage() {
           onClick={() => navigate(paths.rooms)}
           className="inline-flex items-center gap-2 rounded-xl bg-[#5b7ae7] text-white px-8 py-4 text-lg font-extrabold hover:bg-[#4d6ad6]"
         >
-          <MeetingRoomOutlinedIcon /> 로비로
+          <MeetingRoomOutlinedIcon />방 나가기
         </button>
       </div>
     </div>
@@ -164,9 +164,7 @@ function TopBanner({ onClose }: { onClose: () => void }) {
   return (
     <div className="bg-gradient-to-r from-[#104BB7] to-[#072151] text-white rounded-md">
       <div className="relative px-4 md:px-6 py-2 text-sm">
-        <p className="text-center font-semibold">
-          2분 뒤 자동으로 로비로 돌아갑니다.
-        </p>
+        <p className="text-center font-semibold">2분 뒤 방으로 돌아갑니다.</p>
         <button
           aria-label="close-banner"
           onClick={onClose}

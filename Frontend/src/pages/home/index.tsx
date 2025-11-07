@@ -2,7 +2,7 @@ import RoomCard from "./_components/RoomCard";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { paths } from "../../app/routes/paths";
-import CreateRoomModal from "../game-room/_components/CreateRoomModal";
+import CreateRoomModal from "../room-modal/create-room/CreateRoomModal";
 import Thumbnail01 from "../../shared/images/thumbnail/Thumbnail01.webp";
 import Thumbnail02 from "../../shared/images/thumbnail/Thumbnail02.webp";
 import Thumbnail03 from "../../shared/images/thumbnail/Thumbnail03.webp";
@@ -83,8 +83,18 @@ export default function HomePage() {
         />
       </div>
 
+      {/* Full-width Event Banner */}
+      <div className="mt-12  relative left-1/2 -translate-x-1/2 w-screen max-w-none overflow-x-hidden">
+        <img
+          src="/event-banner.webp"
+          alt="이벤트 배너"
+          className="block w-full select-none object-cover object-center max-h-62 sm:max-h-64 lg:max-h-70"
+          draggable={false}
+        />
+      </div>
+
       {/* Section: 추천 방 목록 */}
-      <div className="mt-8 flex items-center justify-between">
+      <div className="mt-12 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <h2 className="text-xl font-semibold text-gray-900">추천 방 목록</h2>
 

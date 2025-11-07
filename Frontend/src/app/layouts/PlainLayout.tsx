@@ -1,5 +1,11 @@
 import { Outlet } from "react-router-dom";
+import ScrollToTop from "../routes/ScrollToTop";
 
 export default function PlainLayout() {
-  return <Outlet />;
+  return (
+    <>
+      <ScrollToTop />
+      <Outlet />
+    </>
+  );
 }

@@ -4,7 +4,7 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import PeopleIcon from "@mui/icons-material/People";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import { paths } from "../../../app/routes/paths";
-import RoomSettingModal from "../../game-room/_components/RoomSettingModal";
+import RoomSettingModal from "../../room-modal/edit-room-setting/RoomSettingModal";
 import Thumbnail03 from "../../../shared/images/thumbnail/Thumbnail03.webp";
 
 type Participant = {
@@ -26,7 +26,7 @@ export default function ITicketPage() {
   const [isRoomModalOpen, setIsRoomModalOpen] = useState<boolean>(false);
 
   const participants: Participant[] = Array.from({ length: 18 }, (_, i) => ({
-    name: "닉네임123",
+    name: "닉네임",
     isHost: i === 0,
     avatarUrl: `https://i.pravatar.cc/48?img=${(i % 70) + 1}`,
   }));
@@ -116,7 +116,7 @@ export default function ITicketPage() {
 
   return (
     <>
-      <div className="min-h-screen">
+      <div className="min-h-screen overflow-x-auto">
         {showBanner && (
           <TopBanner
             onClose={(hideFor3Days) => {
@@ -129,15 +129,15 @@ export default function ITicketPage() {
           />
         )}
 
-        <div className="productWrapper w-[1280px] mx-auto px-4 md:px-6">
+        <div className="productWrapper max-w-[1280px] w-full mx-auto px-4 md:px-6">
           <TagsRow />
           <TitleSection onOpenSettings={() => setIsRoomModalOpen(true)} />
 
-          <div className="mt-6 flex flex-row gap-8">
-            <div className="summary w-[830px]">
-              <div className="flex items-start">
+          <div className="mt-6 flex flex-col md:flex-row gap-8">
+            <div className="summary w-full md:w-[830px]">
+              <div className="flex flex-col md:flex-row items-start">
                 <PosterBox />
-                <div className="ml-[25px] my-0 mr-0 w-[400px]">
+                <div className="ml-0 md:ml-[25px] my-0 mr-0 w-full md:w-[400px]">
                   <ParticipantList
                     participants={participants}
                     capacity={capacity}
@@ -145,7 +145,7 @@ export default function ITicketPage() {
                 </div>
               </div>
             </div>
-            <aside className="productSide w-[370px]">
+            <aside className="productSide w-full md:w-[370px] mt-6 md:mt-0">
               <StartInfoCard
                 openText="티켓오픈"
                 openAt="2025.10.23 18:00"
@@ -257,7 +257,7 @@ function PosterBox() {
       <img
         src={Thumbnail03}
         alt="포스터 이미지"
-        className="posterBoxImage w-[300px] h-[400px] object-cover rounded-lg border border-neutral-200"
+        className="posterBoxImage w-40 h-56 md:w-[300px] md:h-[400px] object-cover rounded-lg border border-neutral-200"
       />
     </div>
   );
