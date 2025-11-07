@@ -84,11 +84,11 @@ export default function HomePage() {
       </div>
 
       {/* Full-width Event Banner */}
-      <div className="mt-12  relative left-1/2 right-1/2 ml-[-50vw] mr-[-50vw]">
+      <div className="mt-12  relative left-1/2 -translate-x-1/2 w-screen max-w-none overflow-x-hidden">
         <img
           src="/event-banner.webp"
           alt="이벤트 배너"
-          className="w-screen select-none object-cover object-center max-h-62 sm:max-h-64 lg:max-h-70"
+          className="block w-full select-none object-cover object-center max-h-62 sm:max-h-64 lg:max-h-70"
           draggable={false}
         />
       </div>
