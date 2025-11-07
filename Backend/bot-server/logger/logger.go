@@ -26,7 +26,7 @@ func Init(isDevelopment bool) error {
 
 	logger, err := config.Build(
 		zap.AddCaller(),                       // 호출 위치 추가
-		zap.AddStacktrace(zapcore.ErrorLevel), // ERROR 레벨에서 스택 트레이스
+		zap.AddStacktrace(zapcore.FatalLevel), // FATAL 레벨에서만 스택 트레이스
 	)
 	if err != nil {
 		return err
