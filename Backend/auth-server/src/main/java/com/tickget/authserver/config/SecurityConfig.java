@@ -4,6 +4,7 @@ import com.tickget.authserver.jwt.JwtAuthenticationFilter;
 import com.tickget.authserver.oauth.CustomOAuth2UserService;
 import com.tickget.authserver.oauth.OAuth2LoginSuccessHandler;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -26,6 +27,7 @@ import java.util.Arrays;
  * - CORS 설정
  * - MSA 환경을 위한 ForwardAuth 엔드포인트 허용
  */
+@Slf4j
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor
@@ -46,6 +48,9 @@ public class SecurityConfig {
     @Bean
     @org.springframework.core.annotation.Order(1)
     public SecurityFilterChain publicSecurityFilterChain(HttpSecurity http) throws Exception {
+        log.info("🔧 Configuring PUBLIC SecurityFilterChain (Order 1)");
+        log.info("   Paths: /health, /actuator/**, /swagger-ui/**, /validate, /refresh, /error");
+
         http
                 .securityMatcher(
                         "/health",
@@ -59,9 +64,13 @@ public class SecurityConfig {
                 )
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
+                .authorizeHttpRequests(auth -> {
+                    log.info("   🔓 Allowing ALL requests (permitAll) for public endpoints");
+                    auth.anyRequest().permitAll();
+                })
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
 
+        log.info("✅ PUBLIC SecurityFilterChain configured successfully");
         return http.build();
     }
 
@@ -72,6 +81,10 @@ public class SecurityConfig {
     @Bean
     @org.springframework.core.annotation.Order(2)
     public SecurityFilterChain authSecurityFilterChain(HttpSecurity http) throws Exception {
+        log.info("🔧 Configuring AUTH SecurityFilterChain (Order 2)");
+        log.info("   Paths: All other paths not matched by Order 1");
+        log.info("   OAuth2 Login: ENABLED");
+
         http
                 // CSRF 비활성화 (JWT 사용)
                 .csrf(AbstractHttpConfigurer::disable)
@@ -85,14 +98,17 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
 
                 // 요청 권한 설정
-                .authorizeHttpRequests(auth -> auth
+                .authorizeHttpRequests(auth -> {
+                    log.info("   🔓 Permit: /, /login/**, /oauth2/**");
+                    log.info("   🔒 Require Auth: /api/auth/**, anyRequest()");
+                    auth
                         // OAuth2 로그인 관련 경로 모두 허용
                         .requestMatchers("/", "/login/**", "/oauth2/**").permitAll()
                         // 나머지 API는 인증 필요
                         .requestMatchers("/api/auth/**").authenticated()
                         // 나머지는 모두 인증 필요
-                        .anyRequest().authenticated()
-                )
+                        .anyRequest().authenticated();
+                })
 
                 // JWT 필터 추가
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
@@ -106,6 +122,7 @@ public class SecurityConfig {
                         .failureUrl(frontendUrl + "/login?error=true")
                 );
 
+        log.info("✅ AUTH SecurityFilterChain configured successfully");
         return http.build();
     }
 

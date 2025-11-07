@@ -270,6 +270,7 @@ public class AuthController {
      */
     @GetMapping("/health")
     public ResponseEntity<Map<String, String>> health() {
+        log.info("✅✅✅ /health endpoint reached in Controller ✅✅✅");
         return ResponseEntity.ok(Map.of("status", "OK", "service", "auth-server"));
     }
 }
