@@ -315,14 +315,13 @@ export default function LargeVenue() {
   const handleSeatMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!showDetailView || !containerRef.current) return;
     const target = e.target as HTMLElement | null;
-    if (!target || !target.dataset) {
+    if (!target) {
       if (tooltip.visible) setTooltip({ visible: false, x: 0, y: 0, text: "" });
       return;
     }
-    const { row, seat, active } = target.dataset as Record<
-      string,
-      string | undefined
-    >;
+    const row = target.getAttribute("row");
+    const seat = target.getAttribute("seat");
+    const active = target.getAttribute("active");
     if (!row || !seat || active !== "1") {
       if (tooltip.visible) setTooltip({ visible: false, x: 0, y: 0, text: "" });
       return;
@@ -341,7 +340,7 @@ export default function LargeVenue() {
     setTooltip({ visible: false, x: 0, y: 0, text: "" });
   };
 
-  // 좌석 셀에 데이터 속성 부여 (row/seat/section/level/active)
+  // 좌석 셀에 데이터 속성 부여 (row/seat/section/grade/active)
   useEffect(() => {
     if (!showDetailView || !patternWrapperRef.current || !selectedMeta) return;
     const gridEl = patternWrapperRef.current.querySelector("div.grid");
@@ -349,6 +348,8 @@ export default function LargeVenue() {
     const cells = Array.from(gridEl.children) as HTMLElement[];
     let currentRowIndex = -1;
     let seatNumberInRow = 0;
+    const inactiveSeatNumbers: number[] = [];
+
     cells.forEach((el, index) => {
       const rowIndex = Math.floor(index / selectedMeta.columns);
       const colIndex = index % selectedMeta.columns;
@@ -358,22 +359,132 @@ export default function LargeVenue() {
         seatNumberInRow = 0; // 새 행 시작: 좌석 번호 초기화
       }
 
-      el.dataset.row = String(rowIndex + 1);
-      el.dataset.gridcol = String(colIndex + 1); // 디버깅용 절대 열 번호
-      el.dataset.section = selectedMeta.id;
-      el.dataset.level = selectedMeta.level;
+      el.setAttribute("row", String(rowIndex + 1));
+      el.setAttribute("col", String(colIndex + 1)); // 디버깅용 절대 열 번호
+      el.setAttribute("section", selectedMeta.id);
+      el.setAttribute("grade", selectedMeta.level);
 
       const bg = getComputedStyle(el).backgroundColor;
       const isTransparent = bg === "rgba(0, 0, 0, 0)" || bg === "transparent";
       if (isTransparent) {
-        el.dataset.active = "0";
-        delete el.dataset.seat;
+        el.setAttribute("active", "0");
+        el.removeAttribute("seat");
+        // 고유 번호 계산: (row - 1) * totalCols + col
+        const seatNumber =
+          (rowIndex + 1 - 1) * selectedMeta.columns + (colIndex + 1);
+        inactiveSeatNumbers.push(seatNumber);
       } else {
         seatNumberInRow += 1;
-        el.dataset.active = "1";
-        el.dataset.seat = String(seatNumberInRow);
+        el.setAttribute("active", "1");
+        el.setAttribute("seat", String(seatNumberInRow));
       }
     });
+
+    // 현재 섹션이 사용하는 패턴과 같은 패턴을 flip: false로 사용하는 섹션 찾기
+    const seatPatternMap: Record<
+      string,
+      {
+        component: React.ComponentType<PatternComponentProps>;
+        flip: boolean;
+      }
+    > = {
+      "45": { component: Inspire_45, flip: false },
+      "46": { component: Inspire_46, flip: false },
+      "47": { component: Inspire_47, flip: false },
+      "48": { component: Inspire_52, flip: true },
+      "49": { component: Inspire_49, flip: false },
+      "50": { component: Inspire_50, flip: false },
+      "51": { component: Inspire_49, flip: true },
+      "52": { component: Inspire_52, flip: false },
+      "53": { component: Inspire_47, flip: true },
+      "54": { component: Inspire_46, flip: true },
+      "55": { component: Inspire_55, flip: false },
+      "56": { component: Inspire_56, flip: false },
+      "57": { component: Inspire_57, flip: false },
+      "5": { component: Inspire_5, flip: false },
+      "6": { component: Inspire_6, flip: false },
+      "7": { component: Inspire_7, flip: false },
+      "8": { component: Inspire_7, flip: false },
+      "9": { component: Inspire_7, flip: false },
+      "10": { component: Inspire_16, flip: true },
+      "11": { component: Inspire_11, flip: false },
+      "12": { component: Inspire_12, flip: false },
+      "13": { component: Inspire_23, flip: false },
+      "14": { component: Inspire_12, flip: true },
+      "15": { component: Inspire_15, flip: false },
+      "16": { component: Inspire_16, flip: false },
+      "17": { component: Inspire_7, flip: false },
+      "18": { component: Inspire_7, flip: false },
+      "19": { component: Inspire_7, flip: false },
+      "20": { component: Inspire_6, flip: true },
+      "21": { component: Inspire_5, flip: false },
+      "22": { component: Inspire_12, flip: false },
+      "23": { component: Inspire_23, flip: false },
+      "24": { component: Inspire_12, flip: true },
+      "25": { component: Inspire_25, flip: false },
+      "26": { component: Inspire_26, flip: false },
+      "27": { component: Inspire_27, flip: false },
+      "28": { component: Inspire_27, flip: false },
+      "29": { component: Inspire_27, flip: false },
+      "30": { component: Inspire_26, flip: true },
+      "31": { component: Inspire_31, flip: false },
+      "32": { component: Inspire_42, flip: false },
+      "33": { component: Inspire_43, flip: false },
+      "34": { component: Inspire_42, flip: true },
+      "35": { component: Inspire_25, flip: true },
+      "36": { component: Inspire_26, flip: false },
+      "37": { component: Inspire_39, flip: false },
+      "38": { component: Inspire_39, flip: false },
+      "39": { component: Inspire_39, flip: false },
+      "40": { component: Inspire_26, flip: true },
+      "41": { component: Inspire_25, flip: false },
+      "42": { component: Inspire_42, flip: false },
+      "43": { component: Inspire_43, flip: false },
+      "44": { component: Inspire_42, flip: true },
+      "1": { component: Inspire_1, flip: false },
+      "2": { component: Inspire_1, flip: false },
+      "3": { component: Inspire_1, flip: false },
+      "4": { component: Inspire_1, flip: false },
+    };
+
+    const currentPattern = seatPatternMap[selectedMeta.id];
+    const currentIsFlipped = currentPattern?.flip || false;
+
+    // 현재 섹션이 사용하는 패턴 컴포넌트와 같은 컴포넌트를 flip: false로 사용하는 섹션들
+    const nonFlippedSectionsWithSamePattern: string[] = [];
+    if (currentPattern) {
+      Object.keys(seatPatternMap).forEach((id) => {
+        const pattern = seatPatternMap[id];
+        // 같은 컴포넌트이고 flip이 false인 섹션
+        if (
+          pattern.component === currentPattern.component &&
+          pattern.flip === false
+        ) {
+          nonFlippedSectionsWithSamePattern.push(id);
+        }
+      });
+      nonFlippedSectionsWithSamePattern.sort(
+        (a, b) => parseInt(a) - parseInt(b)
+      );
+    }
+
+    // 섹션 정보 및 active가 0인 좌석 정보 출력
+    console.log({
+      section: selectedMeta.id,
+      grade: selectedMeta.level,
+      totalRows: selectedMeta.rows,
+      totalCols: selectedMeta.columns,
+      isFlipped: currentIsFlipped,
+      inactiveSeatsCount: inactiveSeatNumbers.length,
+      inactiveSeatNumbers: inactiveSeatNumbers,
+      nonFlippedSectionsWithSamePattern: nonFlippedSectionsWithSamePattern,
+    });
+    // 값만 쉼표로 구분된 문자열로 출력 (복사용)
+    console.log("inactiveSeatNumbers:", inactiveSeatNumbers.join(", "));
+    console.log(
+      "nonFlippedSectionsWithSamePattern:",
+      nonFlippedSectionsWithSamePattern.join(", ")
+    );
   }, [showDetailView, selectedPattern, selectedMeta]);
 
   return (
