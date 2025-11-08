@@ -182,11 +182,11 @@ export default function SocialLogin() {
         navigate(from, { replace: true });
       }, 1500);
     } catch (error) {
-      console.error("test 계정 생성 오류:", error);
+      console.error("테스트 계정 생성 오류:", error);
       const errorMessage =
         error instanceof Error
           ? error.message
-          : "test 계정 생성 중 오류가 발생했습니다.";
+          : "테스트 계정 생성 중 오류가 발생했습니다.";
       openSnackbar(errorMessage, "error");
     } finally {
       setIsLoading(null);
@@ -276,21 +276,18 @@ export default function SocialLogin() {
                 </Button>
               ))}
 
-              {/* test 계정 생성 버튼 */}
+              {/* 테스트 계정 생성 버튼 */}
               <Button
                 size="medium"
                 fullWidth
-                className="h-12 flex items-center justify-center rounded-lg font-medium"
+                className="h-12 flex items-center justify-center rounded-lg font-medium !bg-c-purple-250 hover:!bg-c-purple-300 !text-white"
                 sx={{
-                  backgroundColor: "#6366f1",
-                  color: "#ffffff",
                   textTransform: "none",
-                  "&:hover": { backgroundColor: "#4f46e5" },
                 }}
                 onClick={handleTestAccountCreate}
                 disabled={isLoading !== null}
               >
-                <span className="text-sm">test 계정 생성</span>
+                <span className="text-sm">테스트 계정 생성</span>
               </Button>
             </div>
 
