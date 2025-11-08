@@ -7,6 +7,8 @@ import MatchHistoryCard from "./_components/MatchHistoryCard";
 import PersonalStats from "./_components/PersonalStats";
 import UserStats from "./_components/UserStats";
 import { mockMatchHistory, type MatchHistory, type UserRank } from "./mockData";
+import { useAuthStore } from "@features/auth/store";
+import UnderConstruction from "../../shared/ui/common/Under_construction";
 
 export default function MyPageIndex() {
   const [activePrimaryTab, setActivePrimaryTab] = useState("stats");
@@ -21,9 +23,14 @@ export default function MyPageIndex() {
   const [selectedUser, setSelectedUser] = useState<UserRank | null>(null);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isProfileInfoModalOpen, setIsProfileInfoModalOpen] = useState(false);
-  const [nickname, setNickname] = useState("닉네임");
+
+  // store에서 닉네임과 이메일 가져오기
+  const storeNickname = useAuthStore((state) => state.nickname);
+  const storeEmail = useAuthStore((state) => state.email);
+
+  const [nickname, setNickname] = useState(storeNickname || "닉네임");
   const [birthDate, setBirthDate] = useState("99.01.28");
-  const [email, setEmail] = useState("tickget.gmail.com");
+  const [email, setEmail] = useState(storeEmail || "tickget.gmail.com");
   const [profileImage, setProfileImage] = useState<string | undefined>(
     undefined
   );
@@ -106,6 +113,16 @@ export default function MyPageIndex() {
     setExpandedCardIndex(null);
   }, [activeSecondaryTab, activePrimaryTab]);
 
+  // store의 닉네임과 이메일이 변경되면 업데이트
+  useEffect(() => {
+    if (storeNickname) {
+      setNickname(storeNickname);
+    }
+    if (storeEmail) {
+      setEmail(storeEmail);
+    }
+  }, [storeNickname, storeEmail]);
+
   return (
     <div className="min-h-screen bg-neutral-50">
       {selectedUser && activePrimaryTab !== "stats" && (
@@ -185,7 +202,8 @@ export default function MyPageIndex() {
         <div className="-mt-40 rounded-t-3xl bg-white pb-8 pt-8">
           {/* Primary Tabs and Search */}
           <div className="mb-4 flex items-center justify-between gap-4 px-6">
-            <TabNavigation
+            {/* 탭 버튼 주석 처리 */}
+            {/* <TabNavigation
               tabs={[
                 { id: "stats", label: "개인 통계" },
                 { id: "match-history", label: "경기 기록" },
@@ -193,16 +211,16 @@ export default function MyPageIndex() {
               activeTab={activePrimaryTab}
               onTabChange={setActivePrimaryTab}
               variant="primary"
-            />
+            /> */}
 
-            <div className="relative w-64">
+            {/* 타 유저 검색 기능 주석 처리 */}
+            {/* <div className="relative w-64">
               <SearchBar
                 placeholder="타 유저 검색"
                 className="w-full"
                 onSearch={setSearchQuery}
                 value={searchQuery}
               />
-              {/* 검색 결과 드롭다운 */}
               {searchQuery.trim() && filteredUsers.length > 0 && (
                 <div className="absolute left-0 right-0 top-full z-20 mt-2 max-h-64 overflow-y-auto rounded-lg border border-neutral-200 bg-white shadow-lg">
                   {filteredUsers.map((user) => (
@@ -227,11 +245,11 @@ export default function MyPageIndex() {
                   검색 결과가 없습니다.
                 </div>
               )}
-            </div>
+            </div> */}
           </div>
 
           {/* Secondary Filter Tabs - 경기 기록일 때만 표시 */}
-          {activePrimaryTab === "match-history" && (
+          {/* {activePrimaryTab === "match-history" && (
             <div className="mb-6 px-6">
               <TabNavigation
                 tabs={[
@@ -244,7 +262,7 @@ export default function MyPageIndex() {
                 variant="secondary"
               />
             </div>
-          )}
+          )} */}
 
           {/* Content Area */}
           <div className="space-y-4 px-6 pb-6">
@@ -272,7 +290,8 @@ export default function MyPageIndex() {
               </>
             ) : activePrimaryTab === "match-history" ? (
               <>
-                {visibleItems.map((match: MatchHistory, index: number) => (
+                {/* 경기 기록 탭 내용 주석 처리 */}
+                {/* {visibleItems.map((match: MatchHistory, index: number) => (
                   <div
                     key={match.id}
                     ref={(el) => {
@@ -309,7 +328,6 @@ export default function MyPageIndex() {
                   </div>
                 )}
 
-                {/* 페이지네이션 */}
                 {totalPages > 1 && (
                   <div className="flex justify-center gap-2 pt-6">
                     <button
@@ -348,7 +366,8 @@ export default function MyPageIndex() {
                       다음
                     </button>
                   </div>
-                )}
+                )} */}
+                <UnderConstruction />
               </>
             ) : selectedUser ? (
               // 타 유저 통계 탭
@@ -375,7 +394,10 @@ export default function MyPageIndex() {
               </>
             ) : (
               // 개인 통계 탭
-              <PersonalStats matchHistory={mockMatchHistory} />
+              <>
+                {/* <PersonalStats matchHistory={mockMatchHistory} /> */}
+                <UnderConstruction />
+              </>
             )}
           </div>
         </div>
