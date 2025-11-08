@@ -56,7 +56,6 @@ public class SeatStatusService {
         Set<String> keys = redisTemplate.keys(pattern);
 
         List<SeatStatusDto> seats = new ArrayList<>();
-        String grade = null;
 
         if (keys != null && !keys.isEmpty()) {
             for (String key : keys) {
@@ -74,29 +73,19 @@ public class SeatStatusService {
                 Long ownerId = Long.valueOf(parts[0]);
                 String seatGrade = parts[1];
 
-                // 등급 정보 추출 (한 번만)
-                if (grade == null) {
-                    grade = seatGrade;
-                }
-
                 // 상태 판단
                 String status = ownerId.equals(userId) ? "MY_RESERVED" : "TAKEN";
 
                 seats.add(SeatStatusDto.builder()
                         .seatId(seatId)
+                        .grade(seatGrade)  // 각 좌석의 grade 포함
                         .status(status)
                         .build());
             }
         }
 
-        // 5. 등급 정보가 없으면 기본값 (선점된 좌석이 없는 경우)
-        if (grade == null) {
-            grade = "UNKNOWN";
-        }
-
         return SeatStatusResponse.builder()
                 .sectionId(sectionId)
-                .grade(grade)
                 .seats(seats)
                 .build();
     }

@@ -9,5 +9,6 @@ import lombok.*;
 @Builder
 public class SeatStatusDto {
     private String seatId;
+    private String grade;
     private String status;  // AVAILABLE, MY_RESERVED, TAKEN
 }

@@ -11,6 +11,5 @@ import java.util.List;
 @Builder
 public class SeatStatusResponse {
     private String sectionId;
-    private String grade;
-    private List<SeatStatusDto> seats;
+    private List<SeatStatusDto> seats;  // 각 좌석에 grade 포함
 }
