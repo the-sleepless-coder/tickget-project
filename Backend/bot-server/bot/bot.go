@@ -15,8 +15,16 @@ type Bot struct {
 	MatchID     int64
 	Level       Level       // 봇 레벨 (초보/중수/고수)
 	DelayConfig DelayConfig // 딜레이 설정
+	TargetSeats []Seat      // 목표 좌석 목록 (우선순위순)
 	logger      *zap.Logger
 	startTime   time.Time
+}
+
+// Seat는 좌석 정보 (순환 import 방지)
+type Seat struct {
+	SectionID  string
+	SeatNumber int    // 좌석 번호: (행-1)*총열수 + 열
+	TotalCols  int    // 섹션의 총 열 수 (행/열 변환에 필요)
 }
 
 // 새로운 봇을 생성
@@ -98,23 +106,63 @@ func (b *Bot) solveCaptcha(ctx context.Context) error {
 	}
 }
 
-// 좌석 선택 (Mock)
+// 좌석 선택 (목표 좌석 순서대로 재시도)
 func (b *Bot) selectSeat(ctx context.Context) error {
-	delay := b.DelayConfig.RandomDelay(b.DelayConfig.SelectSeatBase, b.DelayConfig.SelectSeatVariance)
+	if len(b.TargetSeats) == 0 {
+		return fmt.Errorf("할당된 목표 좌석이 없습니다")
+	}
 
-	select {
-	case <-time.After(delay):
-		// 90% 성공 확률
-		if rand.Float32() > 0.1 {
-			b.logger.Debug("좌석 선택 성공",
+	// 목표 좌석 순서대로 시도
+	for i, seat := range b.TargetSeats {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
+		// 기본 딜레이
+		delay := b.DelayConfig.RandomDelay(b.DelayConfig.SelectSeatBase, b.DelayConfig.SelectSeatVariance)
+		time.Sleep(delay)
+
+		// TODO: 실제 API 호출로 좌석 선점 시도
+		// success, err := b.tryReserveSeat(seat)
+
+		// Mock: 90% 성공 확률
+		success := rand.Float32() > 0.1
+
+		// 행/열 계산 (로깅용)
+		row := (seat.SeatNumber-1)/seat.TotalCols + 1
+		col := (seat.SeatNumber-1)%seat.TotalCols + 1
+
+		if success {
+			b.logger.Info("좌석 선택 성공",
 				zap.Int("bot_id", b.ID),
+				zap.Int("attempt", i+1),
+				zap.String("section", seat.SectionID),
+				zap.Int("seat_number", seat.SeatNumber),
+				zap.Int("row", row),
+				zap.Int("col", col),
 				zap.Duration("delay", delay),
 			)
 			return nil
 		}
-		// 10% 실패
-		return fmt.Errorf("좌석이 이미 선점됨")
-	case <-ctx.Done():
-		return ctx.Err()
+
+		// 실패 시 로그
+		b.logger.Debug("좌석 선점 실패, 다음 후보로 재시도",
+			zap.Int("bot_id", b.ID),
+			zap.Int("attempt", i+1),
+			zap.String("section", seat.SectionID),
+			zap.Int("seat_number", seat.SeatNumber),
+			zap.Int("row", row),
+			zap.Int("col", col),
+		)
+
+		// 마지막 시도가 아니면 재시도 딜레이
+		if i < len(b.TargetSeats)-1 {
+			retryDelay := b.Level.GetRetryDelay()
+			time.Sleep(retryDelay)
+		}
 	}
+
+	return fmt.Errorf("모든 목표 좌석(%d개) 선점 실패", len(b.TargetSeats))
 }

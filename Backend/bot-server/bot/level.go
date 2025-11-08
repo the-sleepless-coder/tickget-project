@@ -76,3 +76,45 @@ func (dc DelayConfig) RandomDelay(base, variance int) time.Duration {
 	delay := base + randomInt(-variance, variance)
 	return time.Duration(delay) * time.Millisecond
 }
+
+// Jitter 범위 반환 (좌석 점수에 추가할 랜덤 변동폭)
+func (l Level) GetJitterRange() float64 {
+	switch l {
+	case LevelPro:
+		return 5.0 // 고수: 작은 변동 (일관된 선택)
+	case LevelExpert:
+		return 15.0 // 중수: 중간 변동
+	case LevelBeginner:
+		return 50.0 // 초보: 큰 변동 (랜덤에 가까움)
+	default:
+		return 50.0
+	}
+}
+
+// 재시도 딜레이 반환
+func (l Level) GetRetryDelay() time.Duration {
+	switch l {
+	case LevelPro:
+		return 50 * time.Millisecond // 고수: 빠른 재시도
+	case LevelExpert:
+		return 100 * time.Millisecond // 중수: 중간
+	case LevelBeginner:
+		return 300 * time.Millisecond // 초보: 느린 재시도
+	default:
+		return 300 * time.Millisecond
+	}
+}
+
+// 목표 좌석 후보 개수 반환
+func (l Level) GetCandidateCount() int {
+	switch l {
+	case LevelPro:
+		return 3 // 고수: 3개 (좋은 자리 집중)
+	case LevelExpert:
+		return 3 // 중수: 4개
+	case LevelBeginner:
+		return 4 // 초보: 5개 (더 넓게 분산)
+	default:
+		return 5
+	}
+}
