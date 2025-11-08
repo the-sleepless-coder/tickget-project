@@ -1,9 +1,9 @@
 package com.ticketing.seat.service;
 
-import com.ticketing.seat.entity.Match;
-import com.ticketing.seat.entity.Match.MatchStatus;
+import com.ticketing.entity.Match;
+import com.ticketing.entity.Match.MatchStatus;
 import com.ticketing.seat.redis.MatchStatusRepository;
-import com.ticketing.seat.repository.MatchRepository;
+import com.ticketing.repository.MatchRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

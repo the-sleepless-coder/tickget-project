@@ -1,4 +1,4 @@
-package com.ticketing.seat.entity;
+package com.ticketing.entity;
 
 import jakarta.persistence.*;
 import lombok.*;

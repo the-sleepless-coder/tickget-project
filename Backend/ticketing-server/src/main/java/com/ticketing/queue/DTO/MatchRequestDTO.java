@@ -1,6 +1,6 @@
 package com.ticketing.queue.DTO;
 
-import com.ticketing.seat.entity.Match;
+import com.ticketing.entity.Match;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 @Getter
 @AllArgsConstructor
 @NoArgsConstructor
-public class MatchDTO {
+public class MatchRequestDTO {
 
     private Long roomId;                     // 방 ID
     private String matchName;                // 경기 이름
@@ -24,7 +24,5 @@ public class MatchDTO {
     private Integer successBotCount;          // 성공한 봇 수
     private LocalDateTime endedAt;                  // 경기 종료 시간
     private Integer timeLimitSeconds;         // 제한 시간(초)
-    private LocalDateTime createdAt;
-    private LocalDateTime updateAt;
-    
+
 }
