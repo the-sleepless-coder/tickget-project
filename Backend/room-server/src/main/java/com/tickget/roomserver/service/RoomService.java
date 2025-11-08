@@ -16,6 +16,7 @@ import com.tickget.roomserver.dto.request.CreateRoomRequest;
 import com.tickget.roomserver.dto.request.ExitRoomRequest;
 import com.tickget.roomserver.dto.request.JoinRoomRequest;
 import com.tickget.roomserver.dto.request.MatchSettingUpdateRequest;
+import com.tickget.roomserver.dto.request.NotifyRoomLeftRequest;
 import com.tickget.roomserver.dto.response.CreateRoomResponse;
 import com.tickget.roomserver.dto.response.ExitRoomResponse;
 import com.tickget.roomserver.dto.response.JoinRoomResponse;
@@ -223,6 +224,10 @@ public class RoomService {
         boolean isHost = roomInfo.getHostId().equals(userId);
 
         roomCacheRepository.removeMemberFromRoom(roomId, userId);
+        if (room.getStatus() == RoomStatus.PLAYING) {
+            notifyUserLeftRoom(roomId, userId);
+        }
+
 
         String sessionId = sessionManager.getSessionIdByUserId(userId);
         if (sessionId != null) {
@@ -252,6 +257,10 @@ public class RoomService {
         }
 
         return ExitRoomResponse.of(room, leftUserCount);
+    }
+
+    private void notifyUserLeftRoom(Long roomId, Long userId) {
+        ticketingServiceClient.notifyUserLeftRoom(NotifyRoomLeftRequest.of(roomId, userId));
     }
 
     @Transactional
