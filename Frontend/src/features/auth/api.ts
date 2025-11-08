@@ -1,11 +1,10 @@
 import { createHttpClient } from "@shared/lib/http";
 import type { TestAccountLoginResponse } from "./types";
 
-// 개발 환경에서는 프록시를 사용하므로 상대 경로 사용
-// 프로덕션에서는 환경 변수로 설정
-const AUTH_BASE_URL =
-  import.meta.env.VITE_AUTH_BASE_URL ??
-  (import.meta.env.DEV ? "/api/v1/dev" : "https://tickget.kr/api/v1/dev");
+// 환경별 공통 프리픽스 (예: /api/v1 또는 /api/v1/dev)
+const AUTH_BASE_URL = `${import.meta.env.VITE_API_ORIGIN ?? ""}${
+  import.meta.env.VITE_API_PREFIX ?? (import.meta.env.DEV ? "/api/v1/dev" : "/api/v1")
+}`;
 
 const authApi = createHttpClient(AUTH_BASE_URL);
 

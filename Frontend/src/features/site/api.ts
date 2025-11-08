@@ -13,10 +13,7 @@ export async function holdSeats(
   const body = { ...payload, matchId } as SeatReservationRequest & {
     matchId: number;
   };
-  return ticketingApi.postJson<SeatReservationResponse>(
-    `/api/ticketing/matches/${matchId}/hold`,
-    body
-  );
+  return ticketingApi.postJson<SeatReservationResponse>(`ticketing/matches/${matchId}/hold`, body);
 }
 
 export async function confirmSeats(
@@ -24,7 +21,7 @@ export async function confirmSeats(
   payload: SeatConfirmationRequest
 ) {
   return ticketingApi.postJson<SeatReservationResponse>(
-    `/api/ticketing/matches/${matchId}/seats/confirm`,
+    `ticketing/matches/${matchId}/seats/confirm`,
     payload
   );
 }
