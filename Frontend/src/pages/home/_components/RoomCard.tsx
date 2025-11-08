@@ -260,6 +260,19 @@ export default function RoomCard({
     return `linear-gradient(to right, ${hexToRgba(gradient.from, 1)} 0%, ${hexToRgba(gradient.to, 0)} 100%)`;
   };
 
+  // 호버 시 카드 전체 배경색 생성 (추출된 색상 또는 variant 색상)
+  const getHoverBackgroundStyle = (): string => {
+    if (extractedColors && extractedColors.length > 0) {
+      const color = extractedColors[0];
+      const rgb = color.match(/\d+/g);
+      if (rgb && rgb.length === 3) {
+        return `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0.1)`;
+      }
+    }
+    // 기본값: variant 색상 사용
+    return hexToRgba(gradient.from, 0.1);
+  };
+
   // 우측 정보 영역에서 사용할 참가 인원 텍스트
   const participantsText = useMemo(() => {
     if (!participants) return null;
@@ -277,6 +290,13 @@ export default function RoomCard({
       className="group relative overflow-hidden rounded-xl bg-white shadow-md transition hover:shadow-lg"
       aria-label={`${title} 연습 방 입장`}
     >
+      {/* 호버 시 카드 전체 배경색 오버레이 */}
+      <div
+        className="absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100 pointer-events-none rounded-xl"
+        style={{
+          background: getHoverBackgroundStyle(),
+        }}
+      />
       <div className="relative flex gap-4 p-4">
         {/* 좌측 배경 영역 - 추출된 색상 그라데이션 (포스터 영역까지만) */}
         <div
