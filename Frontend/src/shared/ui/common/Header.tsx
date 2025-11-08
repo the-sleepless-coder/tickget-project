@@ -51,7 +51,12 @@ export default function Header() {
               </Link>
             )}
             {isLoggedIn && nickname && (
-              <span className="text-sm text-neutral-700">{nickname}</span>
+              <Link
+                to="/mypage"
+                className="text-sm text-neutral-700 hover:text-neutral-900"
+              >
+                {nickname}
+              </Link>
             )}
             {isLoggedIn ? (
               <button
