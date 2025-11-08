@@ -61,8 +61,13 @@ func (b *Bot) Run(ctx context.Context) error {
 		return err
 	}
 
-	// 단계 3: 좌석 선택 (Mock)
+	// 단계 3: 좌석 선택
 	if err := b.selectSeat(ctx); err != nil {
+		return err
+	}
+
+	// 단계 4: 좌석 확정
+	if err := b.confirmSeats(ctx); err != nil {
 		return err
 	}
 
@@ -218,4 +223,38 @@ func (b *Bot) selectSeat(ctx context.Context) error {
 	}
 
 	return fmt.Errorf("모든 목표 좌석(%d개) 선점 실패", len(b.TargetSeats))
+}
+
+// 좌석 확정
+func (b *Bot) confirmSeats(ctx context.Context) error {
+	// 요청 생성 (userId만 실제 값, 나머지는 0)
+	req := &client.SeatConfirmRequest{
+		UserId:                   int64(b.ID),
+		DateSelectTime:           0,
+		SeccodeSelectTime:        0,
+		SeccodeBackspaceCount:    0,
+		SeccodeTryCount:          0,
+		SeatSelectTime:           0,
+		SeatSelectTryCount:       0,
+		SeatSelectClickMissCount: 0,
+	}
+
+	resp, err := b.httpClient.ConfirmSeats(ctx, b.MatchID, req)
+	if err != nil {
+		b.logger.Error("좌석 확정 실패",
+			zap.Int("bot_id", b.ID),
+			zap.Error(err),
+		)
+		return fmt.Errorf("좌석 확정 실패: %w", err)
+	}
+
+	b.logger.Info("좌석 확정 성공",
+		zap.Int("bot_id", b.ID),
+		zap.Bool("success", resp.Success),
+		zap.String("message", resp.Message),
+		zap.Int("user_rank", resp.UserRank),
+		zap.Int("confirmed_seats_count", len(resp.ConfirmedSeats)),
+	)
+
+	return nil
 }

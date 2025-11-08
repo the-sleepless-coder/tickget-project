@@ -56,8 +56,17 @@ type SeatDetail struct {
 	MatchId   int64  `json:"matchId"`
 }
 
-//===_좌석 확정 요청 (필드 미정)===
+//===좌석 확정 응답===
 type SeatConfirmResponse struct {
-	UserId  int64    `json:"userId"`
-	SeatIds []string `json:"seatIds"`
+	Success        bool              `json:"success"`
+	Message        string            `json:"message"`
+	UserRank       int               `json:"userRank"`
+	ConfirmedSeats []ConfirmedSeat   `json:"confirmedSeats"`
+	MatchId        string            `json:"matchId"`
+	UserId         string            `json:"userId"`
+}
+
+type ConfirmedSeat struct {
+	SeatId    string `json:"seatId"`
+	SectionId string `json:"sectionId"`
 }

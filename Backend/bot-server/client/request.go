@@ -24,8 +24,14 @@ type SeatSelectRequest struct {
 	SeatIds []string `json:"seatIds"`
 }
 
-// 좌석 확정 요청 (필드 미정)
+// 좌석 확정 요청
 type SeatConfirmRequest struct {
-	UserId  int64    `json:"userId"`
-	SeatIds []string `json:"seatIds"`
+	UserId                   int64 `json:"userId"`
+	DateSelectTime           int   `json:"dateSelectTime"`
+	SeccodeSelectTime        int   `json:"seccodeSelectTime"`
+	SeccodeBackspaceCount    int   `json:"seccodeBackspaceCount"`
+	SeccodeTryCount          int   `json:"seccodeTryCount"`
+	SeatSelectTime           int   `json:"seatSelectTime"`
+	SeatSelectTryCount       int   `json:"seatSelectTryCount"`
+	SeatSelectClickMissCount int   `json:"seatSelectClickMissCount"`
 }
