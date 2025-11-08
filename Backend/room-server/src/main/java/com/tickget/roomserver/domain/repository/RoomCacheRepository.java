@@ -3,6 +3,7 @@ package com.tickget.roomserver.domain.repository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tickget.roomserver.dto.cache.GlobalSessionInfo;
+import com.tickget.roomserver.dto.cache.QueueStatus;
 import com.tickget.roomserver.dto.cache.RoomInfoUpdate;
 import com.tickget.roomserver.dto.cache.RoomMember;
 import com.tickget.roomserver.dto.cache.RoomInfo;
@@ -217,5 +218,37 @@ public class RoomCacheRepository {
         redisTemplate.delete(serverKey);
 
         log.debug("전역 세션 제거: userId={}", userId);
+    }
+
+    //방 ID로 매치 ID 조회
+    public String getMatchIdByRoomId(Long roomId) {
+        //TODO: 실제 주소로 변경
+        String infoKey = "room:" + roomId + ":info";
+        Object matchId = redisTemplate.opsForHash().get(infoKey, "matchId");
+
+        if (matchId == null) {
+            log.debug("방 {}의 매치 ID를 찾을 수 없음", roomId);
+            return null;
+        }
+
+        return matchId.toString();
+    }
+
+    //유저의 대기열 상태 조회
+    public QueueStatus getQueueStatus(String matchId, Long userId) {
+        String queueKey = "queue:" + matchId + ":" + userId;
+        String json = redisTemplate.opsForValue().get(queueKey);
+
+        if (json == null) {
+            return null;
+        }
+
+        try {
+            return mapper.readValue(json, QueueStatus.class);
+        } catch (JsonProcessingException e) {
+            log.error("대기열 상태 파싱 실패: matchId={}, userId={}, error={}",
+                    matchId, userId, e.getMessage());
+            return null;
+        }
     }
 }

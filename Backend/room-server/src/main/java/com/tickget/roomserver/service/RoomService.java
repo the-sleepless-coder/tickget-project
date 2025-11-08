@@ -72,6 +72,7 @@ public class RoomService {
         String thumbnailValue = request.getThumbnailValue();
         if (request.getThumbnailType() == ThumbnailType.UPLOADED) {
             thumbnailValue = minioService.uploadFile(thumbnail);
+
         }
 
         Room room = Room.of(request,presetHall,thumbnailValue);
@@ -126,6 +127,7 @@ public class RoomService {
 
         // 관련 정보 Redis를 통해 얻어옴
         Map<Long, RoomInfo> roomInfoMap = new HashMap<>(roomIds.size());
+
         for (Long roomId : roomIds) {
             roomInfoMap.put(roomId, roomCacheRepository.getRoomInfo(roomId));
         }

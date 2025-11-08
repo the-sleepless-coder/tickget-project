@@ -21,6 +21,7 @@ public class RoomEventHandler {
 
     private final WebSocketSessionManager sessionManager;
     private final SimpMessagingTemplate messagingTemplate;
+    private final RoomNotificationScheduler roomNotificationScheduler;
 
     private final ServerIdProvider serverIdProvider;
 
@@ -150,8 +151,12 @@ public class RoomEventHandler {
     }
 
     public void startNotifyingScheduling(Long roomId) {
+        log.info("방 {} 대기열 상태 알림 시작", roomId);
+        roomNotificationScheduler.startScheduling(roomId);
     }
 
     public void endNotifyingScheduling(Long roomId) {
+        log.info("방 {} 대기열 상태 알림 종료", roomId);
+        roomNotificationScheduler.stopScheduling(roomId);
     }
 }
