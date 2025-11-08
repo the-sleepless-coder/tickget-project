@@ -15,6 +15,13 @@ import Olympic_12 from "./seats-olympic-hall/R/Olympic_12";
 export default function MediumVenue() {
   const rootRef = useRef<HTMLDivElement>(null);
   const patternWrapperRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [tooltip, setTooltip] = useState<{
+    visible: boolean;
+    x: number;
+    y: number;
+    text: string;
+  }>({ visible: false, x: 0, y: 0, text: "" });
   const [showDetailView, setShowDetailView] = useState(false);
   const [detailViewColor, setDetailViewColor] = useState<string>("#FFCC10");
   type PatternComponentProps = {
@@ -272,7 +279,7 @@ export default function MediumVenue() {
             level,
             id,
             columns: 12,
-            rows: 12,
+            rows: 10,
             cellSize: 12,
             gap: 2,
           });
@@ -283,7 +290,7 @@ export default function MediumVenue() {
             level,
             id,
             columns: 14,
-            rows: 11,
+            rows: 9,
             cellSize: 12,
             gap: 2,
           });
@@ -294,7 +301,7 @@ export default function MediumVenue() {
             level,
             id,
             columns: 14,
-            rows: 11,
+            rows: 9,
             cellSize: 12,
             gap: 2,
           });
@@ -591,6 +598,138 @@ export default function MediumVenue() {
     patternScale = calculateScale(width + rowLabelWidth, height);
   }
 
+  // 상세 좌석 호버용 핸들러
+  const handleSeatMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!showDetailView || !containerRef.current) return;
+    const target = e.target as HTMLElement | null;
+    if (!target) {
+      if (tooltip.visible) setTooltip({ visible: false, x: 0, y: 0, text: "" });
+      return;
+    }
+    const row = target.getAttribute("row");
+    const seat = target.getAttribute("seat");
+    const active = target.getAttribute("active");
+    if (!row || !seat || active !== "1") {
+      if (tooltip.visible) setTooltip({ visible: false, x: 0, y: 0, text: "" });
+      return;
+    }
+    const rect = containerRef.current.getBoundingClientRect();
+    setTooltip({
+      visible: true,
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+      text: `${row}행 ${seat}번`,
+    });
+  };
+
+  const handleSeatMouseLeave = () => {
+    if (!tooltip.visible) return;
+    setTooltip({ visible: false, x: 0, y: 0, text: "" });
+  };
+
+  // 좌석 셀에 데이터 속성 부여 (row/seat/section/grade/active)
+  useEffect(() => {
+    if (!showDetailView || !patternWrapperRef.current || !selectedMeta) return;
+    const gridEl = patternWrapperRef.current.querySelector("div.grid");
+    if (!gridEl) return;
+    const cells = Array.from(gridEl.children) as HTMLElement[];
+    let currentRowIndex = -1;
+    let seatNumberInRow = 0;
+    const inactiveSeatNumbers: number[] = [];
+
+    cells.forEach((el, index) => {
+      const rowIndex = Math.floor(index / selectedMeta.columns);
+      const colIndex = index % selectedMeta.columns;
+
+      if (rowIndex !== currentRowIndex) {
+        currentRowIndex = rowIndex;
+        seatNumberInRow = 0; // 새 행 시작: 좌석 번호 초기화
+      }
+
+      el.setAttribute("row", String(rowIndex + 1));
+      el.setAttribute("col", String(colIndex + 1)); // 디버깅용 절대 열 번호
+      el.setAttribute("section", selectedMeta.id);
+      el.setAttribute("grade", selectedMeta.level);
+
+      const bg = getComputedStyle(el).backgroundColor;
+      const isTransparent = bg === "rgba(0, 0, 0, 0)" || bg === "transparent";
+      if (isTransparent) {
+        el.setAttribute("active", "0");
+        el.removeAttribute("seat");
+        // 고유 번호 계산: (row - 1) * totalCols + col
+        const seatNumber =
+          (rowIndex + 1 - 1) * selectedMeta.columns + (colIndex + 1);
+        inactiveSeatNumbers.push(seatNumber);
+      } else {
+        seatNumberInRow += 1;
+        el.setAttribute("active", "1");
+        el.setAttribute("seat", String(seatNumberInRow));
+      }
+    });
+
+    // 현재 섹션이 사용하는 패턴과 같은 패턴을 flip: false로 사용하는 섹션 찾기
+    const patternToSectionsMap: Record<
+      string,
+      { sections: string[]; flippedSections: string[] }
+    > = {
+      Olympic_18: { sections: ["18", "19", "27", "28"], flippedSections: [] },
+      Olympic_20: { sections: ["20"], flippedSections: ["26"] },
+      Olympic_21: { sections: ["21"], flippedSections: ["25"] },
+      Olympic_22: { sections: ["22"], flippedSections: ["24"] },
+      Olympic_23: { sections: ["23"], flippedSections: [] },
+      Olympic_1: { sections: ["1", "2", "3"], flippedSections: [] },
+      Olympic_4: { sections: ["4", "6"], flippedSections: [] },
+      Olympic_5: { sections: ["5"], flippedSections: [] },
+      Olympic_7: { sections: ["7", "8"], flippedSections: ["16", "17"] },
+      Olympic_9: { sections: ["9", "10"], flippedSections: ["14", "15"] },
+      Olympic_11: { sections: ["11"], flippedSections: ["13"] },
+      Olympic_12: { sections: ["12"], flippedSections: [] },
+    };
+
+    // 현재 섹션이 사용하는 패턴 찾기
+    let currentPatternName: string | null = null;
+    for (const [patternName, mapping] of Object.entries(patternToSectionsMap)) {
+      if (
+        mapping.sections.includes(selectedMeta.id) ||
+        mapping.flippedSections.includes(selectedMeta.id)
+      ) {
+        currentPatternName = patternName;
+        break;
+      }
+    }
+
+    const currentIsFlipped = isFlipped;
+
+    // 같은 패턴을 flip: false로 사용하는 섹션들
+    const nonFlippedSectionsWithSamePattern: string[] = [];
+    if (currentPatternName && patternToSectionsMap[currentPatternName]) {
+      nonFlippedSectionsWithSamePattern.push(
+        ...patternToSectionsMap[currentPatternName].sections
+      );
+      nonFlippedSectionsWithSamePattern.sort(
+        (a, b) => parseInt(a) - parseInt(b)
+      );
+    }
+
+    // 섹션 정보 및 active가 0인 좌석 정보 출력
+    console.log({
+      section: selectedMeta.id,
+      grade: selectedMeta.level,
+      totalRows: selectedMeta.rows,
+      totalCols: selectedMeta.columns,
+      isFlipped: currentIsFlipped,
+      inactiveSeatsCount: inactiveSeatNumbers.length,
+      inactiveSeatNumbers: inactiveSeatNumbers,
+      nonFlippedSectionsWithSamePattern: nonFlippedSectionsWithSamePattern,
+    });
+    // 값만 쉼표로 구분된 문자열로 출력 (복사용)
+    console.log("inactiveSeatNumbers:", inactiveSeatNumbers.join(", "));
+    console.log(
+      "nonFlippedSectionsWithSamePattern:",
+      nonFlippedSectionsWithSamePattern.join(", ")
+    );
+  }, [showDetailView, SelectedPattern, selectedMeta, isFlipped]);
+
   // Analyze grid after render to determine fully empty rows
   useEffect(() => {
     if (!showDetailView || !patternWrapperRef.current || !selectedMeta) return;
@@ -611,7 +750,7 @@ export default function MediumVenue() {
   }, [showDetailView, selectedMeta]);
 
   return (
-    <div className="relative w-full h-full">
+    <div className="relative w-full h-full" ref={containerRef}>
       {showDetailView ? (
         <div className="relative w-full h-full">
           {selectedMeta && (
@@ -682,7 +821,11 @@ export default function MediumVenue() {
                     </div>
                   )}
                   <div>
-                    <div ref={patternWrapperRef}>
+                    <div
+                      ref={patternWrapperRef}
+                      onMouseMove={handleSeatMouseMove}
+                      onMouseLeave={handleSeatMouseLeave}
+                    >
                       {SelectedPattern && (
                         <SelectedPattern
                           activeColor={detailViewColor}
@@ -732,6 +875,20 @@ export default function MediumVenue() {
         svg polygon[data-id="28"]{cursor:pointer}
       `}</style>
           <div dangerouslySetInnerHTML={{ __html: content }} />
+        </div>
+      )}
+
+      {/* Tooltip */}
+      {tooltip.visible && (
+        <div
+          className="fixed pointer-events-none z-[9999] px-2 py-1.5 bg-black/75 text-white text-xs rounded-md shadow-lg"
+          style={{
+            left: `${tooltip.x}px`,
+            top: `${tooltip.y}px`,
+            transform: `translate(-50%, ${showDetailView ? "-90%" : "-140%"})`,
+          }}
+        >
+          {tooltip.text}
         </div>
       )}
     </div>
