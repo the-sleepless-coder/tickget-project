@@ -63,8 +63,8 @@ public class SeatConfirmationService {
                 return response;
             }
 
-            // 2. Redis에서 해당 유저가 선점한 좌석 조회
-            List<String> seatIds = findUserSeats(matchId, userId);
+            // 2. 매치 상태에 따라 유저가 선점한 좌석 조회 (Redis 또는 DB)
+            List<String> seatIds = findUserSeats(matchId, userId, match.getStatus());
 
             if (seatIds.isEmpty()) {
                 SeatConfirmationResponse response = buildErrorResponse("선점된 좌석이 없습니다.");
@@ -148,9 +148,27 @@ public class SeatConfirmationService {
     }
 
     /**
+     * 매치 상태에 따라 유저가 선점한 좌석 조회
+     * - PLAYING: Redis에서 조회
+     * - FINISHED: DB(user_stats)에서 조회
+     */
+    private List<String> findUserSeats(Long matchId, Long userId, Match.MatchStatus matchStatus) {
+        if (matchStatus == Match.MatchStatus.PLAYING) {
+            log.info("전체 경기 진행 중 - Redis에서 좌석 조회: matchId={}, userId={}", matchId, userId);
+            return findUserSeatsFromRedis(matchId, userId);
+        } else if (matchStatus == Match.MatchStatus.FINISHED) {
+            log.info("전체 경기 종료 - DB에서 좌석 조회: matchId={}, userId={}", matchId, userId);
+            return findUserSeatsFromDB(matchId, userId);
+        } else {
+            log.warn("매치 상태가 WAITING입니다. 좌석 조회 불가: matchId={}, status={}", matchId, matchStatus);
+            return List.of();
+        }
+    }
+
+    /**
      * Redis에서 해당 유저가 선점한 좌석 조회
      */
-    private List<String> findUserSeats(Long matchId, Long userId) {
+    private List<String> findUserSeatsFromRedis(Long matchId, Long userId) {
         List<String> userSeats = new ArrayList<>();
 
         String pattern = "seat:" + matchId + ":*";
@@ -173,6 +191,22 @@ public class SeatConfirmationService {
             }
         }
 
+        log.debug("Redis 조회 결과: matchId={}, userId={}, 좌석 수={}", matchId, userId, userSeats.size());
+        return userSeats;
+    }
+
+    /**
+     * DB(user_stats)에서 해당 유저가 확정한 좌석 조회
+     */
+    private List<String> findUserSeatsFromDB(Long matchId, Long userId) {
+        List<UserStats> stats = userStatsRepository.findByMatchIdAndUserId(matchId, userId);
+
+        List<String> userSeats = stats.stream()
+                .filter(UserStats::getIsSuccess)  // 성공한 경우만
+                .map(UserStats::getSelectedSeat)   // "008-9-15" 형식
+                .toList();
+
+        log.debug("DB 조회 결과: matchId={}, userId={}, 좌석 수={}", matchId, userId, userSeats.size());
         return userSeats;
     }
 
