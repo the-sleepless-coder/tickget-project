@@ -5,7 +5,7 @@ import com.ticketing.seat.dto.ReservedSeatInfoDto;
 import com.ticketing.seat.dto.SeatInfo;
 import com.ticketing.seat.dto.SeatReservationRequest;
 import com.ticketing.seat.dto.SeatReservationResponse;
-import com.ticketing.seat.entity.Match;
+import com.ticketing.entity.Match;
 import com.ticketing.seat.exception.MatchClosedException;
 import com.ticketing.seat.exception.TooManySeatsRequestedException;
 import com.ticketing.seat.redis.MatchStatusRepository;
