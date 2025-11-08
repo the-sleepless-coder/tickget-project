@@ -6,6 +6,7 @@ import com.tickget.authserver.dto.ValidationResponse;
 import com.tickget.authserver.entity.User;
 import com.tickget.authserver.jwt.JwtTokenProvider;
 import com.tickget.authserver.repository.UserRepository;
+import com.tickget.authserver.service.BotTokenService;
 import com.tickget.authserver.service.TokenService;
 import io.jsonwebtoken.ExpiredJwtException;
 import lombok.RequiredArgsConstructor;
