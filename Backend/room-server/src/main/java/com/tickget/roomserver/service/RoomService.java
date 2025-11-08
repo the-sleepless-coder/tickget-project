@@ -66,8 +66,7 @@ public class RoomService {
     public CreateRoomResponse createRoom(CreateRoomRequest request, MultipartFile thumbnail) throws JsonProcessingException {
 
         log.info("사용자  {}(id:{})(이)가 방 생성 요청",request.getUsername(), request.getUserId());
-
-        //TODO: AI 생성 맵 추가 시 분기점 구현
+        
         PresetHall presetHall = presetHallRepository.findById(request.getHallId()).orElseThrow(
                 () -> new PresetHallNotFoundException(request.getHallId()));
 
