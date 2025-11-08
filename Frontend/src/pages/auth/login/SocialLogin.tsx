@@ -4,6 +4,8 @@ import Button from "@mui/material/Button";
 import Snackbar from "@mui/material/Snackbar";
 import Alert from "@mui/material/Alert";
 import googleIcon from "@shared/images/icons/google.png";
+import { testAccountLogin } from "@features/auth/api";
+import { useAuthStore } from "@features/auth/store";
 
 const BASE_URL = import.meta.env.VITE_API_URL;
 
@@ -155,6 +157,42 @@ export default function SocialLogin() {
     navigate("/");
   };
 
+  const setAuth = useAuthStore((state) => state.setAuth);
+
+  const handleTestAccountCreate = async () => {
+    setIsLoading("test");
+    try {
+      const data = await testAccountLogin();
+      console.log("📥 API 응답 데이터:", data);
+      setAuth(data);
+      const storeState = useAuthStore.getState();
+      console.log("💾 저장된 Store 상태:", {
+        accessToken: storeState.accessToken
+          ? `${storeState.accessToken.substring(0, 20)}...`
+          : null,
+        nickname: storeState.nickname,
+        email: storeState.email,
+        userId: storeState.userId,
+      });
+      openSnackbar("test 계정이 생성되었습니다!", "success");
+      const from =
+        (location.state as { from?: { pathname?: string } })?.from?.pathname ||
+        "/";
+      setTimeout(() => {
+        navigate(from, { replace: true });
+      }, 1500);
+    } catch (error) {
+      console.error("test 계정 생성 오류:", error);
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "test 계정 생성 중 오류가 발생했습니다.";
+      openSnackbar(errorMessage, "error");
+    } finally {
+      setIsLoading(null);
+    }
+  };
+
   const socialButtons = [
     {
       provider: "google" as const,
@@ -237,6 +275,23 @@ export default function SocialLogin() {
                   <span className="text-sm">{button.text}</span>
                 </Button>
               ))}
+
+              {/* test 계정 생성 버튼 */}
+              <Button
+                size="medium"
+                fullWidth
+                className="h-12 flex items-center justify-center rounded-lg font-medium"
+                sx={{
+                  backgroundColor: "#6366f1",
+                  color: "#ffffff",
+                  textTransform: "none",
+                  "&:hover": { backgroundColor: "#4f46e5" },
+                }}
+                onClick={handleTestAccountCreate}
+                disabled={isLoading !== null}
+              >
+                <span className="text-sm">test 계정 생성</span>
+              </Button>
             </div>
 
             {/* 회원가입 링크 */}
