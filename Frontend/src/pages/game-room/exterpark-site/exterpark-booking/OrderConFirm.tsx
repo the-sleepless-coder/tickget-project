@@ -10,7 +10,7 @@ export default function OrderConfirmPage() {
 
   // 예매자 정보 (제어 컴포넌트)
   const [buyerName, setBuyerName] = useState<string>("홍길동");
-  const [birthDate, setBirthDate] = useState<string>("20250101");
+  const [birthDate, setBirthDate] = useState<string>("19900101");
   const [phoneFirst, setPhoneFirst] = useState<string>("010");
   const [phoneMiddle, setPhoneMiddle] = useState<string>("1234");
   const [phoneLast, setPhoneLast] = useState<string>("5678");

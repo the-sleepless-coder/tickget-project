@@ -9,7 +9,7 @@ public class HostChangedEvent {
     private Long roomId;
     private String newHostId;
     private String previousHostId;
-    private long timestamp;
+    private Long timestamp;
 
     public static HostChangedEvent of(Long roomId, String newHostId, Long previousHostId) {
         return HostChangedEvent.builder()

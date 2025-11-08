@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.tickget.roomserver.dto.request.CreateRoomRequest;
 import com.tickget.roomserver.dto.request.ExitRoomRequest;
 import com.tickget.roomserver.dto.request.JoinRoomRequest;
+import com.tickget.roomserver.dto.request.MatchSettingUpdateRequest;
 import com.tickget.roomserver.dto.response.CreateRoomResponse;
 import com.tickget.roomserver.dto.response.ExitRoomResponse;
 import com.tickget.roomserver.dto.response.JoinRoomResponse;
@@ -21,6 +22,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -68,12 +70,6 @@ public class RoomController {
                 .body(response);
     }
 
-    // 방 세팅 변경 -> 매치 서버에서 변경하면 됨. 불필요.
-//    @PatchMapping("/{roomId}/settings")
-//    public ResponseEntity<?> changeRoomSetting(@PathVariable("roomId") String roomId){
-//        return ResponseEntity.ok().build();
-//    }
-
     // 방 입장
     @PostMapping("/{roomId}/join")
     public ResponseEntity<?> joinRoom(@PathVariable("roomId") Long roomId,
@@ -85,9 +81,30 @@ public class RoomController {
                 .body(joinRoomResponse);
     }
 
+    @PatchMapping("/{roomId}/start")
+    public ResponseEntity<?> startRoomMatch(@PathVariable("roomId") Long roomId)  {
+
+        roomService.startRoomMatch(roomId);
+        return ResponseEntity.ok().build();
+    }
+
+    @PatchMapping("/{roomId}/end")
+    public ResponseEntity<?> endRoomMatch(@PathVariable("roomId") Long roomId)  {
+
+        roomService.endRoomMatch(roomId);
+        return ResponseEntity.ok().build();
+    }
+
+    @PatchMapping("/{roomId}/settings")
+    public ResponseEntity<?> updateRoomMatchSetting(@RequestBody MatchSettingUpdateRequest request){
+
+        roomService.updateMatchSetting(request);
+        return ResponseEntity.ok().build();
+    }
+
     //방 퇴장 -> 방에 아무도 존재하지 않으면 삭제.
     @DeleteMapping("/{roomId}/exit")
-    public ResponseEntity<?> exitRoom(@PathVariable("roomId") Long roomId,
+    public ResponseEntity<ExitRoomResponse> exitRoom(@PathVariable("roomId") Long roomId,
                                       @RequestBody ExitRoomRequest exitRoomResuest){
         ExitRoomResponse exitRoomResponse = roomService.exitRoom(exitRoomResuest, roomId);
         return ResponseEntity.ok()

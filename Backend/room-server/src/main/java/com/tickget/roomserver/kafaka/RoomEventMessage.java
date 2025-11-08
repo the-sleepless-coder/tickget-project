@@ -1,6 +1,11 @@
 package com.tickget.roomserver.kafaka;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.tickget.roomserver.domain.enums.EventType;
+import com.tickget.roomserver.kafaka.payload.HostChangedPayload;
+import com.tickget.roomserver.kafaka.payload.RoomSettingUpdatedPayload;
+import com.tickget.roomserver.kafaka.payload.UserJoinedPayload;
+import com.tickget.roomserver.kafaka.payload.UserLeftPayload;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -10,11 +15,75 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonInclude(JsonInclude.Include.NON_NULL)  // null 필드는 JSON에서 제외
 public class RoomEventMessage {
     private EventType eventType;
-    private Long userId;
     private Long roomId;
-    private int totalUsersInRoom;
+    private Long timestamp;
     private String message;
-    private long timestamp;
+
+
+    private Object payload;
+
+    // ===== 정적 팩토리 메서드들 =====
+
+    public static RoomEventMessage userJoined(Long roomId, Long userId, int totalUsersInRoom) {
+        return RoomEventMessage.builder()
+                .eventType(EventType.USER_JOINED)
+                .roomId(roomId)
+                .timestamp(System.currentTimeMillis())
+                .message(userId + "이 방에 입장했습니다.")
+                .payload(UserJoinedPayload.builder()
+                        .userId(userId)
+                        .totalUsersInRoom(totalUsersInRoom)
+                        .build())
+                .build();
+    }
+
+    public static RoomEventMessage userLeft(Long roomId, Long userId, int totalUsersInRoom) {
+        return RoomEventMessage.builder()
+                .eventType(EventType.USER_LEFT)
+                .roomId(roomId)
+                .timestamp(System.currentTimeMillis())
+                .message(userId + "이 방에서 퇴장했습니다.")
+                .payload(UserLeftPayload.builder()
+                        .userId(userId)
+                        .totalUsersInRoom(totalUsersInRoom)
+                        .build())
+                .build();
+    }
+
+    public static RoomEventMessage hostChanged(Long roomId, String previousHostId, String newHostId, long timestamp) {
+        return RoomEventMessage.builder()
+                .eventType(EventType.HOST_CHANGED)
+                .roomId(roomId)
+                .timestamp(timestamp)
+                .message("방장이 변경되었습니다.")
+                .payload(HostChangedPayload.builder()
+                        .previousHostId(previousHostId)
+                        .newHostId(newHostId)
+                        .build())
+                .build();
+    }
+
+    public static RoomEventMessage roomSettingUpdated(
+            Long roomId,
+            String roomName,
+            String difficulty,
+            Integer maxUserCount,
+            Long startTime
+    ) {
+        return RoomEventMessage.builder()
+                .eventType(EventType.ROOM_SETTING_UPDATED)
+                .roomId(roomId)
+                .timestamp(System.currentTimeMillis())
+                .message("방 설정이 변경되었습니다.")
+                .payload(RoomSettingUpdatedPayload.builder()
+                        .roomName(roomName)
+                        .difficulty(difficulty)
+                        .maxUserCount(maxUserCount)
+                        .startTime(startTime)
+                        .build())
+                .build();
+    }
 }
