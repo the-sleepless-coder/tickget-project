@@ -69,10 +69,7 @@ export default function SocialLogin() {
       // 분기: needsProfile=true면 추가정보 입력으로 이동, 아니면 성공 처리
       oauthHandledRef.current = true;
       if (needsProfile) {
-        openSnackbar(
-          "구글 인증이 완료되었습니다.",
-          "success"
-        );
+        openSnackbar("구글 인증이 완료되었습니다.", "success");
         // 추가정보 페이지로 이동
         navigate("/auth/signup", { replace: true });
       } else {
