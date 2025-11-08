@@ -8,12 +8,12 @@ import lombok.*;
 @AllArgsConstructor
 @Builder
 public class SeatInfo {
-    private Long sectionId;  // 1
+    private Long sectionId;  // 8
     private Long row;        // 9
     private Long col;        // 15
 
     /**
-     * String 변환: "1-9-15"
+     * String 변환: "8-9-15"
      */
     public String toSeatId() {
         return sectionId + "-" + row + "-" + col;

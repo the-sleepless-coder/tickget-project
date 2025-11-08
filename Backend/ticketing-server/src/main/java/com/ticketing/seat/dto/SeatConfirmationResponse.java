@@ -12,10 +12,10 @@ import java.util.List;
 public class SeatConfirmationResponse {
     private boolean success;
     private String message;
-    private Integer userRank;  // 추가: 실제 유저 등수
+    private Integer userRank;
     private List<ConfirmedSeatDto> confirmedSeats;
-    private String matchId;
-    private String userId;
+    private Long matchId;           // ← String에서 Long으로 변경
+    private Long userId;            // ← String에서 Long으로 변경
     private List<String> requestedSeats;
     private String status;
 }
