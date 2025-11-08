@@ -2,6 +2,7 @@ package com.tickget.roomserver.domain.entity;
 
 import com.tickget.roomserver.domain.enums.HallSize;
 import com.tickget.roomserver.domain.enums.HallType;
+import com.tickget.roomserver.dto.request.CreateHallRequest;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -33,4 +34,11 @@ public class PresetHall extends BaseTimeEntity{
     @Column(name = "total_seat")
     private int totalSeat;
 
+    public static PresetHall from(CreateHallRequest request) {
+        return PresetHall.builder()
+                .name(request.getName())
+                .size(HallSize.get(request.getTotalSeat()))
+                .totalSeat(request.getTotalSeat())
+                .build();
+    }
 }

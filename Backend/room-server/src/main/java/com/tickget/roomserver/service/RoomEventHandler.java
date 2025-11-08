@@ -3,6 +3,7 @@ package com.tickget.roomserver.service;
 import com.tickget.roomserver.event.HostChangedEvent;
 import com.tickget.roomserver.event.RoomSettingUpdatedEvent;
 import com.tickget.roomserver.event.SessionCloseEvent;
+import com.tickget.roomserver.event.UserDequeuedEvent;
 import com.tickget.roomserver.event.UserJoinedRoomEvent;
 import com.tickget.roomserver.event.UserLeftRoomEvent;
 import com.tickget.roomserver.kafaka.RoomEventMessage;
@@ -21,6 +22,7 @@ public class RoomEventHandler {
 
     private final WebSocketSessionManager sessionManager;
     private final SimpMessagingTemplate messagingTemplate;
+    private final RoomNotificationScheduler roomNotificationScheduler;
 
     private final ServerIdProvider serverIdProvider;
 
@@ -146,6 +148,70 @@ public class RoomEventHandler {
         } catch (Exception e) {
             log.error("세션 강제 종료 중 오류: userId={}, error={}",
                     userId, e.getMessage(), e);
+        }
+    }
+
+    public void startNotifyingScheduling(Long roomId) {
+        log.info("방 {} 대기열 상태 알림 시작", roomId);
+        roomNotificationScheduler.startScheduling(roomId);
+    }
+
+    public void endNotifyingScheduling(Long roomId) {
+        log.info("방 {} 대기열 상태 알림 종료", roomId);
+        roomNotificationScheduler.stopScheduling(roomId);
+    }
+
+
+    public void processUserDequeued(UserDequeuedEvent event) {
+        log.debug("유저 Dequeue 이벤트 수신: userId={}, roomId={}, matchId={}",
+                event.getUserId(), event.getRoomId(), event.getMatchId());
+
+        Long userId = event.getUserId();
+
+        try {
+            // 1. 이 서버에 해당 유저의 세션이 있는지 확인
+            if (!sessionManager.hasSession(userId)) {
+                log.debug("이 서버에 유저 {}의 세션이 없음 (다른 서버에 연결됨)", userId);
+                return;
+            }
+
+            // 2. 유저가 속한 방 확인
+            String sessionId = sessionManager.getSessionIdByUserId(userId);
+            if (sessionId == null) {
+                log.warn("유저 {}의 세션 ID를 찾을 수 없음", userId);
+                return;
+            }
+
+            Long roomId = sessionManager.getRoomBySessionId(sessionId);
+            if (roomId == null) {
+                log.warn("유저 {}가 어떤 방에도 속하지 않음", userId);
+                return;
+            }
+
+            // 3. 이벤트의 roomId와 실제 유저가 속한 roomId 일치 확인
+            if (!roomId.equals(event.getRoomId())) {
+                log.warn("유저 {}의 방 불일치: 이벤트 roomId={}, 실제 roomId={}",
+                        userId, event.getRoomId(), roomId);
+                return;
+            }
+
+            // 4. Dequeue 성공 메시지 전송
+            String destination = "/topic/rooms/" + roomId;
+
+            RoomEventMessage message = RoomEventMessage.userDequeued(
+                    roomId,
+                    userId,
+                    event.getMatchId(),
+                    event.getTimestamp()
+            );
+
+            messagingTemplate.convertAndSend(destination, message);
+            log.info("유저 {} Dequeue 알림 전송 완료: 방={}, 매치={}",
+                    userId, roomId, event.getMatchId());
+
+        } catch (Exception e) {
+            log.error("유저 Dequeue 이벤트 처리 중 오류: userId={}, roomId={}, error={}",
+                    userId, event.getRoomId(), e.getMessage(), e);
         }
     }
 }
