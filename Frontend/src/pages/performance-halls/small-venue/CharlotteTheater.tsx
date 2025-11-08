@@ -181,10 +181,11 @@ export default function SmallVenue({
             }
             return 1;
           })();
-          const seatNumber = (row - 1) * 44 + col;
           const displayRowInSection =
             floor === 2 ? (rowOffset >= 7 ? 7 + rowNo : rowNo) : rowNo;
-          const displayColInSection = colIndex + 1;
+          // const displayColInSection = colIndex + 1;
+          const isSpecialGrey =
+            displaySection === "2" && displayRowInSection === 1 && col === 15;
           return (
             <div
               key={`${keyPrefix}${rowIndex}-${colIndex}`}
@@ -202,7 +203,7 @@ export default function SmallVenue({
                 onToggleSeat?.({
                   id: seatId,
                   gradeLabel: grade,
-                  label: `${displaySection}구역-${row}열-${col}`,
+                  label: `${displaySection}구역-${displayRowInSection}열-${col}`,
                 });
               }}
             />
