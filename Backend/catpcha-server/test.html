@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>Captcha 테스트</title>
+</head>
+<body>
+  <h3>Captcha 미리보기</h3>
+  <img id="captcha" alt="captcha 이미지" />
+  <p id="captcha-id"></p> 
+  
+  <div>
+    <div id="click-id">맞춰보세요 ㅋ</div>
+    <input type="text" id="text-box" placeholder="정답을 입력하세요" />
+    <button id="submit-btn">클릭!</button>
+    <div id="answer-id"></div>
+  </div>
+
+  <script>
+    let captchaId = "";  // 저장할 Captcha ID
+
+    // Captcha 이미지와 ID 받아오기
+    fetch("http://localhost:8080/api/v1.0/captcha/")
+      .then(res => res.json())
+      .then(data => {
+        // 이미지 표시
+        document.getElementById("captcha").src = data.img;
+        
+        // ID 표시
+        captchaId = data.id;  // captcha ID 저장
+        document.getElementById("captcha-id").innerText = "Captcha ID: " + captchaId;
+      })
+      .catch(err => console.error(err));
+
+    // 버튼 클릭 시 정답 확인
+    document.getElementById("submit-btn").addEventListener("click", function() {
+      const answer = document.getElementById("text-box").value;  // 텍스트 박스에서 정답을 입력받기
+
+      if (!answer) {
+        alert("정답을 입력하세요.");
+        return;
+      }
+
+      // POST 요청 보내기
+      fetch("http://localhost:8080/api/v1.0/captcha/", {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'  // 데이터 형식을 JSON으로 설정
+        },
+        body: JSON.stringify({
+          answer: answer,  // 사용자 입력 값
+          id: captchaId    // 이전에 받은 captcha ID
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        // message가 "Valid"일 때 정답 처리
+        if (data.message === "Valid") {
+          document.getElementById("answer-id").innerText = "정답입니다!";
+        } else if(data.message === "Wrong Answer"){
+          document.getElementById("answer-id").innerText = "틀렸습니다.";
+        } else if(data.message === "Not found in DB"){
+          document.getElementById("answer-id").innerText = "존재하지 않습니다."
+        } else if(data.message ==="You did not answer fast enough!"){
+          document.getElementById("answer-id").innerText = "너무 늦게 답변했습니다."
+        }
+
+      })
+      .catch(err => console.error(err));
+    });
+  </script>
+</body>
+</html>

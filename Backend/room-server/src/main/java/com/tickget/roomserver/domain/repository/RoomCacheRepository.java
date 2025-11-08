@@ -3,6 +3,7 @@ package com.tickget.roomserver.domain.repository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tickget.roomserver.dto.cache.GlobalSessionInfo;
+import com.tickget.roomserver.dto.cache.RoomInfoUpdate;
 import com.tickget.roomserver.dto.cache.RoomMember;
 import com.tickget.roomserver.dto.cache.RoomInfo;
 import com.tickget.roomserver.dto.request.CreateRoomRequest;
@@ -39,6 +40,29 @@ public class RoomCacheRepository {
 
         redisTemplate.expire(infoKey, 24, TimeUnit.HOURS);
     }
+    public void updateRoomInfo(RoomInfoUpdate update) {
+        String infoKey = "room:" + update.getRoomId() + ":info";
+
+        if (update.getMatchName() != null) {
+            redisTemplate.opsForHash().put(infoKey, "title", update.getMatchName());
+        }
+
+        if (update.getDifficulty() != null) {
+            redisTemplate.opsForHash().put(infoKey, "difficulty", update.getDifficulty());
+        }
+
+        if (update.getMaxUserCount() != null) {
+            redisTemplate.opsForHash().put(infoKey, "maxUserCount", String.valueOf(update.getMaxUserCount()));
+        }
+
+        if (update.getStartTime() != null) {
+            Long startTimeMillis = update.getStartTime();
+            redisTemplate.opsForHash().put(infoKey, "startTime", String.valueOf(startTimeMillis));
+        }
+
+        log.info("방 정보 업데이트: roomId={}, title={},difficulty={}, maxUserCount={}, startTime={}",
+                update.getRoomId(),update.getMatchName(), update.getDifficulty(), update.getMaxUserCount(), update.getStartTime());
+    }
 
     public Integer addMemberToRoom(Long roomId, Long userId, String username) throws JsonProcessingException {
         String memberKey ="room:" + roomId+ ":members";
@@ -64,7 +88,7 @@ public class RoomCacheRepository {
                     .difficulty("difficulty")
                     .maxUserCount(10)
                     .currentUserCount(0)
-                    .createdAt(1l)
+                    .createdAt(1L)
                     .build();
         }
 
