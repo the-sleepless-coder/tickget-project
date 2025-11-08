@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useLocation, useNavigate, Link } from "react-router";
 import Button from "@mui/material/Button";
 import Snackbar from "@mui/material/Snackbar";
@@ -26,6 +26,66 @@ export default function SocialLogin() {
     message: string,
     severity: "success" | "error" | "warning" | "info" = "info"
   ) => setSnackbar({ open: true, message, severity });
+
+  const oauthHandledRef = useRef(false);
+
+  const trySetAuthFromMessage = (data: unknown) => {
+    try {
+      const record =
+        data && typeof data === "object"
+          ? (data as Record<string, unknown>)
+          : null;
+      const href = typeof record?.href === "string" ? record.href : null;
+      const url = typeof href === "string" ? new URL(href) : null;
+      const params = url ? url.searchParams : null;
+      if (!params) return;
+
+      const accessToken =
+        params.get("accessToken") || params.get("token") || null;
+      if (!accessToken) return;
+
+      const refreshToken = params.get("refreshToken");
+      const userIdParam = params.get("userId");
+      const userId =
+        userIdParam !== null && !Number.isNaN(Number(userIdParam))
+          ? Number(userIdParam)
+          : 0;
+      const email = params.get("email") ?? "";
+      const nickname = params.get("nickname") ?? "";
+      const name = params.get("name") ?? "";
+      const needsProfileParam = params.get("needsProfile");
+      const needsProfile = needsProfileParam === "true";
+
+      setAuth({
+        accessToken,
+        refreshToken,
+        userId,
+        email,
+        nickname,
+        name,
+        message: "OAuth login",
+      });
+
+      // 분기: needsProfile=true면 추가정보 입력으로 이동, 아니면 성공 처리
+      oauthHandledRef.current = true;
+      if (needsProfile) {
+        openSnackbar(
+          "구글 인증이 완료되었습니다.",
+          "success"
+        );
+        // 추가정보 페이지로 이동
+        navigate("/auth/signup", { replace: true });
+      } else {
+        openSnackbar("로그인에 성공했습니다.", "success");
+        const from =
+          (location.state as { from?: { pathname?: string } })?.from
+            ?.pathname || "/";
+        navigate(from, { replace: true });
+      }
+    } catch {
+      // ignore parse errors
+    }
+  };
 
   const handleSocialLogin = async (provider: "google") => {
     setIsLoading(provider);
@@ -57,11 +117,14 @@ export default function SocialLogin() {
       // OAuth 창에서 `/oauth-callback.html` 페이지로 이동하면 인증 결과를 확인
       const onMessage = (event: MessageEvent) => {
         if (event.data.type === "oauth-callback") {
+          trySetAuthFromMessage(event.data);
           window.removeEventListener("message", onMessage);
           // 콜백을 받았으므로 팝업 닫힘 감시 종료
           if (popupCheckIntervalId !== null)
             window.clearInterval(popupCheckIntervalId);
-          checkAuthStatus(false);
+          if (!oauthHandledRef.current) {
+            checkAuthStatus(false);
+          }
         }
       };
 
@@ -112,11 +175,14 @@ export default function SocialLogin() {
       // OAuth 창에서 `/oauth-callback.html` 페이지로 이동하면 인증 결과를 확인
       const onMessage = (event: MessageEvent) => {
         if (event.data.type === "oauth-callback") {
+          trySetAuthFromMessage(event.data);
           window.removeEventListener("message", onMessage);
           // 콜백을 받았으므로 팝업 닫힘 감시 종료
           if (popupCheckIntervalId !== null)
             window.clearInterval(popupCheckIntervalId);
-          checkAuthStatus(true);
+          if (!oauthHandledRef.current) {
+            checkAuthStatus(true);
+          }
         }
       };
 

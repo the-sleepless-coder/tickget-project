@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OAuth Callback</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        font-family:
+          system-ui,
+          -apple-system,
+          Segoe UI,
+          Roboto,
+          Helvetica,
+          Arial,
+          Apple Color Emoji,
+          Segoe UI Emoji;
+      }
+      .wrap {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+      }
+      .card {
+        padding: 16px 20px;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        background: #fff;
+        color: #111827;
+        box-shadow:
+          0 10px 15px -3px rgba(0, 0, 0, 0.1),
+          0 4px 6px -2px rgba(0, 0, 0, 0.05);
+      }
+      .title {
+        font-weight: 700;
+        margin-bottom: 8px;
+      }
+      .desc {
+        font-size: 14px;
+        color: #6b7280;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="card">
+        <div class="title">구글 로그인 중입니다.</div>
+        <div class="desc">잠시 후 창이 닫히면 로그인이 완료됩니다.</div>
+      </div>
+    </div>
+    <script>
+      (function () {
+        try {
+          var message = {
+            type: "oauth-callback",
+            // 전달용: 백엔드가 쿼리파라미터로 토큰/상태를 붙여줄 수 있으므로 그대로 부모에 전달
+            search: window.location.search || "",
+            hash: window.location.hash || "",
+            href: window.location.href,
+          };
+          if (window.opener && !window.opener.closed) {
+            // 보안상 origin을 제한하려면 '*' 대신 예상 origin으로 교체하세요.
+            window.opener.postMessage(message, "*");
+          }
+        } catch (e) {
+          // no-op
+        } finally {
+          setTimeout(function () {
+            try {
+              window.close();
+            } catch (_) {}
+          }, 100);
+        }
+      })();
+    </script>
+  </body>
+</html>
