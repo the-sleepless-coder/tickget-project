@@ -23,6 +23,8 @@ import com.tickget.roomserver.dto.response.JoinRoomResponse;
 import com.tickget.roomserver.dto.response.RoomDetailResponse;
 import com.tickget.roomserver.dto.response.RoomResponse;
 import com.tickget.roomserver.event.HostChangedEvent;
+import com.tickget.roomserver.event.RoomPlayingEndedEvent;
+import com.tickget.roomserver.event.RoomPlayingStartedEvent;
 import com.tickget.roomserver.event.UserJoinedRoomEvent;
 import com.tickget.roomserver.event.UserLeftRoomEvent;
 import com.tickget.roomserver.exception.CreateMatchDeclinedException;
@@ -271,6 +273,7 @@ public class RoomService {
                 () -> new RoomNotFoundException(roomId));
 
         room.setStatus(RoomStatus.PLAYING);
+        roomEventProducer.publishRoomPlayingStartedEvent(RoomPlayingStartedEvent.builder().roomId(roomId).build());
         log.debug("방 {}에서 매치 시작. status를 {} 로 변경", roomId, room.getStatus());
     }
 
@@ -280,6 +283,7 @@ public class RoomService {
                 () -> new RoomNotFoundException(roomId));
 
         room.setStatus(RoomStatus.WAITING);
+        roomEventProducer.publishRoomPlayingEndedEvent(RoomPlayingEndedEvent.builder().roomId(roomId).build());
         log.debug("방 {}에서 매치 종료. status를 {} 로 변경", roomId, room.getStatus());
     }
 

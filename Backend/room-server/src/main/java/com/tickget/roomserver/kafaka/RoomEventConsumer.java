@@ -5,6 +5,7 @@ import com.tickget.roomserver.event.RoomPlayingEndedEvent;
 import com.tickget.roomserver.event.RoomPlayingStartedEvent;
 import com.tickget.roomserver.event.RoomSettingUpdatedEvent;
 import com.tickget.roomserver.event.SessionCloseEvent;
+import com.tickget.roomserver.event.UserDequeuedEvent;
 import com.tickget.roomserver.event.UserJoinedRoomEvent;
 import com.tickget.roomserver.event.UserLeftRoomEvent;
 import com.tickget.roomserver.service.RoomEventHandler;
@@ -25,6 +26,7 @@ public class RoomEventConsumer {
     private static final String ROOM_SETTING_UPDATED_TOPIC = "room-setting-updated-events";
     private static final String ROOM_PLAYING_STARTED_TOPIC = "room-playing-started-events";
     private static final String ROOM_PLAYING_ENDED_TOPIC = "room-playing-ended-events";
+    private static final String USER_DEQUEUED_TOPIC = "user-dequeued-events";
 
     private final RoomEventHandler roomEventHandler;
 
@@ -70,5 +72,10 @@ public class RoomEventConsumer {
     @KafkaListener(topics = ROOM_PLAYING_ENDED_TOPIC)
     public void handleRoomPlayingEndedEvent(RoomPlayingEndedEvent event) {
         roomEventHandler.endNotifyingScheduling(event.getRoomId());
+    }
+
+    @KafkaListener(topics = USER_DEQUEUED_TOPIC)
+    public void handleUserDequeuedEvent(UserDequeuedEvent event) {
+        roomEventHandler.processUserDequeued(event);
     }
 }

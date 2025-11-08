@@ -1,6 +1,5 @@
 package com.tickget.roomserver.kafaka;
 
-import com.tickget.roomserver.domain.enums.EventType;
 import com.tickget.roomserver.dto.request.MatchSettingUpdateRequest;
 import com.tickget.roomserver.event.HostChangedEvent;
 import com.tickget.roomserver.event.RoomPlayingEndedEvent;

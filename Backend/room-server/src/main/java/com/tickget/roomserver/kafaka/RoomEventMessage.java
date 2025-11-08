@@ -6,6 +6,7 @@ import com.tickget.roomserver.dto.cache.QueueStatus;
 import com.tickget.roomserver.kafaka.payload.HostChangedPayload;
 import com.tickget.roomserver.kafaka.payload.QueueStatusMapPayload;
 import com.tickget.roomserver.kafaka.payload.RoomSettingUpdatedPayload;
+import com.tickget.roomserver.kafaka.payload.UserDequeuedPayload;
 import com.tickget.roomserver.kafaka.payload.UserJoinedPayload;
 import com.tickget.roomserver.kafaka.payload.UserLeftPayload;
 import java.util.Map;
@@ -98,6 +99,20 @@ public class RoomEventMessage {
                 .message("대기열 상태가 업데이트되었습니다.")
                 .payload(QueueStatusMapPayload.builder()
                         .queueStatuses(queueStatuses)
+                        .build())
+                .build();
+    }
+
+    public static RoomEventMessage userDequeued(Long roomId, Long userId, String matchId, Long timestamp) {
+        return RoomEventMessage.builder()
+                .eventType(EventType.USER_DEQUEUED)
+                .roomId(roomId)
+                .timestamp(timestamp)
+                .message("티켓팅에 성공했습니다!")
+                .payload(UserDequeuedPayload.builder()
+                        .userId(userId)
+                        .matchId(matchId)
+                        .timestamp(timestamp)
                         .build())
                 .build();
     }
