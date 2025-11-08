@@ -1,9 +1,20 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import AccountCircleOutlinedIcon from "@mui/icons-material/AccountCircleOutlined";
+import { useAuthStore } from "@features/auth/store";
 
 export default function Header() {
   const location = useLocation();
+  const navigate = useNavigate();
   const isITicket = location.pathname.startsWith("/i-ticket");
+  const nickname = useAuthStore((state) => state.nickname);
+  const accessToken = useAuthStore((state) => state.accessToken);
+  const isLoggedIn = !!accessToken;
+
+  const handleLogout = () => {
+    useAuthStore.getState().clearAuth();
+    navigate("/", { replace: true });
+  };
+
   return (
     <header className="border-b border-neutral-200">
       <div className="w-full px-5 py-3">
@@ -39,18 +50,29 @@ export default function Header() {
                 <AccountCircleOutlinedIcon className="text-purple-500" />
               </Link>
             )}
-            <Link
-              to="/mypage"
-              className="hidden sm:inline text-sm text-neutral-700 hover:text-neutral-900"
-            >
-              닉네임
-            </Link>
-            <Link
-              to="/auth/login"
-              className="text-sm text-neutral-700 hover:text-neutral-900"
-            >
-              로그아웃
-            </Link>
+            {isLoggedIn && nickname && (
+              <Link
+                to="/mypage"
+                className="text-sm text-neutral-700 hover:text-neutral-900"
+              >
+                {nickname}
+              </Link>
+            )}
+            {isLoggedIn ? (
+              <button
+                onClick={handleLogout}
+                className="text-sm text-neutral-700 hover:text-neutral-900"
+              >
+                로그아웃
+              </button>
+            ) : (
+              <Link
+                to="/auth/login"
+                className="text-sm text-neutral-700 hover:text-neutral-900"
+              >
+                로그인
+              </Link>
+            )}
           </div>
         </div>
       </div>
