@@ -2,6 +2,7 @@ package com.ticketing.seat.service;
 
 import com.ticketing.seat.concurrency.LuaReservationExecutor;
 import com.ticketing.seat.dto.ReservedSeatInfoDto;
+import com.ticketing.seat.dto.SeatInfo;
 import com.ticketing.seat.dto.SeatReservationRequest;
 import com.ticketing.seat.dto.SeatReservationResponse;
 import com.ticketing.seat.entity.Match;
@@ -35,7 +36,7 @@ public class SeatReservationService {
         Long userId  = req.getUserId();
 
         // 1. 좌석 개수 검증
-        int requested = (req.getSeatIds() == null) ? 0 : req.getSeatIds().size();
+        int requested = (req.getSeats() == null) ? 0 : req.getSeats().size();
         if (requested == 0 || requested > MAX_SEATS_PER_REQUEST) {
             throw new TooManySeatsRequestedException(requested);
         }
@@ -68,19 +69,20 @@ public class SeatReservationService {
             matchRepository.save(match);
         }
 
-        // 4. seatId -> rowNumber 변환 (예: "008-9-15" -> "9-15")
-        List<String> rowNumbers = req.getSeatIds().stream()
-                .map(this::extractRowNumber)
+        // 4. SeatInfo -> rowNumber 변환
+        String sectionId = req.getSeats().get(0).getSectionId().toString();
+        List<String> rowNumbers = req.getSeats().stream()
+                .map(SeatInfo::toRowNumber)
                 .toList();
 
-        // 5. Redis 원자적 선점 시도 (프론트에서 받은 totalSeats 사용)
+        // 5. Redis 원자적 선점 시도
         Long result = luaReservationExecutor.tryReserveSeatsAtomically(
                 matchId,
-                req.getSectionId(),
+                sectionId,
                 rowNumbers,
                 userId,
                 req.getGrade(),
-                req.getTotalSeats()  // ← 프론트에서 받은 전체 좌석 수 사용
+                req.getTotalSeats()
         );
 
         // 6. 결과 처리
@@ -117,19 +119,13 @@ public class SeatReservationService {
     }
 
     /**
-     * seatId에서 rowNumber 추출
-     * 예: "008-9-15" -> "9-15"
+     * 실패 응답 생성
      */
-    private String extractRowNumber(String seatId) {
-        int firstDash = seatId.indexOf("-");
-        return firstDash > 0 ? seatId.substring(firstDash + 1) : seatId;
-    }
-
     private SeatReservationResponse buildFailureResponse(SeatReservationRequest req) {
-        List<ReservedSeatInfoDto> failed = req.getSeatIds().stream()
-                .map(seatId -> ReservedSeatInfoDto.builder()
-                        .sectionId(req.getSectionId())
-                        .seatId(seatId)
+        List<ReservedSeatInfoDto> failed = req.getSeats().stream()
+                .map(seat -> ReservedSeatInfoDto.builder()
+                        .sectionId(seat.getSectionId().toString())
+                        .seatId(seat.toSeatId())
                         .grade(req.getGrade())
                         .matchId(req.getMatchId())
                         .build())
@@ -142,11 +138,14 @@ public class SeatReservationService {
                 .build();
     }
 
+    /**
+     * 성공 응답 생성
+     */
     private SeatReservationResponse buildSuccessResponse(SeatReservationRequest req) {
-        List<ReservedSeatInfoDto> held = req.getSeatIds().stream()
-                .map(seatId -> ReservedSeatInfoDto.builder()
-                        .sectionId(req.getSectionId())
-                        .seatId(seatId)
+        List<ReservedSeatInfoDto> held = req.getSeats().stream()
+                .map(seat -> ReservedSeatInfoDto.builder()
+                        .sectionId(seat.getSectionId().toString())
+                        .seatId(seat.toSeatId())
                         .grade(req.getGrade())
                         .matchId(req.getMatchId())
                         .build())

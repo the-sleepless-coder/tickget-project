@@ -12,6 +12,7 @@ import java.util.List;
 public class SeatConfirmationResponse {
     private boolean success;
     private String message;
+    private Integer userRank;  // 추가: 실제 유저 등수
     private List<ConfirmedSeatDto> confirmedSeats;
     private String matchId;
     private String userId;
