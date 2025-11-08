@@ -33,6 +33,7 @@ public class AuthController {
     private final JwtTokenProvider jwtTokenProvider;
     private final TokenService tokenService;
     private final UserRepository userRepository;
+    private final BotTokenService botTokenService;
 
     /**
      * 현재 로그인한 사용자 정보 조회
@@ -205,6 +206,23 @@ public class AuthController {
 
         String token = authHeader.substring(7);
 
+        // 1. Bot 토큰 검증 시도
+        if (botTokenService.isValidBotToken(token)) {
+            log.info("Bot 토큰 검증 성공");
+
+            // Bot 요청임을 나타내는 헤더 추가
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("X-User-Type", "BOT");
+
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .body(ValidationResponse.builder()
+                            .valid(true)
+                            .message("유효한 Bot 토큰")
+                            .build());
+        }
+
+        // 2. JWT 토큰 검증 (일반 사용자)
         // 토큰 유효성 검증
         if (!jwtTokenProvider.validateToken(token)) {
             log.warn("유효하지 않은 토큰");
@@ -239,12 +257,13 @@ public class AuthController {
             Long userId = jwtTokenProvider.getUserId(token);
             String email = jwtTokenProvider.getEmail(token);
 
-            log.debug("토큰 검증 성공: userId={}, email={}", userId, email);
+            log.debug("사용자 토큰 검증 성공: userId={}, email={}", userId, email);
 
             // Traefik ForwardAuth를 위한 커스텀 헤더 추가
             HttpHeaders headers = new HttpHeaders();
             headers.set("X-User-Id", userId.toString());
             headers.set("X-User-Email", email);
+            headers.set("X-User-Type", "USER");  // 일반 사용자
 
             return ResponseEntity.ok()
                     .headers(headers)

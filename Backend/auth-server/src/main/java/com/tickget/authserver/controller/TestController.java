@@ -1,19 +1,21 @@
 package com.tickget.authserver.controller;
 
 import com.tickget.authserver.dto.TestLoginResponse;
+import com.tickget.authserver.service.BotTokenService;
 import com.tickget.authserver.service.TestUserService;
 import com.tickget.authserver.service.TokenService;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 /**
  * 테스트용 API 컨트롤러
  * - 테스트 유저 자동 생성 및 로그인
+ * - Bot 토큰 관리
  */
 @Slf4j
 @RestController
@@ -22,6 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class TestController {
 
     private final TestUserService testUserService;
+    private final BotTokenService botTokenService;
 
     /**
      * 테스트 유저 생성 및 자동 로그인
@@ -74,6 +77,73 @@ public class TestController {
                     .body(TestLoginResponse.builder()
                             .message("테스트 유저 생성 실패: " + e.getMessage())
                             .build());
+        }
+    }
+
+    /**
+     * Bot 토큰 생성
+     * 관리자가 수동으로 호출하여 Bot 토큰 생성 및 Redis 저장
+     *
+     * @return 생성된 Bot 토큰
+     */
+    @PostMapping("/bot-token/generate")
+    public ResponseEntity<Map<String, String>> generateBotToken() {
+        log.info("Bot 토큰 생성 API 호출");
+
+        try {
+            String botToken = botTokenService.generateAndSaveBotToken();
+
+            log.info("Bot 토큰 생성 성공");
+
+            return ResponseEntity.ok(Map.of(
+                    "botToken", botToken,
+                    "message", "Bot 토큰 생성 및 Redis 저장 완료"
+            ));
+
+        } catch (Exception e) {
+            log.error("Bot 토큰 생성 실패", e);
+            return ResponseEntity.status(500)
+                    .body(Map.of("message", "Bot 토큰 생성 실패: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * 현재 Bot 토큰 조회
+     *
+     * @return 현재 Redis에 저장된 Bot 토큰
+     */
+    @GetMapping("/bot-token")
+    public ResponseEntity<Map<String, String>> getCurrentBotToken() {
+        log.info("현재 Bot 토큰 조회 API 호출");
+
+        String currentToken = botTokenService.getCurrentBotToken();
+
+        if (currentToken == null) {
+            return ResponseEntity.ok(Map.of("message", "Bot 토큰이 존재하지 않습니다"));
+        }
+
+        return ResponseEntity.ok(Map.of(
+                "botToken", currentToken,
+                "message", "현재 Bot 토큰"
+        ));
+    }
+
+    /**
+     * Bot 토큰 삭제
+     */
+    @DeleteMapping("/bot-token")
+    public ResponseEntity<Map<String, String>> deleteBotToken() {
+        log.info("Bot 토큰 삭제 API 호출");
+
+        try {
+            botTokenService.deleteBotToken();
+
+            return ResponseEntity.ok(Map.of("message", "Bot 토큰 삭제 완료"));
+
+        } catch (Exception e) {
+            log.error("Bot 토큰 삭제 실패", e);
+            return ResponseEntity.status(500)
+                    .body(Map.of("message", "Bot 토큰 삭제 실패: " + e.getMessage()));
         }
     }
 }
