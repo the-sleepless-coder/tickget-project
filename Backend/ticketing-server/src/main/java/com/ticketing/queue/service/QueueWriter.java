@@ -30,7 +30,8 @@ public class QueueWriter {
 
         for (String zkey : roomKeys) {
             // matchId 추출: "queue:roomA:waiting" -> "roomA"
-            String matchId = zkey.replace("queue:", "").replace(":waiting", "");
+            String matchIdString = zkey.replace("queue:", "").replace(":waiting", "");
+            Long matchId = Long.valueOf(matchIdString);
 
             Long totL = zset.zCard(zkey);
             long total = (totL == null) ? 0L : totL;
