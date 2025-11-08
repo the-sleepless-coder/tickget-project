@@ -10,7 +10,7 @@ import { useAuthStore } from "@features/auth/store";
 const BASE_URL = `${import.meta.env.VITE_API_ORIGIN ?? ""}${
   import.meta.env.VITE_API_PREFIX ??
   (import.meta.env.DEV ? "/api/v1/dev" : "/api/v1")
-}`;
+}/auth`;
 
 export default function SocialLogin() {
   const navigate = useNavigate();
@@ -166,10 +166,10 @@ export default function SocialLogin() {
     setIsLoading("test");
     try {
       const data = await testAccountLogin();
-      console.log("📥 API 응답 데이터:", data);
+      console.log("API 응답 데이터:", data);
       setAuth(data);
       const storeState = useAuthStore.getState();
-      console.log("💾 저장된 Store 상태:", {
+      console.log("저장된 Store 상태:", {
         accessToken: storeState.accessToken
           ? `${storeState.accessToken.substring(0, 20)}...`
           : null,
@@ -177,7 +177,7 @@ export default function SocialLogin() {
         email: storeState.email,
         userId: storeState.userId,
       });
-      openSnackbar("test 계정이 생성되었습니다!", "success");
+      openSnackbar("테스트 계정이 생성되었습니다!", "success");
       const from =
         (location.state as { from?: { pathname?: string } })?.from?.pathname ||
         "/";
@@ -343,7 +343,7 @@ export default function SocialLogin() {
         open={snackbar.open}
         autoHideDuration={3000}
         onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
       >
         <Alert
           onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
