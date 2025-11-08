@@ -1,6 +1,7 @@
 package match
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"time"
@@ -15,18 +16,25 @@ import (
 
 // 매치 서비스
 type Service struct {
-	matches    map[int64]*MatchContext
-	scheduler  *scheduler.Scheduler
-	botService *bot.Service // 봇 리소스 관리 서비스
-	mu         sync.RWMutex
+	matches     map[int64]*MatchContext
+	scheduler   *scheduler.Scheduler
+	botService  *bot.Service // 봇 리소스 관리 서비스
+	minioClient MinioClient  // Minio 클라이언트 인터페이스
+	mu          sync.RWMutex
+}
+
+// MinioClient 인터페이스
+type MinioClient interface {
+	GetHallLayout(ctx context.Context, hallID string) (*models.HallLayout, error)
 }
 
 // 새로운 매치 서비스를 생성
-func NewService(botService *bot.Service) *Service {
+func NewService(botService *bot.Service, minioClient MinioClient) *Service {
 	return &Service{
-		matches:    make(map[int64]*MatchContext),
-		scheduler:  scheduler.NewScheduler(logger.Get()),
-		botService: botService,
+		matches:     make(map[int64]*MatchContext),
+		scheduler:   scheduler.NewScheduler(logger.Get()),
+		botService:  botService,
+		minioClient: minioClient,
 	}
 }
 
@@ -55,16 +63,29 @@ func (s *Service) SetBotsForMatch(matchID int64, req models.MatchSettingRequest)
 		return fmt.Errorf("매치 %d가 이미 존재합니다", matchID)
 	}
 
-	// 3. 매치 등록
-	matchCtx := NewMatchContext(matchID, req.BotCount, req.StartTime, req.Difficulty)
-	s.matches[matchID] = matchCtx
+	s.mu.Unlock()
 
+	// 3. 공연장 좌석 정보 로드
+	ctx := context.Background()
+	hallLayout, err := s.minioClient.GetHallLayout(ctx, req.HallID)
+	if err != nil {
+		s.botService.Release(req.BotCount) // 할당했던 봇 복구
+		return fmt.Errorf("공연장 정보 로드 실패: %w", err)
+	}
+
+	// 4. 매치 컨텍스트 생성
+	matchCtx := NewMatchContext(matchID, req.BotCount, req.StartTime, req.Difficulty, hallLayout)
+
+	s.mu.Lock()
+	s.matches[matchID] = matchCtx
 	s.mu.Unlock()
 
 	matchLogger.Info("매치 등록됨",
 		zap.Int("bot_count", req.BotCount),
 		zap.Time("start_time", req.StartTime),
 		zap.String("difficulty", string(req.Difficulty)),
+		zap.String("hall_id", req.HallID),
+		zap.Int("sections", len(hallLayout.Sections)),
 	)
 
 	// 별도 goroutine에서 스케줄링 및 실행
@@ -100,21 +121,35 @@ func (s *Service) runMatch(matchCtx *MatchContext) error {
 		zap.Int("count", matchCtx.BotCount),
 	)
 
-	// N개의 봇을 goroutine으로 실행
+	// 1. 봇 인스턴스 생성
+	bots := make([]*bot.Bot, matchCtx.BotCount)
 	for i := 0; i < matchCtx.BotCount; i++ {
+		botLogger := logger.WithBotContext(matchCtx.MatchID, i)
+		botLevel := matchCtx.BotLevels[i]
+		bots[i] = bot.NewBot(i, matchCtx.MatchID, botLevel, botLogger)
+	}
+
+	// 2. 봇들에게 목표 좌석 할당 (레벨별 우선순위)
+	if matchCtx.HallLayout != nil {
+		bot.AssignTargetSeats(bots, matchCtx.HallLayout)
+		matchLogger.Info("봇들에게 목표 좌석 할당 완료",
+			zap.Int("bot_count", len(bots)),
+		)
+	} else {
+		matchLogger.Warn("공연장 정보가 없어 좌석 할당을 건너뜁니다")
+	}
+
+	// 3. 봇들을 goroutine으로 실행
+	for i, b := range bots {
 		matchCtx.AddBot()
 
-		go func(botID int) {
+		go func(botID int, botInstance *bot.Bot) {
 			defer matchCtx.DoneBot()
 
-			botLogger := logger.WithBotContext(matchCtx.MatchID, botID)
-			botLevel := matchCtx.BotLevels[botID] // 미리 생성된 레벨 사용
-			b := bot.NewBot(botID, matchCtx.MatchID, botLevel, botLogger)
-
-			if err := b.Run(matchCtx.Context()); err != nil {
-				botLogger.Warn("봇 실행 실패", zap.Error(err))
+			if err := botInstance.Run(matchCtx.Context()); err != nil {
+				logger.WithBotContext(matchCtx.MatchID, botID).Warn("봇 실행 실패", zap.Error(err))
 			}
-		}(i)
+		}(i, b)
 	}
 
 	// 모든 봇 완료 대기

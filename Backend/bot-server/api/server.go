@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"bot-server/bot"
+	"bot-server/client"
 	"bot-server/config"
 	"bot-server/logger"
 	"bot-server/match"
@@ -36,9 +37,22 @@ func NewServer(cfg *config.Config) *Server {
 	// 미들웨어 설정
 	engine.Use(gin.Recovery()) // panic 복구
 
+	// Minio 클라이언트 생성
+	minioClient, err := client.NewMinioClient(
+		cfg.MinioEndpoint,
+		cfg.MinioAccessKey,
+		cfg.MinioSecretKey,
+		cfg.MinioBucketName,
+		cfg.MinioUseSSL,
+		logger.Get(),
+	)
+	if err != nil {
+		logger.Fatal("Minio 클라이언트 생성 실패", zap.Error(err))
+	}
+
 	// 도메인 서비스 생성
 	botService := bot.NewService(cfg.MaxConcurrentBots)
-	matchService := match.NewService(botService)
+	matchService := match.NewService(botService, minioClient)
 
 	// 시스템 레벨 핸들러 (헬스체크)
 	systemHandler := NewSystemHandler()

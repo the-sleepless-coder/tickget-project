@@ -15,7 +15,8 @@ type MatchContext struct {
 	BotCount   int
 	StartTime  time.Time
 	Difficulty models.Difficulty
-	BotLevels  []bot.Level // 각 봇의 레벨 (난이도에 따라 생성됨)
+	HallLayout *models.HallLayout // 공연장 좌석 정보
+	BotLevels  []bot.Level        // 각 봇의 레벨 (난이도에 따라 생성됨)
 	Status     MatchStatus
 
 	ctx    context.Context
@@ -26,7 +27,7 @@ type MatchContext struct {
 }
 
 // 새로운 매치 컨텍스트를 생성
-func NewMatchContext(matchID int64, botCount int, startTime time.Time, difficulty models.Difficulty) *MatchContext {
+func NewMatchContext(matchID int64, botCount int, startTime time.Time, difficulty models.Difficulty, hallLayout *models.HallLayout) *MatchContext {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &MatchContext{
@@ -34,6 +35,7 @@ func NewMatchContext(matchID int64, botCount int, startTime time.Time, difficult
 		BotCount:   botCount,
 		StartTime:  startTime,
 		Difficulty: difficulty,
+		HallLayout: hallLayout,
 		BotLevels:  bot.GenerateLevels(difficulty, botCount), // 난이도에 따라 봇 레벨 생성
 		Status:     StatusPending,
 		ctx:        ctx,
