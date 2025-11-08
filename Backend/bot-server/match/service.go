@@ -17,12 +17,13 @@ import (
 
 // 매치 서비스
 type Service struct {
-	matches     map[int64]*MatchContext
-	scheduler   *scheduler.Scheduler
-	botService  *bot.Service          // 봇 리소스 관리 서비스
-	minioClient MinioClient           // Minio 클라이언트 인터페이스
-	httpClient  *client.HTTPClient    // HTTP 클라이언트
-	mu          sync.RWMutex
+	matches      map[int64]*MatchContext
+	scheduler    *scheduler.Scheduler
+	botService   *bot.Service          // 봇 리소스 관리 서비스
+	minioClient  MinioClient           // Minio 클라이언트 인터페이스
+	httpClient   *client.HTTPClient    // HTTP 클라이언트
+	waitChannels sync.Map              // map[int64]chan struct{} - matchID별 대기 채널
+	mu           sync.RWMutex
 }
 
 // MinioClient 인터페이스
@@ -124,15 +125,18 @@ func (s *Service) runMatch(matchCtx *MatchContext) error {
 		zap.Int("count", matchCtx.BotCount),
 	)
 
-	// 1. 봇 인스턴스 생성
+	// 1. 매치 시작 대기 채널 생성
+	waitChannel := s.GetOrCreateWaitChannel(matchCtx.MatchID)
+
+	// 2. 봇 인스턴스 생성
 	bots := make([]*bot.Bot, matchCtx.BotCount)
 	for i := 0; i < matchCtx.BotCount; i++ {
 		botLogger := logger.WithBotContext(matchCtx.MatchID, i)
 		botLevel := matchCtx.BotLevels[i]
-		bots[i] = bot.NewBot(i, matchCtx.MatchID, botLevel, s.httpClient, botLogger)
+		bots[i] = bot.NewBot(i, matchCtx.MatchID, botLevel, s.httpClient, waitChannel, botLogger)
 	}
 
-	// 2. 봇들에게 목표 좌석 할당 (레벨별 우선순위)
+	// 3. 봇들에게 목표 좌석 할당 (레벨별 우선순위)
 	if matchCtx.HallLayout != nil {
 		bot.AssignTargetSeats(bots, matchCtx.HallLayout)
 		matchLogger.Info("봇들에게 목표 좌석 할당 완료",
@@ -142,7 +146,7 @@ func (s *Service) runMatch(matchCtx *MatchContext) error {
 		matchLogger.Warn("공연장 정보가 없어 좌석 할당을 건너뜁니다")
 	}
 
-	// 3. 봇들을 goroutine으로 실행
+	// 4. 봇들을 goroutine으로 실행 (JoinQueue 호출 후 대기 상태로 진입)
 	for i, b := range bots {
 		matchCtx.AddBot()
 
@@ -183,4 +187,36 @@ func (s *Service) GetMatch(matchID int64) (*MatchContext, bool) {
 	defer s.mu.RUnlock()
 	matchCtx, exists := s.matches[matchID]
 	return matchCtx, exists
+}
+
+// GetOrCreateWaitChannel matchID에 해당하는 대기 채널을 반환하거나 생성
+func (s *Service) GetOrCreateWaitChannel(matchID int64) <-chan struct{} {
+	// 기존 채널이 있으면 반환
+	if ch, ok := s.waitChannels.Load(matchID); ok {
+		return ch.(chan struct{})
+	}
+
+	// 없으면 새로 생성
+	ch := make(chan struct{})
+	actual, loaded := s.waitChannels.LoadOrStore(matchID, ch)
+
+	// 다른 goroutine이 먼저 생성했으면 그것을 사용
+	if loaded {
+		return actual.(chan struct{})
+	}
+
+	return ch
+}
+
+// SignalMatchStart 해당 matchID의 모든 대기 중인 봇들에게 시작 신호 전송
+func (s *Service) SignalMatchStart(matchID int64) {
+	matchLogger := logger.WithMatchContext(matchID)
+
+	if ch, ok := s.waitChannels.Load(matchID); ok {
+		close(ch.(chan struct{}))
+		s.waitChannels.Delete(matchID)
+		matchLogger.Info("매치 시작 신호 브로드캐스트 완료")
+	} else {
+		matchLogger.Warn("대기 중인 채널이 없습니다")
+	}
 }

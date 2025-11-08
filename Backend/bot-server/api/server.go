@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"bot-server/bot"
 	"bot-server/client"
 	"bot-server/config"
+	"bot-server/kafka"
 	"bot-server/logger"
 	"bot-server/match"
 
@@ -19,9 +21,11 @@ import (
 
 // Server HTTP 서버 구조체
 type Server struct {
-	config     *config.Config
-	engine     *gin.Engine
-	httpServer *http.Server
+	config        *config.Config
+	engine        *gin.Engine
+	httpServer    *http.Server
+	kafkaConsumer *kafka.Consumer
+	cancelKafka   context.CancelFunc
 }
 
 // NewServer 새로운 서버 인스턴스를 생성
@@ -68,9 +72,17 @@ func NewServer(cfg *config.Config) *Server {
 	matchHandler := match.NewHandler(matchService)
 	matchHandler.RegisterRoutes(engine)
 
+	// Kafka Consumer 생성
+	brokers := strings.Split(cfg.KafkaBrokers, ",")
+	kafkaConsumer, err := kafka.NewConsumer(brokers, cfg.KafkaGroupID, cfg.KafkaTopic, matchService)
+	if err != nil {
+		logger.Fatal("Kafka Consumer 생성 실패", zap.Error(err))
+	}
+
 	server := &Server{
-		config: cfg,
-		engine: engine,
+		config:        cfg,
+		engine:        engine,
+		kafkaConsumer: kafkaConsumer,
 	}
 
 	return server
@@ -78,6 +90,17 @@ func NewServer(cfg *config.Config) *Server {
 
 // Start 서버를 시작
 func (s *Server) Start() error {
+	// Kafka Consumer 시작 (별도 goroutine)
+	kafkaCtx, cancel := context.WithCancel(context.Background())
+	s.cancelKafka = cancel
+
+	go func() {
+		if err := s.kafkaConsumer.Start(kafkaCtx); err != nil {
+			logger.Error("Kafka Consumer 에러", zap.Error(err))
+		}
+	}()
+
+	// HTTP 서버 시작
 	s.httpServer = &http.Server{
 		Addr:         ":" + s.config.ServerPort,
 		Handler:      s.engine,

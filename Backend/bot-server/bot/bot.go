@@ -12,14 +12,15 @@ import (
 
 // 티케팅 봇
 type Bot struct {
-	ID          int
-	MatchID     int64
-	Level       Level       // 봇 레벨 (초보/중수/고수)
-	DelayConfig DelayConfig // 딜레이 설정
-	TargetSeats []Seat      // 목표 좌석 목록 (우선순위순)
-	logger      *zap.Logger
-	httpClient  *client.HTTPClient // HTTP 클라이언트
-	startTime   time.Time
+	ID           int
+	MatchID      int64
+	Level        Level       // 봇 레벨 (초보/중수/고수)
+	DelayConfig  DelayConfig // 딜레이 설정
+	TargetSeats  []Seat      // 목표 좌석 목록 (우선순위순)
+	logger       *zap.Logger
+	httpClient   *client.HTTPClient // HTTP 클라이언트
+	waitChannel  <-chan struct{}    // 매치 시작 대기 채널
+	startTime    time.Time
 }
 
 // Seat는 좌석 정보 (순환 import 방지)
@@ -30,18 +31,19 @@ type Seat struct {
 }
 
 // 새로운 봇을 생성
-func NewBot(id int, matchID int64, level Level, httpClient *client.HTTPClient, logger *zap.Logger) *Bot {
+func NewBot(id int, matchID int64, level Level, httpClient *client.HTTPClient, waitChannel <-chan struct{}, logger *zap.Logger) *Bot {
 	return &Bot{
 		ID:          -id,
 		MatchID:     matchID,
 		Level:       level,
 		DelayConfig: level.GetDelayConfig(),
 		httpClient:  httpClient,
+		waitChannel: waitChannel,
 		logger:      logger,
 	}
 }
 
-// 봇을 실행(Mock 버전)
+// 봇을 실행
 func (b *Bot) Run(ctx context.Context) error {
 	b.startTime = time.Now()
 
@@ -51,12 +53,26 @@ func (b *Bot) Run(ctx context.Context) error {
 		zap.String("level", b.Level.String()),
 	)
 
-	// 단계 1: 요일 선택 (Mock)
+	// 단계 1: 요일 선택 - JoinQueue 호출
 	if err := b.selectDay(ctx); err != nil {
 		return err
 	}
 
-	// 단계 2: 보안문자 입력 (Mock)
+	// 단계 1.5: 큐에서 매치 시작 신호 대기
+	b.logger.Debug("매치 시작 신호 대기 중",
+		zap.Int("bot_id", b.ID),
+	)
+
+	select {
+	case <-b.waitChannel:
+		b.logger.Debug("매치 시작 신호 수신",
+			zap.Int("bot_id", b.ID),
+		)
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+
+	// 단계 2: 보안문자 입력
 	if err := b.solveCaptcha(ctx); err != nil {
 		return err
 	}

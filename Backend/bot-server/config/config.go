@@ -22,6 +22,9 @@ type Config struct {
 	MinioSecretKey    string
 	MinioBucketName   string
 	MinioUseSSL       bool
+	KafkaBrokers      string // Kafka 브로커 주소 (쉼표로 구분)
+	KafkaGroupID      string // Kafka Consumer Group ID
+	KafkaTopic        string // Kafka Topic
 }
 
 // 환경변수에서 설정을 로드합니다
@@ -41,6 +44,9 @@ func Load() *Config {
 		MinioSecretKey:    getEnv("MINIO_SECRET_KEY", "minioadmin"),
 		MinioBucketName:   getEnv("MINIO_BUCKET_NAME", "venues"),
 		MinioUseSSL:       getEnvAsBool("MINIO_USE_SSL", false),
+		KafkaBrokers:      getEnv("KAFKA_BROKERS", "localhost:9092"),
+		KafkaGroupID:      getEnv("KAFKA_GROUP_ID", "bot-server-group"),
+		KafkaTopic:        getEnv("KAFKA_TOPIC", "match-start"),
 	}
 
 	logger.Info("설정 로드됨",
@@ -48,6 +54,8 @@ func Load() *Config {
 		zap.String("ticketing_api", config.TicketingAPIURL),
 		zap.Int("max_bots", config.MaxConcurrentBots),
 		zap.String("minio_endpoint", config.MinioEndpoint),
+		zap.String("kafka_brokers", config.KafkaBrokers),
+		zap.String("kafka_topic", config.KafkaTopic),
 	)
 	return config
 }
