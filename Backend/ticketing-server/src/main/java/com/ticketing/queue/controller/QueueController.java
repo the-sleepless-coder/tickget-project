@@ -1,11 +1,15 @@
 package com.ticketing.queue.controller;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.ticketing.queue.DTO.MatchRequestDTO;
 import com.ticketing.queue.DTO.QueueDTO;
 import com.ticketing.queue.DTO.QueueLogDTO;
+import com.ticketing.queue.DTO.QueueUserInfoDTO;
 import com.ticketing.queue.service.QueueLogProducerKafka;
 import com.ticketing.queue.service.QueueService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -53,12 +57,30 @@ public class QueueController {
 
     // 사용자 Enqueue하는 API
     @PostMapping("/queue/{matchId}")
-    public ResponseEntity<?> enterQueue(@PathVariable String matchId, @RequestBody Map<String, String> body){
-        String userId = body.get("userId");
-        QueueDTO result = service.enqueue(matchId, userId);
+    public ResponseEntity<?> enterQueue(@PathVariable Long matchId, HttpServletRequest request, @RequestBody QueueUserInfoDTO dto){
+        Long userId = Long.valueOf(request.getHeader("userId"));
+        QueueDTO result = service.enqueue(matchId, userId, dto);
         return ResponseEntity.ok(result);
     }
 
+    // 경기 시작 시, 경기 관련 데이터를 생성하는 API
+    @PostMapping("/matches")
+    public ResponseEntity<?> createDBData(@RequestBody MatchRequestDTO dto){
+        try{
+            int res = service.insertMatchData(dto);
+            if(res==1){
+                return ResponseEntity.status(HttpStatus.CREATED)
+                        .body(Map.of("message","매치 데이터 생성 성공"));
+            }else{
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(Map.of("message", "매치 데이터 생성 실패"));
+            }
+        }catch(Exception e){
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", e.getMessage()));
+        }
+
+    }
 
 
 }

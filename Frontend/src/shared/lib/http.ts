@@ -1,8 +1,17 @@
+const API_ORIGIN = import.meta.env.VITE_API_ORIGIN ?? "";
+const API_PREFIX =
+  import.meta.env.VITE_API_PREFIX ??
+  (import.meta.env.DEV ? "/api/v1/dev" : "/api/v1");
+
+// 서비스별 기본 베이스 경로 (환경변수로 직접 지정되면 그 값을 우선 사용)
+const DERIVED_ROOM_SERVER_BASE = `${API_ORIGIN}${API_PREFIX}/rms`;
+const DERIVED_TICKETING_SERVER_BASE = `${API_ORIGIN}${API_PREFIX}/tkt`;
+
 export const ROOM_SERVER_BASE_URL =
-  import.meta.env.VITE_ROOM_SERVER_URL ?? "http://localhost:8080";
+  import.meta.env.VITE_ROOM_SERVER_URL ?? DERIVED_ROOM_SERVER_BASE;
 
 export const TICKETING_SERVER_BASE_URL =
-  import.meta.env.VITE_TICKETING_SERVER_URL ?? "http://localhost:8081";
+  import.meta.env.VITE_TICKETING_SERVER_URL ?? DERIVED_TICKETING_SERVER_BASE;
 
 type QueryParams = Record<string, string | number | boolean | undefined>;
 
@@ -13,6 +22,19 @@ type HttpOptions = {
 };
 
 function buildUrl(baseUrl: string, path: string, params?: QueryParams) {
+  // baseUrl이 상대 경로인 경우 (프록시 사용 시)
+  if (baseUrl.startsWith("/")) {
+    const fullPath = baseUrl + (path.startsWith("/") ? path : `/${path}`);
+    const url = new URL(fullPath, window.location.origin);
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined) url.searchParams.set(key, String(value));
+      });
+    }
+    return url.toString();
+  }
+
+  // baseUrl이 절대 URL인 경우
   const url = new URL(path, baseUrl);
   if (params) {
     Object.entries(params).forEach(([key, value]) => {
@@ -25,9 +47,14 @@ function buildUrl(baseUrl: string, path: string, params?: QueryParams) {
 async function parseJson<T>(res: Response): Promise<T> {
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    throw new Error(
-      `${res.status} ${res.statusText}${text ? `: ${text}` : ""}`
-    );
+    const errorMessage = `${res.status} ${res.statusText}${text ? `: ${text}` : ""}`;
+    console.error("HTTP Error:", {
+      status: res.status,
+      statusText: res.statusText,
+      url: res.url,
+      body: text,
+    });
+    throw new Error(errorMessage);
   }
   if (res.status === 204) return undefined as unknown as T;
   return (await res.json()) as T;

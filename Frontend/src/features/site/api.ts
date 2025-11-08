@@ -14,7 +14,7 @@ export async function holdSeats(
     matchId: number;
   };
   return ticketingApi.postJson<SeatReservationResponse>(
-    `/api/ticketing/matches/${matchId}/hold`,
+    `/matches/${matchId}/hold`,
     body
   );
 }
@@ -24,7 +24,7 @@ export async function confirmSeats(
   payload: SeatConfirmationRequest
 ) {
   return ticketingApi.postJson<SeatReservationResponse>(
-    `/api/ticketing/matches/${matchId}/seats/confirm`,
+    `/matches/${matchId}/seats/confirm`,
     payload
   );
 }

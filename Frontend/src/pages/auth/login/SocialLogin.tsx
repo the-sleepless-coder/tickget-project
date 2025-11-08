@@ -4,8 +4,13 @@ import Button from "@mui/material/Button";
 import Snackbar from "@mui/material/Snackbar";
 import Alert from "@mui/material/Alert";
 import googleIcon from "@shared/images/icons/google.png";
+import { testAccountLogin } from "@features/auth/api";
+import { useAuthStore } from "@features/auth/store";
 
-const BASE_URL = import.meta.env.VITE_API_URL;
+const BASE_URL = `${import.meta.env.VITE_API_ORIGIN ?? ""}${
+  import.meta.env.VITE_API_PREFIX ??
+  (import.meta.env.DEV ? "/api/v1/dev" : "/api/v1")
+}/auth`;
 
 export default function SocialLogin() {
   const navigate = useNavigate();
@@ -155,6 +160,42 @@ export default function SocialLogin() {
     navigate("/");
   };
 
+  const setAuth = useAuthStore((state) => state.setAuth);
+
+  const handleTestAccountCreate = async () => {
+    setIsLoading("test");
+    try {
+      const data = await testAccountLogin();
+      console.log("API 응답 데이터:", data);
+      setAuth(data);
+      const storeState = useAuthStore.getState();
+      console.log("저장된 Store 상태:", {
+        accessToken: storeState.accessToken
+          ? `${storeState.accessToken.substring(0, 20)}...`
+          : null,
+        nickname: storeState.nickname,
+        email: storeState.email,
+        userId: storeState.userId,
+      });
+      openSnackbar("테스트 계정이 생성되었습니다!", "success");
+      const from =
+        (location.state as { from?: { pathname?: string } })?.from?.pathname ||
+        "/";
+      setTimeout(() => {
+        navigate(from, { replace: true });
+      }, 1500);
+    } catch (error) {
+      console.error("테스트 계정 생성 오류:", error);
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "테스트 계정 생성 중 오류가 발생했습니다.";
+      openSnackbar(errorMessage, "error");
+    } finally {
+      setIsLoading(null);
+    }
+  };
+
   const socialButtons = [
     {
       provider: "google" as const,
@@ -237,6 +278,20 @@ export default function SocialLogin() {
                   <span className="text-sm">{button.text}</span>
                 </Button>
               ))}
+
+              {/* 테스트 계정 생성 버튼 */}
+              <Button
+                size="medium"
+                fullWidth
+                className="h-12 flex items-center justify-center rounded-lg font-medium !bg-c-purple-250 hover:!bg-c-purple-300 !text-white"
+                sx={{
+                  textTransform: "none",
+                }}
+                onClick={handleTestAccountCreate}
+                disabled={isLoading !== null}
+              >
+                <span className="text-sm">테스트 계정 생성</span>
+              </Button>
             </div>
 
             {/* 회원가입 링크 */}
@@ -288,7 +343,7 @@ export default function SocialLogin() {
         open={snackbar.open}
         autoHideDuration={3000}
         onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
       >
         <Alert
           onClose={() => setSnackbar((s) => ({ ...s, open: false }))}

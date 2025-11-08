@@ -51,9 +51,9 @@ const ITicketPage = lazy(
 );
 const RoomsPage = lazy(() => import("../../pages/game-room/RoomsList"));
 const SeatsTestPage = lazy(() => import("../../pages/test/NotFound"));
-const MyPageIndex = lazy(() => import("../../pages/my-page/MyPage"));
+const MyPageIndex = lazy(() => import("../../pages/user-page/MyPage"));
 const MyPageReservationsPage = lazy(
-  () => import("../../pages/my-page/MockReservations")
+  () => import("../../pages/user-page/MockReservations")
 );
 const LoginPage = lazy(() => import("../../pages/auth/login/SocialLogin"));
 const SignupPage = lazy(() => import("../../pages/auth/sign-up/SignUp"));

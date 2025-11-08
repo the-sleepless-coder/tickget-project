@@ -1,6 +1,8 @@
 import type { ChangeEvent } from "react";
+import { useState } from "react";
 import Loader from "../shared/Loader";
 import InsertPhotoOutlined from "@mui/icons-material/InsertPhotoOutlined";
+import { Alert, Snackbar } from "@mui/material";
 
 export default function LeftPane({
   step,
@@ -29,6 +31,34 @@ export default function LeftPane({
   isPresetMode?: boolean;
   showLoader?: boolean;
 }) {
+  const [toastOpen, setToastOpen] = useState(false);
+  const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5MB
+
+  const handleThumbnailChangeWithSizeCheck = (
+    e: ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > MAX_IMAGE_BYTES) {
+      setToastOpen(true);
+      e.target.value = "";
+      return;
+    }
+    onThumbnailChange(e);
+  };
+
+  const handleLayoutChangeWithSizeCheck = (
+    e: ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > MAX_IMAGE_BYTES) {
+      setToastOpen(true);
+      e.target.value = "";
+      return;
+    }
+    onLayoutChange(e);
+  };
   if (step === 1) {
     return (
       <div className="flex flex-col">
@@ -58,8 +88,23 @@ export default function LeftPane({
           type="file"
           accept=".jpg,.jpeg,.png,image/jpeg,image/png"
           className="hidden"
-          onChange={onThumbnailChange}
+          onChange={handleThumbnailChangeWithSizeCheck}
         />
+        <Snackbar
+          open={toastOpen}
+          autoHideDuration={2000}
+          onClose={() => setToastOpen(false)}
+          anchorOrigin={{ vertical: "top", horizontal: "center" }}
+        >
+          <Alert
+            onClose={() => setToastOpen(false)}
+            severity="error"
+            variant="filled"
+            sx={{ width: "100%" }}
+          >
+            이미지 크기가 너무 큽니다. (5MB 이하 업로드)
+          </Alert>
+        </Snackbar>
       </div>
     );
   }
@@ -113,9 +158,24 @@ export default function LeftPane({
           type="file"
           accept=".jpg,.jpeg,.png,image/jpeg,image/png"
           className="hidden"
-          onChange={onLayoutChange}
+          onChange={handleLayoutChangeWithSizeCheck}
         />
       )}
+      <Snackbar
+        open={toastOpen}
+        autoHideDuration={2000}
+        onClose={() => setToastOpen(false)}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+      >
+        <Alert
+          onClose={() => setToastOpen(false)}
+          severity="error"
+          variant="filled"
+          sx={{ width: "100%" }}
+        >
+          이미지 크기가 너무 큽니다. (10MB 이하 업로드)
+        </Alert>
+      </Snackbar>
     </div>
   );
 }

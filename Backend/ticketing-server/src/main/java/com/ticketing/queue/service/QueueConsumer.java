@@ -21,7 +21,7 @@ import java.util.Set;
 public class QueueConsumer {
 
     private final StringRedisTemplate redis;
-    private final KafkaTemplate<String, String> kafkaTemplate;
+    private final KafkaTemplate<String, Object> kafkaTemplate;
     private final ObjectMapper mapper;
 
     private static final int CONSUME_RATE = 1;
@@ -39,7 +39,8 @@ public class QueueConsumer {
         for (String zsetKey : roomKeys) {
             // key에서 matchId 추출
             // 예: "queue:roomA:waiting" → "roomA"
-            String matchId = zsetKey.replace("queue:", "").replace(":waiting", "");
+            String matchIdString = zsetKey.replace("queue:", "").replace(":waiting", "");
+            Long matchId = Long.valueOf(matchIdString);
 
             // 주어진 방에서, N명 감소 시키기.
             Set<ZSetOperations.TypedTuple<String>> popped = zset.popMin(zsetKey, CONSUME_RATE);
@@ -57,9 +58,7 @@ public class QueueConsumer {
                 redis.expire(QueueKeys.userStateKey(matchId, userId), Duration.ofSeconds(3));
 
                 // Kafka 발행
-                /**
-                 * Outbox pattern 구현
-                 **/
+                // Queue에서 빠져나갔음을 이벤트로 발행
                 Map<String, Object> payload = Map.of(
                         "matchId", matchId,
                         "userId", userId,
@@ -70,9 +69,9 @@ public class QueueConsumer {
                 // user-log-queue 토픽에 이벤트 발행
                 try {
                     kafkaTemplate.send(KafkaTopic.USER_LOG_QUEUE.getTopicName(), userId, mapper.writeValueAsString(payload));
-                    log.info("Dequeued user {} from room {}", userId, matchId);
+                    log.info("Dequeued user {} from matchId {}", userId, matchId);
                 } catch (Exception e) {
-                    log.error("Kafka send failed for user {} in room {}", userId, matchId, e);
+                    log.error("Kafka send failed for user {} in matchId {}", userId, matchId, e);
                     // 복구 로직: 다시 대기열에 추가
                     redis.opsForHash().put(QueueKeys.userStateKey(matchId, userId), "state", "WAITING");
                 }

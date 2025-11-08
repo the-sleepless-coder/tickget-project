@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.springframework.data.mongodb.core.mapping.Unwrapped;
 
 import java.util.UUID;
 
@@ -14,16 +15,16 @@ public class QueueLogDTO {
 
     // Queue(예매 단계)에서 Log 정보 저장을 위한 DTO
     // 계층 간 넘나들 정보를 다 정의.
-    String eventId;
-    String matchId;
-    String playerType;
-    String playerId;
-    Long queueRank;
-    private int clickMiss;
-    private int duration;
+    // MongoDB에 넣을 때 평탄화를 한다.
+    @Unwrapped(onEmpty = Unwrapped.OnEmpty.USE_NULL, prefix = "")
+    QueueDTO queueInfo;
 
-    //eventId만 따로 설정
-    public void setEventId(UUID uuid){
-        this.eventId = uuid.toString();
+    @Unwrapped(onEmpty = Unwrapped.OnEmpty.USE_NULL, prefix = "")
+    QueueUserInfoDTO queueUserInfo;
+
+    public void setEventId(String uuid) {
+        if(queueUserInfo!=null){
+            queueInfo.setEventId(uuid);
+        }
     }
 }
