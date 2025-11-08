@@ -148,4 +148,10 @@ public class RoomEventHandler {
                     userId, e.getMessage(), e);
         }
     }
+
+    public void startNotifyingScheduling(Long roomId) {
+    }
+
+    public void endNotifyingScheduling(Long roomId) {
+    }
 }
