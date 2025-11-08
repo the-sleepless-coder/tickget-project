@@ -2,16 +2,17 @@ package models
 
 // 공연장 좌석 정보
 type HallLayout struct {
-	HallID   string    `json:"hallId"`   // 공연장 ID
+	Name     string    `json:"name"`     // 공연장 이름
 	Sections []Section `json:"sections"` // 섹션 목록
 }
 
 // 섹션 정보
 type Section struct {
-	SectionID   string `json:"sectionId"`   // 섹션 ID (숫자 문자열: "1", "2", "3" 등)
-	TotalRows   int    `json:"totalRows"`   // 총 행 수 (1부터 시작)
-	TotalCols   int    `json:"totalCols"`   // 총 열 수 (1부터 시작)
-	Unavailable []int  `json:"unavailable"` // 선택 불가능한 좌석 번호들
+	SectionID string `json:"section"`   // 섹션 ID (숫자 문자열: "1", "2", "3" 등)
+	Grade     string `json:"grade"`     // 좌석 등급 (VIP, R, S, STANDING 등)
+	TotalRows int    `json:"totalRows"` // 총 행 수 (1부터 시작)
+	TotalCols int    `json:"totalCols"` // 총 열 수 (1부터 시작)
+	Seats     []int  `json:"seats"`     // 선택 불가능한 좌석 번호들 (빈 배열)
 }
 
 // 좌석 정보 (내부 사용)

@@ -122,6 +122,13 @@ func (s *Server) Start() error {
 func (s *Server) Shutdown(ctx context.Context) error {
 	logger.Info("서버 종료 중")
 
+	// Kafka Consumer 종료
+	if s.cancelKafka != nil {
+		s.cancelKafka()
+		logger.Info("Kafka Consumer 종료 신호 전송")
+	}
+
+	// HTTP 서버 종료
 	if err := s.httpServer.Shutdown(ctx); err != nil {
 		return fmt.Errorf("서버 종료 실패: %w", err)
 	}

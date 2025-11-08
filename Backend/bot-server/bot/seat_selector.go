@@ -30,7 +30,7 @@ func (ss *SeatSelector) GetAvailableSeats() []Seat {
 	for _, section := range ss.hallLayout.Sections {
 		// 섹션의 불가능한 좌석을 맵으로 변환 (빠른 조회)
 		unavailableMap := make(map[int]bool)
-		for _, seatNum := range section.Unavailable {
+		for _, seatNum := range section.Seats {
 			unavailableMap[seatNum] = true
 		}
 
