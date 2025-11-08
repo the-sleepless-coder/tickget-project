@@ -38,7 +38,7 @@ export default function BookingGameResultPage() {
           <Card title="좌석 선정">
             <Row
               label="소요 시간"
-              value={`${capToCompleteSec.toFixed(2)} 초`}
+              value={`${(capToCompleteSec ?? 0).toFixed(2)} 초`}
             />
             <Row label="클릭 실수" value="3회" />
             <Row label="이선좌" value="2회" />
