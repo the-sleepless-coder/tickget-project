@@ -9,7 +9,7 @@ import (
 
 var globalLogger *zap.Logger
 
-// Init 글로벌 로거를 초기화합니다
+// 글로벌 로거를 초기화
 func Init(isDevelopment bool) error {
 	var config zap.Config
 
@@ -25,8 +25,8 @@ func Init(isDevelopment bool) error {
 	}
 
 	logger, err := config.Build(
-		zap.AddCaller(),      // 호출 위치 추가
-		zap.AddStacktrace(zapcore.ErrorLevel), // ERROR 레벨에서 스택 트레이스
+		zap.AddCaller(),                       // 호출 위치 추가
+		zap.AddStacktrace(zapcore.FatalLevel), // FATAL 레벨에서만 스택 트레이스
 	)
 	if err != nil {
 		return err
@@ -36,7 +36,7 @@ func Init(isDevelopment bool) error {
 	return nil
 }
 
-// Get 글로벌 로거를 반환합니다
+// 글로벌 로거를 반환
 func Get() *zap.Logger {
 	if globalLogger == nil {
 		// 초기화되지 않았으면 기본 로거 생성
@@ -45,21 +45,21 @@ func Get() *zap.Logger {
 	return globalLogger
 }
 
-// Sync 로거를 플러시합니다 (프로그램 종료 전 호출)
+// 로거 플러시 (프로그램 종료 전 호출)
 func Sync() {
 	if globalLogger != nil {
 		globalLogger.Sync()
 	}
 }
 
-// WithMatchContext 매치 컨텍스트를 포함한 로거를 반환합니다
+// 매치 컨텍스트를 포함한 로거를 반환
 func WithMatchContext(matchID int64) *zap.Logger {
 	return Get().With(
 		zap.Int64("match_id", matchID),
 	)
 }
 
-// WithBotContext 봇 컨텍스트를 포함한 로거를 반환합니다
+// 봇 컨텍스트를 포함한 로거를 반환
 func WithBotContext(matchID int64, botID int) *zap.Logger {
 	return Get().With(
 		zap.Int64("match_id", matchID),
@@ -67,32 +67,32 @@ func WithBotContext(matchID int64, botID int) *zap.Logger {
 	)
 }
 
-// Info 정보 레벨 로그
+// 정보 레벨 로그
 func Info(msg string, fields ...zap.Field) {
 	Get().Info(msg, fields...)
 }
 
-// Debug 디버그 레벨 로그
+// 디버그 레벨 로그
 func Debug(msg string, fields ...zap.Field) {
 	Get().Debug(msg, fields...)
 }
 
-// Warn 경고 레벨 로그
+// 경고 레벨 로그
 func Warn(msg string, fields ...zap.Field) {
 	Get().Warn(msg, fields...)
 }
 
-// Error 에러 레벨 로그
+// 에러 레벨 로그
 func Error(msg string, fields ...zap.Field) {
 	Get().Error(msg, fields...)
 }
 
-// Fatal 치명적 에러 로그 (프로그램 종료)
+// 치명적 에러 로그 (프로그램 종료)
 func Fatal(msg string, fields ...zap.Field) {
 	Get().Fatal(msg, fields...)
 }
 
-// GetLogLevel 환경변수에서 로그 레벨을 가져옵니다
+// 환경변수에서 로그 레벨을 가져옴
 func GetLogLevel() zapcore.Level {
 	levelStr := os.Getenv("LOG_LEVEL")
 
