@@ -127,15 +127,15 @@ export default function SmallVenue({
         const extraHides = hideColsByRow?.[effectiveRowNo];
         return Array.from({ length: columns }).map((_, colIndex) => {
           const base = floor === 1 ? 0 : 3;
-          const section = String(
+          const sectionPart = String(
             block === "left"
               ? base + 1
               : block === "center"
                 ? base + 2
                 : base + 3
           );
-          const displayRow = fixedDisplayRow ?? displayRowOffset + rowNo; // 표시용 행 번호
-          const displayCol = columnOffsetAcross44 + (colIndex + 1); // 표시용 열 번호(1..44)
+          const row = fixedDisplayRow ?? displayRowOffset + rowNo; // 열
+          const col = columnOffsetAcross44 + (colIndex + 1); // 행
 
           const seatColor = getSeatColor(
             floor,
@@ -143,7 +143,8 @@ export default function SmallVenue({
             effectiveRowNo,
             colIndex + 1
           );
-          const gradeLabel =
+          const isOpSeat = seatColor === COLORS.OP;
+          const grade =
             seatColor === COLORS.OP
               ? "OP석"
               : seatColor === COLORS.VIP
@@ -155,10 +156,11 @@ export default function SmallVenue({
                     : seatColor === COLORS.A
                       ? "A석"
                       : "R석";
-          const displaySection = seatColor === COLORS.OP ? "0" : section;
-          const seatId = `small-${floor}-${displaySection}-${displayRow}-${displayCol}`;
+          const displaySection = seatColor === COLORS.OP ? "0" : sectionPart;
+          const seatId = `small-${floor}-${displaySection}-${row}-${col}`;
           const isSelected = selectedIds.includes(seatId);
           const opacityVal = (() => {
+            if (isOpSeat) return 0;
             if (isHiddenRow) return 0;
             if (
               trim > 0 &&
@@ -179,11 +181,15 @@ export default function SmallVenue({
             }
             return 1;
           })();
+          const seatNumber = (row - 1) * 44 + col;
+          const displayRowInSection =
+            floor === 2 ? (rowOffset >= 7 ? 7 + rowNo : rowNo) : rowNo;
+          const displayColInSection = colIndex + 1;
           return (
             <div
               key={`${keyPrefix}${rowIndex}-${colIndex}`}
               // 원래 티켓팅 사이트에서 행, 열이 바뀌어 있음, 행, 열 순서를 바꿔서 표시
-              title={`[${gradeLabel}] ${displaySection}구역-${displayRow}열-${displayCol}`}
+              title={`[${grade}] ${displaySection}구역-${displayRowInSection}열-${col}`}
               style={{
                 ...seatStyle,
                 backgroundColor: isSelected ? "#4a4a4a" : seatColor,
@@ -195,8 +201,8 @@ export default function SmallVenue({
                 if (opacityVal === 0) return;
                 onToggleSeat?.({
                   id: seatId,
-                  gradeLabel,
-                  label: `${displaySection}구역-${displayRow}열-${displayCol}`,
+                  gradeLabel: grade,
+                  label: `${displaySection}구역-${row}열-${col}`,
                 });
               }}
             />
@@ -262,7 +268,7 @@ export default function SmallVenue({
           },
           undefined,
           0,
-          0
+          1
         )}
       </div>
       <div>
@@ -310,7 +316,7 @@ export default function SmallVenue({
             ],
           },
           14,
-          0
+          1
         )}
       </div>
       <div>
@@ -357,7 +363,7 @@ export default function SmallVenue({
           },
           undefined,
           30,
-          0
+          1
         )}
       </div>
 
@@ -387,7 +393,7 @@ export default function SmallVenue({
               undefined,
               { 1: [1], 2: [1] },
               0,
-              0
+              22
             )}
           </div>
           <div>
@@ -402,7 +408,7 @@ export default function SmallVenue({
               undefined,
               { 2: [16], 4: [16], 6: [16] },
               14,
-              0
+              22
             )}
           </div>
           <div>
@@ -417,7 +423,7 @@ export default function SmallVenue({
               undefined,
               { 1: [14], 2: [14] },
               30,
-              0
+              22
             )}
           </div>
 
@@ -434,7 +440,7 @@ export default function SmallVenue({
               undefined,
               undefined,
               0,
-              7
+              29
             )}
           </div>
           <div>
@@ -449,7 +455,7 @@ export default function SmallVenue({
               undefined,
               { 1: [16], 3: [16], 5: [3, 13, 16] },
               14,
-              7
+              29
             )}
           </div>
           <div>
@@ -464,7 +470,7 @@ export default function SmallVenue({
               undefined,
               undefined,
               30,
-              7
+              29
             )}
           </div>
         </div>
