@@ -3,10 +3,12 @@ package com.tickget.roomserver.domain.repository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tickget.roomserver.dto.cache.GlobalSessionInfo;
+import com.tickget.roomserver.dto.cache.QueueStatus;
 import com.tickget.roomserver.dto.cache.RoomInfoUpdate;
 import com.tickget.roomserver.dto.cache.RoomMember;
 import com.tickget.roomserver.dto.cache.RoomInfo;
 import com.tickget.roomserver.dto.request.CreateRoomRequest;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -26,7 +28,7 @@ public class RoomCacheRepository {
     private final RedisTemplate<String,String> redisTemplate;
     private final ObjectMapper mapper;
 
-    public void saveRoom(Long roomId, CreateRoomRequest request) throws JsonProcessingException {
+    public void saveRoom(Long roomId, CreateRoomRequest request) {
         String infoKey = "room:" + roomId+ ":info";
 
         Map<String, String> roomInfo = new HashMap<>();
@@ -217,5 +219,43 @@ public class RoomCacheRepository {
         redisTemplate.delete(serverKey);
 
         log.debug("전역 세션 제거: userId={}", userId);
+    }
+
+    // 방 ID로 매치 ID 조회
+    public String getMatchIdByRoomId(Long roomId) {
+        // 실제로 저장된 구조 -> room:{roomId}:match:{matchId}
+        String pattern = "room:" + roomId + ":match:*";
+        Set<String> keys = redisTemplate.keys(pattern);
+
+        if (keys.isEmpty()) {
+            log.debug("방 {}의 매치 ID를 찾을 수 없음", roomId);
+            return null;
+        }
+
+        // 패턴에 맞는 키가 여러 개일 가능성은 낮다고 보고 첫 번째 것만 사용
+        String key = keys.iterator().next(); // e.g. room:123:match:456
+        String[] parts = key.split(":");
+        String matchId = parts[parts.length - 1];
+
+        return matchId;
+    }
+
+
+    //유저의 대기열 상태 조회
+    public QueueStatus getQueueStatus(String matchId, Long userId) {
+        String queueKey = "queue:" + matchId + ":" + userId;
+        String json = redisTemplate.opsForValue().get(queueKey);
+
+        if (json == null) {
+            return null;
+        }
+
+        try {
+            return mapper.readValue(json, QueueStatus.class);
+        } catch (JsonProcessingException e) {
+            log.error("대기열 상태 파싱 실패: matchId={}, userId={}, error={}",
+                    matchId, userId, e.getMessage());
+            return null;
+        }
     }
 }

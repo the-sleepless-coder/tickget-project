@@ -28,7 +28,7 @@ public class CreateMatchRequest {
                 .maxUserCount(request.getMaxUserCount())
                 .botCount(request.getBotCount())
                 .difficulty(request.getDifficulty())
-                .startTime(LocalDateTime.now())
+                .startTime(request.getGameStartTime())
                 .build();
     }
 }

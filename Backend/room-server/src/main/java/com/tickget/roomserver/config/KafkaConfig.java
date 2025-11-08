@@ -1,6 +1,8 @@
 package com.tickget.roomserver.config;
 
 import com.tickget.roomserver.event.HostChangedEvent;
+import com.tickget.roomserver.event.RoomPlayingEndedEvent;
+import com.tickget.roomserver.event.RoomPlayingStartedEvent;
 import com.tickget.roomserver.event.RoomSettingUpdatedEvent;
 import com.tickget.roomserver.event.SessionCloseEvent;
 import com.tickget.roomserver.event.UserJoinedRoomEvent;
@@ -47,6 +49,16 @@ public class KafkaConfig {
 
     @Bean
     public KafkaTemplate<String, RoomSettingUpdatedEvent> roomSettingUpdatedEventKafkaTemplate() {
+        return new KafkaTemplate<>(new DefaultKafkaProducerFactory<>(producerConfigs()));
+    }
+
+    @Bean
+    public KafkaTemplate<String, RoomPlayingEndedEvent> roomPlayingEndedEventKafkaTemplate() {
+        return new KafkaTemplate<>(new DefaultKafkaProducerFactory<>(producerConfigs()));
+    }
+
+    @Bean
+    public KafkaTemplate<String, RoomPlayingStartedEvent> roomPlayingStartedEventKafkaTemplate() {
         return new KafkaTemplate<>(new DefaultKafkaProducerFactory<>(producerConfigs()));
     }
 
