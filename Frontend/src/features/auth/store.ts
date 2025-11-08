@@ -35,7 +35,7 @@ export const useAuthStore = create<AuthState>()(
         });
         // 개발 환경에서 store 상태 확인용
         if (import.meta.env.DEV) {
-          console.log("✅ Auth Store 업데이트:", {
+          console.log("Auth Store 업데이트:", {
             accessToken: data.accessToken
               ? `${data.accessToken.substring(0, 20)}...`
               : null,
@@ -86,6 +86,6 @@ export const useAuthStore = create<AuthState>()(
 if (import.meta.env.DEV && typeof window !== "undefined") {
   (window as any).authStore = useAuthStore;
   console.log(
-    "💡 개발자 도구에서 store 확인: window.authStore.getState() 또는 window.authStore"
+    "개발자 도구에서 store 확인: window.authStore.getState() 또는 window.authStore"
   );
 }
