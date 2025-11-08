@@ -1,8 +1,11 @@
 package com.tickget.roomserver.kafaka;
 
 import com.tickget.roomserver.event.HostChangedEvent;
+import com.tickget.roomserver.event.RoomPlayingEndedEvent;
+import com.tickget.roomserver.event.RoomPlayingStartedEvent;
 import com.tickget.roomserver.event.RoomSettingUpdatedEvent;
 import com.tickget.roomserver.event.SessionCloseEvent;
+import com.tickget.roomserver.event.UserDequeuedEvent;
 import com.tickget.roomserver.event.UserJoinedRoomEvent;
 import com.tickget.roomserver.event.UserLeftRoomEvent;
 import com.tickget.roomserver.service.RoomEventHandler;
@@ -21,6 +24,9 @@ public class RoomEventConsumer {
     private static final String ROOM_USER_LEFT_TOPIC = "room-user-left-events";
     private static final String ROOM_HOST_CHANGED_TOPIC = "room-host-changed-events";
     private static final String ROOM_SETTING_UPDATED_TOPIC = "room-setting-updated-events";
+    private static final String ROOM_PLAYING_STARTED_TOPIC = "room-playing-started-events";
+    private static final String ROOM_PLAYING_ENDED_TOPIC = "room-playing-ended-events";
+    private static final String USER_DEQUEUED_TOPIC = "user-dequeued-events";
 
     private final RoomEventHandler roomEventHandler;
 
@@ -50,13 +56,26 @@ public class RoomEventConsumer {
     @KafkaListener(topics = ROOM_SETTING_UPDATED_TOPIC)
     public void handleRoomSettingUpdatedEvent(RoomSettingUpdatedEvent event) {
         roomEventHandler.processRoomSettingUpdated(event);
-
     }
 
     // ===== 세션 강제 종료: 대상 서버만 수신 =====
     @KafkaListener(topics = "session-close-events")
     public void handleSessionCloseEvent(SessionCloseEvent event) {
         roomEventHandler.processSessionClose(event);
+    }
 
+    @KafkaListener(topics = ROOM_PLAYING_STARTED_TOPIC)
+    public void handleRoomPlayingStartedEvent(RoomPlayingStartedEvent event) {
+        roomEventHandler.startNotifyingScheduling(event.getRoomId());
+    }
+
+    @KafkaListener(topics = ROOM_PLAYING_ENDED_TOPIC)
+    public void handleRoomPlayingEndedEvent(RoomPlayingEndedEvent event) {
+        roomEventHandler.endNotifyingScheduling(event.getRoomId());
+    }
+
+    @KafkaListener(topics = USER_DEQUEUED_TOPIC)
+    public void handleUserDequeuedEvent(UserDequeuedEvent event) {
+        roomEventHandler.processUserDequeued(event);
     }
 }
