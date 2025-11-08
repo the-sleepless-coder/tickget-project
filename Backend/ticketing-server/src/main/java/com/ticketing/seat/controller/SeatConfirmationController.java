@@ -25,7 +25,7 @@ public class SeatConfirmationController {
      * 좌석 확정 API
      *
      * @param matchId 매치 ID
-     * @param request 확정 요청 정보 (userId, seatIds)
+     * @param request 확정 요청 정보 (userId, 통계 데이터)
      * @return 확정 결과
      */
     @PostMapping("/matches/{matchId}/seats/confirm")
@@ -34,9 +34,7 @@ public class SeatConfirmationController {
             @RequestBody SeatConfirmationRequest request,
             HttpServletRequest servletRequest) {
 
-        log.info("좌석 확정 요청: matchId={}, userId={}, seatCount={}",
-                matchId, request.getUserId(),
-                request.getSeatIds() != null ? request.getSeatIds().size() : 0);
+        log.info("좌석 확정 요청: matchId={}, userId={}", matchId, request.getUserId());
 
         try {
             // 좌석 확정 서비스 호출
@@ -63,8 +61,8 @@ public class SeatConfirmationController {
             }
 
             // 성공 응답
-            log.info("좌석 확정 성공: matchId={}, userId={}, seatCount={}",
-                    matchId, request.getUserId(),
+            log.info("좌석 확정 성공: matchId={}, userId={}, userRank={}, 확정 좌석 수={}",
+                    matchId, request.getUserId(), response.getUserRank(),
                     response.getConfirmedSeats() != null ? response.getConfirmedSeats().size() : 0);
             return ResponseEntity.ok(response);
 
