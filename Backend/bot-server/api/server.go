@@ -50,9 +50,12 @@ func NewServer(cfg *config.Config) *Server {
 		logger.Fatal("Minio 클라이언트 생성 실패", zap.Error(err))
 	}
 
+	// HTTP 클라이언트 생성
+	httpClient := client.NewHTTPClient(cfg.TicketingAPIURL)
+
 	// 도메인 서비스 생성
 	botService := bot.NewService(cfg.MaxConcurrentBots)
-	matchService := match.NewService(botService, minioClient)
+	matchService := match.NewService(botService, minioClient, httpClient)
 
 	// 시스템 레벨 핸들러 (헬스체크)
 	systemHandler := NewSystemHandler()

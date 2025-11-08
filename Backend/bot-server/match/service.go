@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"bot-server/bot"
+	"bot-server/client"
 	"bot-server/logger"
 	"bot-server/models"
 	"bot-server/scheduler"
@@ -18,8 +19,9 @@ import (
 type Service struct {
 	matches     map[int64]*MatchContext
 	scheduler   *scheduler.Scheduler
-	botService  *bot.Service // 봇 리소스 관리 서비스
-	minioClient MinioClient  // Minio 클라이언트 인터페이스
+	botService  *bot.Service          // 봇 리소스 관리 서비스
+	minioClient MinioClient           // Minio 클라이언트 인터페이스
+	httpClient  *client.HTTPClient    // HTTP 클라이언트
 	mu          sync.RWMutex
 }
 
@@ -29,12 +31,13 @@ type MinioClient interface {
 }
 
 // 새로운 매치 서비스를 생성
-func NewService(botService *bot.Service, minioClient MinioClient) *Service {
+func NewService(botService *bot.Service, minioClient MinioClient, httpClient *client.HTTPClient) *Service {
 	return &Service{
 		matches:     make(map[int64]*MatchContext),
 		scheduler:   scheduler.NewScheduler(logger.Get()),
 		botService:  botService,
 		minioClient: minioClient,
+		httpClient:  httpClient,
 	}
 }
 
@@ -126,7 +129,7 @@ func (s *Service) runMatch(matchCtx *MatchContext) error {
 	for i := 0; i < matchCtx.BotCount; i++ {
 		botLogger := logger.WithBotContext(matchCtx.MatchID, i)
 		botLevel := matchCtx.BotLevels[i]
-		bots[i] = bot.NewBot(i, matchCtx.MatchID, botLevel, botLogger)
+		bots[i] = bot.NewBot(i, matchCtx.MatchID, botLevel, s.httpClient, botLogger)
 	}
 
 	// 2. 봇들에게 목표 좌석 할당 (레벨별 우선순위)

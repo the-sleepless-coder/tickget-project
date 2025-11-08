@@ -3,8 +3,9 @@ package bot
 import (
 	"context"
 	"fmt"
-	"math/rand"
 	"time"
+
+	"bot-server/client"
 
 	"go.uber.org/zap"
 )
@@ -17,6 +18,7 @@ type Bot struct {
 	DelayConfig DelayConfig // 딜레이 설정
 	TargetSeats []Seat      // 목표 좌석 목록 (우선순위순)
 	logger      *zap.Logger
+	httpClient  *client.HTTPClient // HTTP 클라이언트
 	startTime   time.Time
 }
 
@@ -28,12 +30,13 @@ type Seat struct {
 }
 
 // 새로운 봇을 생성
-func NewBot(id int, matchID int64, level Level, logger *zap.Logger) *Bot {
+func NewBot(id int, matchID int64, level Level, httpClient *client.HTTPClient, logger *zap.Logger) *Bot {
 	return &Bot{
 		ID:          -id,
 		MatchID:     matchID,
 		Level:       level,
 		DelayConfig: level.GetDelayConfig(),
+		httpClient:  httpClient,
 		logger:      logger,
 	}
 }
@@ -76,13 +79,27 @@ func (b *Bot) Run(ctx context.Context) error {
 // 요일 선택 (Mock)
 func (b *Bot) selectDay(ctx context.Context) error {
 	delay := b.DelayConfig.RandomDelay(b.DelayConfig.SelectDayBase, b.DelayConfig.SelectDayVariance)
-
 	//무조건 현재 +3일
 	select {
 	case <-time.After(delay):
+		// delay를 밀리초로 변환
+		durationMs := int(delay.Milliseconds())
+
+		// 요청 생성
+		req := &client.DaySelectRequest{
+			ClickMiss: 0,
+			Duration:  durationMs,
+		}
+
+		_, err := b.httpClient.JoinQueue(ctx, b.MatchID, req, int64(b.ID))
+		if err != nil {
+			return fmt.Errorf("요일 선택 실패: %w", err)
+		}
+
 		b.logger.Debug("요일 선택됨",
 			zap.Int("bot_id", b.ID),
 			zap.Duration("delay", delay),
+			zap.Int("duration_ms", durationMs),
 		)
 		return nil
 	case <-ctx.Done():
@@ -96,6 +113,16 @@ func (b *Bot) solveCaptcha(ctx context.Context) error {
 
 	select {
 	case <-time.After(delay):
+		// 요청 생성
+		req := &client.ValidateCaptchaRequest{
+			UserId: int64(b.ID),
+		}
+
+		err := b.httpClient.ValidateCaptcha(ctx, req)
+		if err != nil {
+			return fmt.Errorf("캡챠 검증 실패: %w", err)
+		}
+
 		b.logger.Debug("보안문자 통과",
 			zap.Int("bot_id", b.ID),
 			zap.Duration("delay", delay),
@@ -124,17 +151,41 @@ func (b *Bot) selectSeat(ctx context.Context) error {
 		delay := b.DelayConfig.RandomDelay(b.DelayConfig.SelectSeatBase, b.DelayConfig.SelectSeatVariance)
 		time.Sleep(delay)
 
-		// TODO: 실제 API 호출로 좌석 선점 시도
-		// success, err := b.tryReserveSeat(seat)
-
-		// Mock: 90% 성공 확률
-		success := rand.Float32() > 0.1
-
 		// 행/열 계산 (로깅용)
 		row := (seat.SeatNumber-1)/seat.TotalCols + 1
 		col := (seat.SeatNumber-1)%seat.TotalCols + 1
 
-		if success {
+		// 좌석 ID 생성 (섹션ID_행_열 형식)
+		seatId := fmt.Sprintf("%s-%d-%d", seat.SectionID, row, col)
+
+		// 실제 API 호출로 좌석 선점 시도
+		req := &client.SeatSelectRequest{
+			UserId:  int64(b.ID),
+			SeatIds: []string{seatId},
+		}
+
+		resp, err := b.httpClient.HoldSeats(ctx, b.MatchID, req)
+		if err != nil {
+			b.logger.Warn("좌석 선점 API 호출 실패",
+				zap.Int("bot_id", b.ID),
+				zap.Int("attempt", i+1),
+				zap.String("section", seat.SectionID),
+				zap.Int("seat_number", seat.SeatNumber),
+				zap.Int("row", row),
+				zap.Int("col", col),
+				zap.Error(err),
+			)
+
+			// API 호출 실패 시 다음 좌석으로 재시도
+			if i < len(b.TargetSeats)-1 {
+				retryDelay := b.Level.GetRetryDelay()
+				time.Sleep(retryDelay)
+			}
+			continue
+		}
+
+		// 성공 여부 확인
+		if resp.Success && len(resp.HeldSeats) > 0 {
 			b.logger.Info("좌석 선택 성공",
 				zap.Int("bot_id", b.ID),
 				zap.Int("attempt", i+1),
@@ -143,6 +194,7 @@ func (b *Bot) selectSeat(ctx context.Context) error {
 				zap.Int("row", row),
 				zap.Int("col", col),
 				zap.Duration("delay", delay),
+				zap.Int("held_seats_count", len(resp.HeldSeats)),
 			)
 			return nil
 		}
@@ -155,6 +207,7 @@ func (b *Bot) selectSeat(ctx context.Context) error {
 			zap.Int("seat_number", seat.SeatNumber),
 			zap.Int("row", row),
 			zap.Int("col", col),
+			zap.Int("failed_seats_count", len(resp.FailedSeats)),
 		)
 
 		// 마지막 시도가 아니면 재시도 딜레이
