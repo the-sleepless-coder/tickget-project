@@ -1,7 +1,7 @@
-package com.ticketing.seat.repository;
+package com.ticketing.repository;
 
-import com.ticketing.seat.entity.Match;
-import com.ticketing.seat.entity.Match.MatchStatus;
+import com.ticketing.entity.Match;
+import com.ticketing.entity.Match.MatchStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;

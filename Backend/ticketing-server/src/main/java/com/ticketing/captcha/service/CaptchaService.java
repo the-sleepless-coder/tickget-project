@@ -7,6 +7,8 @@ import com.ticketing.captcha.DTO.HttpResultDTO;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Service;
 
 import java.io.*;
@@ -24,23 +26,25 @@ public class CaptchaService {
     // application.yaml
     private final String address;
     private final int timeout;
+    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final ObjectMapper mapper;
+
     private static final String ID = "id";
     private static final String IMAGE = "image";
 
-
-    private final ObjectMapper mapper;
-
     public CaptchaService(ObjectMapper mapper,
                           @Value("${captcha.address}") String address,
-                          @Value("${captcha.timeout}") int timeout){
+                          @Value("${captcha.timeout}") int timeout,
+                          KafkaTemplate<String,Object> kafkaTemplate){
         this.address = address;
         this.mapper = mapper;
         this.timeout = timeout;
+        this.kafkaTemplate = kafkaTemplate;
     }
     /**
      * env파일로 주소 관리
      **/
-    public HttpResultDTO validateCaptcha(CaptchaDTO userInput) throws IOException {
+    public HttpResultDTO validateCaptcha(CaptchaDTO userInput, Long userId) throws IOException {
          // POST 요청에서 받은 동일한 captcha id로,
          // Captcha가 맞는지 확인한다.
          String id = userInput.getCaptchaId();
@@ -83,20 +87,19 @@ public class CaptchaService {
          postReader.close();
          postCon.disconnect();
 
+         // Kafka로 MongoDB에 비동기적으로 적재
+         // kafkaTemplate.send(userId);
+
          return response;
     }
 
 
-    public Map<String, String> getCaptcha(String userId) throws IOException {
+    public Map<String, String> getCaptcha() throws IOException {
         // 문자열에 대한 GET 요청을 통해, Captcha id/Encoded Image값을 조회한다.
 
         // 봇이면 요청 자체를 안 보내게 한다.
         // tokenClaims.isBot()
         Map<String, String> resultMap = new HashMap<>();
-        if (userId.startsWith("bot-")){
-            resultMap.put("id","bot");
-            return resultMap;
-        }
 
         // 사용자면 문자열 id에 대한 응답을 받는다.
         URL url = new URL(address);

@@ -1,4 +1,4 @@
-package com.ticketing.seat.entity;
+package com.ticketing.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -61,6 +61,7 @@ public class Match {
 
     @Column(name = "update_at", nullable = false)
     private LocalDateTime updatedAt;
+
 
     public enum Difficulty {
         EASY, NORMAL, HARD

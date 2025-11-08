@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  captcha-api:
+    build: .                    # 현재 디렉토리(Dockerfile 위치)에서 이미지를 빌드
+    image: captcha-api:latest   # 빌드된 이미지를 captcha-api:latest로 명명
+    container_name: captcha
+    ports:
+      - "8080:8080"              # 컨테이너 포트 8080을 호스트 포트 8080에 연결
+    environment:
+      CAPTCHA_API_CONFIG: /app/config/captcha.cfg  # 환경변수 설정
+    volumes:
+      - ./captcha.cfg:/app/config/captcha.cfg:ro  # 로컬 설정 파일을 컨테이너에 마운트
