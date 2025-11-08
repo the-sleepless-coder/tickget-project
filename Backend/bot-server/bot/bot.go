@@ -23,14 +23,14 @@ type Bot struct {
 // Seat는 좌석 정보 (순환 import 방지)
 type Seat struct {
 	SectionID  string
-	SeatNumber int    // 좌석 번호: (행-1)*총열수 + 열
-	TotalCols  int    // 섹션의 총 열 수 (행/열 변환에 필요)
+	SeatNumber int // 좌석 번호: (행-1)*총열수 + 열
+	TotalCols  int // 섹션의 총 열 수 (행/열 변환에 필요)
 }
 
 // 새로운 봇을 생성
 func NewBot(id int, matchID int64, level Level, logger *zap.Logger) *Bot {
 	return &Bot{
-		ID:          id,
+		ID:          -id,
 		MatchID:     matchID,
 		Level:       level,
 		DelayConfig: level.GetDelayConfig(),
