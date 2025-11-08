@@ -36,13 +36,25 @@ func NewHTTPClient(baseURL string) *HTTPClient {
 }
 
 // JoinQueue 공연 날짜/회차 선택 (큐에 넣기) API 호출
-func (c *HTTPClient) JoinQueue(ctx context.Context, matchId int64) (*DaySelectResponse, error) {
+func (c *HTTPClient) JoinQueue(ctx context.Context, matchId int64, req *DaySelectRequest, userId int64) (*DaySelectResponse, error) {
 	endpoint := fmt.Sprintf("/ticketing/queue/%d", matchId)
+
 	var resp DaySelectResponse
-	if err := c.get(ctx, endpoint, &resp); err != nil {
+	if err := c.postWithHeader(ctx, endpoint, req, &resp, userId); err != nil {
 		return nil, err
 	}
 	return &resp, nil
+}
+
+// ValidateCaptcha 봇 캡챠 검증 API 호출
+func (c *HTTPClient) ValidateCaptcha(ctx context.Context, req *ValidateCaptchaRequest) error {
+	endpoint := "/ticketing/captcha/validate/bot"
+
+	// 응답 바디가 없으므로 nil 전달
+	if err := c.post(ctx, endpoint, req, nil); err != nil {
+		return err
+	}
+	return nil
 }
 
 // GetSectionStatus 섹션 내 좌석 상태 조회 API 호출
@@ -105,6 +117,29 @@ func (c *HTTPClient) post(ctx context.Context, endpoint string, reqBody, respBod
 	return c.doRequest(httpReq, respBody)
 }
 
+// postWithHeader POST 요청을 보내는 공통 메서드 (헤더에 userId 추가)
+func (c *HTTPClient) postWithHeader(ctx context.Context, endpoint string, reqBody, respBody interface{}, userId int64) error {
+	url := c.baseURL + endpoint
+
+	// 요청 본문을 JSON으로 변환
+	jsonData, err := json.Marshal(reqBody)
+	if err != nil {
+		logger.Error("JSON 마샬링 실패", zap.Error(err))
+		return fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		logger.Error("HTTP 요청 생성 실패", zap.Error(err))
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	// userId를 헤더에 추가
+	httpReq.Header.Set("X-User-Id", fmt.Sprintf("%d", userId))
+
+	return c.doRequest(httpReq, respBody)
+}
+
 // doRequest HTTP 요청을 실행하고 응답을 처리하는 공통 메서드
 func (c *HTTPClient) doRequest(httpReq *http.Request, respBody interface{}) error {
 	httpReq.Header.Set("Content-Type", "application/json")
@@ -138,8 +173,8 @@ func (c *HTTPClient) doRequest(httpReq *http.Request, respBody interface{}) erro
 		return NewAPIError(httpResp.StatusCode, string(body))
 	}
 
-	// 응답 JSON 파싱
-	if len(body) > 0 {
+	// 응답 JSON 파싱 (respBody가 nil이 아닌 경우에만)
+	if respBody != nil && len(body) > 0 {
 		if err := json.Unmarshal(body, respBody); err != nil {
 			logger.Error("JSON 언마샬링 실패",
 				zap.Error(err),
