@@ -10,46 +10,46 @@ const HomePage = lazy(() => import("../../pages/home"));
 // Removed BookingIndexPage usage for plain booking flow
 const SelectVenuePage = lazy(
   () =>
-    import("../../pages/game-room/exterpark-site/exterpark-booking/SelectVenue")
+    import("../../pages/booking-site/booking-site/exterpark-booking/SelectVenue")
 );
 const SelectSeatPage = lazy(
   () =>
-    import("../../pages/game-room/exterpark-site/exterpark-booking/SelectSeat")
+    import("../../pages/booking-site/booking-site/exterpark-booking/SelectSeat")
 );
 const PricePage = lazy(
-  () => import("../../pages/game-room/exterpark-site/exterpark-booking/Price")
+  () => import("../../pages/booking-site/booking-site/exterpark-booking/Price")
 );
 const OrderConfirmPage = lazy(
   () =>
     import(
-      "../../pages/game-room/exterpark-site/exterpark-booking/OrderConFirm"
+      "../../pages/booking-site/booking-site/exterpark-booking/OrderConFirm"
     )
 );
 const PaymentPage = lazy(
-  () => import("../../pages/game-room/exterpark-site/exterpark-booking/Payment")
+  () => import("../../pages/booking-site/booking-site/exterpark-booking/Payment")
 );
 const CancelFeePage = lazy(
   () =>
-    import("../../pages/game-room/exterpark-site/exterpark-booking/CancelFee")
+    import("../../pages/booking-site/booking-site/exterpark-booking/CancelFee")
 );
 const CompletePage = lazy(
   () =>
-    import("../../pages/game-room/exterpark-site/exterpark-booking/Complete")
+    import("../../pages/booking-site/booking-site/exterpark-booking/Complete")
 );
 const BookingWaitingPage = lazy(
-  () => import("../../pages/game-room/exterpark-site/exterpark-booking/Waiting")
+  () => import("../../pages/booking-site/booking-site/exterpark-booking/Waiting")
 );
-const GameResultPage = lazy(() => import("../../pages/game-room/GameResult"));
+const GameResultPage = lazy(() => import("../../pages/booking-site/GameResult"));
 const BookingSelectSchedulePage = lazy(
   () =>
     import(
-      "../../pages/game-room/exterpark-site/exterpark-booking/SelectSchedule"
+      "../../pages/booking-site/booking-site/exterpark-booking/SelectSchedule"
     )
 );
 const ITicketPage = lazy(
-  () => import("../../pages/game-room/exterpark-site/Exterpark")
+  () => import("../../pages/booking-site/booking-site/Exterpark")
 );
-const RoomsPage = lazy(() => import("../../pages/game-room/RoomsList"));
+const RoomsPage = lazy(() => import("../../pages/booking-site/RoomsList"));
 const SeatsTestPage = lazy(() => import("../../pages/test/NotFound"));
 const MyPageIndex = lazy(() => import("../../pages/user-page/MyPage"));
 const MyPageReservationsPage = lazy(
