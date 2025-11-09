@@ -6,7 +6,10 @@ import PeopleIcon from "@mui/icons-material/People";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import { paths } from "../../../app/routes/paths";
 import RoomSettingModal from "../../room/edit-room-setting/RoomSettingModal";
-import type { CreateRoomResponse, CreateRoomRequest } from "@features/room/types";
+import type {
+  CreateRoomResponse,
+  CreateRoomRequest,
+} from "@features/room/types";
 import dayjs from "dayjs";
 import { useWebSocketStore } from "../../../shared/lib/websocket-store";
 import { subscribe, type Subscription } from "../../../shared/lib/websocket";
@@ -60,7 +63,9 @@ export default function ITicketPage() {
   const { roomId } = useParams<{ roomId?: string }>();
   const location = useLocation();
   const roomData = location.state?.roomData as CreateRoomResponse | undefined;
-  const roomRequest = location.state?.roomRequest as CreateRoomRequest | undefined;
+  const roomRequest = location.state?.roomRequest as
+    | CreateRoomRequest
+    | undefined;
   const [secondsLeft, setSecondsLeft] = useState<number>(3);
   const [showBanner, setShowBanner] = useState<boolean>(true);
   const [reserveAppearedAt, setReserveAppearedAt] = useState<number | null>(
@@ -75,19 +80,24 @@ export default function ITicketPage() {
   // 방 생성 응답 데이터 로그
   useEffect(() => {
     if (roomData) {
-      console.log("🎮 게임룸 데이터 (방 생성 응답):", JSON.stringify(roomData, null, 2));
+      console.log(
+        "🎮 게임룸 데이터 (방 생성 응답):",
+        JSON.stringify(roomData, null, 2)
+      );
       console.log("📋 요청 데이터:", JSON.stringify(roomRequest, null, 2));
       console.log("🆔 Room ID:", roomId || "없음");
     } else if (roomId) {
       console.log("🆔 Room ID (URL 파라미터):", roomId);
-      console.log("⚠️ location state에 roomData가 없습니다. API로 데이터를 가져와야 할 수 있습니다.");
+      console.log(
+        "⚠️ location state에 roomData가 없습니다. API로 데이터를 가져와야 할 수 있습니다."
+      );
     }
   }, [roomData, roomRequest, roomId]);
 
   // WebSocket 구독: /topic/rooms/{roomId}
   useEffect(() => {
     const targetRoomId = roomId || roomData?.roomId?.toString();
-    
+
     if (!targetRoomId) {
       console.warn("⚠️ Room ID가 없어 구독할 수 없습니다.");
       return;
@@ -130,15 +140,21 @@ export default function ITicketPage() {
             subscribed: true,
           });
         } else {
-          console.error(`❌ 방 구독 실패: ${destination} - subscription이 null입니다.`);
+          console.error(
+            `❌ 방 구독 실패: ${destination} - subscription이 null입니다.`
+          );
         }
       } else {
         retryCount++;
         if (retryCount < maxRetries) {
-          console.log(`⏳ WebSocket 연결 대기 중... (${retryCount}/${maxRetries})`);
+          console.log(
+            `⏳ WebSocket 연결 대기 중... (${retryCount}/${maxRetries})`
+          );
           setTimeout(checkConnection, 500);
         } else {
-          console.error(`❌ 방 구독 실패: WebSocket 연결 시간 초과 (${destination})`);
+          console.error(
+            `❌ 방 구독 실패: WebSocket 연결 시간 초과 (${destination})`
+          );
         }
       }
     };
@@ -261,21 +277,23 @@ export default function ITicketPage() {
         )}
 
         <div className="productWrapper max-w-[1280px] w-full mx-auto px-4 md:px-6">
-          <TagsRow 
+          <TagsRow
             difficulty={roomRequest?.difficulty}
             botCount={roomData?.botCount}
           />
-          <TitleSection 
+          <TitleSection
             matchName={roomRequest?.matchName}
             hallSize={roomData?.hallSize}
-            venue={roomData?.hallId ? HALL_ID_TO_VENUE[roomData.hallId] : undefined}
-            onOpenSettings={() => setIsRoomModalOpen(true)} 
+            venue={
+              roomData?.hallId ? HALL_ID_TO_VENUE[roomData.hallId] : undefined
+            }
+            onOpenSettings={() => setIsRoomModalOpen(true)}
           />
 
           <div className="mt-6 flex flex-col md:flex-row gap-8">
             <div className="summary w-full md:w-[830px]">
               <div className="flex flex-col md:flex-row items-start">
-                <PosterBox 
+                <PosterBox
                   thumbnailType={roomData?.thumbnailType}
                   thumbnailValue={roomData?.thumbnailValue}
                 />
@@ -337,10 +355,10 @@ function TopBanner({ onClose }: { onClose: (hideFor3Days: boolean) => void }) {
   );
 }
 
-function TagsRow({ 
-  difficulty, 
-  botCount 
-}: { 
+function TagsRow({
+  difficulty,
+  botCount,
+}: {
   difficulty?: string;
   botCount?: number;
 }) {
@@ -361,7 +379,9 @@ function TagsRow({
     </span>
   );
 
-  const difficultyLabel = difficulty ? DIFFICULTY_TO_LABEL[difficulty] || difficulty : "어려움";
+  const difficultyLabel = difficulty
+    ? DIFFICULTY_TO_LABEL[difficulty] || difficulty
+    : "어려움";
   const botLabel = botCount ? `봇 ${botCount.toLocaleString()}명` : "봇 3000명";
 
   return (
@@ -379,19 +399,21 @@ function TagsRow({
   );
 }
 
-function TitleSection({ 
+function TitleSection({
   matchName,
   hallSize,
   venue,
-  onOpenSettings 
-}: { 
+  onOpenSettings,
+}: {
   matchName?: string;
   hallSize?: string;
   venue?: string;
   onOpenSettings: () => void;
 }) {
   const title = matchName || "18시에 티켓팅하실 분 모집합니다";
-  const sizeLabel = hallSize ? HALL_SIZE_TO_LABEL[hallSize] || hallSize : "소형";
+  const sizeLabel = hallSize
+    ? HALL_SIZE_TO_LABEL[hallSize] || hallSize
+    : "소형";
   const venueLabel = venue || "샤롯데씨어터";
 
   return (
@@ -417,10 +439,10 @@ function TitleSection({
   );
 }
 
-function PosterBox({ 
+function PosterBox({
   thumbnailType,
-  thumbnailValue 
-}: { 
+  thumbnailValue,
+}: {
   thumbnailType?: string;
   thumbnailValue?: string | null;
 }) {
@@ -526,7 +548,13 @@ function StartInfoCard({
   const openAt = `${formattedDate} ${formattedTime}`;
 
   if (canReserve) {
-    return <BookingCalendarCard onBook={onReserve} reservationDay={reservationDay} gameStartTime={gameStartTime} />;
+    return (
+      <BookingCalendarCard
+        onBook={onReserve}
+        reservationDay={reservationDay}
+        gameStartTime={gameStartTime}
+      />
+    );
   }
   return (
     <section className="bg-white rounded-xl p-6 flex flex-col items-stretch border border-neutral-200 shadow">
@@ -559,11 +587,11 @@ const formatTimeSlot = (timeStr?: string) => {
   return `1회 ${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
 };
 
-function BookingCalendarCard({ 
+function BookingCalendarCard({
   onBook,
   reservationDay,
   gameStartTime,
-}: { 
+}: {
   onBook: () => void;
   reservationDay?: string;
   gameStartTime?: string;
@@ -576,14 +604,14 @@ function BookingCalendarCard({
   );
 
   // reservationDay를 기반으로 초기 날짜 설정
-  const initialDate = reservationDay 
-    ? dayjs(reservationDay).toDate()
-    : today;
+  const initialDate = reservationDay ? dayjs(reservationDay).toDate() : today;
 
   const [month, setMonth] = useState<number>(initialDate.getMonth());
   const [year, setYear] = useState<number>(initialDate.getFullYear());
   const [selectedDate, setSelectedDate] = useState<Date | null>(initialDate);
-  const [selectedSlot, setSelectedSlot] = useState<string>(formatTimeSlot(gameStartTime));
+  const [selectedSlot, setSelectedSlot] = useState<string>(
+    formatTimeSlot(gameStartTime)
+  );
   const [isCalendarOpen, setIsCalendarOpen] = useState<boolean>(true);
   const [isTimesOpen, setIsTimesOpen] = useState<boolean>(true);
 
