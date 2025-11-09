@@ -49,7 +49,7 @@ public class SecurityConfig {
     @org.springframework.core.annotation.Order(1)
     public SecurityFilterChain publicSecurityFilterChain(HttpSecurity http) throws Exception {
         log.info("🔧 Configuring PUBLIC SecurityFilterChain (Order 1)");
-        log.info("   Paths: /health, /actuator/**, /swagger-ui/**, /validate, /refresh, /test/**, /error");
+        log.info("   Paths: /health, /actuator/**, /swagger-ui/**, /validate, /refresh, /test/**, /rooms, /error");
 
         http
                 .securityMatcher(
@@ -61,6 +61,7 @@ public class SecurityConfig {
                         "/validate",
                         "/refresh",
                         "/test/**",  // 테스트 유저 생성 API
+                        "/rooms",
                         "/error"
                 )
                 .csrf(AbstractHttpConfigurer::disable)
