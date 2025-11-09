@@ -1,4 +1,5 @@
-import { roomApi, toJsonBlob } from "@shared/lib/http";
+import { roomApi, ticketingApi, toJsonBlob } from "@shared/lib/http";
+import { useAuthStore } from "@features/auth/store";
 import type {
   CreateRoomRequest,
   ExitRoomRequest,
@@ -6,6 +7,7 @@ import type {
   RoomDetailResponse,
   RoomResponse,
   Slice,
+  CaptchaRequestResponse,
 } from "./types";
 
 export async function getRooms(params?: { page?: number; size?: number }) {
@@ -44,4 +46,29 @@ export async function exitRoom(roomId: number, payload: ExitRoomRequest) {
 
 export async function health() {
   return roomApi.get<{ status: string; timestamp: string }>("/health");
+}
+
+// ----- Captcha -----
+// 보안문자 이미지 요청 (모달 오픈 시 호출)
+export async function requestCaptchaImage() {
+  const { accessToken, refreshToken } = useAuthStore.getState();
+
+  // 디버그 토큰 폴백 (스토어에 토큰이 없을 경우 사용)
+  const DEBUG_ACCESS_TOKEN =
+    "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiIzNiIsImVtYWlsIjoidGVzdC1mMzQ4ZDdmOEB0aWNrZ2V0LnRlc3QiLCJ0eXBlIjoiYWNjZXNzIiwiaWF0IjoxNzYyNjY1MjQ3LCJleHAiOjE3NjI2Njg4NDd9.pKQ79BuxJCAriD9wKJ2bR_HTdTuAAk7Y20L1Q5GIOaYAeOv5PPzpi6zI5ExYAUJaRmntrWsDmDHpDNDPaOaIrQ";
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+  };
+  if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+  else headers.Authorization = `Bearer ${DEBUG_ACCESS_TOKEN}`;
+  if (refreshToken) headers["X-Refresh-Token"] = refreshToken;
+
+  // 표준 ticketingApi(BASE: .../tkt) 기준으로 상대 경로 호출
+  return ticketingApi.postJson<CaptchaRequestResponse>(
+    "ticketing/captcha/request",
+    {},
+    { headers }
+  );
 }

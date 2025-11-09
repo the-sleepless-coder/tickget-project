@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import VolumeUpOutlinedIcon from "@mui/icons-material/VolumeUpOutlined";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
+import { requestCaptchaImage } from "@features/booking-site/api";
 
 type Props = {
   open: boolean;
@@ -24,6 +25,7 @@ export default function CaptchaModal({ open, onVerify, onReselect }: Props) {
   const [startMs, setStartMs] = useState<number | null>(null);
   const [backspaceCount, setBackspaceCount] = useState<number>(0);
   const [wrongAttempts, setWrongAttempts] = useState<number>(0);
+  const [captchaImg, setCaptchaImg] = useState<string>("");
 
   // bump seed to refresh image when needed
 
@@ -40,6 +42,26 @@ export default function CaptchaModal({ open, onVerify, onReselect }: Props) {
       setWrongAttempts(0);
     }
   }, [open]);
+
+  // fetch captcha image when modal opens or seed changes
+  useEffect(() => {
+    if (!open) return;
+    let alive = true;
+    (async () => {
+      try {
+        const data = await requestCaptchaImage();
+        if (alive) {
+          setCaptchaImg(data.image);
+          console.log("캡챠 이미지 호출 성공, id:", data.id);
+        }
+      } catch {
+        console.log("캡챠 이미지 호출 실패");
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [open, seed]);
 
   if (!open) return null;
 
@@ -83,7 +105,7 @@ export default function CaptchaModal({ open, onVerify, onReselect }: Props) {
             <div className="mt-4">
               <div className="relative w-[280px] h-[120px] mx-auto border-2 border-gray-300 bg-gray-100 p-3 flex items-center justify-center">
                 <img
-                  src={`/tempcaptcha.jpg?${seed}`}
+                  src={captchaImg || `/tempcaptcha.jpg?${seed}`}
                   alt="보안문자"
                   className="block mx-auto w-[210px] h-auto select-none"
                 />

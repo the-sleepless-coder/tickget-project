@@ -79,3 +79,9 @@ export type Slice<T> = {
   empty?: boolean;
   numberOfElements?: number;
 };
+
+// Captcha
+export interface CaptchaRequestResponse {
+  image: string;
+  id: string;
+}
