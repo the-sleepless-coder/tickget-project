@@ -1,6 +1,5 @@
 import { useNavigate } from "react-router-dom";
 import { paths } from "../../../../app/routes/paths";
-import Viewport from "./_components/Viewport";
 
 export default function CancelFeePage() {
   const navigate = useNavigate();
@@ -12,7 +11,7 @@ export default function CancelFeePage() {
   const total = ticketPrice + fee + shipping;
 
   return (
-    <Viewport>
+    <>
       <div className="text-[#222] bg-[linear-gradient(to_bottom,#f7f7f7,#e2e2e2)] border-b border-[#cfcfcf]">
         <div className="mx-auto flex text-[13px] max-w-[860px] py-2">
           {[
@@ -148,6 +147,6 @@ export default function CancelFeePage() {
           </div>
         </aside>
       </div>
-    </Viewport>
+    </>
   );
 }

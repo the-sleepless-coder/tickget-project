@@ -1,4 +1,5 @@
 import { paths } from "../../../../app/routes/paths";
+import Viewport from "./_components/Viewport";
 
 export default function SelectVenuePage() {
   const openSeatPopup = (venue: "small" | "medium" | "large") => {
@@ -27,31 +28,33 @@ export default function SelectVenuePage() {
   };
 
   return (
-    <div className="max-w-md mx-auto p-6 space-y-4">
-      <h1 className="text-xl font-semibold">공연장 선택</h1>
-      <div className="space-y-2">
-        <button
-          type="button"
-          className="block w-full text-left border rounded p-3 hover:bg-gray-50"
-          onClick={() => openSeatPopup("small")}
-        >
-          소형 공연장으로 이동 (팝업)
-        </button>
-        <button
-          type="button"
-          className="block w-full text-left border rounded p-3 hover:bg-gray-50"
-          onClick={() => openSeatPopup("medium")}
-        >
-          중형 공연장으로 이동 (팝업)
-        </button>
-        <button
-          type="button"
-          className="block w-full text-left border rounded p-3 hover:bg-gray-50"
-          onClick={() => openSeatPopup("large")}
-        >
-          대형 공연장으로 이동 (팝업)
-        </button>
+    <Viewport>
+      <div className="max-w-md mx-auto p-6 space-y-4">
+        <h1 className="text-xl font-semibold">공연장 선택</h1>
+        <div className="space-y-2">
+          <button
+            type="button"
+            className="block w-full text-left border rounded p-3 hover:bg-gray-50"
+            onClick={() => openSeatPopup("small")}
+          >
+            소형 공연장으로 이동 (팝업)
+          </button>
+          <button
+            type="button"
+            className="block w-full text-left border rounded p-3 hover:bg-gray-50"
+            onClick={() => openSeatPopup("medium")}
+          >
+            중형 공연장으로 이동 (팝업)
+          </button>
+          <button
+            type="button"
+            className="block w-full text-left border rounded p-3 hover:bg-gray-50"
+            onClick={() => openSeatPopup("large")}
+          >
+            대형 공연장으로 이동 (팝업)
+          </button>
+        </div>
       </div>
-    </div>
+    </Viewport>
   );
 }

@@ -1,10 +1,8 @@
-import Viewport from "./_components/Viewport";
 import { paths } from "../../../../app/routes/paths";
 import { buildMetricsQueryFromStorage } from "../../../../shared/utils/reserveMetrics";
 
 export default function BookingCompletePage() {
   return (
-    <Viewport>
       <div className="max-w-[860px] mx-auto grid grid-cols-[1fr_260px] gap-3 p-3">
         {/* 좌측 본문 카드 */}
         <section className="bg-white shadow rounded-md border border-[#d1d1d1]">
@@ -104,7 +102,6 @@ export default function BookingCompletePage() {
           </button>
         </aside>
       </div>
-    </Viewport>
   );
 }
 
