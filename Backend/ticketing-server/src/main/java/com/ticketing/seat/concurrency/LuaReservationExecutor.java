@@ -5,6 +5,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -26,9 +27,9 @@ public class LuaReservationExecutor {
 
     private final DefaultRedisScript<Long> reserveSeatsLuaScript = new DefaultRedisScript<>(
             """
-            local seatCount = tonumber(ARGV[2])
-            local totalSeats = tonumber(ARGV[3])
-            local userIdGrade = ARGV[1]
+            local seatCount = tonumber(ARGV[1])
+            local totalSeats = tonumber(ARGV[2])
+            local userId = ARGV[3]
             
             -- check phase: 모든 좌석이 비어있는지 확인
             for i = 1, seatCount do
@@ -37,8 +38,10 @@ public class LuaReservationExecutor {
                 end
             end
     
-            -- assign phase: 모든 좌석을 userId:grade로 할당
+            -- assign phase: 각 좌석을 userId:grade로 할당
             for i = 1, seatCount do
+                local grade = ARGV[3 + i]  -- ARGV[4]부터 각 좌석의 grade
+                local userIdGrade = userId .. ':' .. grade
                 redis.call('SET', KEYS[i], userIdGrade)
             end
             
@@ -57,12 +60,12 @@ public class LuaReservationExecutor {
     );
 
     /**
-     * 좌석 원자적 선점 처리
+     * 좌석 원자적 선점 처리 (각 좌석마다 다른 grade 가능)
      * @param matchId 경기 ID
-     * @param sectionId 섹션 ID
+     * @param sectionId 섹션 ID (String - Redis 키용)
      * @param rowNumbers 행-번호 리스트 (예: ["9-15", "9-16"])
      * @param userId 사용자 ID
-     * @param grade 좌석 등급
+     * @param grades 각 좌석의 등급 리스트 (예: ["R석", "VIP"])
      * @param totalSeats 전체 좌석 수
      * @return 0: 실패, 1: 성공, 2: 성공+만석
      */
@@ -70,8 +73,12 @@ public class LuaReservationExecutor {
                                           String sectionId,
                                           List<String> rowNumbers,
                                           Long userId,
-                                          String grade,
+                                          List<String> grades,
                                           int totalSeats) {
+
+        if (rowNumbers.size() != grades.size()) {
+            throw new IllegalArgumentException("rowNumbers와 grades의 개수가 일치하지 않습니다.");
+        }
 
         // KEYS: seat 키들 + reserved_count + status
         List<String> keys = Stream.of(
@@ -81,18 +88,38 @@ public class LuaReservationExecutor {
                 Stream.of("match:" + matchId + ":status")
         ).flatMap(s -> s).toList();
 
-
-        // ARGV[1]: userId:grade 형식
-        String userIdGrade = userId + ":" + grade;
+        // ARGV: [seatCount, totalSeats, userId, grade1, grade2, ...]
+        List<String> args = new ArrayList<>();
+        args.add(String.valueOf(rowNumbers.size()));  // ARGV[1]: seatCount
+        args.add(String.valueOf(totalSeats));         // ARGV[2]: totalSeats
+        args.add(String.valueOf(userId));             // ARGV[3]: userId
+        args.addAll(grades);                          // ARGV[4]~: 각 좌석의 grade
 
         Long result = redisTemplate.execute(
                 reserveSeatsLuaScript,
                 keys,
-                userIdGrade,
-                String.valueOf(rowNumbers.size()),
-                String.valueOf(totalSeats)
+                args.toArray()
         );
 
         return result;
+    }
+
+    /**
+     * 하위 호환성: 모든 좌석이 같은 grade를 가지는 경우
+     * @deprecated tryReserveSeatsAtomically(matchId, sectionId, rowNumbers, userId, grades, totalSeats) 사용 권장
+     */
+    @Deprecated
+    public Long tryReserveSeatsAtomically(Long matchId,
+                                          String sectionId,
+                                          List<String> rowNumbers,
+                                          Long userId,
+                                          String grade,
+                                          int totalSeats) {
+        // 모든 좌석에 같은 grade 적용
+        List<String> grades = rowNumbers.stream()
+                .map(r -> grade)
+                .toList();
+
+        return tryReserveSeatsAtomically(matchId, sectionId, rowNumbers, userId, grades, totalSeats);
     }
 }

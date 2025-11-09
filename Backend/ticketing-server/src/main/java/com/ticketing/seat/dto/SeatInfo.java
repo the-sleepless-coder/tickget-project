@@ -11,6 +11,7 @@ public class SeatInfo {
     private Long sectionId;  // 8
     private Long row;        // 9
     private Long col;        // 15
+    private String grade;    // "R석", "VIP" (각 좌석마다 개별 등급)
 
     /**
      * String 변환: "8-9-15"
