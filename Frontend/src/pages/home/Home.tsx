@@ -162,6 +162,7 @@ export default function HomePage() {
             venueName={r.venueName}
             participants={r.participants}
             startTime={r.startTime}
+            roomId={r.id}
           />
         ))}
       </div>

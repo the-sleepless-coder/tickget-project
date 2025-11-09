@@ -36,3 +36,36 @@ export interface CreateRoomResponse {
   thumbnailType: ThumbnailType;
   thumbnailValue: string | null; // URL if UPLOADED
 }
+
+// Room join - Types
+export interface JoinRoomRequest {
+  userId: number;
+  userName: string;
+}
+
+export interface RoomMember {
+  userId: number;
+  username: string;
+  enteredAt: number; // timestamp
+}
+
+export interface JoinRoomResponse {
+  roomId: number;
+  currentUserCount: number;
+  roomMembers: RoomMember[];
+  roomStatus: string; // e.g., "WAITING"
+  subscriptionTopic: string; // e.g., "/topic/rooms/1"
+}
+
+// Room exit - Types
+export interface ExitRoomRequest {
+  userId: number;
+  userName: string;
+}
+
+export interface ExitRoomResponse {
+  roomId: number;
+  leftUserCount: number;
+  roomStatus: string; // e.g., "WAITING" or "CLOSED"
+  unsubscriptionTopic: string; // e.g., "/topic/rooms/1"
+}

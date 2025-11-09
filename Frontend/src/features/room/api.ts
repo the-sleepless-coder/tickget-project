@@ -1,6 +1,13 @@
 import { roomApi, toJsonBlob } from "@shared/lib/http";
 import { useAuthStore } from "@features/auth/store";
-import type { CreateRoomRequest, CreateRoomResponse } from "./types";
+import type {
+  CreateRoomRequest,
+  CreateRoomResponse,
+  JoinRoomRequest,
+  JoinRoomResponse,
+  ExitRoomRequest,
+  ExitRoomResponse,
+} from "./types";
 
 /**
  * Create a room.
@@ -30,4 +37,36 @@ export async function createRoom(
 
   // PRESET일 때 JSON 요청 (또는 파일이 없을 때)
   return roomApi.postJson<CreateRoomResponse>("/rooms", payload, { headers });
+}
+
+/**
+ * Join a room.
+ * POST /rooms/{roomId}/join
+ */
+export async function joinRoom(
+  roomId: number,
+  payload: JoinRoomRequest
+): Promise<JoinRoomResponse> {
+  const headers = useAuthStore.getState().getAuthHeaders();
+  return roomApi.postJson<JoinRoomResponse>(
+    `/rooms/${roomId}/join`,
+    payload,
+    { headers }
+  );
+}
+
+/**
+ * Exit a room.
+ * DELETE /rooms/{roomId}/exit
+ */
+export async function exitRoom(
+  roomId: number,
+  payload: ExitRoomRequest
+): Promise<ExitRoomResponse> {
+  const headers = useAuthStore.getState().getAuthHeaders();
+  return roomApi.delete<ExitRoomResponse>(
+    `/rooms/${roomId}/exit`,
+    payload,
+    { headers }
+  );
 }
