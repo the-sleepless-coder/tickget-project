@@ -1,15 +1,11 @@
-import RoomCard from "../home/_components/RoomCard";
-import { useMemo, useState } from "react";
+import RoomCard from "./_components/RoomCard";
+import { useEffect, useMemo, useState } from "react";
 import Tooltip from "@mui/material/Tooltip";
 import InfoOutlined from "@mui/icons-material/InfoOutlined";
 import SearchIcon from "@mui/icons-material/Search";
-import CreateRoomModal from "../room-modal/create-room/CreateRoomModal";
-import Thumbnail01 from "../../shared/images/thumbnail/Thumbnail01.webp";
-import Thumbnail02 from "../../shared/images/thumbnail/Thumbnail02.webp";
-import Thumbnail03 from "../../shared/images/thumbnail/Thumbnail03.webp";
-import Thumbnail04 from "../../shared/images/thumbnail/Thumbnail04.webp";
-import Thumbnail05 from "../../shared/images/thumbnail/Thumbnail05.webp";
-import Thumbnail06 from "../../shared/images/thumbnail/Thumbnail06.webp";
+import CreateRoomModal from "../room/create-room/CreateRoomModal";
+import { getRooms } from "@features/booking-site/api";
+import type { RoomResponse } from "@features/booking-site/types";
 
 type SortKey = "start" | "latest";
 
@@ -17,79 +13,63 @@ export default function RoomsPage() {
   const [activeSort, setActiveSort] = useState<SortKey>("start");
   const [query, setQuery] = useState("");
   const [openCreate, setOpenCreate] = useState(false);
-  const baseRooms = useMemo(
-    () => [
-      {
-        title: "18시 모집합니다~~!! 18시 모집합니다~~!! 18시 모집합니다~~!!",
-        variant: "blue" as const,
-        size: "small" as const,
-        venueName: "샤롯데씨어터",
-        participants: { current: 8, capacity: 10 },
-        startTime: "18:10",
-        ongoing: false,
-        imageSrc: Thumbnail01,
-      },
-      {
-        title: "록페스티벌 가즈아",
-        variant: "blue" as const,
-        size: "medium" as const,
-        venueName: "올림픽공원 올림픽홀",
-        participants: { current: 1, capacity: 1 },
-        startTime: "14:20",
-        ongoing: false,
-        imageSrc: Thumbnail02,
-      },
-      {
-        title: "뮤지컬 킹키부츠 예매",
-        variant: "blue" as const,
-        size: "large" as const,
-        venueName: "인스파이어 아레나",
-        participants: { current: 15, capacity: 20 },
-        startTime: "13:50",
-        ongoing: true,
-        imageSrc: Thumbnail03,
-      },
-      {
-        title: "팬미팅 연습하실 분",
-        variant: "blue" as const,
-        size: "small" as const,
-        venueName: "샤롯데씨어터",
-        participants: { current: 10, capacity: 10 },
-        startTime: "18:10",
-        ongoing: true,
-        imageSrc: Thumbnail04,
-      },
-      {
-        title: "센과 치히로 내한",
-        variant: "green" as const,
-        size: "medium" as const,
-        venueName: "올림픽공원 올림픽홀",
-        participants: { current: 4, capacity: 5 },
-        startTime: "14:30",
-        ongoing: false,
-        imageSrc: Thumbnail05,
-      },
-      {
-        title: "B-Dragon 컴백콘서트",
-        variant: "orange" as const,
-        size: "large" as const,
-        venueName: "인스파이어 아레나",
-        participants: { current: 15, capacity: 20 },
-        startTime: "14:50",
-        ongoing: false,
-        imageSrc: Thumbnail06,
-      },
-    ],
-    []
-  );
-  const rooms = useMemo(() => {
-    // 6개를 2번 반복하여 12개 구성
-    return Array.from({ length: 12 }).map((_, idx) => ({
-      id: idx,
-      ...baseRooms[idx % baseRooms.length],
-    }));
-  }, [baseRooms]);
+
+  type UiRoom = {
+    id: number;
+    title: string;
+    variant?: "purple" | "blue" | "green" | "orange" | "gray";
+    size?: "small" | "medium" | "large";
+    venueName?: string;
+    participants?: { current: number; capacity: number };
+    startTime?: string;
+    ongoing?: boolean;
+    createdAtMs?: number;
+  };
+
+  const [rooms, setRooms] = useState<UiRoom[]>([]);
   const [availableOnly, setAvailableOnly] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const slice = await getRooms({ page: 0, size: 12 });
+        const mapped: UiRoom[] = (slice.content ?? []).map(
+          (r: RoomResponse): UiRoom => {
+            const size =
+              (r.hallSize?.toLowerCase() as UiRoom["size"]) ?? undefined;
+            const createdAtMs = r.createdAt ? Date.parse(r.createdAt) : 0;
+            const startTime =
+              r.startTime && r.startTime.length >= 16
+                ? r.startTime.substring(11, 16)
+                : undefined;
+            return {
+              id: r.roomId,
+              title: r.roomName,
+              variant: "blue",
+              size,
+              venueName: r.hallName,
+              participants: {
+                current: r.currentUserCount,
+                capacity: r.maxUserCount,
+              },
+              startTime,
+              ongoing: r.status === "PLAYING",
+              createdAtMs,
+            };
+          }
+        );
+        // 기본 최신순 정렬
+        mapped.sort((a, b) => (b.createdAtMs ?? 0) - (a.createdAtMs ?? 0));
+        if (!cancelled) setRooms(mapped);
+      } catch (e) {
+        console.error("방 목록 불러오기 실패:", e);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const normalizedQuery = query.trim().toLowerCase();
   const filteredRooms = rooms
     .filter((r) =>
@@ -102,6 +82,16 @@ export default function RoomsPage() {
         : false;
       return !r.ongoing && !isFull;
     });
+
+  const sortedRooms = useMemo(() => {
+    if (activeSort === "latest") {
+      return [...filteredRooms].sort(
+        (a, b) => (b.createdAtMs ?? 0) - (a.createdAtMs ?? 0)
+      );
+    }
+    // 'start' 정렬은 간단히 그대로 둠 (서버 정렬 신뢰)
+    return filteredRooms;
+  }, [filteredRooms, activeSort]);
   return (
     <div className="mx-auto max-w-7xl p-4 sm:p-6">
       {/* Search */}
@@ -208,7 +198,7 @@ export default function RoomsPage() {
       <CreateRoomModal open={openCreate} onClose={() => setOpenCreate(false)} />
 
       <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-2">
-        {filteredRooms.map((room) => (
+        {sortedRooms.map((room) => (
           <RoomCard
             key={room.id}
             title={room.title}
@@ -218,14 +208,14 @@ export default function RoomsPage() {
             participants={room.participants}
             startTime={room.startTime}
             ongoing={room.ongoing}
-            imageSrc={room.imageSrc}
+            roomId={room.id}
           />
         ))}
       </div>
-      {filteredRooms.length === 0 ? (
-        <p className="mt-6 text-center text-sm text-gray-500">
-          검색 결과가 없습니다.
-        </p>
+      {sortedRooms.length === 0 ? (
+        <div className="mt-30 mb-40 text-center text-md text-gray-500 leading-relaxed">
+          현재 진행되는 경기가 없습니다.
+        </div>
       ) : null}
     </div>
   );

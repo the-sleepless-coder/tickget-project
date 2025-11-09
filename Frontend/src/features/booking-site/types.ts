@@ -79,3 +79,31 @@ export type Slice<T> = {
   empty?: boolean;
   numberOfElements?: number;
 };
+
+// Captcha
+export interface CaptchaRequestResponse {
+  image: string;
+  id: string;
+}
+
+// Captcha Validate
+export interface CaptchaValidateRequest {
+  captchaId: string;
+  input: string;
+}
+
+export interface CaptchaValidateResponse {
+  // 응답 스펙 미정: 성공 시 2xx로 간주하고 본문은 사용하지 않음
+  success?: boolean;
+  message?: string;
+  [key: string]: unknown;
+}
+
+export interface CaptchaValidateResult {
+  status: number;
+  body: {
+    message?: string;
+    expireTime?: string;
+    [key: string]: unknown;
+  };
+}

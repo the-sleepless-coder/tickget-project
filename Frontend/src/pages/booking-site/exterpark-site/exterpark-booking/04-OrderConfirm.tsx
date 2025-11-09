@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
-import Viewport from "./_components/Viewport";
+import BookingLayout from "./_components/BookingLayout";
 import { paths } from "../../../../app/routes/paths";
 
 export default function OrderConfirmPage() {
@@ -10,92 +10,17 @@ export default function OrderConfirmPage() {
 
   // 예매자 정보 (제어 컴포넌트)
   const [buyerName, setBuyerName] = useState<string>("홍길동");
-  const [birthDate, setBirthDate] = useState<string>("20250101");
+  const [birthDate, setBirthDate] = useState<string>("19900101");
   const [phoneFirst, setPhoneFirst] = useState<string>("010");
   const [phoneMiddle, setPhoneMiddle] = useState<string>("1234");
   const [phoneLast, setPhoneLast] = useState<string>("5678");
   const [email, setEmail] = useState<string>("ssafy13@gmail.com");
 
   return (
-    <Viewport>
-      {/* 상단 단계 네비게이션 바 (04 활성) */}
-      <div className="text-[#222] bg-[linear-gradient(to_bottom,#f7f7f7,#e2e2e2)] border-b border-[#cfcfcf]">
-        <div className="mx-auto flex text-[13px] max-w-[860px] py-2">
-          {[
-            "01 관람일/회차선택",
-            "02 좌석 선택",
-            "03 가격/할인선택",
-            "04 배송선택/주문자확인",
-            "05 결제하기",
-          ].map((t, i) => (
-            <div
-              key={t}
-              className={
-                "px-4 py-3 border-r border-[#c7c7c7] flex items-center gap-2 " +
-                (i === 3
-                  ? "bg-[#c62828] text-white"
-                  : "bg-[#d9d9d9] text-[#333]")
-              }
-            >
-              <span className="font-extrabold">
-                {String(i + 1).padStart(2, "0")}
-              </span>
-              <span className="font-semibold">
-                {t.replace(/^[0-9]{2}\s/, "")}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="max-w-[860px] mx-auto p-3 grid grid-cols-[260px_1fr_260px] gap-3">
-        {/* 좌측: 티켓 수령 방법 */}
-        <section className="bg-white rounded-md shadow border border-[#e3e3e3]">
-          <header className="px-3 py-2 font-bold border-b">티켓수령방법</header>
-          <div className="p-3 space-y-3 text-sm">
-            <label className="flex items-center gap-2">
-              <input name="recv" type="radio" /> 현장수령
-            </label>
-            <label className="flex items-center gap-2">
-              <input name="recv" type="radio" defaultChecked /> 배송 (3,700원)
-            </label>
-
-            <div className="mt-3 text-[12px] text-gray-600 leading-5 border rounded p-2 bg-[#fafafa]">
-              2025년 11월 27일 일괄 배송되는 상품입니다.
-              <br />
-              11월 27일(목) ~ 28일(금), 2일간
-              <br />* 티켓은 묶음배송이 불가합니다.
-              <br />* 배송완료시 티켓 분실 시 입장 불가합니다.
-            </div>
-
-            <div className="mt-3">
-              <div className="flex items-center justify-between text-sm font-semibold">
-                <span>티켓프리미엄서비스</span>
-                <button className="text-[12px] text-gray-500">
-                  미리보기 ▾
-                </button>
-              </div>
-              <div className="mt-2 space-y-2 text-sm">
-                {[
-                  "스페셜 포장 - 화이트 (1,000원)",
-                  "스페셜 포장 - 블루 (1,000원)",
-                  "프리미엄 포장 - 블루 (2,000원)",
-                  "toping 회원 전용 (무료)",
-                ].map((txt) => (
-                  <label key={txt} className="flex items-center gap-2">
-                    <input type="radio" name="premium" /> {txt}
-                  </label>
-                ))}
-                <label className="flex items-center gap-2">
-                  <input type="radio" name="premium" defaultChecked /> 선택안함
-                </label>
-              </div>
-            </div>
-          </div>
-        </section>
-
+    <BookingLayout activeStep={3}>
+      <div className="p-3 grid grid-cols-[1fr_260px] gap-3">
         {/* 가운데: 예매자 확인 + 배송지 정보 */}
-        <section className="bg-white rounded-md shadow border border-[#e3e3e3] col-span-1">
+        <section className="bg-white rounded-md shadow border border-[#e3e3e3]">
           <header className="px-3 py-2 font-bold border-b">예매자 확인</header>
           <div className="p-3 text-sm">
             <div className="grid grid-cols-[100px_1fr_1fr_1fr] items-center gap-2">
@@ -209,13 +134,13 @@ export default function OrderConfirmPage() {
             </button>
             <button
               onClick={goNext}
-              className="flex-1 bg-[#c62828] hover:bg-[#b71c1c] text-white rounded-md py-2 font-semibold"
+              className="flex-1 bg-[linear-gradient(to_bottom,#4383fb,#104bb7)] text-white rounded-md py-2 font-semibold"
             >
               다음단계 ▸
             </button>
           </div>
         </aside>
       </div>
-    </Viewport>
+    </BookingLayout>
   );
 }

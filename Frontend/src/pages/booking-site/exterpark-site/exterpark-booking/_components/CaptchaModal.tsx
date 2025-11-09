@@ -2,6 +2,10 @@ import { useEffect, useState } from "react";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import VolumeUpOutlinedIcon from "@mui/icons-material/VolumeUpOutlined";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
+import {
+  requestCaptchaImage,
+  validateCaptcha,
+} from "@features/booking-site/api";
 
 type Props = {
   open: boolean;
@@ -24,6 +28,8 @@ export default function CaptchaModal({ open, onVerify, onReselect }: Props) {
   const [startMs, setStartMs] = useState<number | null>(null);
   const [backspaceCount, setBackspaceCount] = useState<number>(0);
   const [wrongAttempts, setWrongAttempts] = useState<number>(0);
+  const [captchaImg, setCaptchaImg] = useState<string>("");
+  const [captchaId, setCaptchaId] = useState<string>("");
 
   // bump seed to refresh image when needed
 
@@ -41,15 +47,83 @@ export default function CaptchaModal({ open, onVerify, onReselect }: Props) {
     }
   }, [open]);
 
+  // fetch captcha image when modal opens or seed changes
+  useEffect(() => {
+    if (!open) return;
+    let alive = true;
+    (async () => {
+      try {
+        const data = await requestCaptchaImage();
+        if (alive) {
+          setCaptchaImg(data.image);
+          setCaptchaId(data.id);
+          console.log("캡챠 이미지 호출 성공, id:", data.id);
+        }
+      } catch {
+        console.log("캡챠 이미지 호출 실패");
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [open, seed]);
+
   if (!open) return null;
 
-  const submit = (e?: React.FormEvent) => {
+  const submit = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (input.trim().length > 0) {
-      const endMs =
-        typeof performance !== "undefined" ? performance.now() : Date.now();
-      const duration = startMs != null ? Math.max(0, endMs - startMs) : 0;
-      onVerify(duration, { backspaceCount, wrongAttempts });
+      try {
+        if (!captchaId) {
+          setError("보안문자를 불러오는 중입니다. 잠시 후 다시 시도해주세요.");
+          return;
+        }
+        const result = await validateCaptcha({
+          captchaId,
+          input: input.trim(),
+        });
+        console.log("캡챠 검증 결과:", result.status, result.body);
+        if (result.status === 200) {
+          const endMs =
+            typeof performance !== "undefined" ? performance.now() : Date.now();
+          const duration = startMs != null ? Math.max(0, endMs - startMs) : 0;
+          onVerify(duration, { backspaceCount, wrongAttempts });
+          return;
+        }
+        if (result.status === 401) {
+          setError("입력한 문자를 다시 확인해주세요");
+          setInput("");
+          setIsFocused(false);
+          setWrongAttempts((w) => w + 1);
+          return;
+        }
+        if (result.status === 400) {
+          // 답변 시간 초과 → 새 캡챠로 새로고침
+          setSeed((s) => s + 1);
+          setInput("");
+          setIsFocused(false);
+          return;
+        }
+        if (result.status === 404) {
+          // 캡챠가 만료/미존재 → 새 캡챠로 새로고침
+          setSeed((s) => s + 1);
+          setInput("");
+          setIsFocused(false);
+          return;
+        }
+        // 기타 상태 코드: 일반 에러 처리
+        setError("입력한 문자를 다시 확인해주세요");
+        setInput("");
+        setIsFocused(false);
+        setWrongAttempts((w) => w + 1);
+      } catch {
+        setError("입력한 문자를 다시 확인해주세요");
+        setInput("");
+        setIsFocused(false);
+        setWrongAttempts((w) => w + 1);
+        // 잘못된 경우 새 캡챠 요청
+        setSeed((s) => s + 1);
+      }
     } else {
       setError("입력한 문자를 다시 확인해주세요");
       setInput("");
@@ -83,7 +157,7 @@ export default function CaptchaModal({ open, onVerify, onReselect }: Props) {
             <div className="mt-4">
               <div className="relative w-[280px] h-[120px] mx-auto border-2 border-gray-300 bg-gray-100 p-3 flex items-center justify-center">
                 <img
-                  src={`/tempcaptcha.jpg?${seed}`}
+                  src={captchaImg || `/tempcaptcha.jpg?${seed}`}
                   alt="보안문자"
                   className="block mx-auto w-[210px] h-auto select-none"
                 />

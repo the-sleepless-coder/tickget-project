@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import Viewport from "./_components/Viewport";
+import BookingLayout from "./_components/BookingLayout";
 import { paths } from "../../../../app/routes/paths";
 
 export default function BookingSelectSchedulePage() {
@@ -73,38 +73,8 @@ export default function BookingSelectSchedulePage() {
   };
 
   return (
-    <Viewport>
-      {/* 상단 단계 네비게이션 바 (옅은 그라데이션 회색) */}
-      <div className="text-[#222] bg-[linear-gradient(to_bottom,#f7f7f7,#e2e2e2)] border-b border-[#cfcfcf]">
-        <div className="mx-auto flex text-[13px] max-w-[860px] py-2">
-          {[
-            "01 관람일/회차선택",
-            "02 좌석 선택",
-            "03 가격/할인선택",
-            "04 배송선택/주문자확인",
-            "05 결제하기",
-          ].map((t, i) => (
-            <div
-              key={t}
-              className={
-                "px-4 py-3 border-r border-[#c7c7c7] flex items-center gap-2 " +
-                (i === 0
-                  ? "bg-[#c62828] text-white"
-                  : "bg-[#d9d9d9] text-[#333]")
-              }
-            >
-              <span className="font-extrabold">
-                {String(i + 1).padStart(2, "0")}
-              </span>
-              <span className="font-semibold">
-                {t.replace(/^[0-9]{2}\s/, "")}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="max-w-[860px] mx-auto p-3">
+    <BookingLayout activeStep={0}>
+      <div className="p-3">
         <div className="flex gap-4">
           {/* 좌측 3분할: 달력 / 회차 / 좌석등급 */}
           <div className="flex-1">
@@ -165,9 +135,9 @@ export default function BookingSelectSchedulePage() {
                           className={
                             "inline-flex items-center justify-center w-6 h-6 rounded text-xs " +
                             (isSelected
-                              ? "bg-[#c62828] text-white"
+                              ? "bg-[#104bb7] text-white"
                               : isAvailable
-                                ? "bg-[#f6b26b] text-white hover:bg-[#f5a352]"
+                                ? "bg-[#60a5fa] text-white hover:bg-[#3b82f6]"
                                 : "text-gray-300 cursor-not-allowed pointer-events-none")
                           }
                         >
@@ -179,11 +149,11 @@ export default function BookingSelectSchedulePage() {
                 </div>
                 <div className="mt-2 flex items-center gap-3 text-[11px] text-gray-600">
                   <div className="flex items-center gap-1">
-                    <span className="inline-block w-2.5 h-2.5 rounded-sm bg-[#f6b26b]" />{" "}
+                    <span className="inline-block w-2.5 h-2.5 rounded-sm bg-[#60a5fa]" />{" "}
                     예매 가능일
                   </div>
                   <div className="flex items-center gap-1">
-                    <span className="inline-block w-2.5 h-2.5 rounded-sm bg-[#c62828]" />{" "}
+                    <span className="inline-block w-2.5 h-2.5 rounded-sm bg-[#104bb7]" />{" "}
                     선택한 관람일
                   </div>
                 </div>
@@ -203,7 +173,7 @@ export default function BookingSelectSchedulePage() {
                           className={
                             "w-full text-left p-2 rounded border text-xs transition-colors " +
                             (selectedRound === round.id
-                              ? "border-[#c62828] bg-red-50 text-[#c62828]"
+                              ? "border-[#104bb7] bg-[#eaf2ff] text-[#104bb7]"
                               : "border-gray-200 hover:bg-gray-50")
                           }
                         >
@@ -364,7 +334,7 @@ export default function BookingSelectSchedulePage() {
                 <button
                   onClick={goNext}
                   disabled={!selectedDate || !selectedRound}
-                  className="flex-1 bg-[#c62828] hover:bg-[#b71c1c] text-white rounded-md py-2 font-semibold disabled:bg-gray-300 disabled:cursor-not-allowed disabled:hover:bg-gray-300"
+                  className="flex-1 bg-[linear-gradient(to_bottom,#4383fb,#104bb7)] hover:bg-[#104bb7] text-white rounded-md py-2 font-semibold disabled:bg-gray-300 disabled:cursor-not-allowed disabled:hover:bg-gray-300"
                 >
                   다음단계 ▸
                 </button>
@@ -373,6 +343,6 @@ export default function BookingSelectSchedulePage() {
           </div>
         </div>
       </div>
-    </Viewport>
+    </BookingLayout>
   );
 }

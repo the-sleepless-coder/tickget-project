@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import Viewport from "./_components/Viewport";
+import BookingLayout from "./_components/BookingLayout";
 import { paths } from "../../../../app/routes/paths";
 
 export default function PricePage() {
@@ -40,38 +40,8 @@ export default function PricePage() {
   const goNext = () => navigate(paths.booking.orderConfirm);
 
   return (
-    <Viewport>
-      {/* 상단 단계 네비게이션 바 (1번 화면과 동일 스타일, 03 활성) */}
-      <div className="text-[#222] bg-[linear-gradient(to_bottom,#f7f7f7,#e2e2e2)] border-b border-[#cfcfcf]">
-        <div className="mx-auto flex text-[13px] max-w-[860px] py-2">
-          {[
-            "01 관람일/회차선택",
-            "02 좌석 선택",
-            "03 가격/할인선택",
-            "04 배송선택/주문자확인",
-            "05 결제하기",
-          ].map((t, i) => (
-            <div
-              key={t}
-              className={
-                "px-4 py-3 border-r border-[#c7c7c7] flex items-center gap-2 " +
-                (i === 2
-                  ? "bg-[#c62828] text-white"
-                  : "bg-[#d9d9d9] text-[#333]")
-              }
-            >
-              <span className="font-extrabold">
-                {String(i + 1).padStart(2, "0")}
-              </span>
-              <span className="font-semibold">
-                {t.replace(/^[0-9]{2}\s/, "")}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="max-w-[860px] mx-auto p-3 flex gap-3">
+    <BookingLayout activeStep={2}>
+      <div className="p-3 flex gap-3">
         <div className="flex-1 bg-white rounded-md shadow border border-[#e3e3e3]">
           <div className="px-3 py-2 text-sm border-b bg-[#fafafa]">
             SR석 | 좌석 1매를 선택하셨습니다.
@@ -110,7 +80,7 @@ export default function PricePage() {
               <span className="ml-2">(중복사용불가)</span>
             </div>
             <div className="flex items-center gap-2">
-              <button className="rounded px-2 py-1 text-[12px] bg-[#f7e1e1] text-[#8a2a2a] border border-[#d9a7a7]">
+              <button className="rounded px-2 py-1 text-[12px] bg-[#e6f2ff] text-[#1e3a8a] border border-[#bcd3ff]">
                 나의쿠폰모두보기
               </button>
               <button className="rounded px-2 py-1 text-[12px] border">
@@ -182,7 +152,7 @@ export default function PricePage() {
               <button
                 onClick={goNext}
                 disabled={total === 0}
-                className="flex-1 bg-[#c62828] hover:bg-[#b71c1c] disabled:hover:bg-[#c62828] disabled:opacity-60 text-white rounded-md py-2 font-semibold"
+                className="flex-1 bg-[linear-gradient(to_bottom,#4383fb,#104bb7)] disabled:opacity-60 text-white rounded-md py-2 font-semibold"
               >
                 다음단계 ▸
               </button>
@@ -190,7 +160,7 @@ export default function PricePage() {
           </div>
         </aside>
       </div>
-    </Viewport>
+    </BookingLayout>
   );
 }
 

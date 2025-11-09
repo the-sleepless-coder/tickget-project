@@ -1,6 +1,8 @@
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { paths } from "../../../app/routes/paths";
 import { useEffect, useMemo, useState, useCallback } from "react";
+import { joinRoom } from "@features/room/api";
+import { useAuthStore } from "@features/auth/store";
 
 type RoomCardVariant = "purple" | "blue" | "green" | "orange" | "gray";
 
@@ -12,6 +14,7 @@ interface RoomCardProps {
   badgeText?: string; // kept for backwards-compat (rooms 페이지)
   variant?: RoomCardVariant;
   to?: string;
+  roomId?: number; // 방 ID (입장 API 호출용)
   // Home 전용 확장 props
   participants?: { current: number; capacity: number };
   startTime?: string; // e.g., "18:10"
@@ -46,12 +49,17 @@ export default function RoomCard({
   badgeText,
   variant = "purple",
   to = paths.iTicket,
+  roomId,
   participants,
   startTime,
   size,
   venueName,
   ongoing,
 }: RoomCardProps) {
+  const navigate = useNavigate();
+  const userId = useAuthStore((state) => state.userId);
+  const nickname = useAuthStore((state) => state.nickname);
+  const [isJoining, setIsJoining] = useState(false);
   const gradient = VARIANT_GRADIENT[variant];
   const badgeBg = VARIANT_BADGE_BG[variant];
   // Default badge text by variant (blue/orange/green only)
@@ -218,7 +226,6 @@ export default function RoomCard({
       try {
         const colors = await extractColors(resolvedImageSrc);
         if (!cancelled) {
-          console.log("Extracted colors:", colors); // 디버깅용
           setExtractedColors(colors);
         }
       } catch (error) {
@@ -260,6 +267,19 @@ export default function RoomCard({
     return `linear-gradient(to right, ${hexToRgba(gradient.from, 1)} 0%, ${hexToRgba(gradient.to, 0)} 100%)`;
   };
 
+  // 호버 시 카드 전체 배경색 생성 (추출된 색상 또는 variant 색상)
+  const getHoverBackgroundStyle = (): string => {
+    if (extractedColors && extractedColors.length > 0) {
+      const color = extractedColors[0];
+      const rgb = color.match(/\d+/g);
+      if (rgb && rgb.length === 3) {
+        return `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0.1)`;
+      }
+    }
+    // 기본값: variant 색상 사용
+    return hexToRgba(gradient.from, 0.1);
+  };
+
   // 우측 정보 영역에서 사용할 참가 인원 텍스트
   const participantsText = useMemo(() => {
     if (!participants) return null;
@@ -270,13 +290,76 @@ export default function RoomCard({
   const isFull =
     !!participants && participants.current >= participants.capacity;
   const overlayLabel = ongoing ? "경기 진행중" : isFull ? "최대 인원" : null;
+  const isDisabled = ongoing || isFull || isJoining;
+
+  // 방 입장 핸들러
+  const handleRoomClick = async (e: React.MouseEvent) => {
+    e.preventDefault();
+
+    if (isDisabled || !roomId) {
+      if (!roomId) {
+        // roomId가 없으면 기존 동작 (Link로 이동)
+        navigate(to);
+      }
+      return;
+    }
+
+    if (!userId || !nickname) {
+      alert("로그인이 필요합니다.");
+      return;
+    }
+
+    setIsJoining(true);
+    try {
+      console.log("🚪 방 입장 요청 시작:", { roomId, userId, userName: nickname });
+
+      const response = await joinRoom(roomId, {
+        userId,
+        userName: nickname,
+      });
+
+      console.log("✅ 방 입장 성공:", JSON.stringify(response, null, 2));
+      console.log("📋 방 멤버 목록:", response.roomMembers);
+
+      // 응답 데이터를 기반으로 게임룸으로 이동
+      const roomPath = paths.iTicketRoom(response.roomId);
+      navigate(roomPath, {
+        state: {
+          roomData: {
+            roomId: response.roomId,
+            subscriptionTopic: response.subscriptionTopic,
+            // 필요한 다른 필드들도 매핑 가능
+          },
+          joinResponse: response, // 입장 응답 데이터도 함께 전달
+        },
+      });
+    } catch (error) {
+      console.error("❌ 방 입장 실패:", error);
+      if (error instanceof Error) {
+        alert(error.message || "방 입장에 실패했습니다.");
+      } else {
+        alert("방 입장에 실패했습니다.");
+      }
+    } finally {
+      setIsJoining(false);
+    }
+  };
 
   return (
-    <Link
-      to={to}
-      className="group relative overflow-hidden rounded-xl bg-white shadow-md transition hover:shadow-lg"
+    <div
+      onClick={handleRoomClick}
+      className={`group relative overflow-hidden rounded-xl bg-white shadow-md transition hover:shadow-lg ${
+        isDisabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"
+      }`}
       aria-label={`${title} 연습 방 입장`}
     >
+      {/* 호버 시 카드 전체 배경색 오버레이 */}
+      <div
+        className="absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100 pointer-events-none rounded-xl"
+        style={{
+          background: getHoverBackgroundStyle(),
+        }}
+      />
       <div className="relative flex gap-4 p-4">
         {/* 좌측 배경 영역 - 추출된 색상 그라데이션 (포스터 영역까지만) */}
         <div
@@ -303,10 +386,10 @@ export default function RoomCard({
               className="absolute inset-0 h-full w-full object-cover"
               loading="lazy"
             />
-            {overlayLabel ? (
+            {overlayLabel || isJoining ? (
               <div className="pointer-events-none absolute inset-0 z-10 grid place-items-center bg-[#4F4F4F]/50 backdrop-blur-[2px]">
                 <span className="text-white text-lg font-extrabold">
-                  {overlayLabel}
+                  {isJoining ? "입장 중..." : overlayLabel}
                 </span>
               </div>
             ) : null}
@@ -314,14 +397,9 @@ export default function RoomCard({
         </div>
 
         {/* Right: Info area */}
-        <div className="relative min-w-0 flex-1 z-10">
-          <div className="flex items-start justify-between gap-2">
-            <h3
-              className="text-sm sm:text-base font-semibold text-gray-900 truncate"
-              title={title}
-            >
-              {title}
-            </h3>
+        <div className="relative min-w-0 flex-1 z-10 flex flex-col">
+          {/* Top line: 배지(왼쪽)와 참가 인원(오른쪽) */}
+          <div className="flex items-center justify-between mb-1">
             {displayedBadge ? (
               <span
                 className="rounded-full px-2.5 py-1 text-[10px] sm:text-[11px] font-medium text-white shadow-sm shrink-0"
@@ -330,32 +408,60 @@ export default function RoomCard({
                 {displayedBadge}
               </span>
             ) : null}
-          </div>
-
-          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-gray-600">
             {participantsText ? (
-              <span className="font-semibold text-gray-900">
+              <span className="text-sm text-gray-400">
                 {participantsText}
               </span>
             ) : null}
-            <span>{capacityText}</span>
-            <span>{resolvedTagsText}</span>
           </div>
 
-          <div className="mt-2 flex items-center justify-between">
-            {startTime ? (
-              <span
-                className="text-base sm:text-lg font-extrabold"
-                style={{ color: badgeBg }}
-              >
-                {startTime} 시작
-              </span>
-            ) : (
-              <span className="text-sm text-gray-500">상시</span>
-            )}
+          {/* Main title */}
+          <h3
+            className="text-base sm:text-lg font-semibold text-black mb-2 truncate"
+            title={title}
+          >
+            {title}
+          </h3>
+
+          {/* Separator line */}
+          <div className="h-px bg-gray-300 mb-2" />
+
+          {/* First detail line */}
+          <div className="text-base text-gray-500 mb-1">
+            {capacityText}
           </div>
+
+          {/* Second detail line */}
+          <div className="text-base text-gray-500 mb-auto">
+            {resolvedTagsText}
+          </div>
+
+          {/* Bottom right: 시간 표시 (time.svg 배경) */}
+          {startTime ? (
+            <div className="relative mt-auto flex justify-end">
+              <div className="relative">
+                {/* time.svg 배경 */}
+                <img
+                  src="/time.svg"
+                  alt=""
+                  className="h-[40px] w-auto"
+                  style={{ minWidth: "160px" }}
+                />
+                {/* 시간 텍스트 오버레이 */}
+                <div className="absolute inset-0 flex items-center justify-center pr-3">
+                  <span className="text-white text-sm font-semibold">
+                    시작: {startTime}
+                  </span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-auto flex justify-end">
+              <span className="text-sm text-gray-500">상시</span>
+            </div>
+          )}
         </div>
       </div>
-    </Link>
+    </div>
   );
 }

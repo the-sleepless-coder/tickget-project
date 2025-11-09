@@ -1,76 +1,81 @@
 import RoomCard from "./_components/RoomCard";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { paths } from "../../app/routes/paths";
-import CreateRoomModal from "../room-modal/create-room/CreateRoomModal";
-import Thumbnail01 from "../../shared/images/thumbnail/Thumbnail01.webp";
-import Thumbnail02 from "../../shared/images/thumbnail/Thumbnail02.webp";
-import Thumbnail03 from "../../shared/images/thumbnail/Thumbnail03.webp";
-import Thumbnail04 from "../../shared/images/thumbnail/Thumbnail04.webp";
-import Thumbnail05 from "../../shared/images/thumbnail/Thumbnail05.webp";
-import Thumbnail06 from "../../shared/images/thumbnail/Thumbnail06.webp";
+import CreateRoomModal from "../room/create-room/CreateRoomModal";
+import { getRooms } from "@features/booking-site/api";
+import type { RoomResponse } from "@features/booking-site/types";
 
 type SortKey = "start" | "latest" | "all";
 
 export default function HomePage() {
   const [activeSort, setActiveSort] = useState<SortKey>("start");
   const [openCreate, setOpenCreate] = useState(false);
-  const rooms = [
-    {
-      title: "18시 모집합니다~~!! 18시 모집합니다~~!! 18시 모집합니다~~!!",
-      variant: "blue" as const,
-      size: "small" as const,
-      venueName: "샤롯데씨어터",
-      participants: { current: 8, capacity: 10 },
-      startTime: "18:10",
-      imageSrc: Thumbnail01,
-    },
-    {
-      title: "18시 모집합니다~~!! 18시 시작",
-      variant: "blue" as const,
-      size: "medium" as const,
-      venueName: "올림픽공원 올림픽홀",
-      participants: { current: 1, capacity: 1 },
-      startTime: "14:20",
-      imageSrc: Thumbnail02,
-    },
-    {
-      title: "18시 모집합니다~~!! 18시 시작",
-      variant: "blue" as const,
-      size: "large" as const,
-      venueName: "인스파이어 아레나",
-      participants: { current: 15, capacity: 20 },
-      startTime: "13:50",
-      imageSrc: Thumbnail03,
-    },
-    {
-      title: "18시 모집합니다~~!! 18시 시작",
-      variant: "blue" as const,
-      size: "small" as const,
-      venueName: "샤롯데씨어터",
-      participants: { current: 10, capacity: 10 },
-      startTime: "18:10",
-      imageSrc: Thumbnail04,
-    },
-    {
-      title: "18시 모집합니다~~!! 18시 시작",
-      variant: "green" as const,
-      size: "medium" as const,
-      venueName: "올림픽공원 올림픽홀",
-      participants: { current: 4, capacity: 5 },
-      startTime: "14:30",
-      imageSrc: Thumbnail05,
-    },
-    {
-      title: "18시 모집합니다~~!! 18시 시작",
-      variant: "orange" as const,
-      size: "large" as const,
-      venueName: "인스파이어 아레나",
-      participants: { current: 15, capacity: 20 },
-      startTime: "14:50",
-      imageSrc: Thumbnail06,
-    },
-  ];
+
+  type UiRoom = {
+    id: number;
+    title: string;
+    variant?: "purple" | "blue" | "green" | "orange" | "gray";
+    size?: "small" | "medium" | "large";
+    venueName?: string;
+    participants?: { current: number; capacity: number };
+    startTime?: string;
+    ongoing?: boolean;
+    createdAtMs?: number;
+  };
+
+  const [rooms, setRooms] = useState<UiRoom[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const slice = await getRooms({ page: 0, size: 6 });
+        const mapped: UiRoom[] = (slice.content ?? []).map(
+          (r: RoomResponse): UiRoom => {
+            const size =
+              (r.hallSize?.toLowerCase() as UiRoom["size"]) ?? undefined;
+            const createdAtMs = r.createdAt ? Date.parse(r.createdAt) : 0;
+            const startTime =
+              r.startTime && r.startTime.length >= 16
+                ? r.startTime.substring(11, 16)
+                : undefined;
+            return {
+              id: r.roomId,
+              title: r.roomName,
+              variant: "blue",
+              size,
+              venueName: r.hallName,
+              participants: {
+                current: r.currentUserCount,
+                capacity: r.maxUserCount,
+              },
+              startTime,
+              ongoing: r.status === "PLAYING",
+              createdAtMs,
+            };
+          }
+        );
+        // 기본 최신순 정렬
+        mapped.sort((a, b) => (b.createdAtMs ?? 0) - (a.createdAtMs ?? 0));
+        if (!cancelled) setRooms(mapped);
+      } catch (e) {
+        console.error("추천 방 목록 불러오기 실패:", e);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const displayedRooms = useMemo(() => {
+    if (activeSort === "latest") {
+      return [...rooms].sort(
+        (a, b) => (b.createdAtMs ?? 0) - (a.createdAtMs ?? 0)
+      );
+    }
+    return rooms;
+  }, [rooms, activeSort]);
   return (
     <div className="mx-auto max-w-7xl p-4 sm:p-6">
       {/* Banner */}
@@ -148,7 +153,7 @@ export default function HomePage() {
 
       {/* Grid */}
       <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-2">
-        {rooms.map((r, idx) => (
+        {displayedRooms.map((r, idx) => (
           <RoomCard
             key={idx}
             title={r.title}
@@ -157,11 +162,15 @@ export default function HomePage() {
             venueName={r.venueName}
             participants={r.participants}
             startTime={r.startTime}
-            imageSrc={r.imageSrc}
+            roomId={r.id}
           />
         ))}
       </div>
-
+      {displayedRooms.length === 0 ? (
+        <div className="mt-30 mb-40 text-center text-md text-gray-500 leading-relaxed">
+          티켓팅 연습방을 만들어보세요 !
+        </div>
+      ) : null}
       <div className="h-10" />
     </div>
   );
