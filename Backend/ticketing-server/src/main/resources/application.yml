@@ -7,7 +7,7 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://localhost:3306/ticketing_db?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
     username: root
-    password: hwilee2529*
+    password: ssafy
   # Redis 설정
   data:
     redis:
@@ -53,6 +53,8 @@ spring:
     listener:
       ack-mode: MANUAL_IMMEDIATE
 
+  # 동시에 진행되는 스케줄링을 위해,
+  # 병렬적으로 돌아갈 수 있는 스레드 개수 증가
   task:
     scheduling:
       pool:
@@ -101,3 +103,4 @@ management:
 captcha:
   address: ${CAPTCHA_ADDRESS:http://localhost:8080/api/v1.0/captcha/}
   timeout: ${CAPTCHA_TIMEOUT:5000}
+
