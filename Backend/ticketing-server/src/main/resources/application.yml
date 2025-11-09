@@ -35,23 +35,69 @@ spring:
   # Kafka 설정 추가
   kafka:
     bootstrap-servers: localhost:9092
-    consumer:
-      group-id: ticketing-service
-      auto-offset-reset: earliest # 토픽의 가장 처음부터 읽기 , latest (기본값): 가장 최근 메시지부터 읽기 (이전 메시지는 무시)
-      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
-      properties:
-        spring.json.trusted.packages: com.ticketing.seat.event
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
       properties:
         spring.jackson.date-format: yyyy-MM-dd HH:mm:ss
+
+    consumer:
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      auto-offset-reset: latest
+      enable-auto-commit: false
+      properties:
+        spring.json.trusted.packages: com.ticketing.seat.event
+
+    # KafkaListener의 수동 커밋 설정.
+    listener:
+      ack-mode: MANUAL_IMMEDIATE
+
+  task:
+    scheduling:
+      pool:
+        size: 4
+
 logging:
   level:
     org.hibernate.SQL: debug
-    com.ticketing: debug
+    com.ticketing: info
     org.springframework.data.mongodb.core.MongoTemplate: debug
     org.springframework.kafka: info
 
+#Kafka 설정
+app:
+  kafka:
+    # 기본 Kafka 연결 포트
+    bootstrap-servers: localhost:9092
 
+    # kafka Bean 기본 생성 여부
+    admin:
+      auto-create: true
+      client-id: kafka-admin
+
+    # Kafka Topic 별 partition, replica 개수 지정
+    topics:
+      queue:
+        name: user-log
+        partitions: 3
+        replicas: 1
+
+      captcha:
+        name: captcha-log
+        partitions: 3
+        replicas : 1
+
+# Actuator EndPoint 관리
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"   # 모든 엔드포인트 활성화
+  endpoint:
+    health:
+      show-details: always  # health 세부 정보 표시
+
+captcha:
+  address: ${CAPTCHA_ADDRESS:http://localhost:8080/api/v1.0/captcha/}
+  timeout: ${CAPTCHA_TIMEOUT:5000}
