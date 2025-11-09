@@ -218,7 +218,6 @@ export default function RoomCard({
       try {
         const colors = await extractColors(resolvedImageSrc);
         if (!cancelled) {
-          console.log("Extracted colors:", colors); // 디버깅용
           setExtractedColors(colors);
         }
       } catch (error) {
