@@ -53,7 +53,7 @@ public class TicketingServiceClient {
 
         try {
             ResponseEntity<MatchResponse> response = restTemplate.postForEntity(
-                    ticketingServiceUrl + "/matches",
+                    ticketingServiceUrl + "/ticketing/matches",
                     request,
                     MatchResponse.class
             );
