@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { paths } from "../../../../app/routes/paths";
-import Viewport from "./_components/Viewport";
+import BookingLayout from "./_components/BookingLayout";
 import { buildMetricsQueryFromStorage } from "../../../../shared/utils/reserveMetrics";
 
 export default function PaymentPage() {
   const navigate = useNavigate();
   const [method, setMethod] = useState<string>("kakao");
-  const [, setCardPlan] = useState<string>("");
+  // 카드 할부 등 추가 옵션이 생기면 확장 예정
   const goPrev = () => navigate(paths.booking.orderConfirm);
   const complete = () => {
     const qs = buildMetricsQueryFromStorage();
@@ -30,38 +30,8 @@ export default function PaymentPage() {
   const total = ticketPrice + fee + shipping;
 
   return (
-    <Viewport>
-      {/* 상단 단계 네비게이션 바 (05 활성) */}
-      <div className="text-[#222] bg-[linear-gradient(to_bottom,#f7f7f7,#e2e2e2)] border-b border-[#cfcfcf]">
-        <div className="mx-auto flex text-[13px] max-w-[860px] py-2">
-          {[
-            "01 관람일/회차선택",
-            "02 좌석 선택",
-            "03 가격/할인선택",
-            "04 배송선택/주문자확인",
-            "05 결제하기",
-          ].map((t, i) => (
-            <div
-              key={t}
-              className={
-                "px-4 py-3 border-r border-[#c7c7c7] flex items-center gap-2 " +
-                (i === 4
-                  ? "bg-[#c62828] text-white"
-                  : "bg-[#d9d9d9] text-[#333]")
-              }
-            >
-              <span className="font-extrabold">
-                {String(i + 1).padStart(2, "0")}
-              </span>
-              <span className="font-semibold">
-                {t.replace(/^[0-9]{2}\s/, "")}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="max-w-[860px] mx-auto p-3 grid grid-cols-[200px_1fr_260px] gap-3" style={{ height: 'calc(100vh - 120px)' }}>
+    <BookingLayout activeStep={4}>
+      <div className="p-3 grid grid-cols-[200px_1fr_260px] gap-3">
         {/* 좌측: 결제방식 선택 */}
         <section className="bg-white rounded-md shadow border border-[#e3e3e3] h-full">
           <header className="px-3 py-2 font-bold border-b">결제방식선택</header>
@@ -74,7 +44,7 @@ export default function PaymentPage() {
                 onChange={() => setMethod("kakao")}
               />
               카카오페이{" "}
-              <span className="ml-1 inline-block text-[10px] px-1 py-0.5 rounded bg-[#f87171] text-white">
+              <span className="ml-1 inline-block text-[10px] px-1 py-0.5 rounded bg-[#3b82f6] text-white">
                 EVENT
               </span>
             </label>
@@ -99,11 +69,15 @@ export default function PaymentPage() {
             <div className="p-2.5 text-xs space-y-2 flex-1 overflow-y-auto">
               <div className="space-y-1.5">
                 <div className="flex items-center gap-2">
-                  <span className="text-gray-700 w-20 flex-shrink-0">입금액</span>
+                  <span className="text-gray-700 w-20 flex-shrink-0">
+                    입금액
+                  </span>
                   <span className="font-bold">{total.toLocaleString()}원</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-gray-700 w-20 flex-shrink-0">입금하실은행</span>
+                  <span className="text-gray-700 w-20 flex-shrink-0">
+                    입금하실은행
+                  </span>
                   <select className="border rounded px-2 py-1 text-xs flex-1">
                     <option>국민은행</option>
                     <option>신한은행</option>
@@ -113,16 +87,21 @@ export default function PaymentPage() {
                 </div>
               </div>
               <p className="text-[10px] text-[#b02a2a] leading-3.5">
-                은행에 따라 밤 11시 30분 이후에는 온라인 입금이 지연될 수 있습니다.
-                선택한 은행의 입금계좌는 예매확인페이지에서 부여받으시게 됩니다.
+                은행에 따라 밤 11시 30분 이후에는 온라인 입금이 지연될 수
+                있습니다. 선택한 은행의 입금계좌는 예매확인페이지에서
+                부여받으시게 됩니다.
               </p>
               <div className="space-y-1.5">
                 <div className="flex items-center gap-2">
-                  <span className="text-gray-700 w-20 flex-shrink-0">입금마감시간</span>
+                  <span className="text-gray-700 w-20 flex-shrink-0">
+                    입금마감시간
+                  </span>
                   <span className="text-xs">2025.12.16 23:59</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-gray-700 w-20 flex-shrink-0">예금주명</span>
+                  <span className="text-gray-700 w-20 flex-shrink-0">
+                    예금주명
+                  </span>
                   <span className="text-xs">㈜놀유서비스</span>
                 </div>
               </div>
@@ -131,30 +110,48 @@ export default function PaymentPage() {
                 <div className="flex items-center gap-2 mb-2">
                   <div className="font-semibold text-xs">현금영수증</div>
                   <label className="text-xs flex items-center gap-1">
-                    <input type="checkbox" defaultChecked className="w-3 h-3" /> 신청
+                    <input type="checkbox" defaultChecked className="w-3 h-3" />{" "}
+                    신청
                   </label>
                 </div>
                 <div className="space-y-1.5">
                   <div className="flex items-start gap-2">
-                    <span className="text-gray-700 w-20 flex-shrink-0 text-xs">발급 용도</span>
+                    <span className="text-gray-700 w-20 flex-shrink-0 text-xs">
+                      발급 용도
+                    </span>
                     <div className="flex flex-col gap-1">
                       <label className="flex items-center gap-1 text-xs">
-                        <input type="radio" name="crPurpose" defaultChecked className="w-3 h-3" /> 개인소득공제
+                        <input
+                          type="radio"
+                          name="crPurpose"
+                          defaultChecked
+                          className="w-3 h-3"
+                        />{" "}
+                        개인소득공제
                       </label>
                       <label className="flex items-center gap-1 text-xs">
-                        <input type="radio" name="crPurpose" className="w-3 h-3" /> 사업자지출증빙
+                        <input
+                          type="radio"
+                          name="crPurpose"
+                          className="w-3 h-3"
+                        />{" "}
+                        사업자지출증빙
                       </label>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-gray-700 w-20 flex-shrink-0 text-xs">발급기준</span>
+                    <span className="text-gray-700 w-20 flex-shrink-0 text-xs">
+                      발급기준
+                    </span>
                     <select className="border rounded px-2 py-1 text-xs flex-1">
                       <option>휴대폰번호</option>
                       <option>현금영수증카드</option>
                     </select>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-gray-700 w-20 flex-shrink-0 text-xs">휴대폰번호</span>
+                    <span className="text-gray-700 w-20 flex-shrink-0 text-xs">
+                      휴대폰번호
+                    </span>
                     <div className="flex items-center gap-1">
                       <input
                         className="border rounded px-1.5 py-1 w-14 text-xs"
@@ -174,7 +171,8 @@ export default function PaymentPage() {
                   </div>
                 </div>
                 <label className="mt-1.5 inline-flex items-center gap-1.5 text-[10px]">
-                  <input type="checkbox" className="w-3 h-3" /> 현금영수증 정보 저장
+                  <input type="checkbox" className="w-3 h-3" /> 현금영수증 정보
+                  저장
                 </label>
               </div>
             </div>
@@ -190,7 +188,9 @@ export default function PaymentPage() {
 
         {/* 우측: My 예매정보 */}
         <aside className="bg-white rounded-md p-2.5 shadow border border-[#e3e3e3] h-full flex flex-col">
-          <div className="text-sm font-semibold mb-2 flex-shrink-0">My예매정보</div>
+          <div className="text-sm font-semibold mb-2 flex-shrink-0">
+            My예매정보
+          </div>
           <dl className="text-sm text-gray-700 flex-1 overflow-y-auto min-h-0">
             <div className="flex py-1 border-b">
               <dt className="w-20 text-gray-500 text-xs">일시</dt>
@@ -202,7 +202,9 @@ export default function PaymentPage() {
             </div>
             <div className="flex py-1 border-b">
               <dt className="w-20 text-gray-500 text-xs">티켓금액</dt>
-              <dd className="flex-1 text-xs">{ticketPrice.toLocaleString()}원</dd>
+              <dd className="flex-1 text-xs">
+                {ticketPrice.toLocaleString()}원
+              </dd>
             </div>
             <div className="flex py-1 border-b">
               <dt className="w-20 text-gray-500 text-xs">수수료</dt>
@@ -210,7 +212,9 @@ export default function PaymentPage() {
             </div>
             <div className="flex py-1 border-b">
               <dt className="w-20 text-gray-500 text-xs">배송료</dt>
-              <dd className="flex-1 text-xs">{shipping.toLocaleString()}원 | 배송</dd>
+              <dd className="flex-1 text-xs">
+                {shipping.toLocaleString()}원 | 배송
+              </dd>
             </div>
             <div className="flex py-1">
               <dt className="w-20 text-gray-500 text-xs">총 결제금액</dt>
@@ -229,13 +233,13 @@ export default function PaymentPage() {
             </button>
             <button
               onClick={complete}
-              className="flex-1 bg-[#c62828] hover:bg-[#b71c1c] text-white rounded-md py-2 font-semibold"
+              className="flex-1 bg-[linear-gradient(to_bottom,#4383fb,#104bb7)] text-white rounded-md py-2 font-semibold"
             >
               결제하기
             </button>
           </div>
         </aside>
       </div>
-    </Viewport>
+    </BookingLayout>
   );
 }

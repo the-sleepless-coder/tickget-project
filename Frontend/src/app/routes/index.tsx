@@ -10,44 +10,62 @@ const HomePage = lazy(() => import("../../pages/home"));
 // Removed BookingIndexPage usage for plain booking flow
 const SelectVenuePage = lazy(
   () =>
-    import("../../pages/booking-site/booking-site/exterpark-booking/SelectVenue")
+    import(
+      "../../pages/booking-site/exterpark-site/exterpark-booking/SelectVenue"
+    )
 );
 const SelectSeatPage = lazy(
   () =>
-    import("../../pages/booking-site/booking-site/exterpark-booking/SelectSeat")
+    import("../../pages/booking-site/exterpark-site/exterpark-booking/02-Seats")
 );
 const PricePage = lazy(
-  () => import("../../pages/booking-site/booking-site/exterpark-booking/Price")
+  () =>
+    import("../../pages/booking-site/exterpark-site/exterpark-booking/03-Price")
 );
 const OrderConfirmPage = lazy(
   () =>
     import(
-      "../../pages/booking-site/booking-site/exterpark-booking/OrderConFirm"
+      "../../pages/booking-site/exterpark-site/exterpark-booking/04-OrderConfirm"
     )
 );
 const PaymentPage = lazy(
-  () => import("../../pages/booking-site/booking-site/exterpark-booking/Payment")
+  () =>
+    import(
+      "../../pages/booking-site/exterpark-site/exterpark-booking/05-Payment"
+    )
 );
 const CancelFeePage = lazy(
   () =>
-    import("../../pages/booking-site/booking-site/exterpark-booking/CancelFee")
+    import(
+      "../../pages/booking-site/exterpark-site/exterpark-booking/06-CancelFee"
+    )
 );
 const CompletePage = lazy(
   () =>
-    import("../../pages/booking-site/booking-site/exterpark-booking/Complete")
+    import(
+      "../../pages/booking-site/exterpark-site/exterpark-booking/07-Complete"
+    )
 );
 const BookingWaitingPage = lazy(
-  () => import("../../pages/booking-site/booking-site/exterpark-booking/Waiting")
+  () =>
+    import(
+      "../../pages/booking-site/exterpark-site/exterpark-booking/00-Waiting"
+    )
 );
-const GameResultPage = lazy(() => import("../../pages/booking-site/GameResult"));
+const GameResultPage = lazy(
+  () =>
+    import(
+      "../../pages/booking-site/exterpark-site/exterpark-booking/08-GameResult"
+    )
+);
 const BookingSelectSchedulePage = lazy(
   () =>
     import(
-      "../../pages/booking-site/booking-site/exterpark-booking/SelectSchedule"
+      "../../pages/booking-site/exterpark-site/exterpark-booking/01-Schedule"
     )
 );
 const ITicketPage = lazy(
-  () => import("../../pages/booking-site/booking-site/Exterpark")
+  () => import("../../pages/booking-site/exterpark-site/ExterparkRoom")
 );
 const RoomsPage = lazy(() => import("../../pages/booking-site/RoomsList"));
 const SeatsTestPage = lazy(() => import("../../pages/test/NotFound"));
