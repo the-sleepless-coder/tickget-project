@@ -16,7 +16,7 @@ import dayjs from "dayjs";
 import { useWebSocketStore } from "../../../shared/lib/websocket-store";
 import { subscribe, type Subscription } from "../../../shared/lib/websocket";
 import { useAuthStore } from "@features/auth/store";
-import { exitRoom } from "@features/room/api";
+import { exitRoom, getRoomDetail } from "@features/room/api";
 import { useNavigate } from "react-router-dom";
 import ExitToAppIcon from "@mui/icons-material/ExitToApp";
 import Thumbnail01 from "../../../shared/images/thumbnail/Thumbnail01.webp";
@@ -50,8 +50,8 @@ const HALL_SIZE_TO_LABEL: Record<string, string> = {
 
 // difficulty -> 난이도 이름 매핑
 const DIFFICULTY_TO_LABEL: Record<string, string> = {
-  EASY: "초보",
-  MEDIUM: "평균",
+  EASY: "쉬움",
+  MEDIUM: "보통",
   HARD: "어려움",
 };
 
@@ -221,7 +221,7 @@ export default function ITicketPage() {
     console.log("🔍 [WebSocket] 연결 상태 확인:", {
       connected: wsClient.connected,
       active: wsClient.active,
-      subscriptions: wsClient.subscriptions ? Object.keys(wsClient.subscriptions).length : 0,
+      subscriptions: (wsClient as any).subscriptions ? Object.keys((wsClient as any).subscriptions).length : 0,
     });
 
     // 주기적으로 연결 상태 확인 (5초마다)
@@ -230,7 +230,7 @@ export default function ITicketPage() {
         console.log("🔍 [WebSocket] 주기적 상태 확인:", {
           connected: wsClient.connected,
           active: wsClient.active,
-          subscriptions: wsClient.subscriptions ? Object.keys(wsClient.subscriptions).length : 0,
+          subscriptions: (wsClient as any).subscriptions ? Object.keys((wsClient as any).subscriptions).length : 0,
         });
       }
     }, 5000);
@@ -312,8 +312,8 @@ export default function ITicketPage() {
           });
           
           // 구독 후 현재 구독 목록 확인
-          if (wsClient.subscriptions) {
-            console.log("📋 [구독] 현재 활성 구독 목록:", Object.keys(wsClient.subscriptions));
+          if ((wsClient as any).subscriptions) {
+            console.log("📋 [구독] 현재 활성 구독 목록:", Object.keys((wsClient as any).subscriptions));
           }
         } else {
           console.error(
@@ -384,7 +384,38 @@ export default function ITicketPage() {
     }
   }, [joinResponse?.roomMembers]);
 
-  // 방장 userId 결정: 방 생성 유저의 userId
+  // 방 상세 조회: roomMembers가 없고 roomId가 있으면 API로 가져오기 (fallback)
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const qsId = params.get("roomId");
+    const targetId =
+      roomId ||
+      (roomData?.roomId && Number(roomData.roomId)) ||
+      (qsId && !Number.isNaN(Number(qsId)) ? Number(qsId) : undefined);
+
+    // roomMembers가 이미 있거나 joinResponse/roomData가 있으면 API 호출 불필요
+    if (
+      roomMembers.length > 0 ||
+      joinResponse?.roomMembers ||
+      roomData?.roomId ||
+      !targetId
+    ) {
+      return;
+    }
+
+    (async () => {
+      try {
+        const data = await getRoomDetail(Number(targetId));
+        if (data.roomMembers && data.roomMembers.length > 0) {
+          setRoomMembers(data.roomMembers);
+        }
+      } catch (error) {
+        console.error("방 상세 조회 실패:", error);
+      }
+    })();
+  }, [roomId, location.search, roomData?.roomId, joinResponse?.roomMembers, roomMembers.length]);
+
+  // 방장 userId 결정: 방 생성 유저의 userId 또는 roomDetail의 hostId
   const hostUserId = useMemo(() => {
     return roomRequest?.userId || null;
   }, [roomRequest?.userId]);
@@ -400,6 +431,9 @@ export default function ITicketPage() {
 
   // maxUserCount를 총 인원수로 사용
   const capacity = roomRequest?.maxUserCount || roomData?.maxBooking || 20;
+  
+  // 현재 인원수
+  const currentCount = roomMembers.length;
 
   useEffect(() => {
     const until = localStorage.getItem(BANNER_HIDE_KEY);
@@ -565,6 +599,7 @@ export default function ITicketPage() {
         <div className="productWrapper max-w-[1280px] w-full mx-auto px-4 md:px-6">
           <TagsRow
             difficulty={roomRequest?.difficulty}
+            maxUserCount={capacity}
             botCount={roomData?.botCount}
           />
           <TitleSection
@@ -589,6 +624,7 @@ export default function ITicketPage() {
                   <ParticipantList
                     participants={participants}
                     capacity={capacity}
+                    currentCount={currentCount}
                   />
                 </div>
               </div>
@@ -645,9 +681,11 @@ function TopBanner({ onClose }: { onClose: (hideFor3Days: boolean) => void }) {
 
 function TagsRow({
   difficulty,
+  maxUserCount,
   botCount,
 }: {
   difficulty?: string;
+  maxUserCount?: number;
   botCount?: number;
 }) {
   const Pill = ({
@@ -670,6 +708,9 @@ function TagsRow({
   const difficultyLabel = difficulty
     ? DIFFICULTY_TO_LABEL[difficulty] || difficulty
     : "어려움";
+  const maxLabel = maxUserCount
+    ? `최대 ${maxUserCount.toLocaleString()}명`
+    : "최대 10명";
   const botLabel = botCount ? `봇 ${botCount.toLocaleString()}명` : "봇 3000명";
 
   return (
@@ -678,10 +719,10 @@ function TagsRow({
         {difficultyLabel}
       </Pill>
       <Pill bgVar="--color-c-blue-100" colorVar="--color-c-blue-200">
-        {botLabel}
+        {maxLabel}
       </Pill>
       <Pill bgVar="--color-c-blue-100" colorVar="--color-c-blue-200">
-        익스터파크
+        {botLabel}
       </Pill>
     </div>
   );
@@ -775,9 +816,11 @@ function PosterBox({
 function ParticipantList({
   participants,
   capacity,
+  currentCount,
 }: {
   participants: Participant[];
   capacity: number;
+  currentCount?: number;
 }) {
   return (
     <section className="bg-white rounded-xl overflow-hidden border border-neutral-200 shadow">
@@ -787,10 +830,10 @@ function ParticipantList({
           <span>입장자</span>
         </div>
         <span className="text-sm text-gray-700 font-bold">
-          {participants.length} / {capacity}명
+          {currentCount ?? participants.length} / {capacity}명
         </span>
       </div>
-      <ul className="max-h-[420px] overflow-y-auto py-1 space-y-1 pr-1 nice-scroll">
+      <ul className="h-[420px] overflow-y-auto py-1 space-y-1 pr-1 nice-scroll">
         {participants.map((p, idx) => (
           <li key={idx} className="flex items-center justify-between px-4 py-2">
             <div className="flex items-center gap-3">
@@ -1111,7 +1154,7 @@ function BookingCalendarCard({
               ))}
             </div>
             <div className="mt-3 text-xs text-gray-700">
-              R석 147 / S석 134 / A석 224 / B석 288
+              R석 100 / S석 150 / A석 200 / B석 300
             </div>
           </div>
         </Collapse>

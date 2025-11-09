@@ -7,6 +7,7 @@ import type {
   JoinRoomResponse,
   ExitRoomRequest,
   ExitRoomResponse,
+  RoomDetailResponse,
 } from "./types";
 
 /**
@@ -69,4 +70,9 @@ export async function exitRoom(
     payload,
     { headers }
   );
+}
+
+// Room detail: GET /rooms/{roomId}
+export async function getRoomDetail(roomId: number) {
+  return roomApi.get<RoomDetailResponse>(`/rooms/${roomId}`);
 }
