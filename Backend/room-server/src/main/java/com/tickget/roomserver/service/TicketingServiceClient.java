@@ -1,6 +1,7 @@
 package com.tickget.roomserver.service;
 
 import com.tickget.roomserver.dto.request.CreateMatchRequest;
+import com.tickget.roomserver.dto.request.NotifyRoomLeftRequest;
 import com.tickget.roomserver.dto.response.MatchResponse;
 import com.tickget.roomserver.exception.CreateMatchDeclinedException;
 import com.tickget.roomserver.exception.CreateMatchFailedException;
@@ -9,6 +10,8 @@ import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
@@ -23,6 +26,25 @@ public class TicketingServiceClient {
 
     @Value("${ticketing-service.url}")
     private String ticketingServiceUrl;
+
+    public void notifyUserLeftRoom(NotifyRoomLeftRequest request) {
+        log.info("방 {}에서 매치 진행 중 유저 {} 나감 알림 전송", request.getRoomId(), request.getUserId());
+        String url = ticketingServiceUrl + "/ticketing/rooms/{roomId}/users/{userId}";
+
+        try {
+            restTemplate.exchange(
+                    url,
+                    HttpMethod.POST,
+                    new HttpEntity<>(request),
+                    Void.class,
+                    request.getRoomId(),
+                    request.getUserId()
+            );
+        } catch (HttpClientErrorException e) {
+            log.warn("유저 나감 알림 실패: {}", e.getMessage());
+        }
+    }
+
 
     @CircuitBreaker(name ="ticketingService")
     @Retry(name="ticketingService", fallbackMethod = "createMatchFallBack")
@@ -48,5 +70,6 @@ public class TicketingServiceClient {
         log.error("매치 생성 폴백 실행 : roomId={}, error={}", request.getRoomId(), e.getMessage());
         throw new CreateMatchFailedException("티케팅(매치) 서비스 호출 실패");
     }
+
 
 }

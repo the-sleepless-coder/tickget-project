@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Service;
 
 import java.util.Date;
@@ -22,33 +23,36 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class StatisticsEventConsumer {
 
-    private final MongoTemplate mongoTemplate;
+    private final MongoTemplate mongoTemplate; // (미사용 경고만 있음, 유지)
     private final SeatConfirmationLogRepository logRepository;
 
     /**
      * 좌석 확정 이벤트 수신 및 MongoDB 저장
-     * 통계 서버가 나중에 이 데이터를 조회할 수 있도록 합니다.
+     * 수동 커밋(ack) 기반: 처리 성공 시에만 오프셋 커밋
      */
-    @KafkaListener(topics = "match.seat.confirmed", groupId = "${spring.kafka.consumer.group-id:ticketing-service}")
-    public void consumeSeatConfirmationEvent(SeatConfirmationEvent event) {
+    @KafkaListener(
+            topics = "match.seat.confirmed",
+            groupId = "${spring.kafka.consumer.group-id:ticketing-service}",
+            containerFactory = "kafkaListenerContainerFactory"
+    )
+    public void consumeSeatConfirmationEvent(SeatConfirmationEvent event, Acknowledgment ack) {
         try {
             log.debug("Received seat confirmation event for MongoDB storage: matchId={}, userId={}, seats={}",
                     event.getMatchId(), event.getUserId(), event.getSeatIds());
 
             // MongoDB에 로그 저장
-            SeatConfirmationLog logEntry = convertToLogEntry(event);
-            SeatConfirmationLog savedLog = logRepository.save(logEntry);
-
+            SeatConfirmationLog savedLog = logRepository.save(convertToLogEntry(event));
             log.info("Successfully saved seat confirmation event to MongoDB: id={}, matchId={}, userId={}",
                     savedLog.getId(), savedLog.getMatchId(), savedLog.getUserId());
 
+            // ✅ 처리 성공 → 수동 커밋
+            ack.acknowledge();
+
         } catch (Exception e) {
-            // 실패해도 다른 이벤트 처리에 영향을 주지 않도록 예외 처리
+            // ❌ 실패 시 커밋하지 않음 → 재시도/백오프 또는 DLT로 이어짐(추후 정책)
             log.error("Error saving seat confirmation event to MongoDB: matchId={}, error={}",
                     event.getMatchId(), e.getMessage(), e);
-
-            // 필요시 여기에 실패한 이벤트 복구 로직 추가
-            // (예: 별도 큐에 저장 후 재시도 스케줄링)
+            throw e;
         }
     }
 
@@ -71,24 +75,18 @@ public class StatisticsEventConsumer {
     }
 
     /**
-     * 추가 메타데이터 생성
-     * 통계에 유용한 정보를 여기에 추가할 수 있습니다.
+     * 추가 메타데이터 생성 (간단 집계 보조 정보)
      */
     private Map<String, Object> createMetadata(SeatConfirmationEvent event) {
         Map<String, Object> metadata = new HashMap<>();
         metadata.put("processingTime", System.currentTimeMillis());
         metadata.put("processingNode", getHostName());
-
-        // 시간대별 집계를 위한 정보 추가
+        // 시간대별 집계를 위한 정보(간단 버전; Date API 사용 유지)
         metadata.put("hourOfDay", new Date(event.getTimestamp()).getHours());
         metadata.put("dayOfWeek", new Date(event.getTimestamp()).getDay());
-
         return metadata;
     }
 
-    /**
-     * 처리 노드 이름 얻기
-     */
     private String getHostName() {
         try {
             return java.net.InetAddress.getLocalHost().getHostName();

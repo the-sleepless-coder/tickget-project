@@ -4,6 +4,9 @@ package com.ticketing;
 // 컴파일 타임에서의 에러 방지.
 public enum KafkaTopic {
 
+    USER_DEQUEUED("user-dequeued-publish"),
+    BOT_DEQUEUED("bot-dequeued-publish"),
+
     USER_LOG_QUEUE("user-log"),
     CAPTCHA_LOG_QUEUE("captcha-log"),
     SEAT_LOG_QUEUE("seat-log"),

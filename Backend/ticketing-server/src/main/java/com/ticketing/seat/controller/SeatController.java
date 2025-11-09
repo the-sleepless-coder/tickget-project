@@ -22,8 +22,8 @@ public class SeatController {
     /**
      * 좌석 선점(hold) API
      *
-     * @param matchId 매치 ID
-     * @param request 좌석 선점 요청 정보 (userId, seatIds, sectionId, grade)
+     * @param matchId 매치 ID (Path Parameter)
+     * @param request 좌석 선점 요청 정보 (userId, seats, grade, totalSeats)
      * @return 성공 시 선점된 좌석 정보, 실패 시 실패한 좌석 정보
      */
     @PostMapping("/matches/{matchId}/hold")
@@ -31,10 +31,9 @@ public class SeatController {
             @PathVariable Long matchId,
             @RequestBody SeatReservationRequest request) {
 
-        request.setMatchId(matchId);
-
         try {
-            SeatReservationResponse response = seatReservationService.reserveSeats(request);
+            // matchId를 서비스에 직접 전달
+            SeatReservationResponse response = seatReservationService.reserveSeats(matchId, request);
 
             if (response.isSuccess()) {
                 return ResponseEntity.ok(response);

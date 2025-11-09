@@ -81,6 +81,7 @@ public class LuaReservationExecutor {
                 Stream.of("match:" + matchId + ":status")
         ).flatMap(s -> s).toList();
 
+
         // ARGV[1]: userId:grade 형식
         String userIdGrade = userId + ":" + grade;
 
