@@ -240,6 +240,18 @@ export default function CreateRoomModal({
     if (!thumbnailUrl) setRandomThumbnail();
   }, [open, thumbnailUrl, setRandomThumbnail]);
 
+  // Step2 preset 진입 시 기본 공연장 자동 세팅 (예: 소형 -> 샤롯데씨어터)
+  useEffect(() => {
+    if (step !== 2) return;
+    if (step2Mode !== "preset") return;
+    if (venue && venue.trim().length > 0) return;
+    const defaults = sizeToVenues[size as SizeOption] || [];
+    if (defaults.length > 0) {
+      setVenue(defaults[0]);
+      // preset 모드에서는 venueSelected는 생성 버튼 로직에 영향 없음
+    }
+  }, [step, step2Mode, size, venue, sizeToVenues]);
+
   // Step2: 모드별 '방만들기' 버튼 활성화 조건
   useEffect(() => {
     if (step !== 2) return;
@@ -476,7 +488,7 @@ export default function CreateRoomModal({
                   try {
                     // hallId 매핑
                     const hallIdMap: Record<string, number> = {
-                      "샤롯데씨어터": 2,
+                      샤롯데씨어터: 2,
                       "올림픽공원 올림픽홀": 3,
                       "인스파이어 아레나": 4,
                     };
@@ -487,7 +499,7 @@ export default function CreateRoomModal({
 
                     // totalSeat 매핑
                     const totalSeatMap: Record<string, number> = {
-                      "샤롯데씨어터": 1236,
+                      샤롯데씨어터: 1236,
                       "올림픽공원 올림픽홀": 4256,
                       "인스파이어 아레나": 16424,
                     };

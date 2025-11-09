@@ -10,6 +10,7 @@ import type {
   CreateRoomResponse,
   CreateRoomRequest,
   JoinRoomResponse,
+  RoomDetailResponse,
   RoomMember,
 } from "@features/room/types";
 import dayjs from "dayjs";
@@ -33,13 +34,6 @@ type Participant = {
 };
 
 const BANNER_HIDE_KEY = "iticket.topBannerHideUntil";
-
-// hallId -> 공연장 이름 매핑
-const HALL_ID_TO_VENUE: Record<number, string> = {
-  2: "샤롯데씨어터",
-  3: "올림픽공원 올림픽홀",
-  4: "인스파이어 아레나",
-};
 
 // hallSize -> 사이즈 이름 매핑
 const HALL_SIZE_TO_LABEL: Record<string, string> = {
@@ -91,101 +85,110 @@ export default function ITicketPage() {
   const currentUserId = useAuthStore((state) => state.userId);
 
   // WebSocket 이벤트 핸들러
-  const handleRoomEvent = useCallback((event: {
-    eventType?: string;
-    type?: string; // 기존 형식 지원
-    roomId?: number;
-    timestamp?: number;
-    message?: string;
-    payload?: {
-      userId?: number;
-      username?: string;
-      totalUsersInRoom?: number;
+  const handleRoomEvent = useCallback(
+    (event: {
+      eventType?: string;
+      type?: string; // 기존 형식 지원
+      roomId?: number;
+      timestamp?: number;
+      message?: string;
+      payload?: {
+        userId?: number;
+        username?: string;
+        totalUsersInRoom?: number;
+        [key: string]: unknown;
+      };
+      roomMembers?: RoomMember[]; // 기존 형식 지원
+      userId?: number; // 기존 형식 지원
+      username?: string; // 기존 형식 지원
       [key: string]: unknown;
-    };
-    roomMembers?: RoomMember[]; // 기존 형식 지원
-    userId?: number; // 기존 형식 지원
-    username?: string; // 기존 형식 지원
-    [key: string]: unknown;
-  }) => {
-    const eventType = event.eventType || event.type; // eventType 우선, 없으면 type
-    const payload = event.payload;
+    }) => {
+      const eventType = event.eventType || event.type; // eventType 우선, 없으면 type
+      const payload = event.payload;
 
-    switch (eventType) {
-      case "USER_JOINED":
-      case "USER_ENTERED": {
-        const userId = payload?.userId || event.userId;
-        const username = payload?.username || event.username;
-        const totalUsersInRoom = payload?.totalUsersInRoom;
+      switch (eventType) {
+        case "USER_JOINED":
+        case "USER_ENTERED": {
+          const userId = payload?.userId || event.userId;
+          const username = payload?.username || event.username;
+          const totalUsersInRoom = payload?.totalUsersInRoom;
 
-        if (userId) {
-          console.log(`✅ 유저 입장: userId=${userId}, username=${username || "알 수 없음"}, 총 인원=${totalUsersInRoom || "알 수 없음"}`);
-          console.log(`📝 메시지: ${event.message || ""}`);
+          if (userId) {
+            console.log(
+              `✅ 유저 입장: userId=${userId}, username=${username || "알 수 없음"}, 총 인원=${totalUsersInRoom || "알 수 없음"}`
+            );
+            console.log(`📝 메시지: ${event.message || ""}`);
 
-          setRoomMembers((prev) => {
-            // 이미 존재하는지 확인
-            const exists = prev.some((m) => m.userId === userId);
-            if (exists) {
-              console.log("⚠️ 이미 존재하는 유저입니다:", userId);
-              return prev;
-            }
+            setRoomMembers((prev) => {
+              // 이미 존재하는지 확인
+              const exists = prev.some((m) => m.userId === userId);
+              if (exists) {
+                console.log("⚠️ 이미 존재하는 유저입니다:", userId);
+                return prev;
+              }
 
-            // 새 유저 추가 (username이 없으면 임시로 "사용자{userId}" 사용)
-            const newMember: RoomMember = {
-              userId,
-              username: username || `사용자${userId}`,
-              enteredAt: event.timestamp || Date.now(),
-            };
+              // 새 유저 추가 (username이 없으면 임시로 "사용자{userId}" 사용)
+              const newMember: RoomMember = {
+                userId,
+                username: username || `사용자${userId}`,
+                enteredAt: event.timestamp || Date.now(),
+              };
 
-            console.log("➕ 새 멤버 추가:", newMember);
-            return [...prev, newMember];
-          });
-        } else if (event.roomMembers && Array.isArray(event.roomMembers)) {
-          // roomMembers 배열로 전체 업데이트 (기존 형식)
-          console.log("👥 방 멤버 목록 전체 업데이트 (roomMembers 배열)");
-          setRoomMembers(event.roomMembers);
-        } else {
-          console.warn("⚠️ USER_JOINED 이벤트에 userId가 없습니다:", event);
+              console.log("➕ 새 멤버 추가:", newMember);
+              return [...prev, newMember];
+            });
+          } else if (event.roomMembers && Array.isArray(event.roomMembers)) {
+            // roomMembers 배열로 전체 업데이트 (기존 형식)
+            console.log("👥 방 멤버 목록 전체 업데이트 (roomMembers 배열)");
+            setRoomMembers(event.roomMembers);
+          } else {
+            console.warn("⚠️ USER_JOINED 이벤트에 userId가 없습니다:", event);
+          }
+          break;
         }
-        break;
+
+        case "USER_LEFT":
+        case "USER_EXITED": {
+          const userId = payload?.userId || event.userId;
+          const totalUsersInRoom = payload?.totalUsersInRoom;
+
+          if (userId) {
+            console.log(
+              `👋 유저 퇴장: userId=${userId}, 남은 인원=${totalUsersInRoom || "알 수 없음"}`
+            );
+            console.log(`📝 메시지: ${event.message || ""}`);
+
+            setRoomMembers((prev) => {
+              const filtered = prev.filter((m) => m.userId !== userId);
+              console.log(
+                `➖ 멤버 제거: ${userId}, 이전 인원: ${prev.length}, 현재 인원: ${filtered.length}`
+              );
+              return filtered;
+            });
+          } else if (event.roomMembers && Array.isArray(event.roomMembers)) {
+            // roomMembers 배열로 전체 업데이트 (기존 형식)
+            console.log("👥 방 멤버 목록 전체 업데이트 (roomMembers 배열)");
+            setRoomMembers(event.roomMembers);
+          } else {
+            console.warn("⚠️ USER_LEFT 이벤트에 userId가 없습니다:", event);
+          }
+          break;
+        }
+
+        case "ROOM_UPDATE":
+        case "MEMBERS_UPDATE":
+          if (event.roomMembers && Array.isArray(event.roomMembers)) {
+            console.log("🔄 방 멤버 목록 전체 업데이트");
+            setRoomMembers(event.roomMembers);
+          }
+          break;
+
+        default:
+          console.log("ℹ️ 알 수 없는 이벤트 타입:", eventType, event);
       }
-
-      case "USER_LEFT":
-      case "USER_EXITED": {
-        const userId = payload?.userId || event.userId;
-        const totalUsersInRoom = payload?.totalUsersInRoom;
-
-        if (userId) {
-          console.log(`👋 유저 퇴장: userId=${userId}, 남은 인원=${totalUsersInRoom || "알 수 없음"}`);
-          console.log(`📝 메시지: ${event.message || ""}`);
-
-          setRoomMembers((prev) => {
-            const filtered = prev.filter((m) => m.userId !== userId);
-            console.log(`➖ 멤버 제거: ${userId}, 이전 인원: ${prev.length}, 현재 인원: ${filtered.length}`);
-            return filtered;
-          });
-        } else if (event.roomMembers && Array.isArray(event.roomMembers)) {
-          // roomMembers 배열로 전체 업데이트 (기존 형식)
-          console.log("👥 방 멤버 목록 전체 업데이트 (roomMembers 배열)");
-          setRoomMembers(event.roomMembers);
-        } else {
-          console.warn("⚠️ USER_LEFT 이벤트에 userId가 없습니다:", event);
-        }
-        break;
-      }
-
-      case "ROOM_UPDATE":
-      case "MEMBERS_UPDATE":
-        if (event.roomMembers && Array.isArray(event.roomMembers)) {
-          console.log("🔄 방 멤버 목록 전체 업데이트");
-          setRoomMembers(event.roomMembers);
-        }
-        break;
-
-      default:
-        console.log("ℹ️ 알 수 없는 이벤트 타입:", eventType, event);
-    }
-  }, []);
+    },
+    []
+  );
 
   // 방 생성/입장 응답 데이터 로그
   useEffect(() => {
@@ -221,7 +224,12 @@ export default function ITicketPage() {
     console.log("🔍 [WebSocket] 연결 상태 확인:", {
       connected: wsClient.connected,
       active: wsClient.active,
-      subscriptions: (wsClient as any).subscriptions ? Object.keys((wsClient as any).subscriptions).length : 0,
+      subscriptions: (() => {
+        const subs = (
+          wsClient as unknown as { subscriptions?: Record<string, unknown> }
+        ).subscriptions;
+        return subs ? Object.keys(subs).length : 0;
+      })(),
     });
 
     // 주기적으로 연결 상태 확인 (5초마다)
@@ -230,7 +238,14 @@ export default function ITicketPage() {
         console.log("🔍 [WebSocket] 주기적 상태 확인:", {
           connected: wsClient.connected,
           active: wsClient.active,
-          subscriptions: (wsClient as any).subscriptions ? Object.keys((wsClient as any).subscriptions).length : 0,
+          subscriptions: (() => {
+            const subs = (
+              wsClient as unknown as {
+                subscriptions?: Record<string, unknown>;
+              }
+            ).subscriptions;
+            return subs ? Object.keys(subs).length : 0;
+          })(),
         });
       }
     }, 5000);
@@ -251,7 +266,9 @@ export default function ITicketPage() {
     }
 
     if (!wsClient) {
-      console.warn("⚠️ [구독] WebSocket 클라이언트가 없습니다. 연결을 기다리는 중...");
+      console.warn(
+        "⚠️ [구독] WebSocket 클라이언트가 없습니다. 연결을 기다리는 중..."
+      );
       return;
     }
 
@@ -280,16 +297,25 @@ export default function ITicketPage() {
           });
           try {
             const data = JSON.parse(message.body);
-            console.log("📦 [메시지 수신] 파싱된 메시지 데이터:", JSON.stringify(data, null, 2));
+            console.log(
+              "📦 [메시지 수신] 파싱된 메시지 데이터:",
+              JSON.stringify(data, null, 2)
+            );
 
             // 백엔드 메시지 형식: { eventType, roomId, timestamp, message, payload }
             if (data.eventType) {
-              console.log(`🔔 [메시지 수신] 이벤트 타입: ${data.eventType}`, data);
+              console.log(
+                `🔔 [메시지 수신] 이벤트 타입: ${data.eventType}`,
+                data
+              );
               handleRoomEvent(data);
             }
             // roomMembers 배열이 있으면 무조건 업데이트 (기존 형식 지원)
             else if (data.roomMembers && Array.isArray(data.roomMembers)) {
-              console.log("👥 [메시지 수신] 방 멤버 목록 업데이트 (roomMembers 배열):", data.roomMembers);
+              console.log(
+                "👥 [메시지 수신] 방 멤버 목록 업데이트 (roomMembers 배열):",
+                data.roomMembers
+              );
               setRoomMembers(data.roomMembers);
             }
             // 기타 형식
@@ -297,7 +323,11 @@ export default function ITicketPage() {
               console.log("ℹ️ [메시지 수신] 알 수 없는 메시지 형식:", data);
             }
           } catch (e) {
-            console.error("❌ [메시지 수신] 메시지 파싱 실패:", e, message.body);
+            console.error(
+              "❌ [메시지 수신] 메시지 파싱 실패:",
+              e,
+              message.body
+            );
           }
         });
 
@@ -310,10 +340,17 @@ export default function ITicketPage() {
             subscribed: true,
             timestamp: new Date().toISOString(),
           });
-          
+
           // 구독 후 현재 구독 목록 확인
-          if ((wsClient as any).subscriptions) {
-            console.log("📋 [구독] 현재 활성 구독 목록:", Object.keys((wsClient as any).subscriptions));
+          {
+            const subs = (
+              wsClient as unknown as {
+                subscriptions?: Record<string, unknown>;
+              }
+            ).subscriptions;
+            if (subs) {
+              console.log("📋 [구독] 현재 활성 구독 목록:", Object.keys(subs));
+            }
           }
         } else {
           console.error(
@@ -357,7 +394,13 @@ export default function ITicketPage() {
         subscriptionRef.current = null;
       }
     };
-  }, [wsClient, roomId, joinResponse?.roomId, roomData?.roomId]);
+  }, [
+    wsClient,
+    roomId,
+    joinResponse?.roomId,
+    roomData?.roomId,
+    handleRoomEvent,
+  ]);
 
   // 입장자 목록 상태 관리 (WebSocket 메시지로 실시간 업데이트)
   const [roomMembers, setRoomMembers] = useState<RoomMember[]>(() => {
@@ -367,7 +410,8 @@ export default function ITicketPage() {
     }
     // 입장 응답이 없으면 방 생성 유저만 표시
     const hostName = roomRequest?.username || currentUserNickname || "방장";
-    const hostUserId = roomRequest?.userId || useAuthStore.getState().userId || 0;
+    const hostUserId =
+      roomRequest?.userId || useAuthStore.getState().userId || 0;
     return [
       {
         userId: hostUserId,
@@ -393,27 +437,21 @@ export default function ITicketPage() {
       (roomData?.roomId && Number(roomData.roomId)) ||
       (qsId && !Number.isNaN(Number(qsId)) ? Number(qsId) : undefined);
 
-    // roomMembers가 이미 있거나 joinResponse/roomData가 있으면 API 호출 불필요
-    if (
-      roomMembers.length > 0 ||
-      joinResponse?.roomMembers ||
-      roomData?.roomId ||
-      !targetId
-    ) {
-      return;
-    }
-
     (async () => {
       try {
-        const data = await getRoomDetail(Number(targetId));
-        if (data.roomMembers && data.roomMembers.length > 0) {
+        if (!targetId) return;
+        const data: RoomDetailResponse = await getRoomDetail(Number(targetId));
+        // 상세 응답 상태 저장
+        setRoomDetail(data);
+        // 입장자 목록 업데이트
+        if (Array.isArray(data.roomMembers)) {
           setRoomMembers(data.roomMembers);
         }
       } catch (error) {
         console.error("방 상세 조회 실패:", error);
       }
     })();
-  }, [roomId, location.search, roomData?.roomId, joinResponse?.roomMembers, roomMembers.length]);
+  }, [roomId, location.search, roomData?.roomId, joinResponse?.roomMembers]);
 
   // 방장 userId 결정: 방 생성 유저의 userId 또는 roomDetail의 hostId
   const hostUserId = useMemo(() => {
@@ -429,9 +467,15 @@ export default function ITicketPage() {
     }));
   }, [roomMembers, hostUserId]);
 
-  // maxUserCount를 총 인원수로 사용
-  const capacity = roomRequest?.maxUserCount || roomData?.maxBooking || 20;
-  
+  // 상세 응답 기반 표시값
+  const [roomDetail, setRoomDetail] = useState<RoomDetailResponse | null>(null);
+  // maxUserCount를 총 인원수로 사용 (상세 우선)
+  const capacity =
+    roomDetail?.maxUserCount ||
+    roomRequest?.maxUserCount ||
+    roomData?.maxBooking ||
+    20;
+
   // 현재 인원수
   const currentCount = roomMembers.length;
 
@@ -598,16 +642,14 @@ export default function ITicketPage() {
 
         <div className="productWrapper max-w-[1280px] w-full mx-auto px-4 md:px-6">
           <TagsRow
-            difficulty={roomRequest?.difficulty}
-            maxUserCount={capacity}
-            botCount={roomData?.botCount}
+            difficulty={roomDetail?.difficulty}
+            maxUserCount={roomDetail?.maxUserCount}
+            botCount={roomDetail?.botCount}
           />
           <TitleSection
-            matchName={roomRequest?.matchName}
-            hallSize={roomData?.hallSize}
-            venue={
-              roomData?.hallId ? HALL_ID_TO_VENUE[roomData.hallId] : undefined
-            }
+            matchName={roomDetail?.roomName}
+            hallSize={roomDetail?.hallSize}
+            venue={roomDetail?.hallName}
             onOpenSettings={() => setIsRoomModalOpen(true)}
             onExitRoom={handleExitRoom}
             isExiting={isExiting}
@@ -617,8 +659,12 @@ export default function ITicketPage() {
             <div className="summary w-full md:w-[830px]">
               <div className="flex flex-col md:flex-row items-start">
                 <PosterBox
-                  thumbnailType={roomData?.thumbnailType}
-                  thumbnailValue={roomData?.thumbnailValue}
+                  thumbnailType={
+                    roomDetail?.thumbnailType || roomData?.thumbnailType
+                  }
+                  thumbnailValue={
+                    roomDetail?.thumbnailValue || roomData?.thumbnailValue
+                  }
                 />
                 <div className="ml-0 md:ml-[25px] my-0 mr-0 w-full md:w-[400px]">
                   <ParticipantList
@@ -631,8 +677,12 @@ export default function ITicketPage() {
             </div>
             <aside className="productSide w-full md:w-[370px] mt-6 md:mt-0">
               <StartInfoCard
-                reservationDay={roomRequest?.reservationDay}
-                gameStartTime={roomRequest?.gameStartTime}
+                reservationDay={
+                  roomDetail?.startTime
+                    ? dayjs(roomDetail.startTime).format("YYYY-MM-DD")
+                    : undefined
+                }
+                gameStartTime={roomDetail?.startTime}
                 remaining={formatted}
                 canReserve={secondsLeft === 0}
                 onReserve={openQueueWindow}
