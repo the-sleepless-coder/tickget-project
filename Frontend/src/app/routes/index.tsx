@@ -6,7 +6,7 @@ import PlainLayout from "../layouts/PlainLayout";
 import AuthLayout from "../layouts/AuthLayout";
 // AuthGuard removed because dashboard/profile routes were removed
 
-const HomePage = lazy(() => import("../../pages/home"));
+const HomePage = lazy(() => import("../../pages/home/Home"));
 // Removed BookingIndexPage usage for plain booking flow
 const SelectVenuePage = lazy(
   () =>
@@ -67,7 +67,7 @@ const BookingSelectSchedulePage = lazy(
 const ITicketPage = lazy(
   () => import("../../pages/booking-site/exterpark-site/ExterparkRoom")
 );
-const RoomsPage = lazy(() => import("../../pages/booking-site/RoomsList"));
+const RoomsPage = lazy(() => import("../../pages/home/RoomsList"));
 const SeatsTestPage = lazy(() => import("../../pages/test/NotFound"));
 const MyPageIndex = lazy(() => import("../../pages/user-page/MyPage"));
 const MyPageReservationsPage = lazy(

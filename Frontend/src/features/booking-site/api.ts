@@ -1,4 +1,9 @@
-import { roomApi, ticketingApi, toJsonBlob } from "@shared/lib/http";
+import {
+  roomApi,
+  ticketingApi,
+  toJsonBlob,
+  TICKETING_SERVER_BASE_URL,
+} from "@shared/lib/http";
 import { useAuthStore } from "@features/auth/store";
 import type {
   CreateRoomRequest,
@@ -8,10 +13,14 @@ import type {
   RoomResponse,
   Slice,
   CaptchaRequestResponse,
+  CaptchaValidateRequest,
+  CaptchaValidateResponse,
+  CaptchaValidateResult,
 } from "./types";
 
 export async function getRooms(params?: { page?: number; size?: number }) {
-  return roomApi.get<Slice<RoomResponse>>("/rooms", { params });
+  const headers = useAuthStore.getState().getAuthHeaders();
+  return roomApi.get<Slice<RoomResponse>>("/rooms", { params, headers });
 }
 
 export async function getRoom(roomId: number) {
@@ -71,4 +80,39 @@ export async function requestCaptchaImage() {
     {},
     { headers }
   );
+}
+
+// 보안문자 정답 확인
+export async function validateCaptcha(
+  payload: CaptchaValidateRequest
+): Promise<CaptchaValidateResult> {
+  const { getAuthHeaders, userId } = useAuthStore.getState();
+  const headers: Record<string, string> = {
+    ...getAuthHeaders(),
+    "Content-Type": "application/json",
+  };
+  if (userId != null) headers["userId"] = String(userId);
+
+  const base = TICKETING_SERVER_BASE_URL;
+  const path = "ticketing/captcha/validate";
+  let url: string;
+  if (base.startsWith("/")) {
+    const fullPath = base.replace(/\/$/, "") + "/" + path.replace(/^\//, "");
+    url = new URL(fullPath, window.location.origin).toString();
+  } else {
+    url = new URL(path, base).toString();
+  }
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(payload),
+  });
+  let body: CaptchaValidateResponse = {};
+  try {
+    body = (await res.json()) as CaptchaValidateResponse;
+  } catch {
+    // ignore non-json
+  }
+  return { status: res.status, body };
 }
