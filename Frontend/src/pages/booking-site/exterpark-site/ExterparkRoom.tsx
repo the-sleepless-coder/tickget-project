@@ -1,11 +1,21 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import { useParams, useLocation } from "react-router-dom";
 import { Collapse, IconButton } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import PeopleIcon from "@mui/icons-material/People";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import { paths } from "../../../app/routes/paths";
 import RoomSettingModal from "../../room/edit-room-setting/RoomSettingModal";
+import type { CreateRoomResponse, CreateRoomRequest } from "@features/room/types";
+import dayjs from "dayjs";
+import { useWebSocketStore } from "../../../shared/lib/websocket-store";
+import { subscribe, type Subscription } from "../../../shared/lib/websocket";
+import Thumbnail01 from "../../../shared/images/thumbnail/Thumbnail01.webp";
+import Thumbnail02 from "../../../shared/images/thumbnail/Thumbnail02.webp";
 import Thumbnail03 from "../../../shared/images/thumbnail/Thumbnail03.webp";
+import Thumbnail04 from "../../../shared/images/thumbnail/Thumbnail04.webp";
+import Thumbnail05 from "../../../shared/images/thumbnail/Thumbnail05.webp";
+import Thumbnail06 from "../../../shared/images/thumbnail/Thumbnail06.webp";
 
 type Participant = {
   name: string;
@@ -15,7 +25,42 @@ type Participant = {
 
 const BANNER_HIDE_KEY = "iticket.topBannerHideUntil";
 
+// hallId -> 공연장 이름 매핑
+const HALL_ID_TO_VENUE: Record<number, string> = {
+  2: "샤롯데씨어터",
+  3: "올림픽공원 올림픽홀",
+  4: "인스파이어 아레나",
+};
+
+// hallSize -> 사이즈 이름 매핑
+const HALL_SIZE_TO_LABEL: Record<string, string> = {
+  SMALL: "소형",
+  MEDIUM: "중형",
+  LARGE: "대형",
+};
+
+// difficulty -> 난이도 이름 매핑
+const DIFFICULTY_TO_LABEL: Record<string, string> = {
+  EASY: "초보",
+  MEDIUM: "평균",
+  HARD: "어려움",
+};
+
+// 썸네일 번호 -> 이미지 매핑
+const THUMBNAIL_IMAGES: Record<string, string> = {
+  "1": Thumbnail01,
+  "2": Thumbnail02,
+  "3": Thumbnail03,
+  "4": Thumbnail04,
+  "5": Thumbnail05,
+  "6": Thumbnail06,
+};
+
 export default function ITicketPage() {
+  const { roomId } = useParams<{ roomId?: string }>();
+  const location = useLocation();
+  const roomData = location.state?.roomData as CreateRoomResponse | undefined;
+  const roomRequest = location.state?.roomRequest as CreateRoomRequest | undefined;
   const [secondsLeft, setSecondsLeft] = useState<number>(3);
   const [showBanner, setShowBanner] = useState<boolean>(true);
   const [reserveAppearedAt, setReserveAppearedAt] = useState<number | null>(
@@ -24,13 +69,99 @@ export default function ITicketPage() {
   const [nonReserveClickCount, setNonReserveClickCount] = useState<number>(0);
   const [isTrackingClicks, setIsTrackingClicks] = useState<boolean>(false);
   const [isRoomModalOpen, setIsRoomModalOpen] = useState<boolean>(false);
+  const subscriptionRef = useRef<Subscription | null>(null);
+  const wsClient = useWebSocketStore((state) => state.client);
+
+  // 방 생성 응답 데이터 로그
+  useEffect(() => {
+    if (roomData) {
+      console.log("🎮 게임룸 데이터 (방 생성 응답):", JSON.stringify(roomData, null, 2));
+      console.log("📋 요청 데이터:", JSON.stringify(roomRequest, null, 2));
+      console.log("🆔 Room ID:", roomId || "없음");
+    } else if (roomId) {
+      console.log("🆔 Room ID (URL 파라미터):", roomId);
+      console.log("⚠️ location state에 roomData가 없습니다. API로 데이터를 가져와야 할 수 있습니다.");
+    }
+  }, [roomData, roomRequest, roomId]);
+
+  // WebSocket 구독: /topic/rooms/{roomId}
+  useEffect(() => {
+    const targetRoomId = roomId || roomData?.roomId?.toString();
+    
+    if (!targetRoomId) {
+      console.warn("⚠️ Room ID가 없어 구독할 수 없습니다.");
+      return;
+    }
+
+    if (!wsClient) {
+      console.warn("⚠️ WebSocket 클라이언트가 없습니다. 연결을 기다리는 중...");
+      return;
+    }
+
+    const destination = `/topic/rooms/${targetRoomId}`;
+    let retryCount = 0;
+    const maxRetries = 20; // 최대 10초 대기 (500ms * 20)
+
+    // WebSocket이 연결될 때까지 대기
+    const checkConnection = () => {
+      if (wsClient.connected) {
+        console.log(`📡 방 구독 시도: ${destination}`);
+
+        const subscription = subscribe(wsClient, destination, (message) => {
+          console.log("📨 방 메시지 수신:", {
+            destination: message.headers.destination,
+            body: message.body,
+            headers: message.headers,
+          });
+          try {
+            const data = JSON.parse(message.body);
+            console.log("📦 파싱된 메시지 데이터:", data);
+          } catch (e) {
+            console.log("📄 메시지 본문 (JSON 아님):", message.body);
+          }
+        });
+
+        if (subscription) {
+          subscriptionRef.current = subscription;
+          console.log(`✅ 방 구독 성공: ${destination}`);
+          console.log("📋 구독 정보:", {
+            id: subscription.id,
+            destination: destination,
+            subscribed: true,
+          });
+        } else {
+          console.error(`❌ 방 구독 실패: ${destination} - subscription이 null입니다.`);
+        }
+      } else {
+        retryCount++;
+        if (retryCount < maxRetries) {
+          console.log(`⏳ WebSocket 연결 대기 중... (${retryCount}/${maxRetries})`);
+          setTimeout(checkConnection, 500);
+        } else {
+          console.error(`❌ 방 구독 실패: WebSocket 연결 시간 초과 (${destination})`);
+        }
+      }
+    };
+
+    // 초기 연결 확인
+    checkConnection();
+
+    // cleanup: 컴포넌트 언마운트 시 구독 해제
+    return () => {
+      if (subscriptionRef.current) {
+        console.log(`🔌 방 구독 해제: ${destination}`);
+        subscriptionRef.current.unsubscribe();
+        subscriptionRef.current = null;
+      }
+    };
+  }, [wsClient, roomId, roomData?.roomId]);
 
   const participants: Participant[] = Array.from({ length: 18 }, (_, i) => ({
     name: "닉네임",
     isHost: i === 0,
     avatarUrl: `https://i.pravatar.cc/48?img=${(i % 70) + 1}`,
   }));
-  const capacity = 20;
+  const capacity = roomData?.maxBooking || 20;
 
   useEffect(() => {
     const until = localStorage.getItem(BANNER_HIDE_KEY);
@@ -130,13 +261,24 @@ export default function ITicketPage() {
         )}
 
         <div className="productWrapper max-w-[1280px] w-full mx-auto px-4 md:px-6">
-          <TagsRow />
-          <TitleSection onOpenSettings={() => setIsRoomModalOpen(true)} />
+          <TagsRow 
+            difficulty={roomRequest?.difficulty}
+            botCount={roomData?.botCount}
+          />
+          <TitleSection 
+            matchName={roomRequest?.matchName}
+            hallSize={roomData?.hallSize}
+            venue={roomData?.hallId ? HALL_ID_TO_VENUE[roomData.hallId] : undefined}
+            onOpenSettings={() => setIsRoomModalOpen(true)} 
+          />
 
           <div className="mt-6 flex flex-col md:flex-row gap-8">
             <div className="summary w-full md:w-[830px]">
               <div className="flex flex-col md:flex-row items-start">
-                <PosterBox />
+                <PosterBox 
+                  thumbnailType={roomData?.thumbnailType}
+                  thumbnailValue={roomData?.thumbnailValue}
+                />
                 <div className="ml-0 md:ml-[25px] my-0 mr-0 w-full md:w-[400px]">
                   <ParticipantList
                     participants={participants}
@@ -147,8 +289,8 @@ export default function ITicketPage() {
             </div>
             <aside className="productSide w-full md:w-[370px] mt-6 md:mt-0">
               <StartInfoCard
-                openText="티켓오픈"
-                openAt="2025.10.23 18:00"
+                reservationDay={roomRequest?.reservationDay}
+                gameStartTime={roomRequest?.gameStartTime}
                 remaining={formatted}
                 canReserve={secondsLeft === 0}
                 onReserve={openQueueWindow}
@@ -195,7 +337,13 @@ function TopBanner({ onClose }: { onClose: (hideFor3Days: boolean) => void }) {
   );
 }
 
-function TagsRow() {
+function TagsRow({ 
+  difficulty, 
+  botCount 
+}: { 
+  difficulty?: string;
+  botCount?: number;
+}) {
   const Pill = ({
     children,
     bgVar,
@@ -212,13 +360,17 @@ function TagsRow() {
       {children}
     </span>
   );
+
+  const difficultyLabel = difficulty ? DIFFICULTY_TO_LABEL[difficulty] || difficulty : "어려움";
+  const botLabel = botCount ? `봇 ${botCount.toLocaleString()}명` : "봇 3000명";
+
   return (
     <div className="flex items-center gap-3 py-4">
       <Pill bgVar="--color-c-red-100" colorVar="--color-c-red-200">
-        어려움
+        {difficultyLabel}
       </Pill>
       <Pill bgVar="--color-c-blue-100" colorVar="--color-c-blue-200">
-        봇 3000명
+        {botLabel}
       </Pill>
       <Pill bgVar="--color-c-blue-100" colorVar="--color-c-blue-200">
         익스터파크
@@ -227,16 +379,30 @@ function TagsRow() {
   );
 }
 
-function TitleSection({ onOpenSettings }: { onOpenSettings: () => void }) {
+function TitleSection({ 
+  matchName,
+  hallSize,
+  venue,
+  onOpenSettings 
+}: { 
+  matchName?: string;
+  hallSize?: string;
+  venue?: string;
+  onOpenSettings: () => void;
+}) {
+  const title = matchName || "18시에 티켓팅하실 분 모집합니다";
+  const sizeLabel = hallSize ? HALL_SIZE_TO_LABEL[hallSize] || hallSize : "소형";
+  const venueLabel = venue || "샤롯데씨어터";
+
   return (
     <div>
       <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900">
-        18시에 티켓팅하실 분 모집합니다
+        {title}
       </h1>
       <div className="mt-2 flex items-center gap-3 text-sm text-gray-500">
-        <span>소형</span>
+        <span>{sizeLabel}</span>
         <span className="text-gray-300">|</span>
-        <span>샤롯데씨어터</span>
+        <span>{venueLabel}</span>
         <span className="text-gray-300">|</span>
         <button
           type="button"
@@ -251,11 +417,27 @@ function TitleSection({ onOpenSettings }: { onOpenSettings: () => void }) {
   );
 }
 
-function PosterBox() {
+function PosterBox({ 
+  thumbnailType,
+  thumbnailValue 
+}: { 
+  thumbnailType?: string;
+  thumbnailValue?: string | null;
+}) {
+  let thumbnailSrc = Thumbnail03; // 기본값
+
+  if (thumbnailType === "PRESET" && thumbnailValue) {
+    // 썸네일 번호로 이미지 선택
+    thumbnailSrc = THUMBNAIL_IMAGES[thumbnailValue] || Thumbnail03;
+  } else if (thumbnailType === "UPLOADED" && thumbnailValue) {
+    // 업로드된 이미지 URL 사용
+    thumbnailSrc = thumbnailValue;
+  }
+
   return (
     <div>
       <img
-        src={Thumbnail03}
+        src={thumbnailSrc}
         alt="포스터 이미지"
         className="posterBoxImage w-40 h-56 md:w-[300px] md:h-[400px] object-cover rounded-lg border border-neutral-200"
       />
@@ -313,27 +495,45 @@ function ParticipantList({
 }
 
 function StartInfoCard({
-  openText,
-  openAt,
+  reservationDay,
+  gameStartTime,
   remaining,
   canReserve,
   onReserve,
 }: {
-  openText: string;
-  openAt: string;
+  reservationDay?: string;
+  gameStartTime?: string;
   remaining: string;
   canReserve: boolean;
   onReserve: () => void;
 }) {
+  // 날짜 포맷팅 (yyyy-MM-dd -> yyyy.MM.dd)
+  const formatDate = (dateStr?: string) => {
+    if (!dateStr) return "2025.10.23";
+    const [year, month, day] = dateStr.split("-");
+    return `${year}.${month}.${day}`;
+  };
+
+  // 시간 포맷팅 (ISO string -> HH:mm)
+  const formatTime = (timeStr?: string) => {
+    if (!timeStr) return "18:00";
+    const date = dayjs(timeStr);
+    return date.format("HH:mm");
+  };
+
+  const formattedDate = formatDate(reservationDay);
+  const formattedTime = formatTime(gameStartTime);
+  const openAt = `${formattedDate} ${formattedTime}`;
+
   if (canReserve) {
-    return <BookingCalendarCard onBook={onReserve} />;
+    return <BookingCalendarCard onBook={onReserve} reservationDay={reservationDay} gameStartTime={gameStartTime} />;
   }
   return (
     <section className="bg-white rounded-xl p-6 flex flex-col items-stretch border border-neutral-200 shadow">
       <h3 className="text-lg font-bold text-gray-900 mb-4">경기시작안내</h3>
       <div className="rounded-xl border bg-[#fafafa] p-6 text-center mb-6">
         <div className="text-2xl font-extrabold text-red-500 mb-2">Start</div>
-        <div className="text-gray-800 font-semibold">{openText}</div>
+        <div className="text-gray-800 font-semibold">티켓오픈</div>
         <div className="text-gray-600 mt-1">{openAt}</div>
         <p className="text-xs text-gray-500 mt-3">
           경기가 위 시간에 시작될 예정이므로 준비해주세요.
@@ -350,17 +550,40 @@ function StartInfoCard({
   );
 }
 
-function BookingCalendarCard({ onBook }: { onBook: () => void }) {
+// gameStartTime을 기반으로 시간 슬롯 포맷팅
+const formatTimeSlot = (timeStr?: string) => {
+  if (!timeStr) return "1회 14:30";
+  const date = dayjs(timeStr);
+  const hour = date.hour();
+  const minute = date.minute();
+  return `1회 ${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
+};
+
+function BookingCalendarCard({ 
+  onBook,
+  reservationDay,
+  gameStartTime,
+}: { 
+  onBook: () => void;
+  reservationDay?: string;
+  gameStartTime?: string;
+}) {
   const today = new Date();
   const todayStart = new Date(
     today.getFullYear(),
     today.getMonth(),
     today.getDate()
   );
-  const [month, setMonth] = useState<number>(today.getMonth());
-  const [year, setYear] = useState<number>(today.getFullYear());
-  const [selectedDate, setSelectedDate] = useState<Date | null>(today);
-  const [selectedSlot, setSelectedSlot] = useState<string>("1회 14:30");
+
+  // reservationDay를 기반으로 초기 날짜 설정
+  const initialDate = reservationDay 
+    ? dayjs(reservationDay).toDate()
+    : today;
+
+  const [month, setMonth] = useState<number>(initialDate.getMonth());
+  const [year, setYear] = useState<number>(initialDate.getFullYear());
+  const [selectedDate, setSelectedDate] = useState<Date | null>(initialDate);
+  const [selectedSlot, setSelectedSlot] = useState<string>(formatTimeSlot(gameStartTime));
   const [isCalendarOpen, setIsCalendarOpen] = useState<boolean>(true);
   const [isTimesOpen, setIsTimesOpen] = useState<boolean>(true);
 
@@ -541,7 +764,7 @@ function BookingCalendarCard({ onBook }: { onBook: () => void }) {
         <Collapse in={isTimesOpen} timeout="auto">
           <div className="mt-2">
             <div className="grid grid-cols-2 gap-2">
-              {[{ label: "1회 14:30" }].map((s) => (
+              {[{ label: formatTimeSlot(gameStartTime) }].map((s) => (
                 <button
                   key={s.label}
                   type="button"

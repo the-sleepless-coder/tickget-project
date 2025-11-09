@@ -571,11 +571,17 @@ export default function CreateRoomModal({
                     console.log("📥 응답 데이터:", JSON.stringify(response, null, 2));
                     console.log("🆔 생성된 방 ID:", response.roomId);
                     
-                    // 성공 시 방으로 이동
+                    // 성공 시 방으로 이동 (응답 데이터와 요청 데이터를 location state로 전달)
                     if (response.roomId) {
-                      console.log(`📍 방으로 이동: ${paths.iTicket}/${response.roomId}`);
+                      const roomPath = paths.iTicketRoom(response.roomId);
+                      console.log(`📍 방으로 이동: ${roomPath}`);
                       onClose();
-                      navigate(`${paths.iTicket}/${response.roomId}`);
+                      navigate(roomPath, {
+                        state: { 
+                          roomData: response,
+                          roomRequest: payload, // 요청 데이터도 함께 전달 (matchName, difficulty 등)
+                        },
+                      });
                     } else {
                       console.warn("⚠️ 응답에 roomId가 없습니다:", response);
                     }

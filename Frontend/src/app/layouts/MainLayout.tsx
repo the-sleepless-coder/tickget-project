@@ -10,11 +10,13 @@ import {
   type StompClient,
 } from "../../shared/lib/websocket";
 import { useAuthStore } from "../../features/auth/store";
+import { useWebSocketStore } from "../../shared/lib/websocket-store";
 
 export default function MainLayout() {
   const accessToken = useAuthStore((s) => s.accessToken);
   const isLoggedIn = !!accessToken;
   const clientRef = useRef<StompClient | null>(null);
+  const setClient = useWebSocketStore((s) => s.setClient);
 
   useEffect(() => {
     if (isLoggedIn && !clientRef.current) {
@@ -31,6 +33,7 @@ export default function MainLayout() {
         },
       });
       clientRef.current = client;
+      setClient(client); // store에 저장
       connectStompClient(client);
     }
 
@@ -38,10 +41,11 @@ export default function MainLayout() {
       // 로그아웃하거나 레이아웃 언마운트 시 정리
       if (!isLoggedIn && clientRef.current) {
         disconnectStompClient(clientRef.current);
+        setClient(null); // store에서 제거
         clientRef.current = null;
       }
     };
-  }, [isLoggedIn]);
+  }, [isLoggedIn, setClient]);
 
   return (
     <div className="min-h-screen flex flex-col">

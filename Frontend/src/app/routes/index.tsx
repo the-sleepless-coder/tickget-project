@@ -87,6 +87,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: withSuspense(<HomePage />) },
 
+      { path: "i-ticket/:roomId", element: withSuspense(<ITicketPage />) },
       { path: "i-ticket", element: withSuspense(<ITicketPage />) },
       { path: "seatstest", element: withSuspense(<SeatsTestPage />) },
       { path: "game-result", element: withSuspense(<GameResultPage />) },
