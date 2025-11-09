@@ -18,9 +18,7 @@ export async function createRoom(
   const isUploaded: boolean = payload.thumbnailType === "UPLOADED";
   if (isUploaded) {
     if (!thumbnailFile) {
-      throw new Error(
-        "'UPLOADED'일 때는 썸네일 파일이 필요합니다."
-      );
+      throw new Error("'UPLOADED'일 때는 썸네일 파일이 필요합니다.");
     }
     const form = new FormData();
     form.append("file", thumbnailFile);
