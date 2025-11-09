@@ -8,6 +8,6 @@ import lombok.*;
 @AllArgsConstructor
 @Builder
 public class ConfirmedSeatDto {
-    private String seatId;
-    private String sectionId;
+    private String seatId;      // "8-9-15"
+    private String sectionId;   // "8"
 }

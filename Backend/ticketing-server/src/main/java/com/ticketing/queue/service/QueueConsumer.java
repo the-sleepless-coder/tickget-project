@@ -15,6 +15,7 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.Set;
 
+/**
 @Service
 @Slf4j
 @RequiredArgsConstructor
@@ -51,9 +52,7 @@ public class QueueConsumer {
                 if (userId == null) continue;
 
                 // 상태 변경
-                /**
-                 * Duration 변경
-                 **/
+                // Duration 변경
                 redis.opsForHash().put(QueueKeys.userStateKey(matchId, userId), "state", DEQUEUED);
                 redis.expire(QueueKeys.userStateKey(matchId, userId), Duration.ofSeconds(3));
 
@@ -86,4 +85,4 @@ public class QueueConsumer {
         }
     }
 
-}
+}*/
