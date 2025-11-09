@@ -18,6 +18,9 @@ import CreateRoomStep1 from "./CreateRoomStep1";
 import CreateRoomStep2 from "./CreateRoomStep2";
 import ThumbnailSelectModal from "./CreateRoomThumbnailSelect";
 import { Snackbar, Alert } from "@mui/material";
+import { useAuthStore } from "@features/auth/store";
+import { createRoom } from "@features/room/api";
+import type { CreateRoomRequest } from "@features/room/types";
 
 export default function CreateRoomModal({
   open,
@@ -28,6 +31,8 @@ export default function CreateRoomModal({
 }) {
   const navigate = useNavigate();
   dayjs.locale("ko");
+  const userId = useAuthStore((state) => state.userId);
+  const username = useAuthStore((state) => state.nickname);
   const [step, setStep] = useState<1 | 2>(1);
   const [startTime, setStartTime] = useState<Dayjs | null>(dayjs());
   const [title, setTitle] = useState("");
@@ -49,6 +54,8 @@ export default function CreateRoomModal({
   const [toastOpen, setToastOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [canFinalize, setCanFinalize] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
   type SizeOption = "소형" | "중형" | "대형";
   const diffOptions = useMemo(() => ["초보", "평균", "뛰어남"] as const, []);
   const botOptions = useMemo(() => [100, 500, 1000, 2000, 5000] as const, []);
@@ -98,6 +105,7 @@ export default function CreateRoomModal({
         URL.revokeObjectURL(thumbnailUrl);
         setThumbnailUrl(null);
       }
+      setThumbnailFile(null);
       return;
     }
 
@@ -105,6 +113,7 @@ export default function CreateRoomModal({
     if (thumbnailUrl && thumbnailUrl.startsWith("blob:"))
       URL.revokeObjectURL(thumbnailUrl);
     setThumbnailUrl(nextUrl);
+    setThumbnailFile(file);
   };
   const triggerUpload = () => {
     const el = document.getElementById(
@@ -217,10 +226,12 @@ export default function CreateRoomModal({
       URL.revokeObjectURL(thumbnailUrl);
     }
     setThumbnailUrl(null);
+    setThumbnailFile(null);
     if (layoutUrl && layoutUrl.startsWith("blob:")) {
       URL.revokeObjectURL(layoutUrl);
     }
     setLayoutUrl(null);
+    setIsCreating(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -430,19 +441,163 @@ export default function CreateRoomModal({
               </button>
               <button
                 type="button"
-                disabled={!canFinalize}
-                onClick={() => {
-                  if (!canFinalize) return;
-                  onClose();
-                  navigate(paths.iTicket);
+                disabled={!canFinalize || isCreating}
+                onClick={async () => {
+                  if (!canFinalize || isCreating) return;
+                  
+                  // 필수 값 검증
+                  if (!userId || !username) {
+                    alert("로그인이 필요합니다.");
+                    return;
+                  }
+                  if (!title.trim()) {
+                    setShowStep1Errors(true);
+                    return;
+                  }
+                  if (!startTime) {
+                    alert("시작 시간을 선택해주세요.");
+                    return;
+                  }
+                  if (!venue) {
+                    alert("공연장을 선택해주세요.");
+                    return;
+                  }
+                  if (!botCount) {
+                    alert("봇 인원수를 선택해주세요.");
+                    return;
+                  }
+                  if (matchType === "versus" && !participantCount) {
+                    setShowStep1Errors(true);
+                    return;
+                  }
+
+                  setIsCreating(true);
+
+                  try {
+                    // hallId 매핑
+                    const hallIdMap: Record<string, number> = {
+                      "샤롯데씨어터": 2,
+                      "올림픽공원 올림픽홀": 3,
+                      "인스파이어 아레나": 4,
+                    };
+                    const hallId = hallIdMap[venue];
+                    if (!hallId) {
+                      throw new Error("알 수 없는 공연장입니다.");
+                    }
+
+                    // totalSeat 매핑
+                    const totalSeatMap: Record<string, number> = {
+                      "샤롯데씨어터": 1236,
+                      "올림픽공원 올림픽홀": 4256,
+                      "인스파이어 아레나": 16424,
+                    };
+                    const totalSeat = totalSeatMap[venue];
+                    if (!totalSeat) {
+                      throw new Error("알 수 없는 공연장입니다.");
+                    }
+
+                    // difficulty 매핑
+                    const difficultyMap: Record<string, "EASY" | "MEDIUM" | "HARD"> = {
+                      "초보": "EASY",
+                      "평균": "MEDIUM",
+                      "뛰어남": "HARD",
+                    };
+                    const difficultyValue = difficultyMap[difficulty];
+
+                    // roomType 매핑
+                    const roomType = matchType === "solo" ? "SOLO" : "MULTI";
+
+                    // maxUserCount
+                    const maxUserCount = matchType === "solo" ? 1 : parseInt(participantCount, 10);
+
+                    // reservationDay (yyyy-MM-dd)
+                    const reservationDay = startTime.format("YYYY-MM-DD");
+
+                    // gameStartTime (ISO string)
+                    const gameStartTime = startTime.toISOString();
+
+                    // thumbnailType 및 thumbnailValue
+                    const isUploaded = thumbnailUrl?.startsWith("blob:") && thumbnailFile !== null;
+                    const thumbnailType = isUploaded ? "UPLOADED" : "PRESET";
+                    
+                    let thumbnailValue: string | null = null;
+                    if (thumbnailType === "PRESET") {
+                      // 썸네일 번호 추출: thumbnails 배열에서 인덱스 찾기
+                      const thumbnailIndex = thumbnails.findIndex((thumb) => thumb === thumbnailUrl);
+                      if (thumbnailIndex >= 0) {
+                        thumbnailValue = String(thumbnailIndex + 1); // 1-based index
+                      } else {
+                        // URL에서 직접 추출 시도 (Thumbnail01 -> "1")
+                        const thumbnailMatch = thumbnailUrl?.match(/Thumbnail(\d+)/);
+                        if (thumbnailMatch) {
+                          thumbnailValue = thumbnailMatch[1];
+                        } else {
+                          // 기본값으로 "1" 사용
+                          thumbnailValue = "1";
+                        }
+                      }
+                    }
+
+                    const payload: CreateRoomRequest = {
+                      userId,
+                      username: username || "",
+                      matchName: title.trim(),
+                      roomType,
+                      hallId,
+                      hallType: "PRESET",
+                      difficulty: difficultyValue,
+                      maxUserCount,
+                      totalSeat,
+                      botCount: parseInt(botCount, 10),
+                      reservationDay,
+                      gameStartTime,
+                      thumbnailType,
+                      thumbnailValue,
+                    };
+
+                    console.log("🚀 방 생성 요청 시작");
+                    console.log("📦 요청 바디:", JSON.stringify(payload, null, 2));
+                    if (thumbnailFile) {
+                      console.log("📎 썸네일 파일:", {
+                        name: thumbnailFile.name,
+                        size: thumbnailFile.size,
+                        type: thumbnailFile.type,
+                      });
+                    }
+
+                    const response = await createRoom(payload, thumbnailFile || undefined);
+                    
+                    console.log("✅ 방 생성 성공!");
+                    console.log("📥 응답 데이터:", JSON.stringify(response, null, 2));
+                    console.log("🆔 생성된 방 ID:", response.roomId);
+                    
+                    // 성공 시 방으로 이동
+                    if (response.roomId) {
+                      console.log(`📍 방으로 이동: ${paths.iTicket}/${response.roomId}`);
+                      onClose();
+                      navigate(`${paths.iTicket}/${response.roomId}`);
+                    } else {
+                      console.warn("⚠️ 응답에 roomId가 없습니다:", response);
+                    }
+                  } catch (error) {
+                    console.error("❌ 방 생성 실패:", error);
+                    if (error instanceof Error) {
+                      console.error("에러 메시지:", error.message);
+                      console.error("에러 스택:", error.stack);
+                    }
+                    alert(error instanceof Error ? error.message : "방 생성에 실패했습니다.");
+                  } finally {
+                    setIsCreating(false);
+                    console.log("🏁 방 생성 프로세스 종료");
+                  }
                 }}
                 className={`px-4 py-1.5 rounded-md font-semibold ${
-                  canFinalize
+                  canFinalize && !isCreating
                     ? "bg-purple-600 text-white hover:bg-purple-700 cursor-pointer"
                     : "bg-gray-200 text-gray-500 cursor-not-allowed"
                 }`}
               >
-                방만들기
+                {isCreating ? "생성 중..." : "방만들기"}
               </button>
             </>
           )}
@@ -455,6 +610,7 @@ export default function CreateRoomModal({
             thumbnails={thumbnails}
             onSelect={(src) => {
               setThumbnailUrl(src);
+              setThumbnailFile(null); // 프리셋 선택 시 파일 초기화
               setThumbPickerOpen(false);
             }}
             onUploadClick={triggerUpload}
