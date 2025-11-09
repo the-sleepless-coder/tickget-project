@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { useParams, useLocation } from "react-router-dom";
 import { Collapse, IconButton } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
@@ -9,18 +9,22 @@ import RoomSettingModal from "../../room/edit-room-setting/RoomSettingModal";
 import type {
   CreateRoomResponse,
   CreateRoomRequest,
+  JoinRoomResponse,
+  RoomMember,
 } from "@features/room/types";
 import dayjs from "dayjs";
 import { useWebSocketStore } from "../../../shared/lib/websocket-store";
 import { subscribe, type Subscription } from "../../../shared/lib/websocket";
+import { useAuthStore } from "@features/auth/store";
+import { exitRoom, getRoomDetail } from "@features/room/api";
+import { useNavigate } from "react-router-dom";
+import ExitToAppIcon from "@mui/icons-material/ExitToApp";
 import Thumbnail01 from "../../../shared/images/thumbnail/Thumbnail01.webp";
 import Thumbnail02 from "../../../shared/images/thumbnail/Thumbnail02.webp";
 import Thumbnail03 from "../../../shared/images/thumbnail/Thumbnail03.webp";
 import Thumbnail04 from "../../../shared/images/thumbnail/Thumbnail04.webp";
 import Thumbnail05 from "../../../shared/images/thumbnail/Thumbnail05.webp";
 import Thumbnail06 from "../../../shared/images/thumbnail/Thumbnail06.webp";
-import { getRoomDetail } from "@features/room/api";
-import { useAuthStore } from "@features/auth/store";
 
 type Participant = {
   name: string;
@@ -64,9 +68,13 @@ const THUMBNAIL_IMAGES: Record<string, string> = {
 export default function ITicketPage() {
   const { roomId } = useParams<{ roomId?: string }>();
   const location = useLocation();
+  const navigate = useNavigate();
   const roomData = location.state?.roomData as CreateRoomResponse | undefined;
   const roomRequest = location.state?.roomRequest as
     | CreateRoomRequest
+    | undefined;
+  const joinResponse = location.state?.joinResponse as
+    | JoinRoomResponse
     | undefined;
   const [secondsLeft, setSecondsLeft] = useState<number>(3);
   const [showBanner, setShowBanner] = useState<boolean>(true);
@@ -76,12 +84,119 @@ export default function ITicketPage() {
   const [nonReserveClickCount, setNonReserveClickCount] = useState<number>(0);
   const [isTrackingClicks, setIsTrackingClicks] = useState<boolean>(false);
   const [isRoomModalOpen, setIsRoomModalOpen] = useState<boolean>(false);
+  const [isExiting, setIsExiting] = useState<boolean>(false);
   const subscriptionRef = useRef<Subscription | null>(null);
   const wsClient = useWebSocketStore((state) => state.client);
+  const currentUserNickname = useAuthStore((state) => state.nickname);
+  const currentUserId = useAuthStore((state) => state.userId);
 
-  // 방 생성 응답 데이터 로그
+  // WebSocket 이벤트 핸들러
+  const handleRoomEvent = useCallback((event: {
+    eventType?: string;
+    type?: string; // 기존 형식 지원
+    roomId?: number;
+    timestamp?: number;
+    message?: string;
+    payload?: {
+      userId?: number;
+      username?: string;
+      totalUsersInRoom?: number;
+      [key: string]: unknown;
+    };
+    roomMembers?: RoomMember[]; // 기존 형식 지원
+    userId?: number; // 기존 형식 지원
+    username?: string; // 기존 형식 지원
+    [key: string]: unknown;
+  }) => {
+    const eventType = event.eventType || event.type; // eventType 우선, 없으면 type
+    const payload = event.payload;
+
+    switch (eventType) {
+      case "USER_JOINED":
+      case "USER_ENTERED": {
+        const userId = payload?.userId || event.userId;
+        const username = payload?.username || event.username;
+        const totalUsersInRoom = payload?.totalUsersInRoom;
+
+        if (userId) {
+          console.log(`✅ 유저 입장: userId=${userId}, username=${username || "알 수 없음"}, 총 인원=${totalUsersInRoom || "알 수 없음"}`);
+          console.log(`📝 메시지: ${event.message || ""}`);
+
+          setRoomMembers((prev) => {
+            // 이미 존재하는지 확인
+            const exists = prev.some((m) => m.userId === userId);
+            if (exists) {
+              console.log("⚠️ 이미 존재하는 유저입니다:", userId);
+              return prev;
+            }
+
+            // 새 유저 추가 (username이 없으면 임시로 "사용자{userId}" 사용)
+            const newMember: RoomMember = {
+              userId,
+              username: username || `사용자${userId}`,
+              enteredAt: event.timestamp || Date.now(),
+            };
+
+            console.log("➕ 새 멤버 추가:", newMember);
+            return [...prev, newMember];
+          });
+        } else if (event.roomMembers && Array.isArray(event.roomMembers)) {
+          // roomMembers 배열로 전체 업데이트 (기존 형식)
+          console.log("👥 방 멤버 목록 전체 업데이트 (roomMembers 배열)");
+          setRoomMembers(event.roomMembers);
+        } else {
+          console.warn("⚠️ USER_JOINED 이벤트에 userId가 없습니다:", event);
+        }
+        break;
+      }
+
+      case "USER_LEFT":
+      case "USER_EXITED": {
+        const userId = payload?.userId || event.userId;
+        const totalUsersInRoom = payload?.totalUsersInRoom;
+
+        if (userId) {
+          console.log(`👋 유저 퇴장: userId=${userId}, 남은 인원=${totalUsersInRoom || "알 수 없음"}`);
+          console.log(`📝 메시지: ${event.message || ""}`);
+
+          setRoomMembers((prev) => {
+            const filtered = prev.filter((m) => m.userId !== userId);
+            console.log(`➖ 멤버 제거: ${userId}, 이전 인원: ${prev.length}, 현재 인원: ${filtered.length}`);
+            return filtered;
+          });
+        } else if (event.roomMembers && Array.isArray(event.roomMembers)) {
+          // roomMembers 배열로 전체 업데이트 (기존 형식)
+          console.log("👥 방 멤버 목록 전체 업데이트 (roomMembers 배열)");
+          setRoomMembers(event.roomMembers);
+        } else {
+          console.warn("⚠️ USER_LEFT 이벤트에 userId가 없습니다:", event);
+        }
+        break;
+      }
+
+      case "ROOM_UPDATE":
+      case "MEMBERS_UPDATE":
+        if (event.roomMembers && Array.isArray(event.roomMembers)) {
+          console.log("🔄 방 멤버 목록 전체 업데이트");
+          setRoomMembers(event.roomMembers);
+        }
+        break;
+
+      default:
+        console.log("ℹ️ 알 수 없는 이벤트 타입:", eventType, event);
+    }
+  }, []);
+
+  // 방 생성/입장 응답 데이터 로그
   useEffect(() => {
-    if (roomData) {
+    if (joinResponse) {
+      console.log(
+        "🎮 게임룸 데이터 (방 입장 응답):",
+        JSON.stringify(joinResponse, null, 2)
+      );
+      console.log("📋 방 멤버 목록:", joinResponse.roomMembers);
+      console.log("🆔 Room ID:", roomId || joinResponse.roomId);
+    } else if (roomData) {
       console.log(
         "🎮 게임룸 데이터 (방 생성 응답):",
         JSON.stringify(roomData, null, 2)
@@ -91,22 +206,52 @@ export default function ITicketPage() {
     } else if (roomId) {
       console.log("🆔 Room ID (URL 파라미터):", roomId);
       console.log(
-        "⚠️ location state에 roomData가 없습니다. API로 데이터를 가져와야 할 수 있습니다."
+        "⚠️ location state에 roomData나 joinResponse가 없습니다. API로 데이터를 가져와야 할 수 있습니다."
       );
     }
-  }, [roomData, roomRequest, roomId]);
+  }, [roomData, roomRequest, joinResponse, roomId]);
+
+  // WebSocket 연결 상태 모니터링
+  useEffect(() => {
+    if (!wsClient) {
+      console.warn("⚠️ [WebSocket] 클라이언트가 없습니다.");
+      return;
+    }
+
+    console.log("🔍 [WebSocket] 연결 상태 확인:", {
+      connected: wsClient.connected,
+      active: wsClient.active,
+      subscriptions: (wsClient as any).subscriptions ? Object.keys((wsClient as any).subscriptions).length : 0,
+    });
+
+    // 주기적으로 연결 상태 확인 (5초마다)
+    const interval = setInterval(() => {
+      if (wsClient) {
+        console.log("🔍 [WebSocket] 주기적 상태 확인:", {
+          connected: wsClient.connected,
+          active: wsClient.active,
+          subscriptions: (wsClient as any).subscriptions ? Object.keys((wsClient as any).subscriptions).length : 0,
+        });
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [wsClient]);
 
   // WebSocket 구독: /topic/rooms/{roomId}
   useEffect(() => {
-    const targetRoomId = roomId || roomData?.roomId?.toString();
+    const targetRoomId =
+      roomId ||
+      joinResponse?.roomId?.toString() ||
+      roomData?.roomId?.toString();
 
     if (!targetRoomId) {
-      console.warn("⚠️ Room ID가 없어 구독할 수 없습니다.");
+      console.warn("⚠️ [구독] Room ID가 없어 구독할 수 없습니다.");
       return;
     }
 
     if (!wsClient) {
-      console.warn("⚠️ WebSocket 클라이언트가 없습니다. 연결을 기다리는 중...");
+      console.warn("⚠️ [구독] WebSocket 클라이언트가 없습니다. 연결을 기다리는 중...");
       return;
     }
 
@@ -114,48 +259,85 @@ export default function ITicketPage() {
     let retryCount = 0;
     const maxRetries = 20; // 최대 10초 대기 (500ms * 20)
 
+    console.log("🚀 [구독] 구독 프로세스 시작:", {
+      targetRoomId,
+      destination,
+      wsClientConnected: wsClient.connected,
+      wsClientActive: wsClient.active,
+    });
+
     // WebSocket이 연결될 때까지 대기
     const checkConnection = () => {
       if (wsClient.connected) {
-        console.log(`📡 방 구독 시도: ${destination}`);
+        console.log(`📡 [구독] 방 구독 시도: ${destination}`);
 
         const subscription = subscribe(wsClient, destination, (message) => {
-          console.log("📨 방 메시지 수신:", {
+          console.log("📨 [메시지 수신] 방 메시지 수신:", {
             destination: message.headers.destination,
             body: message.body,
             headers: message.headers,
+            timestamp: new Date().toISOString(),
           });
           try {
             const data = JSON.parse(message.body);
-            console.log("📦 파싱된 메시지 데이터:", data);
-          } catch {
-            console.log("📄 메시지 본문 (JSON 아님):", message.body);
+            console.log("📦 [메시지 수신] 파싱된 메시지 데이터:", JSON.stringify(data, null, 2));
+
+            // 백엔드 메시지 형식: { eventType, roomId, timestamp, message, payload }
+            if (data.eventType) {
+              console.log(`🔔 [메시지 수신] 이벤트 타입: ${data.eventType}`, data);
+              handleRoomEvent(data);
+            }
+            // roomMembers 배열이 있으면 무조건 업데이트 (기존 형식 지원)
+            else if (data.roomMembers && Array.isArray(data.roomMembers)) {
+              console.log("👥 [메시지 수신] 방 멤버 목록 업데이트 (roomMembers 배열):", data.roomMembers);
+              setRoomMembers(data.roomMembers);
+            }
+            // 기타 형식
+            else {
+              console.log("ℹ️ [메시지 수신] 알 수 없는 메시지 형식:", data);
+            }
+          } catch (e) {
+            console.error("❌ [메시지 수신] 메시지 파싱 실패:", e, message.body);
           }
         });
 
         if (subscription) {
           subscriptionRef.current = subscription;
-          console.log(`✅ 방 구독 성공: ${destination}`);
-          console.log("📋 구독 정보:", {
+          console.log(`✅ [구독] 방 구독 성공: ${destination}`);
+          console.log("📋 [구독] 구독 정보:", {
             id: subscription.id,
             destination: destination,
             subscribed: true,
+            timestamp: new Date().toISOString(),
           });
+          
+          // 구독 후 현재 구독 목록 확인
+          if ((wsClient as any).subscriptions) {
+            console.log("📋 [구독] 현재 활성 구독 목록:", Object.keys((wsClient as any).subscriptions));
+          }
         } else {
           console.error(
-            `❌ 방 구독 실패: ${destination} - subscription이 null입니다.`
+            `❌ [구독] 방 구독 실패: ${destination} - subscription이 null입니다.`
           );
         }
       } else {
         retryCount++;
         if (retryCount < maxRetries) {
           console.log(
-            `⏳ WebSocket 연결 대기 중... (${retryCount}/${maxRetries})`
+            `⏳ [구독] WebSocket 연결 대기 중... (${retryCount}/${maxRetries})`,
+            {
+              connected: wsClient.connected,
+              active: wsClient.active,
+            }
           );
           setTimeout(checkConnection, 500);
         } else {
           console.error(
-            `❌ 방 구독 실패: WebSocket 연결 시간 초과 (${destination})`
+            `❌ [구독] 방 구독 실패: WebSocket 연결 시간 초과 (${destination})`,
+            {
+              connected: wsClient.connected,
+              active: wsClient.active,
+            }
           );
         }
       }
@@ -167,57 +349,91 @@ export default function ITicketPage() {
     // cleanup: 컴포넌트 언마운트 시 구독 해제
     return () => {
       if (subscriptionRef.current) {
-        console.log(`🔌 방 구독 해제: ${destination}`);
+        console.log(`🔌 [구독] 방 구독 해제: ${destination}`, {
+          subscriptionId: subscriptionRef.current.id,
+          timestamp: new Date().toISOString(),
+        });
         subscriptionRef.current.unsubscribe();
         subscriptionRef.current = null;
       }
     };
-  }, [wsClient, roomId, roomData?.roomId]);
+  }, [wsClient, roomId, joinResponse?.roomId, roomData?.roomId]);
 
-  const [participants, setParticipants] = useState<Participant[]>([]);
-  const [capacity, setCapacity] = useState<number>(roomData?.maxBooking || 0);
-  const [currentCount, setCurrentCount] = useState<number>(0);
+  // 입장자 목록 상태 관리 (WebSocket 메시지로 실시간 업데이트)
+  const [roomMembers, setRoomMembers] = useState<RoomMember[]>(() => {
+    // 초기값: joinResponse 또는 방 생성 유저
+    if (joinResponse?.roomMembers && joinResponse.roomMembers.length > 0) {
+      return joinResponse.roomMembers;
+    }
+    // 입장 응답이 없으면 방 생성 유저만 표시
+    const hostName = roomRequest?.username || currentUserNickname || "방장";
+    const hostUserId = roomRequest?.userId || useAuthStore.getState().userId || 0;
+    return [
+      {
+        userId: hostUserId,
+        username: hostName,
+        enteredAt: Date.now(),
+      },
+    ];
+  });
 
-  // 방 상세 조회: roomMembers가 없으면 내 정보 1명만 표시
+  // joinResponse가 변경되면 roomMembers 초기화
+  useEffect(() => {
+    if (joinResponse?.roomMembers && joinResponse.roomMembers.length > 0) {
+      setRoomMembers(joinResponse.roomMembers);
+    }
+  }, [joinResponse?.roomMembers]);
+
+  // 방 상세 조회: roomMembers가 없고 roomId가 있으면 API로 가져오기 (fallback)
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const qsId = params.get("roomId");
     const targetId =
+      roomId ||
       (roomData?.roomId && Number(roomData.roomId)) ||
       (qsId && !Number.isNaN(Number(qsId)) ? Number(qsId) : undefined);
 
-    const setSelfOnly = (cap?: number) => {
-      const store = useAuthStore.getState();
-      const selfName = store.nickname || store.name || store.email || "나";
-      setParticipants([{ name: selfName, isHost: true }]);
-      setCapacity(cap ?? (roomData?.maxBooking || 1));
-      setCurrentCount(1);
-    };
-
-    if (!targetId) {
-      setSelfOnly();
+    // roomMembers가 이미 있거나 joinResponse/roomData가 있으면 API 호출 불필요
+    if (
+      roomMembers.length > 0 ||
+      joinResponse?.roomMembers ||
+      roomData?.roomId ||
+      !targetId
+    ) {
       return;
     }
 
     (async () => {
       try {
-        const data = await getRoomDetail(targetId);
-        setCapacity(data.maxUserCount);
-        setCurrentCount(data.currentUserCount);
-        const mapped: Participant[] = (data.roomMembers || []).map((m) => ({
-          name: m.username,
-          isHost: m.userId === data.hostId,
-        }));
-        if (mapped.length > 0) {
-          setParticipants(mapped);
-        } else {
-          setSelfOnly(data.maxUserCount);
+        const data = await getRoomDetail(Number(targetId));
+        if (data.roomMembers && data.roomMembers.length > 0) {
+          setRoomMembers(data.roomMembers);
         }
-      } catch {
-        setSelfOnly();
+      } catch (error) {
+        console.error("방 상세 조회 실패:", error);
       }
     })();
-  }, [location.search, roomData?.roomId, roomData?.maxBooking]);
+  }, [roomId, location.search, roomData?.roomId, joinResponse?.roomMembers, roomMembers.length]);
+
+  // 방장 userId 결정: 방 생성 유저의 userId 또는 roomDetail의 hostId
+  const hostUserId = useMemo(() => {
+    return roomRequest?.userId || null;
+  }, [roomRequest?.userId]);
+
+  // 입장자 목록 구성: roomMembers를 Participant 형식으로 변환
+  const participants: Participant[] = useMemo(() => {
+    return roomMembers.map((member) => ({
+      name: member.username,
+      isHost: hostUserId !== null && member.userId === hostUserId, // 방 생성 유저가 방장
+      avatarUrl: `https://i.pravatar.cc/48?img=${(member.userId % 70) + 1}`,
+    }));
+  }, [roomMembers, hostUserId]);
+
+  // maxUserCount를 총 인원수로 사용
+  const capacity = roomRequest?.maxUserCount || roomData?.maxBooking || 20;
+  
+  // 현재 인원수
+  const currentCount = roomMembers.length;
 
   useEffect(() => {
     const until = localStorage.getItem(BANNER_HIDE_KEY);
@@ -266,6 +482,70 @@ export default function ITicketPage() {
 
   const formatted =
     secondsLeft < 10 ? `00:0${secondsLeft}` : `00:${secondsLeft}`;
+
+  // 방 나가기 핸들러
+  const handleExitRoom = async () => {
+    const targetRoomId =
+      roomId ||
+      joinResponse?.roomId?.toString() ||
+      roomData?.roomId?.toString();
+
+    if (!targetRoomId) {
+      alert("방 ID를 찾을 수 없습니다.");
+      return;
+    }
+
+    if (!currentUserId || !currentUserNickname) {
+      alert("로그인이 필요합니다.");
+      return;
+    }
+
+    if (!confirm("정말 방을 나가시겠습니까?")) {
+      return;
+    }
+
+    setIsExiting(true);
+    try {
+      console.log("🚪 방 나가기 요청 시작:", {
+        roomId: targetRoomId,
+        userId: currentUserId,
+        userName: currentUserNickname,
+      });
+
+      const response = await exitRoom(Number(targetRoomId), {
+        userId: currentUserId,
+        userName: currentUserNickname,
+      });
+
+      console.log("✅ 방 나가기 성공:", JSON.stringify(response, null, 2));
+      console.log("📊 남은 인원:", response.leftUserCount);
+      console.log("📊 방 상태:", response.roomStatus);
+
+      // WebSocket 구독 해제
+      if (subscriptionRef.current) {
+        console.log(`🔌 방 구독 해제: ${response.unsubscriptionTopic}`);
+        subscriptionRef.current.unsubscribe();
+        subscriptionRef.current = null;
+      }
+
+      // 방이 종료되었거나 성공적으로 나간 경우 홈으로 이동
+      if (response.roomStatus === "CLOSED" || response.leftUserCount >= 0) {
+        navigate(paths.home, { replace: true });
+      } else {
+        // 예상치 못한 경우에도 홈으로 이동
+        navigate(paths.home, { replace: true });
+      }
+    } catch (error) {
+      console.error("❌ 방 나가기 실패:", error);
+      if (error instanceof Error) {
+        alert(error.message || "방 나가기에 실패했습니다.");
+      } else {
+        alert("방 나가기에 실패했습니다.");
+      }
+    } finally {
+      setIsExiting(false);
+    }
+  };
 
   const openQueueWindow = () => {
     let finalUrl: string;
@@ -329,6 +609,8 @@ export default function ITicketPage() {
               roomData?.hallId ? HALL_ID_TO_VENUE[roomData.hallId] : undefined
             }
             onOpenSettings={() => setIsRoomModalOpen(true)}
+            onExitRoom={handleExitRoom}
+            isExiting={isExiting}
           />
 
           <div className="mt-6 flex flex-col md:flex-row gap-8">
@@ -451,11 +733,15 @@ function TitleSection({
   hallSize,
   venue,
   onOpenSettings,
+  onExitRoom,
+  isExiting,
 }: {
   matchName?: string;
   hallSize?: string;
   venue?: string;
   onOpenSettings: () => void;
+  onExitRoom: () => void;
+  isExiting?: boolean;
 }) {
   const title = matchName || "18시에 티켓팅하실 분 모집합니다";
   const sizeLabel = hallSize
@@ -465,9 +751,20 @@ function TitleSection({
 
   return (
     <div>
-      <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900">
-        {title}
-      </h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900">
+          {title}
+        </h1>
+        <button
+          type="button"
+          onClick={onExitRoom}
+          disabled={isExiting}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <ExitToAppIcon fontSize="small" />
+          <span>{isExiting ? "나가는 중..." : "방 나가기"}</span>
+        </button>
+      </div>
       <div className="mt-2 flex items-center gap-3 text-sm text-gray-500">
         <span>{sizeLabel}</span>
         <span className="text-gray-300">|</span>
@@ -475,7 +772,7 @@ function TitleSection({
         <span className="text-gray-300">|</span>
         <button
           type="button"
-          className="inline-flex items-center gap-1 text-gray-500 cursor-pointer"
+          className="inline-flex items-center gap-1 text-gray-500 cursor-pointer hover:text-gray-700"
           onClick={onOpenSettings}
         >
           <SettingsOutlinedIcon fontSize="small" />

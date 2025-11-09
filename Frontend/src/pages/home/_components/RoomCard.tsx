@@ -1,6 +1,8 @@
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { paths } from "../../../app/routes/paths";
 import { useEffect, useMemo, useState, useCallback } from "react";
+import { joinRoom } from "@features/room/api";
+import { useAuthStore } from "@features/auth/store";
 
 type RoomCardVariant = "purple" | "blue" | "green" | "orange" | "gray";
 
@@ -12,6 +14,7 @@ interface RoomCardProps {
   badgeText?: string; // kept for backwards-compat (rooms 페이지)
   variant?: RoomCardVariant;
   to?: string;
+  roomId?: number; // 방 ID (입장 API 호출용)
   // Home 전용 확장 props
   participants?: { current: number; capacity: number };
   startTime?: string; // e.g., "18:10"
@@ -46,12 +49,17 @@ export default function RoomCard({
   badgeText,
   variant = "purple",
   to = paths.iTicket,
+  roomId,
   participants,
   startTime,
   size,
   venueName,
   ongoing,
 }: RoomCardProps) {
+  const navigate = useNavigate();
+  const userId = useAuthStore((state) => state.userId);
+  const nickname = useAuthStore((state) => state.nickname);
+  const [isJoining, setIsJoining] = useState(false);
   const gradient = VARIANT_GRADIENT[variant];
   const badgeBg = VARIANT_BADGE_BG[variant];
   // Default badge text by variant (blue/orange/green only)
@@ -282,11 +290,67 @@ export default function RoomCard({
   const isFull =
     !!participants && participants.current >= participants.capacity;
   const overlayLabel = ongoing ? "경기 진행중" : isFull ? "최대 인원" : null;
+  const isDisabled = ongoing || isFull || isJoining;
+
+  // 방 입장 핸들러
+  const handleRoomClick = async (e: React.MouseEvent) => {
+    e.preventDefault();
+
+    if (isDisabled || !roomId) {
+      if (!roomId) {
+        // roomId가 없으면 기존 동작 (Link로 이동)
+        navigate(to);
+      }
+      return;
+    }
+
+    if (!userId || !nickname) {
+      alert("로그인이 필요합니다.");
+      return;
+    }
+
+    setIsJoining(true);
+    try {
+      console.log("🚪 방 입장 요청 시작:", { roomId, userId, userName: nickname });
+
+      const response = await joinRoom(roomId, {
+        userId,
+        userName: nickname,
+      });
+
+      console.log("✅ 방 입장 성공:", JSON.stringify(response, null, 2));
+      console.log("📋 방 멤버 목록:", response.roomMembers);
+
+      // 응답 데이터를 기반으로 게임룸으로 이동
+      const roomPath = paths.iTicketRoom(response.roomId);
+      navigate(roomPath, {
+        state: {
+          roomData: {
+            roomId: response.roomId,
+            subscriptionTopic: response.subscriptionTopic,
+            // 필요한 다른 필드들도 매핑 가능
+          },
+          joinResponse: response, // 입장 응답 데이터도 함께 전달
+        },
+      });
+    } catch (error) {
+      console.error("❌ 방 입장 실패:", error);
+      if (error instanceof Error) {
+        alert(error.message || "방 입장에 실패했습니다.");
+      } else {
+        alert("방 입장에 실패했습니다.");
+      }
+    } finally {
+      setIsJoining(false);
+    }
+  };
 
   return (
-    <Link
-      to={to}
-      className="group relative overflow-hidden rounded-xl bg-white shadow-md transition hover:shadow-lg"
+    <div
+      onClick={handleRoomClick}
+      className={`group relative overflow-hidden rounded-xl bg-white shadow-md transition hover:shadow-lg ${
+        isDisabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"
+      }`}
       aria-label={`${title} 연습 방 입장`}
     >
       {/* 호버 시 카드 전체 배경색 오버레이 */}
@@ -322,10 +386,10 @@ export default function RoomCard({
               className="absolute inset-0 h-full w-full object-cover"
               loading="lazy"
             />
-            {overlayLabel ? (
+            {overlayLabel || isJoining ? (
               <div className="pointer-events-none absolute inset-0 z-10 grid place-items-center bg-[#4F4F4F]/50 backdrop-blur-[2px]">
                 <span className="text-white text-lg font-extrabold">
-                  {overlayLabel}
+                  {isJoining ? "입장 중..." : overlayLabel}
                 </span>
               </div>
             ) : null}
@@ -398,6 +462,6 @@ export default function RoomCard({
           )}
         </div>
       </div>
-    </Link>
+    </div>
   );
 }

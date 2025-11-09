@@ -208,6 +208,7 @@ export default function RoomsPage() {
             participants={room.participants}
             startTime={room.startTime}
             ongoing={room.ongoing}
+            roomId={room.id}
           />
         ))}
       </div>
