@@ -13,7 +13,7 @@ import org.springframework.stereotype.Service;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-
+/**
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -68,9 +68,7 @@ public class QueueWriter {
                     m.put("lastUpdated", String.valueOf(now));
 
                     c.hMSet(hkey, m);
-                    /**
-                     * 조정 필요
-                     * */
+                    // 조정 필요.
                     // (선택) 짧은 TTL:
                     c.expire(hkey, 600);
                     i++;
@@ -82,3 +80,4 @@ public class QueueWriter {
 
 
 }
+ */

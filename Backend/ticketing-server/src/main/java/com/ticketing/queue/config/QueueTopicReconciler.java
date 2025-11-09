@@ -13,6 +13,7 @@ import org.springframework.kafka.core.KafkaAdmin;
 
 import java.util.List;
 import java.util.Map;
+/**
 @Configuration
 @RequiredArgsConstructor
 public class QueueTopicReconciler implements ApplicationRunner {
@@ -42,3 +43,4 @@ public class QueueTopicReconciler implements ApplicationRunner {
 
 
 }
+ */

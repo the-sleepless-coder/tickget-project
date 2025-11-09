@@ -60,9 +60,6 @@ jacoco/
 *.exec
 
 ### Local / secret config ###
-#application.yml
-#application.yaml
-#application.properties
 application-*.yml
 application-*.yaml
 application-*.properties
