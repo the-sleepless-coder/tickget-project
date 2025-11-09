@@ -43,6 +43,12 @@ public class RoomDetailResponse {
 
 
     public static RoomDetailResponse of(Room room, RoomInfo roomInfo, List<RoomMember> roomMembers) {
+        // startTime은 null일 수 있음
+        LocalDateTime startTime = null;
+        if (roomInfo.getStartTime() != null) {
+            startTime = TimeConverter.toLocalDateTime(roomInfo.getStartTime());
+        }
+
         return RoomDetailResponse.builder()
                 .roomId(room.getId())
                 .roomName(roomInfo.getTitle())
@@ -54,7 +60,7 @@ public class RoomDetailResponse {
                 .difficulty(roomInfo.getDifficulty())
                 .roomType(room.getRoomType())
                 .status(room.getStatus())
-                .startTime(TimeConverter.toLocalDateTime(roomInfo.getStartTime()))
+                .startTime(startTime)
                 .hallSize(room.getHallSize())
                 .hallName(room.getHallName())
                 .thumbnailType(room.getThumbnailType())

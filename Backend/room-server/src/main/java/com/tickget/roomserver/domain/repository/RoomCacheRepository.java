@@ -38,6 +38,15 @@ public class RoomCacheRepository {
         roomInfo.put("difficulty",request.getDifficulty().toString());
         roomInfo.put("createdAt", String.valueOf(System.currentTimeMillis()));
 
+        // gameStartTime이 있으면 저장
+        if (request.getGameStartTime() != null) {
+            long startTimeMillis = request.getGameStartTime()
+                    .atZone(java.time.ZoneId.systemDefault())
+                    .toInstant()
+                    .toEpochMilli();
+            roomInfo.put("startTime", String.valueOf(startTimeMillis));
+        }
+
         redisTemplate.opsForHash().putAll(infoKey, roomInfo);
 
         redisTemplate.expire(infoKey, 24, TimeUnit.HOURS);
