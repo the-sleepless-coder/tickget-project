@@ -91,7 +91,12 @@ public class RoomService {
             }
 
             // 매치 생성 요청
-            ticketingServiceClient.createMatch(CreateMatchRequest.of(request, room.getId()));
+            MatchResponse matchResponse = ticketingServiceClient.createMatch(CreateMatchRequest.of(request, room.getId()));
+
+            // 매치의 startTime을 Redis에 업데이트
+            if (matchResponse != null && matchResponse.getStartTime() != null) {
+                roomCacheRepository.updateStartTime(room.getId(), matchResponse.getStartTime());
+            }
 
             log.info("사용자 {}(id:{})이(가) 방 {}을 생성 후 입장",
                     request.getUsername(), request.getUserId(), room.getId());

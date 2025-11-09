@@ -75,6 +75,19 @@ public class RoomCacheRepository {
                 update.getRoomId(),update.getMatchName(), update.getDifficulty(), update.getMaxUserCount(), update.getStartTime());
     }
 
+    public void updateStartTime(Long roomId, java.time.LocalDateTime startTime) {
+        String infoKey = "room:" + roomId + ":info";
+
+        if (startTime != null) {
+            long startTimeMillis = startTime
+                    .atZone(java.time.ZoneId.systemDefault())
+                    .toInstant()
+                    .toEpochMilli();
+            redisTemplate.opsForHash().put(infoKey, "startTime", String.valueOf(startTimeMillis));
+            log.debug("방 {}의 startTime 업데이트: {}", roomId, startTime);
+        }
+    }
+
     public Integer addMemberToRoom(Long roomId, Long userId, String username) throws JsonProcessingException {
         String memberKey ="room:" + roomId+ ":members";
 
