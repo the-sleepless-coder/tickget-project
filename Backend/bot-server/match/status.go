@@ -1,6 +1,6 @@
 package match
 
-// MatchStatus 매치 상태
+// 매치 상태
 type MatchStatus int
 
 const (
@@ -12,7 +12,7 @@ const (
 	StatusFailed                       // 실패
 )
 
-// String 상태를 문자열로 반환
+// 상태를 문자열로 반환
 func (s MatchStatus) String() string {
 	switch s {
 	case StatusPending:

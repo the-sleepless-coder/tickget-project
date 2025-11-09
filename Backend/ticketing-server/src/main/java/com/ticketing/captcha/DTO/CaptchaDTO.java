@@ -9,8 +9,10 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class CaptchaDTO {
 
-    String userId;
-    String input;
-    String captchaId;
+    private String input;
+    private String captchaId;
+    private int duration;
+    private int backSpaceCount;
+    private int attemptCount;
 
 }

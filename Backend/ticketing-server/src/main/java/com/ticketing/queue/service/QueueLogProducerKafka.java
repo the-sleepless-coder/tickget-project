@@ -19,7 +19,7 @@ import static com.ticketing.KafkaTopic.USER_LOG_QUEUE;
 @RequiredArgsConstructor
 public class QueueLogProducerKafka {
     // private final repository
-    private final KafkaTemplate<String, String> kafkaTemplate;
+    private final KafkaTemplate<String, Object> kafkaTemplate;
     private final ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
 
     // Test 시, 지정한 사용자 수 만큼 queue에 쌓는다.
@@ -35,7 +35,7 @@ public class QueueLogProducerKafka {
             String value = "Queue-"+userId;
             String keyString = String.valueOf(key);
 
-            SendResult<String, String> recordData = kafkaTemplate.send(topic, keyString, value).get();
+            SendResult<String, Object> recordData = kafkaTemplate.send(topic, keyString, value).get();
 
             Map<String, Object> message = new HashMap<>();
             message.put("key", keyString);
@@ -65,7 +65,7 @@ public class QueueLogProducerKafka {
 
         // KakfkaProducer -> Producer Record
         // Spring => Kafka Queue
-        SendResult<String, String> result = kafkaTemplate.send(topic, keyString, jsonValue).get();
+        SendResult<String, Object> result = kafkaTemplate.send(topic, keyString, jsonValue).get();
 
         Map<String, Object> message = new HashMap<>();
         message.put("key", key);
@@ -90,10 +90,10 @@ public class QueueLogProducerKafka {
         int key = 1;
         String keyString = String.valueOf(key);
 
-        userInfo.setEventId(UUID.randomUUID());
+        userInfo.setEventId(UUID.randomUUID().toString());
         String jsonValue = mapper.writeValueAsString(userInfo);
 
-        SendResult<String, String> recordData = kafkaTemplate.send(topic, keyString, jsonValue).get();
+        SendResult<String, Object> recordData = kafkaTemplate.send(topic, keyString, jsonValue).get();
 
         Map<String, Object> message = new HashMap<>();
         message.put("key", keyString);

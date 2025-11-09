@@ -2,8 +2,6 @@ package com.ticketing.seat.dto;
 
 import lombok.*;
 
-import java.util.List;
-
 @Getter
 @Setter
 @NoArgsConstructor
@@ -11,5 +9,14 @@ import java.util.List;
 @Builder
 public class SeatConfirmationRequest {
     private Long userId;
-    private List<String> seatIds;
+
+    // 통계 데이터
+    private Integer dateSelectTime;
+    private Integer dateMissCount;
+    private Integer seccodeSelectTime;
+    private Integer seccodeBackspaceCount;
+    private Integer seccodeTryCount;
+    private Integer seatSelectTime;
+    private Integer seatSelectTryCount;
+    private Integer seatSelectClickMissCount;
 }

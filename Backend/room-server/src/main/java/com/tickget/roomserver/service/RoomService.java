@@ -16,12 +16,15 @@ import com.tickget.roomserver.dto.request.CreateRoomRequest;
 import com.tickget.roomserver.dto.request.ExitRoomRequest;
 import com.tickget.roomserver.dto.request.JoinRoomRequest;
 import com.tickget.roomserver.dto.request.MatchSettingUpdateRequest;
+import com.tickget.roomserver.dto.request.NotifyRoomLeftRequest;
 import com.tickget.roomserver.dto.response.CreateRoomResponse;
 import com.tickget.roomserver.dto.response.ExitRoomResponse;
 import com.tickget.roomserver.dto.response.JoinRoomResponse;
 import com.tickget.roomserver.dto.response.RoomDetailResponse;
 import com.tickget.roomserver.dto.response.RoomResponse;
 import com.tickget.roomserver.event.HostChangedEvent;
+import com.tickget.roomserver.event.RoomPlayingEndedEvent;
+import com.tickget.roomserver.event.RoomPlayingStartedEvent;
 import com.tickget.roomserver.event.UserJoinedRoomEvent;
 import com.tickget.roomserver.event.UserLeftRoomEvent;
 import com.tickget.roomserver.exception.CreateMatchDeclinedException;
@@ -63,14 +66,14 @@ public class RoomService {
     public CreateRoomResponse createRoom(CreateRoomRequest request, MultipartFile thumbnail) throws JsonProcessingException {
 
         log.info("사용자  {}(id:{})(이)가 방 생성 요청",request.getUsername(), request.getUserId());
-
-        //TODO: AI 생성 맵 추가 시 분기점 구현
+        
         PresetHall presetHall = presetHallRepository.findById(request.getHallId()).orElseThrow(
                 () -> new PresetHallNotFoundException(request.getHallId()));
 
         String thumbnailValue = request.getThumbnailValue();
         if (request.getThumbnailType() == ThumbnailType.UPLOADED) {
             thumbnailValue = minioService.uploadFile(thumbnail);
+
         }
 
         Room room = Room.of(request,presetHall,thumbnailValue);
@@ -125,6 +128,7 @@ public class RoomService {
 
         // 관련 정보 Redis를 통해 얻어옴
         Map<Long, RoomInfo> roomInfoMap = new HashMap<>(roomIds.size());
+
         for (Long roomId : roomIds) {
             roomInfoMap.put(roomId, roomCacheRepository.getRoomInfo(roomId));
         }
@@ -223,6 +227,10 @@ public class RoomService {
         boolean isHost = roomInfo.getHostId().equals(userId);
 
         roomCacheRepository.removeMemberFromRoom(roomId, userId);
+        if (room.getStatus() == RoomStatus.PLAYING) {
+            notifyUserLeftRoom(roomId, userId);
+        }
+
 
         String sessionId = sessionManager.getSessionIdByUserId(userId);
         if (sessionId != null) {
@@ -254,12 +262,17 @@ public class RoomService {
         return ExitRoomResponse.of(room, leftUserCount);
     }
 
+    private void notifyUserLeftRoom(Long roomId, Long userId) {
+        ticketingServiceClient.notifyUserLeftRoom(NotifyRoomLeftRequest.of(roomId, userId));
+    }
+
     @Transactional
     public void startRoomMatch(Long roomId) {
         Room room = roomRepository.findById(roomId).orElseThrow(
                 () -> new RoomNotFoundException(roomId));
 
         room.setStatus(RoomStatus.PLAYING);
+        roomEventProducer.publishRoomPlayingStartedEvent(RoomPlayingStartedEvent.builder().roomId(roomId).build());
         log.debug("방 {}에서 매치 시작. status를 {} 로 변경", roomId, room.getStatus());
     }
 
@@ -269,6 +282,7 @@ public class RoomService {
                 () -> new RoomNotFoundException(roomId));
 
         room.setStatus(RoomStatus.WAITING);
+        roomEventProducer.publishRoomPlayingEndedEvent(RoomPlayingEndedEvent.builder().roomId(roomId).build());
         log.debug("방 {}에서 매치 종료. status를 {} 로 변경", roomId, room.getStatus());
     }
 
