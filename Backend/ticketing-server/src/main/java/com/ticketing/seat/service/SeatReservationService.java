@@ -29,7 +29,6 @@ public class SeatReservationService {
     private final MatchRepository matchRepository;
     private final MatchStatusRepository matchStatusRepository;
     private final LuaReservationExecutor luaReservationExecutor;
-    private final MatchStatusSyncService matchStatusSyncService;
 
     @Transactional
     public SeatReservationResponse reserveSeats(Long matchId, SeatReservationRequest req) {
@@ -98,9 +97,11 @@ public class SeatReservationService {
             return buildFailureResponse(matchId, req);
         }
 
+        // 만석 감지: Redis는 이미 CLOSED로 설정되어 더 이상 선점 불가
+        // 하지만 DB는 PLAYING 유지 → 이미 선점한 유저들이 Confirm 가능하도록
         if (result == 2L) {
-            log.info("만석 감지: matchId={}, DB 상태를 FINISHED로 변경하고 Redis 정리합니다.", matchId);
-            finishMatchDueToFullCapacity(match);
+            log.info("만석 감지: matchId={}, Redis는 CLOSED 처리됨. DB는 PLAYING 유지하여 선점 유저들의 Confirm 허용", matchId);
+            // DB 상태는 여기서 변경하지 않음 - Confirm 시점에서 처리
         }
 
         return buildSuccessResponse(matchId, req);
@@ -123,20 +124,6 @@ public class SeatReservationService {
             log.debug("하위 호환성: 최상위 grade({})를 모든 좌석에 적용합니다.", req.getGrade());
             req.getSeats().forEach(seat -> seat.setGrade(req.getGrade()));
         }
-    }
-
-    /**
-     * 만석으로 인한 경기 종료 처리
-     */
-    private void finishMatchDueToFullCapacity(Match match) {
-        match.setStatus(Match.MatchStatus.FINISHED);
-        match.setEndedAt(LocalDateTime.now());
-        matchRepository.save(match);
-
-        log.info("경기 자동 종료 완료: matchId={}, status=FINISHED, endedAt={}",
-                match.getMatchId(), match.getEndedAt());
-
-        matchStatusSyncService.cleanupMatchRedis(match.getMatchId());
     }
 
     /**

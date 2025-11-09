@@ -32,6 +32,7 @@ public class SeatConfirmationService {
     private final EventPublisherService eventPublisherService;
     private final UserStatsRepository userStatsRepository;
     private final StringRedisTemplate redisTemplate;
+    private final MatchStatusSyncService matchStatusSyncService;
 
     @Transactional
     public SeatConfirmationResponse confirmSeats(Long matchId, SeatConfirmationRequest request) {
@@ -55,14 +56,6 @@ public class SeatConfirmationService {
                 return response;
             }
 
-            String redisStatus = matchStatusRepository.getMatchStatus(matchId);
-            if (!"OPEN".equalsIgnoreCase(redisStatus)) {
-                SeatConfirmationResponse response = buildClosedResponse(matchId, userId);
-                publishConfirmationEvent(userId, matchId, List.of(), null,
-                        false, response.getMessage(), startTime);
-                return response;
-            }
-
             // 2. Redis에서 해당 유저가 선점한 좌석 조회
             List<String> seatIds = findUserSeats(matchId, userId);
 
@@ -72,6 +65,11 @@ public class SeatConfirmationService {
                         false, response.getMessage(), startTime);
                 return response;
             }
+
+            // ✅ 핵심 수정: 좌석을 선점한 유저는 Redis가 CLOSED여도 Confirm 가능
+            // Redis CLOSED 체크를 좌석 존재 여부 확인 후로 이동
+            String redisStatus = matchStatusRepository.getMatchStatus(matchId);
+            boolean isClosed = "CLOSED".equalsIgnoreCase(redisStatus);
 
             // 3. 좌석 정보 추출
             List<ConfirmedSeatDto> confirmedSeats = new ArrayList<>();
@@ -120,17 +118,22 @@ public class SeatConfirmationService {
 
             userStatsRepository.save(userStats);
 
-            // 6. 성공 응답 생성
+            // 6. ✅ 경기 종료 처리: Redis가 CLOSED이고 모든 유저가 Confirm 완료했는지 확인
+            if (isClosed) {
+                checkAndFinishMatch(match, matchId);
+            }
+
+            // 7. 성공 응답 생성
             SeatConfirmationResponse response = SeatConfirmationResponse.builder()
                     .success(true)
                     .message("개인 경기 종료")
                     .userRank(userRank)
                     .confirmedSeats(confirmedSeats)
-                    .matchId(matchId)        // ← Long 타입
-                    .userId(userId)          // ← Long 타입
+                    .matchId(matchId)
+                    .userId(userId)
                     .build();
 
-            // 7. 이벤트 발행
+            // 8. 이벤트 발행
             publishConfirmationEvent(userId, matchId, seatIds, sectionIds,
                     true, "개인 경기 종료", startTime);
 
@@ -144,6 +147,38 @@ public class SeatConfirmationService {
                     false, e.getMessage(), startTime);
 
             return response;
+        }
+    }
+
+    /**
+     * ✅ 경기 종료 조건 확인 및 처리
+     * Redis가 CLOSED 상태이고, 모든 선점 좌석이 Confirm되었는지 확인
+     */
+    private void checkAndFinishMatch(Match match, Long matchId) {
+        // Redis의 reserved_count와 user_stats 개수 비교
+        String countKey = "match:" + matchId + ":reserved_count";
+        String countStr = redisTemplate.opsForValue().get(countKey);
+
+        if (countStr != null) {
+            int reservedCount = Integer.parseInt(countStr);
+            long confirmedCount = userStatsRepository.findByMatchId(matchId).size();
+
+            log.info("경기 종료 체크: matchId={}, reserved={}, confirmed={}",
+                    matchId, reservedCount, confirmedCount);
+
+            // 모든 선점 좌석이 확정되었으면 경기 종료
+            if (confirmedCount >= reservedCount) {
+                log.info("모든 유저 Confirm 완료 - 경기 종료 처리: matchId={}", matchId);
+                match.setStatus(Match.MatchStatus.FINISHED);
+                match.setEndedAt(LocalDateTime.now());
+                matchRepository.save(match);
+
+                // Redis 정리
+                matchStatusSyncService.cleanupMatchRedis(matchId);
+
+                log.info("경기 자동 종료 완료: matchId={}, status=FINISHED, endedAt={}",
+                        matchId, match.getEndedAt());
+            }
         }
     }
 
@@ -254,8 +289,8 @@ public class SeatConfirmationService {
         return SeatConfirmationResponse.builder()
                 .success(false)
                 .message("이 이벤트는 더 이상 예매할 수 없습니다.")
-                .matchId(matchId)      // ← Long 타입
-                .userId(userId)        // ← Long 타입
+                .matchId(matchId)
+                .userId(userId)
                 .status("CLOSED")
                 .build();
     }
