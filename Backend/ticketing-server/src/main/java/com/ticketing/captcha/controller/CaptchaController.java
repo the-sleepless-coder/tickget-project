@@ -5,6 +5,7 @@ import com.ticketing.captcha.DTO.HttpResultDTO;
 import com.ticketing.captcha.service.CaptchaService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -48,11 +49,19 @@ public class CaptchaController {
     /**
      * 나중에 Filter 단에서 처리해서 서버에 대한 부담을 줄인다.
      * */
-    @GetMapping()
+    @GetMapping("/captcha/validate/bot")
     public ResponseEntity<?> validateRobot(HttpServletRequest request){
-        // request.getHeader("userId");
+        Long userId = Long.valueOf(request.getHeader("userId"));
 
-        return null;
+        if(userId < 0){
+
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(Map.of("message","isRobot"));
+        }
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(Map.of("message", "isHuman"));
+
     }
 
 

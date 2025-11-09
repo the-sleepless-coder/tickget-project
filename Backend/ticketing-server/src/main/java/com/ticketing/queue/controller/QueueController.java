@@ -1,10 +1,8 @@
 package com.ticketing.queue.controller;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.ticketing.queue.DTO.MatchRequestDTO;
-import com.ticketing.queue.DTO.QueueDTO;
-import com.ticketing.queue.DTO.QueueLogDTO;
-import com.ticketing.queue.DTO.QueueUserInfoDTO;
+import com.ticketing.entity.Match;
+import com.ticketing.queue.DTO.*;
 import com.ticketing.queue.service.QueueLogProducerKafka;
 import com.ticketing.queue.service.QueueService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -66,20 +64,17 @@ public class QueueController {
     // 경기 시작 시, 경기 관련 데이터를 생성하는 API
     @PostMapping("/matches")
     public ResponseEntity<?> createDBData(@RequestBody MatchRequestDTO dto){
-        try{
-            int res = service.insertMatchData(dto);
-            if(res==1){
-                return ResponseEntity.status(HttpStatus.CREATED)
-                        .body(Map.of("message","매치 데이터 생성 성공"));
-            }else{
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                        .body(Map.of("message", "매치 데이터 생성 실패"));
-            }
-        }catch(Exception e){
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", e.getMessage()));
+        MatchResponseDTO match = service.insertMatchData(dto);
+
+        // 매치 생성 실패
+        if(match==null){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("message", " 매치 데이터 생성 실패"));
         }
 
+        // 매치 생성 성공
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(match);
     }
 
 
