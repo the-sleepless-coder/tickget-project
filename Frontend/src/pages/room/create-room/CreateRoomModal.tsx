@@ -240,6 +240,18 @@ export default function CreateRoomModal({
     if (!thumbnailUrl) setRandomThumbnail();
   }, [open, thumbnailUrl, setRandomThumbnail]);
 
+  // Step2 preset 진입 시 기본 공연장 자동 세팅 (예: 소형 -> 샤롯데씨어터)
+  useEffect(() => {
+    if (step !== 2) return;
+    if (step2Mode !== "preset") return;
+    if (venue && venue.trim().length > 0) return;
+    const defaults = sizeToVenues[size as SizeOption] || [];
+    if (defaults.length > 0) {
+      setVenue(defaults[0]);
+      // preset 모드에서는 venueSelected는 생성 버튼 로직에 영향 없음
+    }
+  }, [step, step2Mode, size, venue, sizeToVenues]);
+
   // Step2: 모드별 '방만들기' 버튼 활성화 조건
   useEffect(() => {
     if (step !== 2) return;
@@ -444,7 +456,7 @@ export default function CreateRoomModal({
                 disabled={!canFinalize || isCreating}
                 onClick={async () => {
                   if (!canFinalize || isCreating) return;
-                  
+
                   // 필수 값 검증
                   if (!userId || !username) {
                     alert("로그인이 필요합니다.");
@@ -476,7 +488,7 @@ export default function CreateRoomModal({
                   try {
                     // hallId 매핑
                     const hallIdMap: Record<string, number> = {
-                      "샤롯데씨어터": 2,
+                      샤롯데씨어터: 2,
                       "올림픽공원 올림픽홀": 3,
                       "인스파이어 아레나": 4,
                     };
@@ -487,7 +499,7 @@ export default function CreateRoomModal({
 
                     // totalSeat 매핑
                     const totalSeatMap: Record<string, number> = {
-                      "샤롯데씨어터": 1236,
+                      샤롯데씨어터: 1236,
                       "올림픽공원 올림픽홀": 4256,
                       "인스파이어 아레나": 16424,
                     };
@@ -497,10 +509,13 @@ export default function CreateRoomModal({
                     }
 
                     // difficulty 매핑
-                    const difficultyMap: Record<string, "EASY" | "MEDIUM" | "HARD"> = {
-                      "초보": "EASY",
-                      "평균": "MEDIUM",
-                      "뛰어남": "HARD",
+                    const difficultyMap: Record<
+                      string,
+                      "EASY" | "MEDIUM" | "HARD"
+                    > = {
+                      초보: "EASY",
+                      평균: "MEDIUM",
+                      뛰어남: "HARD",
                     };
                     const difficultyValue = difficultyMap[difficulty];
 
@@ -508,27 +523,34 @@ export default function CreateRoomModal({
                     const roomType = matchType === "solo" ? "SOLO" : "MULTI";
 
                     // maxUserCount
-                    const maxUserCount = matchType === "solo" ? 1 : parseInt(participantCount, 10);
+                    const maxUserCount =
+                      matchType === "solo" ? 1 : parseInt(participantCount, 10);
 
                     // reservationDay (yyyy-MM-dd)
                     const reservationDay = startTime.format("YYYY-MM-DD");
 
-                    // gameStartTime (ISO string)
-                    const gameStartTime = startTime.toISOString();
+                    // gameStartTime (KST, ISO with offset +09:00)
+                    const gameStartTime =
+                      startTime.format("YYYY-MM-DD[T]HH:mm:ss") + "+09:00";
 
                     // thumbnailType 및 thumbnailValue
-                    const isUploaded = thumbnailUrl?.startsWith("blob:") && thumbnailFile !== null;
+                    const isUploaded =
+                      thumbnailUrl?.startsWith("blob:") &&
+                      thumbnailFile !== null;
                     const thumbnailType = isUploaded ? "UPLOADED" : "PRESET";
-                    
+
                     let thumbnailValue: string | null = null;
                     if (thumbnailType === "PRESET") {
                       // 썸네일 번호 추출: thumbnails 배열에서 인덱스 찾기
-                      const thumbnailIndex = thumbnails.findIndex((thumb) => thumb === thumbnailUrl);
+                      const thumbnailIndex = thumbnails.findIndex(
+                        (thumb) => thumb === thumbnailUrl
+                      );
                       if (thumbnailIndex >= 0) {
                         thumbnailValue = String(thumbnailIndex + 1); // 1-based index
                       } else {
                         // URL에서 직접 추출 시도 (Thumbnail01 -> "1")
-                        const thumbnailMatch = thumbnailUrl?.match(/Thumbnail(\d+)/);
+                        const thumbnailMatch =
+                          thumbnailUrl?.match(/Thumbnail(\d+)/);
                         if (thumbnailMatch) {
                           thumbnailValue = thumbnailMatch[1];
                         } else {
@@ -556,7 +578,10 @@ export default function CreateRoomModal({
                     };
 
                     console.log("🚀 방 생성 요청 시작");
-                    console.log("📦 요청 바디:", JSON.stringify(payload, null, 2));
+                    console.log(
+                      "📦 요청 바디:",
+                      JSON.stringify(payload, null, 2)
+                    );
                     if (thumbnailFile) {
                       console.log("📎 썸네일 파일:", {
                         name: thumbnailFile.name,
@@ -565,19 +590,25 @@ export default function CreateRoomModal({
                       });
                     }
 
-                    const response = await createRoom(payload, thumbnailFile || undefined);
-                    
+                    const response = await createRoom(
+                      payload,
+                      thumbnailFile || undefined
+                    );
+
                     console.log("✅ 방 생성 성공!");
-                    console.log("📥 응답 데이터:", JSON.stringify(response, null, 2));
+                    console.log(
+                      "📥 응답 데이터:",
+                      JSON.stringify(response, null, 2)
+                    );
                     console.log("🆔 생성된 방 ID:", response.roomId);
-                    
+
                     // 성공 시 방으로 이동 (응답 데이터와 요청 데이터를 location state로 전달)
                     if (response.roomId) {
                       const roomPath = paths.iTicketRoom(response.roomId);
                       console.log(`📍 방으로 이동: ${roomPath}`);
                       onClose();
                       navigate(roomPath, {
-                        state: { 
+                        state: {
                           roomData: response,
                           roomRequest: payload, // 요청 데이터도 함께 전달 (matchName, difficulty 등)
                         },
@@ -591,7 +622,11 @@ export default function CreateRoomModal({
                       console.error("에러 메시지:", error.message);
                       console.error("에러 스택:", error.stack);
                     }
-                    alert(error instanceof Error ? error.message : "방 생성에 실패했습니다.");
+                    alert(
+                      error instanceof Error
+                        ? error.message
+                        : "방 생성에 실패했습니다."
+                    );
                   } finally {
                     setIsCreating(false);
                     console.log("🏁 방 생성 프로세스 종료");
