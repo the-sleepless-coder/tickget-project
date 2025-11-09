@@ -6,8 +6,9 @@ WORKDIR /app
 # 의존성 설치를 위한 파일만 먼저 복사 (캐싱 최적화)
 COPY package.json package-lock.json ./
 
-# 의존성 설치
-RUN npm ci --legacy-peer-deps
+# 의존성 설치 + npm 캐시 마운트로 재빌드 시 속도 향상
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --legacy-peer-deps
 
 # 소스 코드 복사
 COPY . .

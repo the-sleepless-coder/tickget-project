@@ -2,8 +2,10 @@
 FROM eclipse-temurin:21-jdk-jammy AS builder
 WORKDIR /app
 
-# 모든 파일을 한 번에 복사 (Windows 크로스 플랫폼 빌드 호환성)
-COPY . .
+# 1. Gradle 빌드에 필요한 파일만 먼저 복사
+COPY gradlew gradlew.bat ./
+COPY gradle ./gradle
+COPY build.gradle settings.gradle ./
 
 # Windows CRLF → Unix LF 변환 및 실행 권한 부여
 RUN apt-get update && apt-get install -y dos2unix && \
@@ -11,8 +13,16 @@ RUN apt-get update && apt-get install -y dos2unix && \
     chmod +x ./gradlew && \
     rm -rf /var/lib/apt/lists/*
 
-# Gradle wrapper 초기화 및 빌드
-RUN ./gradlew clean build -x test --no-daemon
+# 2. [속도 최적화] 의존성 다운로드 레이어 분리 + BuildKit 캐시
+RUN --mount=type=cache,target=/root/.gradle \
+    ./gradlew dependencies -x test
+
+# 3. 소스 코드 복사
+COPY src ./src
+
+# 4. 애플리케이션 빌드 (캐시된 의존성 사용)
+RUN --mount=type=cache,target=/root/.gradle \
+    ./gradlew build -x test
 
 # --- 2단계: Java 21 JRE로 최종 런타임 이미지 생성 ---
 FROM eclipse-temurin:21-jre-jammy
