@@ -229,6 +229,28 @@ export default function CreateRoomModal({
     if (!thumbnailUrl) setRandomThumbnail();
   }, [open, thumbnailUrl, setRandomThumbnail]);
 
+  // Step2: 모드별 '방만들기' 버튼 활성화 조건
+  useEffect(() => {
+    if (step !== 2) return;
+    if (step2Mode === "preset") {
+      const okPreset =
+        Boolean(venue && venue.trim().length > 0) &&
+        Boolean(botCount && botCount.trim().length > 0);
+      setCanFinalize(okPreset);
+      return;
+    }
+    if (step2Mode === "ai") {
+      const hasImage = Boolean(layoutUrl);
+      const okAi =
+        hasImage &&
+        Boolean(venueSelected) &&
+        Boolean(difficulty) &&
+        Boolean(botCount && botCount.trim().length > 0);
+      setCanFinalize(okAi);
+      return;
+    }
+  }, [step, step2Mode, venue, venueSelected, difficulty, botCount, layoutUrl]);
+
   if (!open) return null;
 
   return (
