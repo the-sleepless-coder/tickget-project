@@ -18,7 +18,7 @@ public class CreateMatchRequest {
     private int botCount;
 
     private Difficulty difficulty;
-    private LocalDateTime startTime;
+    private LocalDateTime startedAt;
 
 
     public static CreateMatchRequest of(CreateRoomRequest request, Long roomId) {
@@ -28,7 +28,7 @@ public class CreateMatchRequest {
                 .maxUserCount(request.getMaxUserCount())
                 .botCount(request.getBotCount())
                 .difficulty(request.getDifficulty())
-                .startTime(request.getGameStartTime())
+                .startedAt(request.getGameStartTime())
                 .build();
     }
 }

@@ -100,7 +100,7 @@ public class RoomCacheRepository {
         return RoomInfo.builder()
                 .roomId(roomId)
                 .title(info.get("title").toString())
-                .hostId((Long) info.get("host"))
+                .hostId(Long.parseLong(info.get("host").toString()))
                 .difficulty(info.get("difficulty").toString())
                 .maxUserCount(Integer.parseInt(info.get("maxUserCount").toString()))
                 .currentUserCount(Math.toIntExact(currentCount))
