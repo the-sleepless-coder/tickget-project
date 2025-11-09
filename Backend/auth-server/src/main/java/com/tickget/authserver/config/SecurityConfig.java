@@ -37,7 +37,7 @@ public class SecurityConfig {
     private final OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    @Value("${app.oauth2.frontend-url:http://localhost:3000}")
+    @Value("${app.oauth2.frontend-url:http://localhost:5173}")
     private String frontendUrl;
 
     /**
@@ -135,6 +135,9 @@ public class SecurityConfig {
         configuration.setAllowedOriginPatterns(Arrays.asList(
                 frontendUrl,
                 "http://localhost:*",
+                "http://localhost:5173",
+                "https://localhost:*",
+                "https://localhost:5173",
                 "http://127.0.0.1:*",
                 "https://tickget.kr",
                 "https://*.tickget.kr"
