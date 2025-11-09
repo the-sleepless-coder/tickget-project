@@ -19,6 +19,8 @@ import Thumbnail03 from "../../../shared/images/thumbnail/Thumbnail03.webp";
 import Thumbnail04 from "../../../shared/images/thumbnail/Thumbnail04.webp";
 import Thumbnail05 from "../../../shared/images/thumbnail/Thumbnail05.webp";
 import Thumbnail06 from "../../../shared/images/thumbnail/Thumbnail06.webp";
+import { getRoomDetail } from "@features/room/api";
+import { useAuthStore } from "@features/auth/store";
 
 type Participant = {
   name: string;
@@ -44,8 +46,8 @@ const HALL_SIZE_TO_LABEL: Record<string, string> = {
 
 // difficulty -> 난이도 이름 매핑
 const DIFFICULTY_TO_LABEL: Record<string, string> = {
-  EASY: "초보",
-  MEDIUM: "평균",
+  EASY: "쉬움",
+  MEDIUM: "보통",
   HARD: "어려움",
 };
 
@@ -126,7 +128,7 @@ export default function ITicketPage() {
           try {
             const data = JSON.parse(message.body);
             console.log("📦 파싱된 메시지 데이터:", data);
-          } catch (e) {
+          } catch {
             console.log("📄 메시지 본문 (JSON 아님):", message.body);
           }
         });
@@ -172,12 +174,50 @@ export default function ITicketPage() {
     };
   }, [wsClient, roomId, roomData?.roomId]);
 
-  const participants: Participant[] = Array.from({ length: 18 }, (_, i) => ({
-    name: "닉네임",
-    isHost: i === 0,
-    avatarUrl: `https://i.pravatar.cc/48?img=${(i % 70) + 1}`,
-  }));
-  const capacity = roomData?.maxBooking || 20;
+  const [participants, setParticipants] = useState<Participant[]>([]);
+  const [capacity, setCapacity] = useState<number>(roomData?.maxBooking || 0);
+  const [currentCount, setCurrentCount] = useState<number>(0);
+
+  // 방 상세 조회: roomMembers가 없으면 내 정보 1명만 표시
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const qsId = params.get("roomId");
+    const targetId =
+      (roomData?.roomId && Number(roomData.roomId)) ||
+      (qsId && !Number.isNaN(Number(qsId)) ? Number(qsId) : undefined);
+
+    const setSelfOnly = (cap?: number) => {
+      const store = useAuthStore.getState();
+      const selfName = store.nickname || store.name || store.email || "나";
+      setParticipants([{ name: selfName, isHost: true }]);
+      setCapacity(cap ?? (roomData?.maxBooking || 1));
+      setCurrentCount(1);
+    };
+
+    if (!targetId) {
+      setSelfOnly();
+      return;
+    }
+
+    (async () => {
+      try {
+        const data = await getRoomDetail(targetId);
+        setCapacity(data.maxUserCount);
+        setCurrentCount(data.currentUserCount);
+        const mapped: Participant[] = (data.roomMembers || []).map((m) => ({
+          name: m.username,
+          isHost: m.userId === data.hostId,
+        }));
+        if (mapped.length > 0) {
+          setParticipants(mapped);
+        } else {
+          setSelfOnly(data.maxUserCount);
+        }
+      } catch {
+        setSelfOnly();
+      }
+    })();
+  }, [location.search, roomData?.roomId, roomData?.maxBooking]);
 
   useEffect(() => {
     const until = localStorage.getItem(BANNER_HIDE_KEY);
@@ -279,6 +319,7 @@ export default function ITicketPage() {
         <div className="productWrapper max-w-[1280px] w-full mx-auto px-4 md:px-6">
           <TagsRow
             difficulty={roomRequest?.difficulty}
+            maxUserCount={capacity}
             botCount={roomData?.botCount}
           />
           <TitleSection
@@ -301,6 +342,7 @@ export default function ITicketPage() {
                   <ParticipantList
                     participants={participants}
                     capacity={capacity}
+                    currentCount={currentCount}
                   />
                 </div>
               </div>
@@ -357,9 +399,11 @@ function TopBanner({ onClose }: { onClose: (hideFor3Days: boolean) => void }) {
 
 function TagsRow({
   difficulty,
+  maxUserCount,
   botCount,
 }: {
   difficulty?: string;
+  maxUserCount?: number;
   botCount?: number;
 }) {
   const Pill = ({
@@ -382,6 +426,9 @@ function TagsRow({
   const difficultyLabel = difficulty
     ? DIFFICULTY_TO_LABEL[difficulty] || difficulty
     : "어려움";
+  const maxLabel = maxUserCount
+    ? `최대 ${maxUserCount.toLocaleString()}명`
+    : "최대 10명";
   const botLabel = botCount ? `봇 ${botCount.toLocaleString()}명` : "봇 3000명";
 
   return (
@@ -390,10 +437,10 @@ function TagsRow({
         {difficultyLabel}
       </Pill>
       <Pill bgVar="--color-c-blue-100" colorVar="--color-c-blue-200">
-        {botLabel}
+        {maxLabel}
       </Pill>
       <Pill bgVar="--color-c-blue-100" colorVar="--color-c-blue-200">
-        익스터파크
+        {botLabel}
       </Pill>
     </div>
   );
@@ -472,9 +519,11 @@ function PosterBox({
 function ParticipantList({
   participants,
   capacity,
+  currentCount,
 }: {
   participants: Participant[];
   capacity: number;
+  currentCount?: number;
 }) {
   return (
     <section className="bg-white rounded-xl overflow-hidden border border-neutral-200 shadow">
@@ -484,10 +533,10 @@ function ParticipantList({
           <span>입장자</span>
         </div>
         <span className="text-sm text-gray-700 font-bold">
-          {participants.length} / {capacity}명
+          {currentCount ?? participants.length} / {capacity}명
         </span>
       </div>
-      <ul className="max-h-[420px] overflow-y-auto py-1 space-y-1 pr-1 nice-scroll">
+      <ul className="h-[420px] overflow-y-auto py-1 space-y-1 pr-1 nice-scroll">
         {participants.map((p, idx) => (
           <li key={idx} className="flex items-center justify-between px-4 py-2">
             <div className="flex items-center gap-3">
@@ -808,7 +857,7 @@ function BookingCalendarCard({
               ))}
             </div>
             <div className="mt-3 text-xs text-gray-700">
-              R석 147 / S석 134 / A석 224 / B석 288
+              R석 100 / S석 150 / A석 200 / B석 300
             </div>
           </div>
         </Collapse>

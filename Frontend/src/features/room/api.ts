@@ -1,6 +1,10 @@
 import { roomApi, toJsonBlob } from "@shared/lib/http";
 import { useAuthStore } from "@features/auth/store";
-import type { CreateRoomRequest, CreateRoomResponse } from "./types";
+import type {
+  CreateRoomRequest,
+  CreateRoomResponse,
+  RoomDetailResponse,
+} from "./types";
 
 /**
  * Create a room.
@@ -30,4 +34,9 @@ export async function createRoom(
 
   // PRESET일 때 JSON 요청 (또는 파일이 없을 때)
   return roomApi.postJson<CreateRoomResponse>("/rooms", payload, { headers });
+}
+
+// Room detail: GET /rooms/{roomId}
+export async function getRoomDetail(roomId: number) {
+  return roomApi.get<RoomDetailResponse>(`/rooms/${roomId}`);
 }

@@ -36,3 +36,28 @@ export interface CreateRoomResponse {
   thumbnailType: ThumbnailType;
   thumbnailValue: string | null; // URL if UPLOADED
 }
+
+// Room detail types
+export interface RoomMember {
+  userId: number;
+  username: string;
+  enteredAt: number;
+}
+
+export interface RoomDetailResponse {
+  roomId: number;
+  roomName: string;
+  botCount: number;
+  maxUserCount: number;
+  currentUserCount: number;
+  hostId: number;
+  roomMembers: RoomMember[];
+  difficulty: "EASY" | "MEDIUM" | "HARD" | string;
+  roomType: string;
+  status: string;
+  startTime: string; // ISO string
+  hallSize: HallSize;
+  hallName: string;
+  thumbnailType: ThumbnailType;
+  thumbnailValue: string | null;
+}
