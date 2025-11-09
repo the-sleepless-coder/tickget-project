@@ -97,6 +97,12 @@ public class RoomCacheRepository {
         // 현재 인원 수
         Long currentCount = redisTemplate.opsForHash().size(memberKey);
 
+        // startTime은 optional이므로 null 체크
+        Long startTime = null;
+        if (info.get("startTime") != null) {
+            startTime = Long.parseLong(info.get("startTime").toString());
+        }
+
         return RoomInfo.builder()
                 .roomId(roomId)
                 .title(info.get("title").toString())
@@ -105,6 +111,7 @@ public class RoomCacheRepository {
                 .maxUserCount(Integer.parseInt(info.get("maxUserCount").toString()))
                 .currentUserCount(Math.toIntExact(currentCount))
                 .createdAt(Long.parseLong(info.get("createdAt").toString()))
+                .startTime(startTime)
                 .build();
     }
 
