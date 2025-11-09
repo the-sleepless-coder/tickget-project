@@ -165,7 +165,11 @@ export default function HomePage() {
           />
         ))}
       </div>
-
+      {displayedRooms.length === 0 ? (
+        <div className="mt-30 mb-40 text-center text-md text-gray-500 leading-relaxed">
+          티켓팅 연습방을 만들어보세요 !
+        </div>
+      ) : null}
       <div className="h-10" />
     </div>
   );

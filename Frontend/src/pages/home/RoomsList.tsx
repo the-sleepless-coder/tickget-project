@@ -212,9 +212,9 @@ export default function RoomsPage() {
         ))}
       </div>
       {sortedRooms.length === 0 ? (
-        <p className="mt-6 text-center text-sm text-gray-500">
-          검색 결과가 없습니다.
-        </p>
+        <div className="mt-30 mb-40 text-center text-md text-gray-500 leading-relaxed">
+          현재 진행되는 경기가 없습니다.
+        </div>
       ) : null}
     </div>
   );
