@@ -20,6 +20,7 @@ import com.tickget.roomserver.dto.request.NotifyRoomLeftRequest;
 import com.tickget.roomserver.dto.response.CreateRoomResponse;
 import com.tickget.roomserver.dto.response.ExitRoomResponse;
 import com.tickget.roomserver.dto.response.JoinRoomResponse;
+import com.tickget.roomserver.dto.response.MatchResponse;
 import com.tickget.roomserver.dto.response.RoomDetailResponse;
 import com.tickget.roomserver.dto.response.RoomResponse;
 import com.tickget.roomserver.event.HostChangedEvent;
