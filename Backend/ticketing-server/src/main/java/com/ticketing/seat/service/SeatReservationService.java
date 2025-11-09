@@ -2,6 +2,7 @@ package com.ticketing.seat.service;
 
 import com.ticketing.seat.concurrency.LuaReservationExecutor;
 import com.ticketing.seat.dto.ReservedSeatInfoDto;
+import com.ticketing.seat.dto.SeatInfo;
 import com.ticketing.seat.dto.SeatReservationRequest;
 import com.ticketing.seat.dto.SeatReservationResponse;
 import com.ticketing.entity.Match;
@@ -27,16 +28,21 @@ public class SeatReservationService {
     private final MatchRepository matchRepository;
     private final MatchStatusRepository matchStatusRepository;
     private final LuaReservationExecutor luaReservationExecutor;
+    private final MatchStatusSyncService matchStatusSyncService;
 
     @Transactional
-    public SeatReservationResponse reserveSeats(SeatReservationRequest req) {
-        Long matchId = req.getMatchId();
-        Long userId  = req.getUserId();
+    public SeatReservationResponse reserveSeats(Long matchId, SeatReservationRequest req) {
+        Long userId = req.getUserId();
 
         // 1. 좌석 개수 검증
-        int requested = (req.getSeatIds() == null) ? 0 : req.getSeatIds().size();
+        int requested = (req.getSeats() == null) ? 0 : req.getSeats().size();
         if (requested == 0 || requested > MAX_SEATS_PER_REQUEST) {
             throw new TooManySeatsRequestedException(requested);
+        }
+
+        // 1-1. totalSeats 필수 검증
+        if (req.getTotalSeats() == null || req.getTotalSeats() <= 0) {
+            throw new IllegalArgumentException("Total seats must be provided and greater than 0");
         }
 
         // 2. Redis 경기 상태 확인 (OPEN이면 예약 가능)
@@ -53,40 +59,51 @@ public class SeatReservationService {
             throw new MatchClosedException(matchId);
         }
 
-        // 4. seatId -> rowNumber 변환 (예: "008-9-15" -> "9-15")
-        List<String> rowNumbers = req.getSeatIds().stream()
-                .map(this::extractRowNumber)
+        // 3-1. 프론트에서 받은 totalSeats를 DB에 저장
+        if (!match.getMaxUser().equals(req.getTotalSeats())) {
+            log.info("totalSeats 업데이트: matchId={}, 기존값={}, 새로운값={}",
+                    matchId, match.getMaxUser(), req.getTotalSeats());
+            match.setMaxUser(req.getTotalSeats());
+            match.setUpdatedAt(LocalDateTime.now());
+            matchRepository.save(match);
+        }
+
+        // 4. SeatInfo -> rowNumber 변환 (extractSectionId 메서드 사용)
+        String sectionId = req.extractSectionId();
+        List<String> rowNumbers = req.getSeats().stream()
+                .map(SeatInfo::toRowNumber)
                 .toList();
 
-        // 5. Redis 원자적 선점 시도 (좌석 선점 + 카운트 증가 + 만석 시 자동 CLOSED)
+        // 5. Redis 원자적 선점 시도
         Long result = luaReservationExecutor.tryReserveSeatsAtomically(
                 matchId,
-                req.getSectionId(),
+                sectionId,
                 rowNumbers,
                 userId,
                 req.getGrade(),
-                match.getMaxUser()
+                req.getTotalSeats()
         );
 
         // 6. 결과 처리
         if (result == null || result == 0L) {
             // 실패: 좌석 이미 선점됨
-            return buildFailureResponse(req);
+            return buildFailureResponse(matchId, req);
         }
 
         if (result == 2L) {
-            // 성공 + 만석: DB 상태를 FINISHED로 변경
-            log.info("만석 감지: matchId={}, DB 상태를 FINISHED로 변경합니다.", matchId);
+            // 성공 + 만석: DB 상태를 FINISHED로 변경하고 Redis 정리
+            log.info("만석 감지: matchId={}, DB 상태를 FINISHED로 변경하고 Redis 정리합니다.", matchId);
             finishMatchDueToFullCapacity(match);
         }
 
         // 성공 응답
-        return buildSuccessResponse(req);
+        return buildSuccessResponse(matchId, req);
     }
 
     /**
      * 만석으로 인한 경기 종료 처리
      * DB의 matches.status를 FINISHED로 변경하고 ended_at 기록
+     * 경기 종료 즉시 Redis 데이터 정리
      */
     private void finishMatchDueToFullCapacity(Match match) {
         match.setStatus(Match.MatchStatus.FINISHED);
@@ -95,24 +112,21 @@ public class SeatReservationService {
 
         log.info("경기 자동 종료 완료: matchId={}, status=FINISHED, endedAt={}",
                 match.getMatchId(), match.getEndedAt());
+
+        // 경기 종료 즉시 Redis 데이터 정리
+        matchStatusSyncService.cleanupMatchRedis(match.getMatchId());
     }
 
     /**
-     * seatId에서 rowNumber 추출
-     * 예: "008-9-15" -> "9-15"
+     * 실패 응답 생성
      */
-    private String extractRowNumber(String seatId) {
-        int firstDash = seatId.indexOf("-");
-        return firstDash > 0 ? seatId.substring(firstDash + 1) : seatId;
-    }
-
-    private SeatReservationResponse buildFailureResponse(SeatReservationRequest req) {
-        List<ReservedSeatInfoDto> failed = req.getSeatIds().stream()
-                .map(seatId -> ReservedSeatInfoDto.builder()
-                        .sectionId(req.getSectionId())
-                        .seatId(seatId)
+    private SeatReservationResponse buildFailureResponse(Long matchId, SeatReservationRequest req) {
+        List<ReservedSeatInfoDto> failed = req.getSeats().stream()
+                .map(seat -> ReservedSeatInfoDto.builder()
+                        .sectionId(seat.getSectionId().toString())
+                        .seatId(seat.toSeatId())
                         .grade(req.getGrade())
-                        .matchId(req.getMatchId())
+                        .matchId(matchId)
                         .build())
                 .toList();
 
@@ -123,13 +137,16 @@ public class SeatReservationService {
                 .build();
     }
 
-    private SeatReservationResponse buildSuccessResponse(SeatReservationRequest req) {
-        List<ReservedSeatInfoDto> held = req.getSeatIds().stream()
-                .map(seatId -> ReservedSeatInfoDto.builder()
-                        .sectionId(req.getSectionId())
-                        .seatId(seatId)
+    /**
+     * 성공 응답 생성
+     */
+    private SeatReservationResponse buildSuccessResponse(Long matchId, SeatReservationRequest req) {
+        List<ReservedSeatInfoDto> held = req.getSeats().stream()
+                .map(seat -> ReservedSeatInfoDto.builder()
+                        .sectionId(seat.getSectionId().toString())
+                        .seatId(seat.toSeatId())
                         .grade(req.getGrade())
-                        .matchId(req.getMatchId())
+                        .matchId(matchId)
                         .build())
                 .toList();
 
