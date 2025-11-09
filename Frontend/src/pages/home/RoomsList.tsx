@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import Tooltip from "@mui/material/Tooltip";
 import InfoOutlined from "@mui/icons-material/InfoOutlined";
 import SearchIcon from "@mui/icons-material/Search";
-import CreateRoomModal from "../room-modal/create-room/CreateRoomModal";
+import CreateRoomModal from "../room/create-room/CreateRoomModal";
 import { getRooms } from "@features/booking-site/api";
 import type { RoomResponse } from "@features/booking-site/types";
 

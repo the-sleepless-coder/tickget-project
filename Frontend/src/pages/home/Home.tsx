@@ -2,7 +2,7 @@ import RoomCard from "./_components/RoomCard";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { paths } from "../../app/routes/paths";
-import CreateRoomModal from "../room-modal/create-room/CreateRoomModal";
+import CreateRoomModal from "../room/create-room/CreateRoomModal";
 import { getRooms } from "@features/booking-site/api";
 import type { RoomResponse } from "@features/booking-site/types";
 
