@@ -13,9 +13,9 @@ import Thumbnail05 from "../../../shared/images/thumbnail/Thumbnail05.webp";
 import Thumbnail06 from "../../../shared/images/thumbnail/Thumbnail06.webp";
 import { paths } from "../../../app/routes/paths";
 import LeftPane from "../edit-room-setting/RoomSettingLeftPane";
-import RoomSettingStep1 from "./RoomSettingStep1";
-import RoomSettingStep2 from "./RoomSettingStep2";
-import ThumbnailSelectModal from "./RoomSettingThumbnailSelectModal";
+import RoomSettingStep1 from "../edit-room-setting/RoomSettingStep1";
+import RoomSettingStep2 from "../edit-room-setting/RoomSettingStep2";
+import ThumbnailSelectModal from "../edit-room-setting/RoomSettingThumbnailSelectModal";
 import { Alert, Snackbar } from "@mui/material";
 
 export default function CreateRoomModal({
@@ -287,6 +287,13 @@ export default function CreateRoomModal({
                 botOptions={botOptions}
                 botCount={botCount}
                 setBotCount={setBotCount}
+                onSelectVenue={setVenue}
+                isImageUploaded={!!layoutUrl}
+                onCreate={() => {
+                  onClose();
+                  navigate(paths.iTicket);
+                }}
+                isVenueSelected={!!venue}
               />
             )}
           </div>

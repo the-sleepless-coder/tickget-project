@@ -334,14 +334,9 @@ export default function RoomCard({
         </div>
 
         {/* Right: Info area */}
-        <div className="relative min-w-0 flex-1 z-10">
-          <div className="flex items-start justify-between gap-2">
-            <h3
-              className="text-sm sm:text-base font-semibold text-gray-900 truncate"
-              title={title}
-            >
-              {title}
-            </h3>
+        <div className="relative min-w-0 flex-1 z-10 flex flex-col">
+          {/* Top line: 배지(왼쪽)와 참가 인원(오른쪽) */}
+          <div className="flex items-center justify-between mb-1">
             {displayedBadge ? (
               <span
                 className="rounded-full px-2.5 py-1 text-[10px] sm:text-[11px] font-medium text-white shadow-sm shrink-0"
@@ -350,30 +345,58 @@ export default function RoomCard({
                 {displayedBadge}
               </span>
             ) : null}
-          </div>
-
-          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-gray-600">
             {participantsText ? (
-              <span className="font-semibold text-gray-900">
+              <span className="text-sm text-gray-400">
                 {participantsText}
               </span>
             ) : null}
-            <span>{capacityText}</span>
-            <span>{resolvedTagsText}</span>
           </div>
 
-          <div className="mt-2 flex items-center justify-between">
-            {startTime ? (
-              <span
-                className="text-base sm:text-lg font-extrabold"
-                style={{ color: badgeBg }}
-              >
-                {startTime} 시작
-              </span>
-            ) : (
-              <span className="text-sm text-gray-500">상시</span>
-            )}
+          {/* Main title */}
+          <h3
+            className="text-base sm:text-lg font-semibold text-black mb-2 truncate"
+            title={title}
+          >
+            {title}
+          </h3>
+
+          {/* Separator line */}
+          <div className="h-px bg-gray-300 mb-2" />
+
+          {/* First detail line */}
+          <div className="text-base text-gray-500 mb-1">
+            {capacityText}
           </div>
+
+          {/* Second detail line */}
+          <div className="text-base text-gray-500 mb-auto">
+            {resolvedTagsText}
+          </div>
+
+          {/* Bottom right: 시간 표시 (time.svg 배경) */}
+          {startTime ? (
+            <div className="relative mt-auto flex justify-end">
+              <div className="relative">
+                {/* time.svg 배경 */}
+                <img
+                  src="/time.svg"
+                  alt=""
+                  className="h-[40px] w-auto"
+                  style={{ minWidth: "160px" }}
+                />
+                {/* 시간 텍스트 오버레이 */}
+                <div className="absolute inset-0 flex items-center justify-center pr-3">
+                  <span className="text-white text-sm font-semibold">
+                    시작: {startTime}
+                  </span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-auto flex justify-end">
+              <span className="text-sm text-gray-500">상시</span>
+            </div>
+          )}
         </div>
       </div>
     </Link>

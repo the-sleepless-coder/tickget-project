@@ -48,54 +48,9 @@ export default function OrderConfirmPage() {
         </div>
       </div>
 
-      <div className="max-w-[860px] mx-auto p-3 grid grid-cols-[260px_1fr_260px] gap-3">
-        {/* 좌측: 티켓 수령 방법 */}
-        <section className="bg-white rounded-md shadow border border-[#e3e3e3]">
-          <header className="px-3 py-2 font-bold border-b">티켓수령방법</header>
-          <div className="p-3 space-y-3 text-sm">
-            <label className="flex items-center gap-2">
-              <input name="recv" type="radio" /> 현장수령
-            </label>
-            <label className="flex items-center gap-2">
-              <input name="recv" type="radio" defaultChecked /> 배송 (3,700원)
-            </label>
-
-            <div className="mt-3 text-[12px] text-gray-600 leading-5 border rounded p-2 bg-[#fafafa]">
-              2025년 11월 27일 일괄 배송되는 상품입니다.
-              <br />
-              11월 27일(목) ~ 28일(금), 2일간
-              <br />* 티켓은 묶음배송이 불가합니다.
-              <br />* 배송완료시 티켓 분실 시 입장 불가합니다.
-            </div>
-
-            <div className="mt-3">
-              <div className="flex items-center justify-between text-sm font-semibold">
-                <span>티켓프리미엄서비스</span>
-                <button className="text-[12px] text-gray-500">
-                  미리보기 ▾
-                </button>
-              </div>
-              <div className="mt-2 space-y-2 text-sm">
-                {[
-                  "스페셜 포장 - 화이트 (1,000원)",
-                  "스페셜 포장 - 블루 (1,000원)",
-                  "프리미엄 포장 - 블루 (2,000원)",
-                  "toping 회원 전용 (무료)",
-                ].map((txt) => (
-                  <label key={txt} className="flex items-center gap-2">
-                    <input type="radio" name="premium" /> {txt}
-                  </label>
-                ))}
-                <label className="flex items-center gap-2">
-                  <input type="radio" name="premium" defaultChecked /> 선택안함
-                </label>
-              </div>
-            </div>
-          </div>
-        </section>
-
+      <div className="max-w-[860px] mx-auto p-3 grid grid-cols-[1fr_260px] gap-3">
         {/* 가운데: 예매자 확인 + 배송지 정보 */}
-        <section className="bg-white rounded-md shadow border border-[#e3e3e3] col-span-1">
+        <section className="bg-white rounded-md shadow border border-[#e3e3e3]">
           <header className="px-3 py-2 font-bold border-b">예매자 확인</header>
           <div className="p-3 text-sm">
             <div className="grid grid-cols-[100px_1fr_1fr_1fr] items-center gap-2">
