@@ -26,6 +26,7 @@ spring:
     # MongoDB
     mongodb:
       uri: ${MONGO_URI:mongodb://localhost:27017/ticketing_logs}
+      database: ${MONGO_DATABASE:ticketing_logs}
       auto-index-creation: ${MONGO_AUTO_INDEX:true}
 
   jpa:
