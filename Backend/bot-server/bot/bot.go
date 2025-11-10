@@ -12,15 +12,15 @@ import (
 
 // 티케팅 봇
 type Bot struct {
-	ID           int
-	MatchID      int64
-	Level        Level       // 봇 레벨 (초보/중수/고수)
-	DelayConfig  DelayConfig // 딜레이 설정
-	TargetSeats  []Seat      // 목표 좌석 목록 (우선순위순)
-	logger       *zap.Logger
-	httpClient   *client.HTTPClient // HTTP 클라이언트
-	waitChannel  <-chan struct{}    // 매치 시작 대기 채널
-	startTime    time.Time
+	ID          int
+	MatchID     int64
+	Level       Level       // 봇 레벨 (초보/중수/고수)
+	DelayConfig DelayConfig // 딜레이 설정
+	TargetSeats []Seat      // 목표 좌석 목록 (우선순위순)
+	logger      *zap.Logger
+	httpClient  *client.HTTPClient // HTTP 클라이언트
+	waitChannel <-chan struct{}    // 매치 시작 대기 채널
+	startTime   time.Time
 }
 
 // Seat는 좌석 정보 (순환 import 방지)
@@ -246,11 +246,11 @@ func (b *Bot) confirmSeats(ctx context.Context) error {
 	// 요청 생성 (userId만 실제 값, 나머지는 0)
 	req := &client.SeatConfirmRequest{
 		UserId:                   int64(b.ID),
-		DateSelectTime:           0,
-		SeccodeSelectTime:        0,
+		DateSelectTime:           0.0,
+		SeccodeSelectTime:        0.0,
 		SeccodeBackspaceCount:    0,
 		SeccodeTryCount:          0,
-		SeatSelectTime:           0,
+		SeatSelectTime:           0.0,
 		SeatSelectTryCount:       0,
 		SeatSelectClickMissCount: 0,
 	}
