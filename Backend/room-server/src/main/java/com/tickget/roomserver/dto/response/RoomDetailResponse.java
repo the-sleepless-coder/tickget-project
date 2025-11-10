@@ -28,6 +28,7 @@ public class RoomDetailResponse {
     private int botCount;
     private int maxUserCount;
     private int currentUserCount;
+    private int totalSeat;
     private Long hostId;
     private List<RoomMember> roomMembers;
 
@@ -55,6 +56,7 @@ public class RoomDetailResponse {
         return RoomDetailResponse.builder()
                 .roomId(room.getId())
                 .roomName(roomInfo.getTitle())
+                .totalSeat(room.getTotalSeat())
                 .botCount(room.getBotCount())
                 .maxUserCount(roomInfo.getMaxUserCount())
                 .currentUserCount(roomMembers.size())
