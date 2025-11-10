@@ -1,9 +1,37 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import BookingLayout from "./_components/BookingLayout";
 import { paths } from "../../../../app/routes/paths";
+import { useRoomStore } from "@features/room/store";
+import dayjs from "dayjs";
+import Thumbnail01 from "../../../../shared/images/thumbnail/Thumbnail01.webp";
+import Thumbnail02 from "../../../../shared/images/thumbnail/Thumbnail02.webp";
+import Thumbnail03 from "../../../../shared/images/thumbnail/Thumbnail03.webp";
+import Thumbnail04 from "../../../../shared/images/thumbnail/Thumbnail04.webp";
+import Thumbnail05 from "../../../../shared/images/thumbnail/Thumbnail05.webp";
+import Thumbnail06 from "../../../../shared/images/thumbnail/Thumbnail06.webp";
+
+// 썸네일 번호 -> 이미지 매핑
+const THUMBNAIL_IMAGES: Record<string, string> = {
+  "1": Thumbnail01,
+  "2": Thumbnail02,
+  "3": Thumbnail03,
+  "4": Thumbnail04,
+  "5": Thumbnail05,
+  "6": Thumbnail06,
+};
+
+// hallId -> 공연장 이름 매핑
+const HALL_ID_TO_NAME: Record<number, string> = {
+  2: "샤롯데씨어터",
+  3: "올림픽공원 올림픽홀",
+  4: "인스파이어 아레나",
+};
 
 export default function BookingSelectSchedulePage() {
+  const [searchParams] = useSearchParams();
+  const hallId = searchParams.get("hallId");
+  const roomInfo = useRoomStore((s) => s.roomInfo);
   const today = new Date();
   const todayDate = today.getDate();
   const currentMonth = today.getMonth();
@@ -26,6 +54,8 @@ export default function BookingSelectSchedulePage() {
     url.searchParams.set("date", dateStr);
     url.searchParams.set("time", timeStr);
     url.searchParams.set("round", selectedRound);
+    // hallId가 있으면 전달
+    if (hallId) url.searchParams.set("hallId", hallId);
     navigate(url.pathname + url.search);
   };
 
@@ -70,6 +100,28 @@ export default function BookingSelectSchedulePage() {
     const newDate = new Date(year, month + delta, 1);
     setYear(newDate.getFullYear());
     setMonth(newDate.getMonth());
+  };
+
+  // 썸네일 이미지 가져오기
+  const thumbnailImage = roomInfo.thumbnailValue
+    ? THUMBNAIL_IMAGES[roomInfo.thumbnailValue] || Thumbnail01
+    : Thumbnail01;
+
+  // 공연장 이름 가져오기
+  const venueName = roomInfo.hallId
+    ? HALL_ID_TO_NAME[roomInfo.hallId] ||
+      roomInfo.hallName ||
+      "공연장 정보 없음"
+    : hallId
+      ? HALL_ID_TO_NAME[Number(hallId)] || "공연장 정보 없음"
+      : "공연장 정보 없음";
+
+  // 날짜 포맷팅
+  const formatDateRange = () => {
+    if (!roomInfo.startTime) return "날짜 정보 없음";
+    const date = dayjs(roomInfo.startTime);
+    const dateStr = date.format("YYYY.MM.DD");
+    return `${dateStr} ~ ${dateStr}`;
   };
 
   return (
@@ -192,42 +244,11 @@ export default function BookingSelectSchedulePage() {
                 </div>
               </div>
 
-              {/* 좌석등급/잔여석 */}
+              {/* 좌석등급/잔여석 - 내부 비어있음 */}
               <div className="bg-white rounded-md shadow p-2 border border-[#e3e3e3]">
                 <div className="text-sm font-bold mb-2">좌석등급 / 잔여석</div>
                 <div className="h-[230px] border rounded overflow-y-auto">
-                  {selectedRound ? (
-                    <div className="p-2 space-y-2">
-                      <div className="p-2 border rounded text-xs">
-                        <div className="font-semibold mb-1">R석</div>
-                        <div className="text-gray-600 text-[11px]">
-                          잔여석: 147석
-                        </div>
-                      </div>
-                      <div className="p-2 border rounded text-xs">
-                        <div className="font-semibold mb-1">S석</div>
-                        <div className="text-gray-600 text-[11px]">
-                          잔여석: 134석
-                        </div>
-                      </div>
-                      <div className="p-2 border rounded text-xs">
-                        <div className="font-semibold mb-1">A석</div>
-                        <div className="text-gray-600 text-[11px]">
-                          잔여석: 224석
-                        </div>
-                      </div>
-                      <div className="p-2 border rounded text-xs">
-                        <div className="font-semibold mb-1">B석</div>
-                        <div className="text-gray-600 text-[11px]">
-                          잔여석: 288석
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="h-full flex items-center justify-center text-gray-500 text-sm">
-                      회차 선택 후 확인 가능합니다.
-                    </div>
-                  )}
+                  {/* 빈칸 */}
                 </div>
               </div>
             </div>
@@ -256,19 +277,19 @@ export default function BookingSelectSchedulePage() {
             <div className="bg-white rounded-md p-2 shadow border border-[#e3e3e3]">
               <div className="flex gap-3">
                 <img
-                  src="https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?q=80&w=400&auto=format&fit=crop"
-                  alt="poster"
+                  src={thumbnailImage}
+                  alt={roomInfo.roomName || "방 썸네일"}
                   className="w-20 h-28 object-cover rounded"
                 />
                 <div className="text-sm">
-                  <div className="font-bold">방 이름1</div>
-                  <div className="text-gray-600">방 이름2</div>
+                  <div className="font-bold">
+                    {roomInfo.roomName || "방 이름"}
+                  </div>
+                  <div className="text-gray-600">{roomInfo.roomName || ""}</div>
                   <div className="text-[12px] mt-1 text-gray-500">
-                    2025.12.20 ~ 2025.12.20
+                    {formatDateRange()}
                   </div>
-                  <div className="text-[12px] text-gray-500">
-                    엑스코 서관 1홀
-                  </div>
+                  <div className="text-[12px] text-gray-500">{venueName}</div>
                   <div className="text-[12px] text-gray-500">
                     만 7세이상 • 120분
                   </div>
@@ -290,11 +311,10 @@ export default function BookingSelectSchedulePage() {
                         selectedDate.getDay()
                       ]
                     }
-                    ){" "}
+                    )
                     {selectedRound
-                      ? rounds.find((r) => r.id === selectedRound)?.time ||
-                        "18:00"
-                      : "18:00"}
+                      ? ` ${rounds.find((r) => r.id === selectedRound)?.time || ""}`
+                      : ""}
                   </dd>
                 </div>
                 <div className="flex py-1 border-b">
