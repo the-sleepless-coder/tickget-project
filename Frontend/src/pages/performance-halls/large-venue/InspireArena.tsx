@@ -86,12 +86,6 @@ export default function LargeVenue({
       }
     };
   }, [onBackToOverview]);
-  const [tooltip, setTooltip] = useState<{
-    visible: boolean;
-    x: number;
-    y: number;
-    text: string;
-  }>({ visible: false, x: 0, y: 0, text: "" });
   const [showDetailView, setShowDetailView] = useState(false);
   const [detailViewColor, setDetailViewColor] = useState<string>("#FFCC10");
   const [isFlipped, setIsFlipped] = useState(false);
@@ -325,8 +319,6 @@ export default function LargeVenue({
       });
 
       setShowDetailView(true);
-      // 외부 툴팁 즉시 숨김
-      setTooltip({ visible: false, x: 0, y: 0, text: "" });
     }
   };
 
@@ -396,7 +388,9 @@ export default function LargeVenue({
         }
 
         // 기존 클릭 핸들러 제거 후 새로 추가 (중복 방지)
-        const existingClickHandler = (el as any).__clickHandler;
+        const existingClickHandler = (
+          el as HTMLElement & { __clickHandler?: () => void }
+        ).__clickHandler;
         if (existingClickHandler) {
           el.removeEventListener("click", existingClickHandler);
         }
@@ -414,7 +408,8 @@ export default function LargeVenue({
             });
           }
         };
-        (el as any).__clickHandler = clickHandler;
+        (el as HTMLElement & { __clickHandler?: () => void }).__clickHandler =
+          clickHandler;
         el.addEventListener("click", clickHandler);
       }
     });
@@ -850,10 +845,6 @@ export default function LargeVenue({
                 data-component-count="None"
                 data-ratio="0.02560133490842872"
                 data-color-group="0"
-                onMouseEnter={(e) =>
-                  handlePolygonMouseEnter(e, e.currentTarget)
-                }
-                onMouseLeave={handlePolygonMouseLeave}
                 onClick={(e) => handlePolygonClick(e.currentTarget)}
                 className="cursor-pointer"
               />
@@ -880,10 +871,6 @@ export default function LargeVenue({
                 data-component-count="None"
                 data-ratio="0.013830363433647599"
                 data-color-group="1"
-                onMouseEnter={(e) =>
-                  handlePolygonMouseEnter(e, e.currentTarget)
-                }
-                onMouseLeave={handlePolygonMouseLeave}
                 onClick={(e) => handlePolygonClick(e.currentTarget)}
                 className="cursor-pointer"
               />
@@ -910,10 +897,6 @@ export default function LargeVenue({
                 data-component-count="None"
                 data-ratio="0.017932551518744993"
                 data-color-group="0"
-                onMouseEnter={(e) =>
-                  handlePolygonMouseEnter(e, e.currentTarget)
-                }
-                onMouseLeave={handlePolygonMouseLeave}
                 onClick={(e) => handlePolygonClick(e.currentTarget)}
                 className="cursor-pointer"
               />
@@ -940,10 +923,6 @@ export default function LargeVenue({
                 data-component-count="None"
                 data-ratio="0.013839415705994264"
                 data-color-group="1"
-                onMouseEnter={(e) =>
-                  handlePolygonMouseEnter(e, e.currentTarget)
-                }
-                onMouseLeave={handlePolygonMouseLeave}
                 onClick={(e) => handlePolygonClick(e.currentTarget)}
                 className="cursor-pointer"
               />
@@ -970,10 +949,6 @@ export default function LargeVenue({
                 data-component-count="None"
                 data-ratio="0.022190136945793484"
                 data-color-group="1"
-                onMouseEnter={(e) =>
-                  handlePolygonMouseEnter(e, e.currentTarget)
-                }
-                onMouseLeave={handlePolygonMouseLeave}
                 onClick={(e) => handlePolygonClick(e.currentTarget)}
                 className="cursor-pointer"
               />
@@ -1000,10 +975,6 @@ export default function LargeVenue({
                 data-component-count="None"
                 data-ratio="0.015094664138065258"
                 data-color-group="2"
-                onMouseEnter={(e) =>
-                  handlePolygonMouseEnter(e, e.currentTarget)
-                }
-                onMouseLeave={handlePolygonMouseLeave}
                 onClick={(e) => handlePolygonClick(e.currentTarget)}
                 className="cursor-pointer"
               />
@@ -1030,10 +1001,6 @@ export default function LargeVenue({
                 data-component-count="None"
                 data-ratio="0.010731468866972332"
                 data-color-group="3"
-                onMouseEnter={(e) =>
-                  handlePolygonMouseEnter(e, e.currentTarget)
-                }
-                onMouseLeave={handlePolygonMouseLeave}
                 onClick={(e) => handlePolygonClick(e.currentTarget)}
                 className="cursor-pointer"
               />
@@ -1060,10 +1027,6 @@ export default function LargeVenue({
                 data-component-count="None"
                 data-ratio="0.013907307748594257"
                 data-color-group="4"
-                onMouseEnter={(e) =>
-                  handlePolygonMouseEnter(e, e.currentTarget)
-                }
-                onMouseLeave={handlePolygonMouseLeave}
                 onClick={(e) => handlePolygonClick(e.currentTarget)}
                 className="cursor-pointer"
               />
@@ -1090,10 +1053,6 @@ export default function LargeVenue({
                 data-component-count="None"
                 data-ratio="0.013519568749745406"
                 data-color-group="5"
-                onMouseEnter={(e) =>
-                  handlePolygonMouseEnter(e, e.currentTarget)
-                }
-                onMouseLeave={handlePolygonMouseLeave}
                 onClick={(e) => handlePolygonClick(e.currentTarget)}
                 className="cursor-pointer"
               />
@@ -1120,10 +1079,6 @@ export default function LargeVenue({
                 data-component-count="None"
                 data-ratio="0.009529025356923555"
                 data-color-group="6"
-                onMouseEnter={(e) =>
-                  handlePolygonMouseEnter(e, e.currentTarget)
-                }
-                onMouseLeave={handlePolygonMouseLeave}
                 onClick={(e) => handlePolygonClick(e.currentTarget)}
                 className="cursor-pointer"
               />
@@ -1150,10 +1105,6 @@ export default function LargeVenue({
                 data-component-count="None"
                 data-ratio="0.00971157951591465"
                 data-color-group="7"
-                onMouseEnter={(e) =>
-                  handlePolygonMouseEnter(e, e.currentTarget)
-                }
-                onMouseLeave={handlePolygonMouseLeave}
                 onClick={(e) => handlePolygonClick(e.currentTarget)}
                 className="cursor-pointer"
               />
@@ -1180,10 +1131,6 @@ export default function LargeVenue({
                 data-component-count="None"
                 data-ratio="0.013588969504403177"
                 data-color-group="7"
-                onMouseEnter={(e) =>
-                  handlePolygonMouseEnter(e, e.currentTarget)
-                }
-                onMouseLeave={handlePolygonMouseLeave}
                 onClick={(e) => handlePolygonClick(e.currentTarget)}
                 className="cursor-pointer"
               />
@@ -1210,10 +1157,6 @@ export default function LargeVenue({
                 data-component-count="None"
                 data-ratio="0.019985908629380357"
                 data-color-group="5"
-                onMouseEnter={(e) =>
-                  handlePolygonMouseEnter(e, e.currentTarget)
-                }
-                onMouseLeave={handlePolygonMouseLeave}
                 onClick={(e) => handlePolygonClick(e.currentTarget)}
                 className="cursor-pointer"
               />
@@ -1240,10 +1183,6 @@ export default function LargeVenue({
                 data-component-count="None"
                 data-ratio="0.014112492588452015"
                 data-color-group="4"
-                onMouseEnter={(e) =>
-                  handlePolygonMouseEnter(e, e.currentTarget)
-                }
-                onMouseLeave={handlePolygonMouseLeave}
                 onClick={(e) => handlePolygonClick(e.currentTarget)}
                 className="cursor-pointer"
               />
@@ -1270,10 +1209,6 @@ export default function LargeVenue({
                 data-component-count="None"
                 data-ratio="0.029042707112219512"
                 data-color-group="8"
-                onMouseEnter={(e) =>
-                  handlePolygonMouseEnter(e, e.currentTarget)
-                }
-                onMouseLeave={handlePolygonMouseLeave}
                 onClick={(e) => handlePolygonClick(e.currentTarget)}
                 className="cursor-pointer"
               />
@@ -1300,10 +1235,6 @@ export default function LargeVenue({
                 data-component-count="None"
                 data-ratio="0.026711746982953064"
                 data-color-group="8"
-                onMouseEnter={(e) =>
-                  handlePolygonMouseEnter(e, e.currentTarget)
-                }
-                onMouseLeave={handlePolygonMouseLeave}
                 onClick={(e) => handlePolygonClick(e.currentTarget)}
                 className="cursor-pointer"
               />
@@ -1330,10 +1261,6 @@ export default function LargeVenue({
                 data-component-count="None"
                 data-ratio="0.00721466106029266"
                 data-color-group="9"
-                onMouseEnter={(e) =>
-                  handlePolygonMouseEnter(e, e.currentTarget)
-                }
-                onMouseLeave={handlePolygonMouseLeave}
                 onClick={(e) => handlePolygonClick(e.currentTarget)}
                 className="cursor-pointer"
               />
@@ -1360,10 +1287,6 @@ export default function LargeVenue({
                 data-component-count="None"
                 data-ratio="0.021794854386655745"
                 data-color-group="10"
-                onMouseEnter={(e) =>
-                  handlePolygonMouseEnter(e, e.currentTarget)
-                }
-                onMouseLeave={handlePolygonMouseLeave}
                 onClick={(e) => handlePolygonClick(e.currentTarget)}
                 className="cursor-pointer"
               />
@@ -1390,10 +1313,6 @@ export default function LargeVenue({
                 data-component-count="None"
                 data-ratio="0.022304799062184584"
                 data-color-group="10"
-                onMouseEnter={(e) =>
-                  handlePolygonMouseEnter(e, e.currentTarget)
-                }
-                onMouseLeave={handlePolygonMouseLeave}
                 onClick={(e) => handlePolygonClick(e.currentTarget)}
                 className="cursor-pointer"
               />
@@ -1420,10 +1339,6 @@ export default function LargeVenue({
                 data-component-count="None"
                 data-ratio="0.021278874862895793"
                 data-color-group="10"
-                onMouseEnter={(e) =>
-                  handlePolygonMouseEnter(e, e.currentTarget)
-                }
-                onMouseLeave={handlePolygonMouseLeave}
                 onClick={(e) => handlePolygonClick(e.currentTarget)}
                 className="cursor-pointer"
               />
@@ -1450,10 +1365,6 @@ export default function LargeVenue({
                 data-component-count="None"
                 data-ratio="0.006728855777688261"
                 data-color-group="11"
-                onMouseEnter={(e) =>
-                  handlePolygonMouseEnter(e, e.currentTarget)
-                }
-                onMouseLeave={handlePolygonMouseLeave}
                 onClick={(e) => handlePolygonClick(e.currentTarget)}
                 className="cursor-pointer"
               />
@@ -1480,10 +1391,6 @@ export default function LargeVenue({
                 data-component-count="None"
                 data-ratio="0.014359921365927548"
                 data-color-group="12"
-                onMouseEnter={(e) =>
-                  handlePolygonMouseEnter(e, e.currentTarget)
-                }
-                onMouseLeave={handlePolygonMouseLeave}
                 onClick={(e) => handlePolygonClick(e.currentTarget)}
                 className="cursor-pointer"
               />
@@ -1510,10 +1417,6 @@ export default function LargeVenue({
                 data-component-count="None"
                 data-ratio="0.008201358746079234"
                 data-color-group="13"
-                onMouseEnter={(e) =>
-                  handlePolygonMouseEnter(e, e.currentTarget)
-                }
-                onMouseLeave={handlePolygonMouseLeave}
                 onClick={(e) => handlePolygonClick(e.currentTarget)}
                 className="cursor-pointer"
               />
@@ -1540,10 +1443,6 @@ export default function LargeVenue({
                 data-component-count="None"
                 data-ratio="0.013288735804905426"
                 data-color-group="14"
-                onMouseEnter={(e) =>
-                  handlePolygonMouseEnter(e, e.currentTarget)
-                }
-                onMouseLeave={handlePolygonMouseLeave}
                 onClick={(e) => handlePolygonClick(e.currentTarget)}
                 className="cursor-pointer"
               />
@@ -1570,10 +1469,6 @@ export default function LargeVenue({
                 data-component-count="None"
                 data-ratio="0.014471566058203093"
                 data-color-group="5"
-                onMouseEnter={(e) =>
-                  handlePolygonMouseEnter(e, e.currentTarget)
-                }
-                onMouseLeave={handlePolygonMouseLeave}
                 onClick={(e) => handlePolygonClick(e.currentTarget)}
                 className="cursor-pointer"
               />
@@ -1600,10 +1495,6 @@ export default function LargeVenue({
                 data-component-count="None"
                 data-ratio="0.013498446780936518"
                 data-color-group="12"
-                onMouseEnter={(e) =>
-                  handlePolygonMouseEnter(e, e.currentTarget)
-                }
-                onMouseLeave={handlePolygonMouseLeave}
                 onClick={(e) => handlePolygonClick(e.currentTarget)}
                 className="cursor-pointer"
               />
@@ -1630,10 +1521,6 @@ export default function LargeVenue({
                 data-component-count="None"
                 data-ratio="0.013766997527220937"
                 data-color-group="10"
-                onMouseEnter={(e) =>
-                  handlePolygonMouseEnter(e, e.currentTarget)
-                }
-                onMouseLeave={handlePolygonMouseLeave}
                 onClick={(e) => handlePolygonClick(e.currentTarget)}
                 className="cursor-pointer"
               />
@@ -1660,10 +1547,6 @@ export default function LargeVenue({
                 data-component-count="None"
                 data-ratio="0.011870546470594448"
                 data-color-group="15"
-                onMouseEnter={(e) =>
-                  handlePolygonMouseEnter(e, e.currentTarget)
-                }
-                onMouseLeave={handlePolygonMouseLeave}
                 onClick={(e) => handlePolygonClick(e.currentTarget)}
                 className="cursor-pointer"
               />
@@ -1678,10 +1561,6 @@ export default function LargeVenue({
                 data-component-count="None"
                 data-ratio="0.01678593035483399"
                 data-color-group="16"
-                onMouseEnter={(e) =>
-                  handlePolygonMouseEnter(e, e.currentTarget)
-                }
-                onMouseLeave={handlePolygonMouseLeave}
                 onClick={(e) => handlePolygonClick(e.currentTarget)}
                 className="cursor-pointer"
               />
@@ -1708,10 +1587,6 @@ export default function LargeVenue({
                 data-component-count="None"
                 data-ratio="0.021376941146651337"
                 data-color-group="17"
-                onMouseEnter={(e) =>
-                  handlePolygonMouseEnter(e, e.currentTarget)
-                }
-                onMouseLeave={handlePolygonMouseLeave}
                 onClick={(e) => handlePolygonClick(e.currentTarget)}
                 className="cursor-pointer"
               />
@@ -1738,10 +1613,6 @@ export default function LargeVenue({
                 data-component-count="None"
                 data-ratio="0.05268573376965286"
                 data-color-group="20"
-                onMouseEnter={(e) =>
-                  handlePolygonMouseEnter(e, e.currentTarget)
-                }
-                onMouseLeave={handlePolygonMouseLeave}
                 onClick={(e) => handlePolygonClick(e.currentTarget)}
                 className="cursor-pointer"
               />
@@ -1768,10 +1639,6 @@ export default function LargeVenue({
                 data-component-count="None"
                 data-ratio="0.02018053248483367"
                 data-color-group="23"
-                onMouseEnter={(e) =>
-                  handlePolygonMouseEnter(e, e.currentTarget)
-                }
-                onMouseLeave={handlePolygonMouseLeave}
                 onClick={(e) => handlePolygonClick(e.currentTarget)}
                 className="cursor-pointer"
               />
@@ -1798,10 +1665,6 @@ export default function LargeVenue({
                 data-component-count="None"
                 data-ratio="0.024806243653979907"
                 data-color-group="8"
-                onMouseEnter={(e) =>
-                  handlePolygonMouseEnter(e, e.currentTarget)
-                }
-                onMouseLeave={handlePolygonMouseLeave}
                 onClick={(e) => handlePolygonClick(e.currentTarget)}
                 className="cursor-pointer"
               />
@@ -1828,10 +1691,6 @@ export default function LargeVenue({
                 data-component-count="None"
                 data-ratio="0.014278450914807556"
                 data-color-group="24"
-                onMouseEnter={(e) =>
-                  handlePolygonMouseEnter(e, e.currentTarget)
-                }
-                onMouseLeave={handlePolygonMouseLeave}
                 onClick={(e) => handlePolygonClick(e.currentTarget)}
                 className="cursor-pointer"
               />
@@ -1858,10 +1717,6 @@ export default function LargeVenue({
                 data-component-count="None"
                 data-ratio="0.023083294483997846"
                 data-color-group="10"
-                onMouseEnter={(e) =>
-                  handlePolygonMouseEnter(e, e.currentTarget)
-                }
-                onMouseLeave={handlePolygonMouseLeave}
                 onClick={(e) => handlePolygonClick(e.currentTarget)}
                 className="cursor-pointer"
               />
@@ -1888,10 +1743,6 @@ export default function LargeVenue({
                 data-component-count="None"
                 data-ratio="0.024890731529215455"
                 data-color-group="10"
-                onMouseEnter={(e) =>
-                  handlePolygonMouseEnter(e, e.currentTarget)
-                }
-                onMouseLeave={handlePolygonMouseLeave}
                 onClick={(e) => handlePolygonClick(e.currentTarget)}
                 className="cursor-pointer"
               />
@@ -1918,10 +1769,6 @@ export default function LargeVenue({
                 data-component-count="None"
                 data-ratio="0.015753971307314086"
                 data-color-group="5"
-                onMouseEnter={(e) =>
-                  handlePolygonMouseEnter(e, e.currentTarget)
-                }
-                onMouseLeave={handlePolygonMouseLeave}
                 onClick={(e) => handlePolygonClick(e.currentTarget)}
                 className="cursor-pointer"
               />
@@ -1948,10 +1795,6 @@ export default function LargeVenue({
                 data-component-count="None"
                 data-ratio="0.016591306499380672"
                 data-color-group="16"
-                onMouseEnter={(e) =>
-                  handlePolygonMouseEnter(e, e.currentTarget)
-                }
-                onMouseLeave={handlePolygonMouseLeave}
                 onClick={(e) => handlePolygonClick(e.currentTarget)}
                 className="cursor-pointer"
               />
@@ -1978,10 +1821,6 @@ export default function LargeVenue({
                 data-component-count="None"
                 data-ratio="0.02105860290246026"
                 data-color-group="17"
-                onMouseEnter={(e) =>
-                  handlePolygonMouseEnter(e, e.currentTarget)
-                }
-                onMouseLeave={handlePolygonMouseLeave}
                 onClick={(e) => handlePolygonClick(e.currentTarget)}
                 className="cursor-pointer"
               />
@@ -2008,10 +1847,6 @@ export default function LargeVenue({
                 data-component-count="None"
                 data-ratio="0.014003865320292026"
                 data-color-group="12"
-                onMouseEnter={(e) =>
-                  handlePolygonMouseEnter(e, e.currentTarget)
-                }
-                onMouseLeave={handlePolygonMouseLeave}
                 onClick={(e) => handlePolygonClick(e.currentTarget)}
                 className="cursor-pointer"
               />
@@ -2038,10 +1873,6 @@ export default function LargeVenue({
                 data-component-count="None"
                 data-ratio="0.01389976418830537"
                 data-color-group="5"
-                onMouseEnter={(e) =>
-                  handlePolygonMouseEnter(e, e.currentTarget)
-                }
-                onMouseLeave={handlePolygonMouseLeave}
                 onClick={(e) => handlePolygonClick(e.currentTarget)}
                 className="cursor-pointer"
               />
@@ -2068,10 +1899,6 @@ export default function LargeVenue({
                 data-component-count="None"
                 data-ratio="0.01410344031610535"
                 data-color-group="12"
-                onMouseEnter={(e) =>
-                  handlePolygonMouseEnter(e, e.currentTarget)
-                }
-                onMouseLeave={handlePolygonMouseLeave}
                 onClick={(e) => handlePolygonClick(e.currentTarget)}
                 className="cursor-pointer"
               />
@@ -2098,10 +1925,6 @@ export default function LargeVenue({
                 data-component-count="None"
                 data-ratio="0.014513809995820868"
                 data-color-group="4"
-                onMouseEnter={(e) =>
-                  handlePolygonMouseEnter(e, e.currentTarget)
-                }
-                onMouseLeave={handlePolygonMouseLeave}
                 onClick={(e) => handlePolygonClick(e.currentTarget)}
                 className="cursor-pointer"
               />
@@ -2128,10 +1951,6 @@ export default function LargeVenue({
                 data-component-count="None"
                 data-ratio="0.028657985537486216"
                 data-color-group="8"
-                onMouseEnter={(e) =>
-                  handlePolygonMouseEnter(e, e.currentTarget)
-                }
-                onMouseLeave={handlePolygonMouseLeave}
                 onClick={(e) => handlePolygonClick(e.currentTarget)}
                 className="cursor-pointer"
               />
@@ -2158,10 +1977,6 @@ export default function LargeVenue({
                 data-component-count="None"
                 data-ratio="0.01149185974409226"
                 data-color-group="29"
-                onMouseEnter={(e) =>
-                  handlePolygonMouseEnter(e, e.currentTarget)
-                }
-                onMouseLeave={handlePolygonMouseLeave}
                 onClick={(e) => handlePolygonClick(e.currentTarget)}
                 className="cursor-pointer"
               />
@@ -2188,10 +2003,6 @@ export default function LargeVenue({
                 data-component-count="None"
                 data-ratio="0.00913676022190137"
                 data-color-group="30"
-                onMouseEnter={(e) =>
-                  handlePolygonMouseEnter(e, e.currentTarget)
-                }
-                onMouseLeave={handlePolygonMouseLeave}
                 onClick={(e) => handlePolygonClick(e.currentTarget)}
                 className="cursor-pointer"
               />
@@ -2218,10 +2029,6 @@ export default function LargeVenue({
                 data-component-count="None"
                 data-ratio="0.008097257614092577"
                 data-color-group="31"
-                onMouseEnter={(e) =>
-                  handlePolygonMouseEnter(e, e.currentTarget)
-                }
-                onMouseLeave={handlePolygonMouseLeave}
                 onClick={(e) => handlePolygonClick(e.currentTarget)}
                 className="cursor-pointer"
               />
@@ -2248,10 +2055,6 @@ export default function LargeVenue({
                 data-component-count="None"
                 data-ratio="0.0215413907609491"
                 data-color-group="10"
-                onMouseEnter={(e) =>
-                  handlePolygonMouseEnter(e, e.currentTarget)
-                }
-                onMouseLeave={handlePolygonMouseLeave}
                 onClick={(e) => handlePolygonClick(e.currentTarget)}
                 className="cursor-pointer"
               />
@@ -2278,10 +2081,6 @@ export default function LargeVenue({
                 data-component-count="None"
                 data-ratio="0.022043791876189055"
                 data-color-group="10"
-                onMouseEnter={(e) =>
-                  handlePolygonMouseEnter(e, e.currentTarget)
-                }
-                onMouseLeave={handlePolygonMouseLeave}
                 onClick={(e) => handlePolygonClick(e.currentTarget)}
                 className="cursor-pointer"
               />
@@ -2308,10 +2107,6 @@ export default function LargeVenue({
                 data-component-count="None"
                 data-ratio="0.021042007069824703"
                 data-color-group="10"
-                onMouseEnter={(e) =>
-                  handlePolygonMouseEnter(e, e.currentTarget)
-                }
-                onMouseLeave={handlePolygonMouseLeave}
                 onClick={(e) => handlePolygonClick(e.currentTarget)}
                 className="cursor-pointer"
               />
@@ -2338,10 +2133,6 @@ export default function LargeVenue({
                 data-component-count="None"
                 data-ratio="0.00625059405537275"
                 data-color-group="32"
-                onMouseEnter={(e) =>
-                  handlePolygonMouseEnter(e, e.currentTarget)
-                }
-                onMouseLeave={handlePolygonMouseLeave}
                 onClick={(e) => handlePolygonClick(e.currentTarget)}
                 className="cursor-pointer"
               />
@@ -2368,10 +2159,6 @@ export default function LargeVenue({
                 data-component-count="None"
                 data-ratio="0.0172641920771495"
                 data-color-group="5"
-                onMouseEnter={(e) =>
-                  handlePolygonMouseEnter(e, e.currentTarget)
-                }
-                onMouseLeave={handlePolygonMouseLeave}
                 onClick={(e) => handlePolygonClick(e.currentTarget)}
                 className="cursor-pointer"
               />
@@ -2398,10 +2185,6 @@ export default function LargeVenue({
                 data-component-count="None"
                 data-ratio="0.017617230698669467"
                 data-color-group="4"
-                onMouseEnter={(e) =>
-                  handlePolygonMouseEnter(e, e.currentTarget)
-                }
-                onMouseLeave={handlePolygonMouseLeave}
                 onClick={(e) => handlePolygonClick(e.currentTarget)}
                 className="cursor-pointer"
               />
@@ -2428,10 +2211,6 @@ export default function LargeVenue({
                 data-component-count="None"
                 data-ratio="0.007744218992572611"
                 data-color-group="33"
-                onMouseEnter={(e) =>
-                  handlePolygonMouseEnter(e, e.currentTarget)
-                }
-                onMouseLeave={handlePolygonMouseLeave}
                 onClick={(e) => handlePolygonClick(e.currentTarget)}
                 className="cursor-pointer"
               />
@@ -2458,10 +2237,6 @@ export default function LargeVenue({
                 data-component-count="None"
                 data-ratio="0.014550019085207531"
                 data-color-group="7"
-                onMouseEnter={(e) =>
-                  handlePolygonMouseEnter(e, e.currentTarget)
-                }
-                onMouseLeave={handlePolygonMouseLeave}
                 onClick={(e) => handlePolygonClick(e.currentTarget)}
                 className="cursor-pointer"
               />
@@ -2488,10 +2263,6 @@ export default function LargeVenue({
                 data-component-count="None"
                 data-ratio="0.01794763863932277"
                 data-color-group="4"
-                onMouseEnter={(e) =>
-                  handlePolygonMouseEnter(e, e.currentTarget)
-                }
-                onMouseLeave={handlePolygonMouseLeave}
                 onClick={(e) => handlePolygonClick(e.currentTarget)}
                 className="cursor-pointer"
               />
@@ -2518,10 +2289,6 @@ export default function LargeVenue({
                 data-component-count="None"
                 data-ratio="0.018364043167269396"
                 data-color-group="4"
-                onMouseEnter={(e) =>
-                  handlePolygonMouseEnter(e, e.currentTarget)
-                }
-                onMouseLeave={handlePolygonMouseLeave}
                 onClick={(e) => handlePolygonClick(e.currentTarget)}
                 className="cursor-pointer"
               />
@@ -2548,10 +2315,6 @@ export default function LargeVenue({
                 data-component-count="None"
                 data-ratio="0.017703227285962794"
                 data-color-group="4"
-                onMouseEnter={(e) =>
-                  handlePolygonMouseEnter(e, e.currentTarget)
-                }
-                onMouseLeave={handlePolygonMouseLeave}
                 onClick={(e) => handlePolygonClick(e.currentTarget)}
                 className="cursor-pointer"
               />
@@ -2578,10 +2341,6 @@ export default function LargeVenue({
                 data-component-count="None"
                 data-ratio="0.012057626765758875"
                 data-color-group="7"
-                onMouseEnter={(e) =>
-                  handlePolygonMouseEnter(e, e.currentTarget)
-                }
-                onMouseLeave={handlePolygonMouseLeave}
                 onClick={(e) => handlePolygonClick(e.currentTarget)}
                 className="cursor-pointer"
               />
