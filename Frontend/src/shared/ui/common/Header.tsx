@@ -47,24 +47,24 @@ export default function Header() {
     return true;
   };
 
-  const handleHomeClick: React.MouseEventHandler<HTMLAnchorElement> = async (
+  const handleHomeClick: React.MouseEventHandler<HTMLButtonElement> = async (
     e
   ) => {
+    // 기본 네비게이션을 먼저 막고, 선택에 따라 이동
+    e.preventDefault();
     const proceed = await confirmAndExitIfInRoom();
-    if (!proceed) {
-      e.preventDefault();
-      return;
+    if (proceed) {
+      navigate("/", { replace: true });
     }
-    // Link 기본 동작으로 이동
   };
 
-  const handleMyPageClick: React.MouseEventHandler<HTMLAnchorElement> = async (
+  const handleMyPageClick: React.MouseEventHandler<HTMLButtonElement> = async (
     e
   ) => {
+    e.preventDefault();
     const proceed = await confirmAndExitIfInRoom();
-    if (!proceed) {
-      e.preventDefault();
-      return;
+    if (proceed) {
+      navigate("/mypage");
     }
   };
 
@@ -79,10 +79,11 @@ export default function Header() {
     <header className="border-b border-neutral-200">
       <div className="w-full px-5 py-3">
         <div className="flex items-center justify-between">
-          <Link
-            to="/"
+          <button
+            type="button"
             className="flex items-center gap-3"
             onClick={handleHomeClick}
+            aria-label="홈"
           >
             <img
               src={
@@ -91,12 +92,12 @@ export default function Header() {
               alt="Tickget"
               className="h-7 w-auto"
             />
-          </Link>
+          </button>
 
           <div className="flex items-center gap-3">
             {isITicket ? (
-              <Link
-                to="/mypage"
+              <button
+                type="button"
                 aria-label="프로필"
                 onClick={handleMyPageClick}
               >
@@ -112,24 +113,25 @@ export default function Header() {
                     style={{ color: "var(--color-c-blue-200)" }}
                   />
                 </span>
-              </Link>
+              </button>
             ) : (
-              <Link
-                to="/mypage"
+              <button
+                type="button"
                 aria-label="프로필"
                 onClick={handleMyPageClick}
               >
                 <AccountCircleOutlinedIcon className="text-purple-500" />
-              </Link>
+              </button>
             )}
             {isLoggedIn && nickname && (
-              <Link
-                to="/mypage"
+              <button
+                type="button"
                 onClick={handleMyPageClick}
                 className="text-sm text-neutral-700 hover:text-neutral-900"
+                aria-label="마이페이지"
               >
                 {nickname}
-              </Link>
+              </button>
             )}
             {isLoggedIn ? (
               <button
