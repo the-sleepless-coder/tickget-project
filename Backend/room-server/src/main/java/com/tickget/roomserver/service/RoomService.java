@@ -102,7 +102,7 @@ public class RoomService {
             log.info("사용자 {}(id:{})이(가) 방 {}을 생성 후 입장",
                     request.getUsername(), request.getUserId(), room.getId());
 
-            return CreateRoomResponse.of(room, matchResponse.getId());
+            return CreateRoomResponse.of(room, matchResponse.getMatchId());
 
         } catch (CreateMatchFailedException | CreateMatchDeclinedException e) {
             log.error("방 생성 중 매치 생성 실패 - roomId: {}, userId: {}, error: {}",
