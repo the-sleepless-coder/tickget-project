@@ -146,13 +146,17 @@ export interface SectionSeatsStatusResponse {
 }
 
 // ----- Seat Hold (Ticketing) -----
-export interface SeatHoldRequest {
-  userId: number;
+export interface SeatHoldSeat {
   sectionId: number;
   row: number;
   col: number;
   grade: string;
-  totalSeat: number;
+}
+
+export interface SeatHoldRequest {
+  userId: number;
+  seats: SeatHoldSeat[];
+  totalSeats: number;
 }
 
 export interface SeatHoldItem {

@@ -1,4 +1,8 @@
 import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import { useMatchStore } from "@features/booking-site/store";
+import { useAuthStore } from "@features/auth/store";
+import { getSectionSeatsStatus } from "@features/booking-site/api";
 import Olympic_18 from "./seats-olympic-hall/S/Olympic_18";
 import Olympic_20 from "./seats-olympic-hall/S/Olympic_20";
 import Olympic_21 from "./seats-olympic-hall/S/Olympic_21";
@@ -72,6 +76,10 @@ export default function MediumVenue({
     gap: number;
   } | null>(null);
   const [emptyRows, setEmptyRows] = useState<boolean[]>([]);
+  const [searchParams] = useSearchParams();
+  const matchIdFromStore = useMatchStore((s) => s.matchId);
+  const currentUserId = useAuthStore((s) => s.userId);
+
   useEffect(() => {
     // interactive tooltip/hover/click removed
 
@@ -256,7 +264,7 @@ export default function MediumVenue({
     }
 
     // Click delegation to open inline detail view for supported blocks
-    const handleClick = (e: MouseEvent) => {
+    const handleClick = async (e: MouseEvent) => {
       const target = e.target as Element | null;
       if (!target) return;
       const polygon = (target as Element).closest?.("polygon");
@@ -295,6 +303,39 @@ export default function MediumVenue({
           "28",
         ].includes(id)
       ) {
+        // 섹션 ID로 API 호출
+        const sectionId = id;
+        if (sectionId) {
+          // matchId 결정: URL 파라미터 우선, 없으면 store에서 가져오기
+          const matchIdParam = searchParams.get("matchId");
+          const matchId =
+            matchIdParam && !Number.isNaN(Number(matchIdParam))
+              ? Number(matchIdParam)
+              : matchIdFromStore;
+
+          // userId 확인
+          if (matchId && currentUserId) {
+            try {
+              console.log(
+                `[section-click] API 호출: matchId=${matchId}, sectionId=${sectionId}, userId=${currentUserId}`
+              );
+              const response = await getSectionSeatsStatus(
+                matchId,
+                sectionId,
+                currentUserId
+              );
+              console.log("[section-click] API 응답:", response);
+            } catch (error) {
+              console.error("[section-click] API 호출 실패:", error);
+            }
+          } else {
+            console.warn(
+              "[section-click] matchId 또는 userId가 없어 API 호출을 건너뜁니다.",
+              { matchId, currentUserId }
+            );
+          }
+        }
+
         const level =
           (polygon as Element).getAttribute("data-seat-level") || "";
         // match overview colors used in MediumVenue normalization
@@ -515,7 +556,7 @@ export default function MediumVenue({
       observer.disconnect();
       root?.removeEventListener("click", handleClick);
     };
-  }, [showDetailView]);
+  }, [showDetailView, searchParams, matchIdFromStore, currentUserId]);
 
   const content = `
 <div class='wrapper'>

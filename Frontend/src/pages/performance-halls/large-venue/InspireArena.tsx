@@ -1,4 +1,8 @@
 import React, { useState, useRef, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
+import { useMatchStore } from "@features/booking-site/store";
+import { useAuthStore } from "@features/auth/store";
+import { getSectionSeatsStatus } from "@features/booking-site/api";
 import Inspire_45 from "./seats-inspire-arena/S/Inspire_45";
 import Inspire_46 from "./seats-inspire-arena/S/Inspire_46";
 import Inspire_47 from "./seats-inspire-arena/S/Inspire_47";
@@ -196,7 +200,11 @@ export default function LargeVenue({
 
   // 커스텀 툴팁 핸들러 제거 (브라우저 기본 툴팁 사용)
 
-  const handlePolygonClick = (polygon: SVGPolygonElement) => {
+  const [searchParams] = useSearchParams();
+  const matchIdFromStore = useMatchStore((s) => s.matchId);
+  const currentUserId = useAuthStore((s) => s.userId);
+
+  const handlePolygonClick = async (polygon: SVGPolygonElement) => {
     const data: PolygonData = {
       id: polygon.dataset.id || "",
       level: polygon.dataset.seatLevel || "",
@@ -207,6 +215,39 @@ export default function LargeVenue({
       fill: polygon.dataset.fill || "",
     };
     console.log("[seat-click]", data);
+
+    // 섹션 ID로 API 호출
+    const sectionId = data.id;
+    if (sectionId) {
+      // matchId 결정: URL 파라미터 우선, 없으면 store에서 가져오기
+      const matchIdParam = searchParams.get("matchId");
+      const matchId =
+        matchIdParam && !Number.isNaN(Number(matchIdParam))
+          ? Number(matchIdParam)
+          : matchIdFromStore;
+
+      // userId 확인
+      if (matchId && currentUserId) {
+        try {
+          console.log(
+            `[section-click] API 호출: matchId=${matchId}, sectionId=${sectionId}, userId=${currentUserId}`
+          );
+          const response = await getSectionSeatsStatus(
+            matchId,
+            sectionId,
+            currentUserId
+          );
+          console.log("[section-click] API 응답:", response);
+        } catch (error) {
+          console.error("[section-click] API 호출 실패:", error);
+        }
+      } else {
+        console.warn(
+          "[section-click] matchId 또는 userId가 없어 API 호출을 건너뜁니다.",
+          { matchId, currentUserId }
+        );
+      }
+    }
 
     // 좌석별 패턴 매핑 (패턴 정보 포함)
     const seatPatternMap: Record<

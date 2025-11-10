@@ -10,6 +10,9 @@ import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useRoomStore } from "@features/room/store";
+import { useMatchStore } from "@features/booking-site/store";
+import { useAuthStore } from "@features/auth/store";
+import { holdSeat } from "@features/booking-site/api";
 import { paths } from "../../../../app/routes/paths";
 import {
   saveInitialReaction,
@@ -287,7 +290,10 @@ export default function SelectSeatPage() {
     setShowSeatTakenAlert(true);
   };
 
-  const complete = () => {
+  const matchIdFromStore = useMatchStore((s) => s.matchId);
+  const currentUserId = useAuthStore((s) => s.userId);
+
+  const complete = async () => {
     const durationSec = recordSeatCompleteNow();
     console.log("[ReserveTiming] Seat complete", {
       durationFromCaptchaSec: durationSec,
@@ -296,6 +302,83 @@ export default function SelectSeatPage() {
       seatClickMissCount,
       seatTakenAlertCount,
     });
+
+    // 좌석 선택 완료 시 API 호출
+    if (selected.length > 0) {
+      // matchId 결정: URL 파라미터 우선, 없으면 store에서 가져오기
+      const matchIdParam = searchParams.get("matchId");
+      const matchId =
+        matchIdParam && !Number.isNaN(Number(matchIdParam))
+          ? Number(matchIdParam)
+          : matchIdFromStore;
+
+      if (matchId && currentUserId) {
+        try {
+          // 선택한 좌석들의 정보를 DOM에서 가져오기
+          const seats: Array<{
+            sectionId: number;
+            row: number;
+            col: number;
+            grade: string;
+          }> = [];
+
+          selected.forEach((seat) => {
+            // data-seat-id를 사용해서 DOM 요소 찾기
+            const seatElement = document.querySelector(
+              `[data-seat-id="${seat.id}"]`
+            ) as HTMLElement | null;
+
+            if (seatElement) {
+              const sectionId = seatElement.getAttribute("section");
+              const row = seatElement.getAttribute("row");
+              const col = seatElement.getAttribute("col");
+              const grade = seatElement.getAttribute("grade");
+
+              if (sectionId && row && col && grade) {
+                seats.push({
+                  sectionId: Number(sectionId),
+                  row: Number(row),
+                  col: Number(col),
+                  grade: grade,
+                });
+              }
+            }
+          });
+
+          // totalSeats 가져오기 (roomStore에서 가져오기)
+          const totalSeats = roomInfo.totalSeat ?? 100; // roomStore에서 가져오거나 기본값 100 사용
+
+          if (seats.length > 0) {
+            console.log("[seat-hold] API 호출:", {
+              matchId,
+              userId: currentUserId,
+              seats,
+              totalSeats,
+            });
+
+            const response = await holdSeat(matchId, {
+              userId: currentUserId,
+              seats,
+              totalSeats,
+            });
+
+            console.log("[seat-hold] API 응답:", response);
+          } else {
+            console.warn(
+              "[seat-hold] 좌석 정보를 찾을 수 없어 API 호출을 건너뜁니다."
+            );
+          }
+        } catch (error) {
+          console.error("[seat-hold] API 호출 실패:", error);
+        }
+      } else {
+        console.warn(
+          "[seat-hold] matchId 또는 userId가 없어 API 호출을 건너뜁니다.",
+          { matchId, currentUserId }
+        );
+      }
+    }
+
     sessionStorage.setItem("reserve.capBackspaces", String(captchaBackspaces));
     sessionStorage.setItem("reserve.capWrong", String(captchaWrongAttempts));
     const nextUrl = new URL(window.location.origin + paths.booking.price);

@@ -10,6 +10,7 @@ interface RoomInfo {
   hallName: string | null;
   startTime: string | null;
   captchaPassed: boolean;
+  totalSeat: number | null;
 }
 
 interface RoomState {
@@ -28,6 +29,7 @@ const initialRoomInfo: RoomInfo = {
   hallName: null,
   startTime: null,
   captchaPassed: false,
+  totalSeat: null,
 };
 
 export const useRoomStore = create<RoomState>()(
