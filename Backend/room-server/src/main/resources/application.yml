@@ -25,9 +25,10 @@ spring:
       bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
       group-id: ${SPRING_KAFKA_GROUP_ID:room-server-${POD_NAME:local-${server.port}}}
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
       properties:
         spring.json.trusted.packages: ${SPRING_KAFKA_TRUSTED_PACKAGES:com.tickget.roomserver.event,com.tickget.roomserver.kafaka}
+        spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/tickget?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul}
     username: ${SPRING_DATASOURCE_USERNAME:root}

@@ -36,8 +36,8 @@ public class WebSocketEventListener {
         StompHeaderAccessor headers = StompHeaderAccessor.wrap(event.getMessage());
         String sessionId = headers.getSessionId();
 
-        //TODO: JWT에서 유저 ID 추출
-        Long userId = generateTempUserId(sessionId);
+        String userIdStr = headers.getFirstNativeHeader("userId");
+        Long userId = Long.parseLong(userIdStr);
 
         String serverId = serverIdProvider.getServerId();
 
@@ -119,10 +119,6 @@ public class WebSocketEventListener {
         }
 
         log.debug("세션 정리 완료: sessionId={}, userId={}", sessionId, userId);
-    }
-
-    private Long generateTempUserId(String sessionId) {
-        return (long) Math.abs(sessionId.hashCode());
     }
 
 
