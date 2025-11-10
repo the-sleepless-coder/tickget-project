@@ -16,6 +16,5 @@ public class SeatConfirmationResponse {
     private List<ConfirmedSeatDto> confirmedSeats;
     private Long matchId;           // ← String에서 Long으로 변경
     private Long userId;            // ← String에서 Long으로 변경
-    private List<String> requestedSeats;
     private String status;
 }
