@@ -6,6 +6,8 @@ const KEYS = {
   capBackspaces: "reserve.capBackspaces",
   capWrong: "reserve.capWrong",
   capToCompleteSec: "reserve.capToCompleteSec",
+  totalStartAtMs: "reserve.totalStartAtMs",
+  totalSec: "reserve.totalSec",
 } as const;
 
 export function saveInitialReaction(
@@ -46,6 +48,27 @@ export function recordSeatCompleteNow(): number | null {
   return durationSec;
 }
 
+export function setTotalStartAtMs(startMs?: number): number {
+  const ms = startMs ?? Date.now();
+  sessionStorage.setItem(KEYS.totalStartAtMs, String(ms));
+  // 측정 재시작 시 이전 totalSec은 초기화
+  sessionStorage.removeItem(KEYS.totalSec);
+  return ms;
+}
+
+export function getTotalStartAtMs(): number | null {
+  const v = sessionStorage.getItem(KEYS.totalStartAtMs);
+  return v ? Number(v) : null;
+}
+
+export function finalizeTotalNow(): number | null {
+  const start = getTotalStartAtMs();
+  if (!start) return null;
+  const sec = Math.max(0, Number(((Date.now() - start) / 1000).toFixed(2)));
+  sessionStorage.setItem(KEYS.totalSec, String(sec));
+  return sec;
+}
+
 export function buildMetricsQueryFromStorage(): string {
   const params = new URLSearchParams();
   const entries: Array<[key: string, storageKey: string]> = [
@@ -55,6 +78,10 @@ export function buildMetricsQueryFromStorage(): string {
     ["capToCompleteSec", KEYS.capToCompleteSec],
     ["capBackspaces", KEYS.capBackspaces],
     ["capWrong", KEYS.capWrong],
+    ["seatClickMiss", "reserve.seatClickMiss"],
+    ["seatTakenCount", "reserve.seatTakenCount"],
+    ["tStart", KEYS.totalStartAtMs],
+    ["totalSec", KEYS.totalSec],
   ];
   for (const [key, storageKey] of entries) {
     const v = sessionStorage.getItem(storageKey);
