@@ -1,6 +1,7 @@
 package com.tickget.authserver.controller;
 
 import com.tickget.authserver.dto.TestLoginResponse;
+import com.tickget.authserver.service.AdminUserService;
 import com.tickget.authserver.service.BotTokenService;
 import com.tickget.authserver.service.TestUserService;
 import com.tickget.authserver.service.TokenService;
@@ -24,6 +25,7 @@ import java.util.Map;
 public class TestController {
 
     private final TestUserService testUserService;
+    private final AdminUserService adminUserService;
     private final BotTokenService botTokenService;
 
     /**
@@ -76,6 +78,71 @@ public class TestController {
             return ResponseEntity.status(500)
                     .body(TestLoginResponse.builder()
                             .message("테스트 유저 생성 실패: " + e.getMessage())
+                            .build());
+        }
+    }
+
+    /**
+     * 관리자 로그인
+     *
+     * Request Body:
+     * - nickname: 관리자 닉네임 (승수, 유나, 재원, 종환, 재석, 휘, 채준)
+     *
+     * Response:
+     * - accessToken: JWT Access Token (30일 유효기간)
+     * - refreshToken: HttpOnly Cookie로 자동 설정됨
+     * - userId, email, nickname, name: 관리자 정보
+     */
+    @PostMapping("/admin/login")
+    public ResponseEntity<TestLoginResponse> adminLogin(
+            @RequestBody Map<String, String> request,
+            HttpServletResponse httpResponse) {
+        String nickname = request.get("nickname");
+
+        if (nickname == null || nickname.isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(TestLoginResponse.builder()
+                            .message("닉네임을 입력해주세요")
+                            .build());
+        }
+
+        log.info("관리자 로그인 API 호출: nickname={}", nickname);
+
+        try {
+            // 관리자 로그인 처리 (nickname으로 검색)
+            TestLoginResponse response = adminUserService.loginAsAdmin(nickname);
+
+            // Refresh Token을 HttpOnly Cookie로 설정
+            jakarta.servlet.http.Cookie refreshTokenCookie = new jakarta.servlet.http.Cookie(
+                    "refreshToken",
+                    response.getRefreshToken()
+            );
+            refreshTokenCookie.setHttpOnly(true);
+            refreshTokenCookie.setSecure(true);
+            refreshTokenCookie.setPath("/");
+            refreshTokenCookie.setMaxAge(7 * 24 * 60 * 60);  // 7일
+            refreshTokenCookie.setAttribute("SameSite", "Lax");
+            httpResponse.addCookie(refreshTokenCookie);
+
+            // Response에서 refreshToken 제거 (보안상 Cookie에만 포함)
+            response.setRefreshToken(null);
+
+            log.info("관리자 로그인 성공: userId={}, email={}, nickname={}",
+                    response.getUserId(), response.getEmail(), response.getNickname());
+
+            return ResponseEntity.ok(response);
+
+        } catch (RuntimeException e) {
+            log.error("관리자 로그인 실패: {}", e.getMessage());
+            return ResponseEntity.status(404)
+                    .body(TestLoginResponse.builder()
+                            .message("관리자 계정을 찾을 수 없습니다: " + nickname)
+                            .build());
+        } catch (Exception e) {
+            log.error("관리자 로그인 실패", e);
+            return ResponseEntity.status(500)
+                    .body(TestLoginResponse.builder()
+                            .message("관리자 로그인 실패: " + e.getMessage())
                             .build());
         }
     }

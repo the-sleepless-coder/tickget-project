@@ -50,6 +50,27 @@ public class JwtTokenProvider {
     }
 
     /**
+     * Admin Access Token 생성 (30일 유효기간)
+     * 관리자 계정 전용 장기 토큰
+     */
+    public String createAdminAccessToken(Long userId, String email) {
+        Date now = new Date();
+        // 30일 = 30 * 24 * 60 * 60 * 1000 = 2592000000ms
+        long adminTokenValidityMs = 30L * 24 * 60 * 60 * 1000;
+        Date validity = new Date(now.getTime() + adminTokenValidityMs);
+
+        return Jwts.builder()
+                .subject(userId.toString())
+                .claim("email", email)
+                .claim("type", "access")
+                .claim("role", "admin")  // 관리자 표시
+                .issuedAt(now)
+                .expiration(validity)
+                .signWith(secretKey)
+                .compact();
+    }
+
+    /**
      * Refresh Token 생성
      */
     public String createRefreshToken(Long userId) {
