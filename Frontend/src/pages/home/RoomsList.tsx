@@ -6,6 +6,12 @@ import SearchIcon from "@mui/icons-material/Search";
 import CreateRoomModal from "../room/create-room/CreateRoomModal";
 import { getRooms } from "@features/booking-site/api";
 import type { RoomResponse } from "@features/booking-site/types";
+import Thumbnail01 from "../../shared/images/thumbnail/Thumbnail01.webp";
+import Thumbnail02 from "../../shared/images/thumbnail/Thumbnail02.webp";
+import Thumbnail03 from "../../shared/images/thumbnail/Thumbnail03.webp";
+import Thumbnail04 from "../../shared/images/thumbnail/Thumbnail04.webp";
+import Thumbnail05 from "../../shared/images/thumbnail/Thumbnail05.webp";
+import Thumbnail06 from "../../shared/images/thumbnail/Thumbnail06.webp";
 
 type SortKey = "start" | "latest";
 
@@ -20,14 +26,74 @@ export default function RoomsPage() {
     variant?: "purple" | "blue" | "green" | "orange" | "gray";
     size?: "small" | "medium" | "large";
     venueName?: string;
+    imageSrc?: string;
     participants?: { current: number; capacity: number };
     startTime?: string;
     ongoing?: boolean;
     createdAtMs?: number;
+    difficulty?: string;
+    maxUserCount?: number;
+    botCount?: number;
   };
 
   const [rooms, setRooms] = useState<UiRoom[]>([]);
   const [availableOnly, setAvailableOnly] = useState(false);
+
+  // hallName을 한글로 변환하는 함수
+  const convertHallNameToKorean = (hallName: string): string => {
+    const hallNameMap: Record<string, string> = {
+      InspireArena: "인스파이어 아레나",
+      CharlotteTheater: "샤롯데씨어터",
+      OlympicHall: "올림픽공원 올림픽홀",
+    };
+    return hallNameMap[hallName] || hallName;
+  };
+
+  // 썸네일 번호 -> 이미지 매핑
+  const THUMBNAIL_IMAGES: Record<string, string> = {
+    "1": Thumbnail01,
+    "2": Thumbnail02,
+    "3": Thumbnail03,
+    "4": Thumbnail04,
+    "5": Thumbnail05,
+    "6": Thumbnail06,
+  };
+
+  // thumbnailType이 PRESET일 때 thumbnailValue에 따라 썸네일 이미지 경로 반환
+  const getThumbnailImagePath = (
+    thumbnailType: string,
+    thumbnailValue: string
+  ): string | undefined => {
+    if (thumbnailType === "PRESET" && thumbnailValue) {
+      return THUMBNAIL_IMAGES[thumbnailValue];
+    }
+    return undefined;
+  };
+
+  // difficulty를 한글로 변환하는 함수
+  const convertDifficultyToKorean = (difficulty: string): string => {
+    const difficultyMap: Record<string, string> = {
+      EASY: "쉬움",
+      MEDIUM: "보통",
+      HARD: "어려움",
+    };
+    return difficultyMap[difficulty] || difficulty;
+  };
+
+  // capacityText를 생성하는 함수
+  const generateCapacityText = (
+    difficulty?: string,
+    maxUserCount?: number,
+    botCount?: number
+  ): string => {
+    const difficultyLabel = difficulty
+      ? convertDifficultyToKorean(difficulty)
+      : "어려움";
+    const maxUserLabel =
+      maxUserCount !== undefined ? `최대 ${maxUserCount}명` : "최대 0명";
+    const botLabel = botCount !== undefined ? `봇 ${botCount}명` : "봇 0명";
+    return `${difficultyLabel}  |  ${maxUserLabel}  |  ${botLabel}`;
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -43,12 +109,17 @@ export default function RoomsPage() {
               r.startTime && r.startTime.length >= 16
                 ? r.startTime.substring(11, 16)
                 : undefined;
+            const thumbnailImageSrc = getThumbnailImagePath(
+              r.thumbnailType,
+              r.thumbnailValue
+            );
             return {
               id: r.roomId,
               title: r.roomName,
               variant: "blue",
               size,
-              venueName: r.hallName,
+              venueName: convertHallNameToKorean(r.hallName),
+              imageSrc: thumbnailImageSrc,
               participants: {
                 current: r.currentUserCount,
                 capacity: r.maxUserCount,
@@ -56,6 +127,9 @@ export default function RoomsPage() {
               startTime,
               ongoing: r.status === "PLAYING",
               createdAtMs,
+              difficulty: r.difficulty,
+              maxUserCount: r.maxUserCount,
+              botCount: r.botCount,
             };
           }
         );
@@ -205,6 +279,12 @@ export default function RoomsPage() {
             variant={room.variant}
             size={room.size}
             venueName={room.venueName}
+            imageSrc={room.imageSrc}
+            capacityText={generateCapacityText(
+              room.difficulty,
+              room.maxUserCount,
+              room.botCount
+            )}
             participants={room.participants}
             startTime={room.startTime}
             ongoing={room.ongoing}

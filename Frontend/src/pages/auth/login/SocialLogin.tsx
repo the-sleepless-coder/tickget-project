@@ -9,7 +9,7 @@ import { useAuthStore } from "@features/auth/store";
 
 const BASE_URL = `${import.meta.env.VITE_API_ORIGIN ?? ""}${
   import.meta.env.VITE_API_PREFIX ??
-  (import.meta.env.DEV ? "/api/v1/dev" : "/api/v1/dev")
+  (import.meta.env.DEV ? "/api/v1/dev" : "/api/v1/")
 }/auth`;
 
 export default function SocialLogin() {

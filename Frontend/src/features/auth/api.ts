@@ -4,7 +4,7 @@ import type { TestAccountLoginResponse } from "./types";
 // 로그인 서버: /auth 세그먼트 사용
 const AUTH_BASE_URL = `${import.meta.env.VITE_API_ORIGIN ?? ""}${
   import.meta.env.VITE_API_PREFIX ??
-  (import.meta.env.DEV ? "/api/v1/dev" : "/api/v1/dev")
+  (import.meta.env.DEV ? "/api/v1/dev" : "/api/v1/")
 }/auth`;
 
 const authApi = createHttpClient(AUTH_BASE_URL);
