@@ -6,7 +6,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useRoomStore } from "@features/room/store";
 import { useMatchStore } from "@features/booking-site/store";
 import { useAuthStore } from "@features/auth/store";
-import { holdSeat } from "@features/booking-site/api";
+import { holdSeat, getSectionSeatsStatus } from "@features/booking-site/api";
 import { paths } from "../../../../app/routes/paths";
 import {
   saveInitialReaction,
@@ -247,6 +247,46 @@ export default function SelectSeatPage() {
 
   const matchIdFromStore = useMatchStore((s) => s.matchId);
   const currentUserId = useAuthStore((s) => s.userId);
+  // TAKEN 좌석 정보 저장 (SmallVenue용, section-row-col 형식)
+  const [takenSeats, setTakenSeats] = useState<Set<string>>(new Set());
+
+  // SmallVenue의 경우 모든 섹션에 대해 TAKEN 좌석 조회
+  useEffect(() => {
+    if (venueKey !== "small" || !matchIdFromStore || !currentUserId) return;
+
+    const fetchAllSections = async () => {
+      const allTaken = new Set<string>();
+      // SmallVenue의 섹션: 1, 2, 3 (1층), 4, 5, 6 (2층)
+      const sections = ["1", "2", "3", "4", "5", "6"];
+
+      for (const sectionId of sections) {
+        try {
+          const response = await getSectionSeatsStatus(
+            matchIdFromStore,
+            sectionId,
+            currentUserId
+          );
+          if (response.seats) {
+            response.seats.forEach((seat) => {
+              if (seat.status === "TAKEN") {
+                allTaken.add(seat.seatId);
+              }
+            });
+          }
+        } catch (error) {
+          console.error(`[seat-status] 섹션 ${sectionId} 조회 실패:`, error);
+        }
+      }
+
+      setTakenSeats(allTaken);
+      console.log(
+        "[seat-status] SmallVenue TAKEN 좌석 저장:",
+        Array.from(allTaken)
+      );
+    };
+
+    fetchAllSections();
+  }, [venueKey, matchIdFromStore, currentUserId]);
 
   const complete = async () => {
     const durationSec = recordSeatCompleteNow();
@@ -260,12 +300,13 @@ export default function SelectSeatPage() {
 
     // 좌석 선택 완료 시 API 호출
     if (selected.length > 0) {
-      // matchId 결정: URL 파라미터 우선, 없으면 store에서 가져오기
+      // matchId 결정: store 우선, 없으면 URL 파라미터에서 가져오기
       const matchIdParam = searchParams.get("matchId");
       const matchId =
-        matchIdParam && !Number.isNaN(Number(matchIdParam))
+        matchIdFromStore ??
+        (matchIdParam && !Number.isNaN(Number(matchIdParam))
           ? Number(matchIdParam)
-          : matchIdFromStore;
+          : null);
 
       if (matchId && currentUserId) {
         try {
@@ -525,6 +566,7 @@ export default function SelectSeatPage() {
               {venueKey === "small" && (
                 <SmallVenue
                   selectedIds={selected.map((s) => s.id)}
+                  takenSeats={takenSeats}
                   onToggleSeat={(seat) => {
                     const price =
                       seat.price ?? getPriceByGradeLabel(seat.gradeLabel);

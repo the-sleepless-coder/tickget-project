@@ -203,6 +203,8 @@ export default function LargeVenue({
   const [searchParams] = useSearchParams();
   const matchIdFromStore = useMatchStore((s) => s.matchId);
   const currentUserId = useAuthStore((s) => s.userId);
+  // TAKEN 좌석 정보 저장 (section-row-col 형식의 seatId를 Set으로 저장)
+  const [takenSeats, setTakenSeats] = useState<Set<string>>(new Set());
 
   const handlePolygonClick = async (polygon: SVGPolygonElement) => {
     const data: PolygonData = {
@@ -219,12 +221,13 @@ export default function LargeVenue({
     // 섹션 ID로 API 호출
     const sectionId = data.id;
     if (sectionId) {
-      // matchId 결정: URL 파라미터 우선, 없으면 store에서 가져오기
+      // matchId 결정: store 우선, 없으면 URL 파라미터에서 가져오기
       const matchIdParam = searchParams.get("matchId");
       const matchId =
-        matchIdParam && !Number.isNaN(Number(matchIdParam))
+        matchIdFromStore ??
+        (matchIdParam && !Number.isNaN(Number(matchIdParam))
           ? Number(matchIdParam)
-          : matchIdFromStore;
+          : null);
 
       // userId 확인
       if (matchId && currentUserId) {
@@ -238,6 +241,22 @@ export default function LargeVenue({
             currentUserId
           );
           console.log("[section-click] API 응답:", response);
+
+          // TAKEN 상태인 좌석들을 Set에 저장 (section-row-col 형식)
+          if (response.seats) {
+            const taken = new Set<string>();
+            response.seats.forEach((seat) => {
+              if (seat.status === "TAKEN") {
+                taken.add(seat.seatId);
+              }
+            });
+            setTakenSeats((prev) => {
+              const merged = new Set(prev);
+              taken.forEach((id) => merged.add(id));
+              return merged;
+            });
+            console.log("[section-click] TAKEN 좌석 저장:", Array.from(taken));
+          }
         } catch (error) {
           console.error("[section-click] API 호출 실패:", error);
         }
@@ -420,12 +439,29 @@ export default function LargeVenue({
         const seatId = `${selectedMeta.id}-${row}-${seat}`;
         el.setAttribute("data-seat-id", seatId);
 
+        // TAKEN 좌석 확인 (API 응답은 section-row-col 형식이므로 col로 매칭)
+        const col = String(colIndex + 1);
+        const takenSeatId = `${selectedMeta.id}-${row}-${col}`;
+        const isTaken = takenSeats.has(takenSeatId);
+
         // 선택된 좌석인지 확인하고 색상 업데이트
         const isSelected = selectedIds.includes(seatId);
-        if (isSelected) {
+        if (isTaken) {
+          // TAKEN 좌석: 회색 처리 및 클릭 불가
+          el.style.backgroundColor = "#9ca3af"; // 회색
+          el.style.cursor = "not-allowed";
+          el.style.opacity = "0.6";
+          el.setAttribute("data-taken", "true");
+        } else if (isSelected) {
           el.style.backgroundColor = "#4a4a4a"; // 선택된 좌석은 어두운 회색
+          el.style.cursor = "pointer";
+          el.style.opacity = "1";
+          el.removeAttribute("data-taken");
         } else {
           el.style.backgroundColor = detailViewColor; // 원래 색상으로 복원
+          el.style.cursor = "pointer";
+          el.style.opacity = "1";
+          el.removeAttribute("data-taken");
         }
 
         // 기존 클릭 핸들러 제거 후 새로 추가 (중복 방지)
@@ -437,6 +473,14 @@ export default function LargeVenue({
         }
 
         const clickHandler = () => {
+          // TAKEN 좌석은 클릭 불가
+          if (isTaken) {
+            console.log(
+              "[seat-click] TAKEN 좌석은 선택할 수 없습니다:",
+              takenSeatId
+            );
+            return;
+          }
           if (onToggleSeat) {
             const gradeLabelForSeat =
               selectedMeta.level === "STANDING"
@@ -560,13 +604,13 @@ export default function LargeVenue({
       "nonFlippedSectionsWithSamePattern:",
       nonFlippedSectionsWithSamePattern.join(", ")
     );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     showDetailView,
-    selectedPattern,
     selectedMeta,
     selectedIds,
     detailViewColor,
+    onToggleSeat,
+    takenSeats,
   ]);
 
   return (

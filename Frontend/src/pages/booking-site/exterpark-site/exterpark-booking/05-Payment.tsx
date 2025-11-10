@@ -27,12 +27,13 @@ export default function PaymentPage() {
 
   const goPrev = () => navigate(paths.booking.orderConfirm);
   const complete = async () => {
-    // matchId 결정: URL 파라미터 우선, 없으면 store에서 가져오기
+    // matchId 결정: store 우선, 없으면 URL 파라미터에서 가져오기
     const matchIdParam = searchParams.get("matchId");
     const matchId =
-      matchIdParam && !Number.isNaN(Number(matchIdParam))
+      matchIdFromStore ??
+      (matchIdParam && !Number.isNaN(Number(matchIdParam))
         ? Number(matchIdParam)
-        : matchIdFromStore;
+        : null);
 
     // API 호출: 좌석 확정
     if (matchId && currentUserId) {
@@ -88,6 +89,15 @@ export default function PaymentPage() {
             "reserve.userRank",
             String(response.body.userRank)
           );
+        }
+
+        // matchId를 store에 업데이트
+        if (response.body && response.body.matchId) {
+          const responseMatchId = Number(response.body.matchId);
+          if (!Number.isNaN(responseMatchId)) {
+            useMatchStore.getState().setMatchId(responseMatchId);
+            console.log("[seat-confirm] matchId 업데이트:", responseMatchId);
+          }
         }
       } catch (error) {
         console.error("[seat-confirm] API 호출 실패:", error);
