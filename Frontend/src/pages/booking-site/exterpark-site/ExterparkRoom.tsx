@@ -501,7 +501,7 @@ export default function ITicketPage() {
     secondsLeft < 10 ? `00:0${secondsLeft}` : `00:${secondsLeft}`;
 
   // 방 나가기 핸들러
-  const handleExitRoom = async () => {
+  const handleExitRoom = useCallback(async () => {
     const targetRoomId =
       roomId ||
       joinResponse?.roomId?.toString() ||
@@ -562,7 +562,39 @@ export default function ITicketPage() {
     } finally {
       setIsExiting(false);
     }
-  };
+  }, [
+    roomId,
+    joinResponse?.roomId,
+    roomData?.roomId,
+    currentUserId,
+    currentUserNickname,
+    navigate,
+  ]);
+
+  // 브라우저 뒤로가기 시에도 '방 나가기'와 동일한 동작 수행
+  useEffect(() => {
+    const pushState = () => {
+      try {
+        window.history.pushState(null, "", window.location.href);
+      } catch (err) {
+        if (import.meta.env.DEV) {
+          console.warn("history.pushState 실패:", err);
+        }
+      }
+    };
+    // 현재 위치를 한 번 더 쌓아 뒤로가기를 중단시킴
+    pushState();
+    const onPopState = () => {
+      // 즉시 현재 페이지에 머물도록 다시 푸시
+      pushState();
+      // 동일한 퇴장 로직 호출 (확인창 포함)
+      handleExitRoom();
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => {
+      window.removeEventListener("popstate", onPopState);
+    };
+  }, [handleExitRoom]);
 
   const openQueueWindow = () => {
     let finalUrl: string;
