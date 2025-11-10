@@ -25,7 +25,7 @@ import LargeVenue, {
   type LargeVenueRef,
 } from "../../../performance-halls/large-venue/InspireArena";
 
-type GradeKey = "SR" | "R" | "S";
+type GradeKey = "SR" | "R" | "S" | "A";
 type SelectedSeat = {
   id: string;
   gradeLabel: string;
@@ -40,6 +40,7 @@ const GRADE_META: Record<
   SR: { name: "SR석", color: "#6f53e3", price: 143000 },
   R: { name: "R석", color: "#3da14b", price: 132000 },
   S: { name: "S석", color: "#59b3ea", price: 110000 },
+  A: { name: "A석", color: "#FB7E4E", price: 80000 },
 };
 
 type VenueKind = "small" | "medium" | "large";
@@ -391,79 +392,80 @@ export default function SelectSeatPage() {
             {/* 우측: 사이드 정보 220 x 620 */}
             <aside className="w-[220px] h-[620px] space-y-3">
               <div className="bg-white rounded-md border border-[#e3e3e3] shadow">
-                <div
-                  className="px-3 py-2 bg-[linear-gradient(to_right,#104bb7,#4383fb,#4383fb,#4383fb,#104bb7)] text-white font-semibold rounded-t-md cursor-pointer hover:opacity-90 transition-opacity"
-                  onClick={() => {
-                    if (venueKey === "medium" && mediumVenueRef.current) {
-                      mediumVenueRef.current.backToOverview();
-                    } else if (venueKey === "large" && largeVenueRef.current) {
-                      largeVenueRef.current.backToOverview();
-                    }
-                  }}
-                >
-                  ≪ 좌석도 전체보기
+                <div className="px-3 py-2 text-sm bg-[linear-gradient(to_right,#104bb7,#4383fb,#4383fb,#4383fb,#104bb7)] text-white font-semibold rounded-t-md">
+                  원하시는 좌석 위치를 선택해주세요
                 </div>
                 <div className="h-[1px] bg-[#e5e5e5] opacity-80" />
-                <div className="px-3 py-2 text-[12px] text-[#666]">
-                  원하시는 좌석 위치를 선택하세요
+                <div className="px-3 py-2 h-40 flex items-center justify-center text-center text-sm font-semibold text-gray-400">
+                  원하는 위치의 <br /> 좌석을 선택해주세요!
                 </div>
-                <div className="p-2 text-sm">
-                  <div className="font-semibold mb-2">좌석등급 / 잔여석</div>
-                  <div className="rounded border border-[#ececec] p-2">
-                    <table className="w-full text-sm">
-                      <tbody>
-                        <tr>
-                          <td>
-                            <div className="flex items-center gap-2">
-                              <span
-                                className="inline-block w-3 h-3 rounded-sm"
-                                style={{ background: GRADE_META.SR.color }}
-                              />
-                              VIP석 180석
-                            </div>
-                          </td>
-                          <td className="text-right text-gray-700">
-                            {GRADE_META.SR.price.toLocaleString()}원
-                          </td>
-                        </tr>
-                        <tr>
-                          <td>
-                            <div className="flex items-center gap-2">
-                              <span
-                                className="inline-block w-3 h-3 rounded-sm"
-                                style={{ background: GRADE_META.R.color }}
-                              />
-                              R석 230석
-                            </div>
-                          </td>
-                          <td className="text-right text-gray-700">
-                            {GRADE_META.R.price.toLocaleString()}원
-                          </td>
-                        </tr>
-                        <tr>
-                          <td>
-                            <div className="flex items-center gap-2">
-                              <span
-                                className="inline-block w-3 h-3 rounded-sm"
-                                style={{ background: GRADE_META.S.color }}
-                              />
-                              S석 300석
-                            </div>
-                          </td>
-                          <td className="text-right text-gray-700">
-                            {GRADE_META.S.price.toLocaleString()}원
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
+              </div>
+
+              {/* 좌석등급 / 잔여석: 선택좌석 위로 이동 */}
+              <div className="bg-white rounded-md border border-[#e3e3e3] shadow">
+                <div className="px-3 py-2 font-semibold">좌석등급 / 가격</div>
+                <div className="px-3 pb-3 text-xs">
+                  <ul className="space-y-2">
+                    <li className="flex items-center justify-between">
+                      <span className="flex items-center gap-2">
+                        <span
+                          className="inline-block w-3 h-3 rounded-sm"
+                          style={{ background: GRADE_META.SR.color }}
+                        />
+                        <span className="font-semibold">VIP석</span>
+                        {/* <span className="text-[#b77c6a]">1석</span> */}
+                      </span>
+                      <span className="text-gray-700">
+                        {GRADE_META.SR.price.toLocaleString()}원
+                      </span>
+                    </li>
+                    <li className="flex items-center justify-between">
+                      <span className="flex items-center gap-2">
+                        <span
+                          className="inline-block w-3 h-3 rounded-sm"
+                          style={{ background: GRADE_META.R.color }}
+                        />
+                        <span className="font-semibold">R석</span>
+                        {/* <span className="text-[#b77c6a]">102석</span> */}
+                      </span>
+                      <span className="text-gray-700">
+                        {GRADE_META.R.price.toLocaleString()}원
+                      </span>
+                    </li>
+                    <li className="flex items-center justify-between">
+                      <span className="flex items-center gap-2">
+                        <span
+                          className="inline-block w-3 h-3 rounded-sm"
+                          style={{ background: GRADE_META.S.color }}
+                        />
+                        <span className="font-semibold">S석</span>
+                        {/* <span className="text-[#b77c6a]">59석</span> */}
+                      </span>
+                      <span className="text-gray-700">
+                        {GRADE_META.S.price.toLocaleString()}원
+                      </span>
+                    </li>
+                    <li className="flex items-center justify-between">
+                      <span className="flex items-center gap-2">
+                        <span
+                          className="inline-block w-3 h-3 rounded-sm"
+                          style={{ background: GRADE_META.A.color }}
+                        />
+                        <span className="font-semibold">A석</span>
+                        {/* <span className="text-[#b77c6a]">81석</span> */}
+                      </span>
+                      <span className="text-gray-700">
+                        {GRADE_META.A.price.toLocaleString()}원
+                      </span>
+                    </li>
+                  </ul>
                 </div>
               </div>
 
               <div className="bg-white rounded-md border border-[#e3e3e3] shadow">
-                <div className="px-3 py-2 flex items-center justify-between border-b">
+                <div className="px-3 py-1.5 flex items-center justify-between">
                   <div className="font-semibold">선택좌석</div>
-                  <div className="text-[#b02a2a] text-sm">
+                  <div className="text-[#b02a2a] text-xs">
                     총 {selected.length}석 선택되었습니다.
                   </div>
                 </div>
@@ -471,7 +473,7 @@ export default function SelectSeatPage() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="text-gray-500">
-                        <th className="text-left font-normal w-24 whitespace-nowrap bg-[#f7f7f7] px-2">
+                        <th className="text-left font-normal w-24 whitespace-nowrap px-2">
                           좌석등급
                         </th>
                         <th className="text-left font-normal whitespace-nowrap px-2">
@@ -492,7 +494,7 @@ export default function SelectSeatPage() {
                       ) : (
                         selected.map((s) => (
                           <tr key={s.id} className="border-t">
-                            <td className="py-2 whitespace-nowrap">
+                            <td className="py-1.5 whitespace-nowrap">
                               {s.gradeLabel}
                             </td>
                             <td className="whitespace-nowrap">{s.label}</td>
@@ -518,7 +520,7 @@ export default function SelectSeatPage() {
                   <button
                     disabled={selected.length === 0}
                     onClick={complete}
-                    className="mt-3 w-full py-3 rounded font-bold bg-[linear-gradient(to_bottom,#4383fb,#104bb7)] text-white disabled:cursor-not-allowed"
+                    className="mt-2 w-full py-2.5 rounded font-bold bg-[linear-gradient(to_bottom,#4383fb,#104bb7)] text-white disabled:cursor-not-allowed"
                   >
                     <span className="inline-flex items-center gap-1">
                       좌석선택완료
@@ -528,28 +530,19 @@ export default function SelectSeatPage() {
                   <div className="mt-2 flex items-center gap-2 text-sm">
                     <button
                       onClick={goPrev}
-                      className="flex-1 text-[12px] border rounded px-1 py-2 bg-[#f4f4f4] hover:bg-[#ececec] inline-flex items-center justify-center gap-1"
+                      className="flex-1 text-[12px] border border-[#9b9b9b] rounded px-1 py-2 bg-[linear-gradient(to_bottom,#f7f7f7,#e2e2e2)] hover:bg-[linear-gradient(to_bottom,#ededed,#d9d9d9)] inline-flex items-center justify-center gap-1 text-gray-700"
                     >
                       <ArrowBackIosNewIcon style={{ fontSize: 12 }} />
                       이전단계
                     </button>
                     <button
                       onClick={clearSelection}
-                      className="flex-1 text-[12px] border rounded px-1 py-2 bg-[#f4f4f4] hover:bg-[#ececec] inline-flex items-center justify-center gap-1"
+                      className="flex-1 text-[12px] border border-[#9b9b9b] rounded px-1 py-2 bg-[linear-gradient(to_bottom,#f7f7f7,#e2e2e2)] hover:bg-[linear-gradient(to_bottom,#ededed,#d9d9d9)] inline-flex items-center justify-center gap-1 text-gray-700"
                     >
                       <RefreshIcon style={{ fontSize: 14 }} />
                       좌석 다시 선택
                     </button>
                   </div>
-                  <div className="mt-2 text-[12px] text-[#b02a2a]">
-                    ※ 좌석 선택시 유의사항
-                  </div>
-                </div>
-                <div className="px-3 py-2 text-right text-sm border-t bg-[#fafafa]">
-                  합계:{" "}
-                  <span className="font-semibold">
-                    {totalPrice.toLocaleString()}원
-                  </span>
                 </div>
               </div>
             </aside>
