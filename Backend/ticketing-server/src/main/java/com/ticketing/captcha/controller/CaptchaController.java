@@ -28,13 +28,13 @@ public class CaptchaController {
     // Captcha 문자열을 입력했을 때의 응답을 받는다.
     @PostMapping("/captcha/validate")
     public ResponseEntity<?> validateCaptcha(@RequestBody CaptchaDTO userInput, HttpServletRequest request) throws IOException {
-        String userIdString = request.getHeader("userId");
+        String userIdString = request.getHeader("X-User-Id");
         if(userIdString == null || userIdString.isEmpty()){
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(Map.of("message","Missing userId in request"));
         }
         try{
-            Long userId = Long.valueOf(request.getHeader("userId"));
+            Long userId = Long.valueOf(request.getHeader("X-User-Id"));
             HttpResultDTO res = service.validateCaptcha(userInput, userId);
 
             return ResponseEntity.status(res.getStatus())
@@ -62,7 +62,7 @@ public class CaptchaController {
      * */
     @GetMapping("/captcha/validate/bot")
     public ResponseEntity<?> validateRobot(HttpServletRequest request){
-        Long userId = Long.valueOf(request.getHeader("userId"));
+        Long userId = Long.valueOf(request.getHeader("X-User-Id"));
 
         if(userId < 0){
 

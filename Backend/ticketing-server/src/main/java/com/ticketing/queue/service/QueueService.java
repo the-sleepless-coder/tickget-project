@@ -24,7 +24,9 @@ import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 
@@ -122,6 +124,9 @@ public class QueueService {
 
         // Log정보를 MongoDB에 저장한다.
         // Kafka 비동기로 MongoDB 처리.
+        /**
+         * DLT 처리가 필요할까?
+         * */
         // QueueLogDTO logDto = QueueLogDTO.of(randomUUID, matchId, playerType, userId, status, positionAhead, positionBehind, total, userInfo.getClickMiss(), userInfo.getDuration(), LocalDateTime.now());
         // SendResult<String, Object> recordData = kafkaTemplate.send(KafkaTopic.USER_LOG_QUEUE.getTopicName(), userId, logDto).get();
 
@@ -156,6 +161,7 @@ public class QueueService {
 
             MatchResponseDTO res = new MatchResponseDTO(saved.getMatchId(), saved.getRoomId(), saved.getMatchName(), saved.getMaxUser(), saved.getDifficulty().name(), saved.getStartedAt());
 
+            // @Transactional
             // DB에 커밋되고 나서, Redis에 room:{roomId}:match:{matchId}
             publisher.publishEvent(new MatchCacheRepository.MatchCreatedEvent(saved.getMatchId()));
 
@@ -167,6 +173,14 @@ public class QueueService {
             String difficulty = saved.getDifficulty().toString();
             Long hallId = dto.getHallId();
 
+            // match:{matchId}:matchStatus:startedAt   Redis 키값 생성 후 삭제.
+            String key = "match:" + matchId;
+            Map<String, String> data = new HashMap<>();
+            data.put("status", match.getStatus().name());
+            data.put("startedAt", match.getStartedAt().toString());
+
+
+            // 경기 시작하면서 Bot에게 요청을 보낸다.
             botClient.sendBotRequest(matchId, botCount, startedAt, difficulty, hallId);
 
             return res;

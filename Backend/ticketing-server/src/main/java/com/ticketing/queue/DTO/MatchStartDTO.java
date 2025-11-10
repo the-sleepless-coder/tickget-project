@@ -20,7 +20,7 @@ public class MatchStartDTO {
     Match.MatchStatus status;
     LocalDateTime timestamp;
 
-    public MatchStartDTO build (Long roomId, Long matchId, LocalDateTime startsAt, Match.MatchStatus status, LocalDateTime timestamp){
+    public MatchStartDTO of (Long roomId, Long matchId, LocalDateTime startsAt, Match.MatchStatus status, LocalDateTime timestamp){
         return MatchStartDTO.builder()
                 .roomId(roomId)
                 .matchId(matchId)
