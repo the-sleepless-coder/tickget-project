@@ -63,6 +63,8 @@ public class MatchScheduler {
             //2. Bot 서버로 시작했다는 요청을 보낸다.
             botClient.changeStartState(roomId);
 
+
+
             // 3. Redis Key 발급
             // matchStartKey에 OPEN을 설정.
             String matchStartKey = MATCH_STATUS.formatted(matchIdString);
