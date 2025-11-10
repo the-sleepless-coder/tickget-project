@@ -44,6 +44,8 @@ export interface WebSocketOptions {
   reconnectDelay?: number;
   heartbeatIncoming?: number;
   heartbeatOutgoing?: number;
+  userId?: number; // STOMP CONNECT 헤더로 전달할 userId (선택)
+  headers?: Record<string, string>; // 추가 커넥트 헤더
 }
 
 // STOMP 클라이언트 생성
@@ -55,10 +57,12 @@ export function createStompClient(options: WebSocketOptions = {}): Client {
     reconnectDelay = 5000,
     heartbeatIncoming = 0,
     heartbeatOutgoing = 0,
+    userId,
+    headers = {},
   } = options;
 
   // 액세스 토큰 (API 요청 시 필요, STOMP CONNECT 헤더에도 포함 가능)
-  const accessToken = useAuthStore.getState().accessToken;
+  const { accessToken, userId: storeUserId } = useAuthStore.getState();
 
   // SockJS 소켓 생성
   const socketFactory = () => {
@@ -69,7 +73,7 @@ export function createStompClient(options: WebSocketOptions = {}): Client {
   };
 
   // STOMP CONNECT 헤더
-  const connectHeaders: Record<string, string> = {};
+  const connectHeaders: Record<string, string> = { ...headers };
   if (accessToken) {
     connectHeaders.Authorization = `Bearer ${accessToken}`;
     if (import.meta.env.DEV) {
@@ -77,6 +81,15 @@ export function createStompClient(options: WebSocketOptions = {}): Client {
         "STOMP CONNECT Authorization 헤더 준비:",
         `Bearer ${accessToken.substring(0, 12)}...`
       );
+    }
+  }
+  // userId: 옵션 > 스토어 순으로 설정
+  const resolvedUserId =
+    userId ?? (storeUserId != null ? String(storeUserId) : undefined);
+  if (resolvedUserId != null) {
+    connectHeaders.userId = String(resolvedUserId);
+    if (import.meta.env.DEV) {
+      console.log("STOMP CONNECT userId 헤더 준비:", connectHeaders.userId);
     }
   }
 
