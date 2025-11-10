@@ -318,27 +318,87 @@ export default function SelectSeatPage() {
             grade: string;
           }> = [];
 
+          // 공연장 종류 확인 (올림픽홀, 인스파이어 아레나는 medium/large)
+          const isMediumOrLargeVenue =
+            venueName === "OlympicHall" || venueName === "InspireArena";
+
           selected.forEach((seat) => {
             // 좌석 DIV에서 커스텀 속성 읽기
-            const seatElement = document.querySelector(
+            // 샤롯데는 seatid 속성, 올림픽홀/인스파이어 아레나는 data-seat-id 속성 사용
+            let seatElement = document.querySelector(
               `[seatid="${seat.id}"]`
             ) as HTMLElement | null;
+
+            // seatid로 찾지 못하면 data-seat-id로 시도
+            if (!seatElement) {
+              seatElement = document.querySelector(
+                `[data-seat-id="${seat.id}"]`
+              ) as HTMLElement | null;
+            }
 
             if (seatElement) {
               const sectionId = seatElement.getAttribute("section");
               const row = seatElement.getAttribute("row");
-              const col = seatElement.getAttribute("col");
               const grade = seatElement.getAttribute("grade");
               const active = seatElement.getAttribute("active");
 
-              if (sectionId && row && col && grade && active === "1") {
-                seats.push({
+              // 올림픽홀/인스파이어 아레나는 seat 속성 사용 (섹션 내 좌석 번호)
+              // 샤롯데는 col 속성 사용
+              let colValue: string | null;
+              if (isMediumOrLargeVenue) {
+                colValue = seatElement.getAttribute("seat"); // 섹션 내 좌석 번호
+              } else {
+                colValue = seatElement.getAttribute("col"); // 절대 열 번호
+              }
+
+              if (sectionId && row && colValue && grade && active === "1") {
+                const seatData = {
                   sectionId: Number(sectionId),
                   row: Number(row),
-                  col: Number(col),
+                  col: Number(colValue),
                   grade: grade,
+                };
+                seats.push(seatData);
+                console.log(`[seat-hold] 좌석 정보 추출:`, {
+                  seatId: seat.id,
+                  elementAttributes: {
+                    section: sectionId,
+                    row: row,
+                    col: colValue,
+                    seat: seatElement.getAttribute("seat"),
+                    grade: grade,
+                    active: active,
+                  },
+                  extractedData: seatData,
+                });
+              } else {
+                console.warn(`[seat-hold] 좌석 정보 불완전:`, {
+                  seatId: seat.id,
+                  sectionId,
+                  row,
+                  col: colValue,
+                  grade,
+                  active,
+                  isMediumOrLargeVenue,
                 });
               }
+            } else {
+              console.warn(`[seat-hold] 좌석 요소를 찾을 수 없음:`, {
+                seatId: seat.id,
+                triedSelectors: [
+                  `[seatid="${seat.id}"]`,
+                  `[data-seat-id="${seat.id}"]`,
+                ],
+                venueName,
+                isMediumOrLargeVenue,
+                // DOM에서 실제로 존재하는 좌석 요소들 확인
+                allSeatIds: Array.from(
+                  document.querySelectorAll("[seatid], [data-seat-id]")
+                ).map((el) => ({
+                  seatid: el.getAttribute("seatid"),
+                  dataSeatId: el.getAttribute("data-seat-id"),
+                })),
+              });
             }
           });
 
@@ -346,36 +406,160 @@ export default function SelectSeatPage() {
           const totalSeats = roomInfo.totalSeat ?? 100; // roomStore에서 가져오거나 기본값 100 사용
 
           if (seats.length > 0) {
-            console.log("[seat-hold] API 호출:", {
+            const requestPayload = {
+              userId: currentUserId,
+              seats,
+              totalSeats,
+            };
+            console.log("[seat-hold] API 요청:", {
               matchId,
-              userId: currentUserId,
-              seats,
-              totalSeats,
+              url: `/ticketing/matches/${matchId}/hold`,
+              payload: requestPayload,
+              venueName,
+              isMediumOrLargeVenue:
+                venueName === "OlympicHall" || venueName === "InspireArena",
             });
 
-            const response = await holdSeat(matchId, {
-              userId: currentUserId,
-              seats,
-              totalSeats,
+            const response = await holdSeat(matchId, requestPayload);
+
+            console.log("[seat-hold] API 응답:", {
+              status: response.status,
+              body: response.body,
+              success: response.body.success,
+              heldSeats: response.body.heldSeats,
+              failedSeats: response.body.failedSeats,
             });
 
-            console.log("[seat-hold] API 응답:", response);
+            // 409 응답 또는 실패한 좌석이 있는 경우
+            if (
+              response.status === 409 ||
+              !response.body.success ||
+              (response.body.failedSeats &&
+                response.body.failedSeats.length > 0)
+            ) {
+              console.warn("[seat-hold] 좌석 선점 실패 - 이미 선택된 좌석");
+
+              // 선택한 좌석들의 섹션 ID 추출 (중복 제거)
+              const sectionIds = Array.from(
+                new Set(seats.map((seat) => String(seat.sectionId)))
+              );
+
+              console.log("[seat-hold] 섹션 좌석 현황 새로고침:", sectionIds);
+
+              // 각 섹션의 좌석 현황을 다시 가져오기
+              if (matchId && currentUserId) {
+                if (venueKey === "small") {
+                  // SmallVenue: 모든 섹션의 좌석 현황 가져오기
+                  const allTaken = new Set<string>();
+                  const sections = ["1", "2", "3", "4", "5", "6"];
+
+                  for (const sectionId of sections) {
+                    try {
+                      const statusResponse = await getSectionSeatsStatus(
+                        matchId,
+                        sectionId,
+                        currentUserId
+                      );
+                      if (statusResponse.seats) {
+                        statusResponse.seats.forEach((seat) => {
+                          if (seat.status === "TAKEN") {
+                            allTaken.add(seat.seatId);
+                          }
+                        });
+                      }
+                    } catch (error) {
+                      console.error(
+                        `[seat-hold] 섹션 ${sectionId} 좌석 현황 조회 실패:`,
+                        error
+                      );
+                    }
+                  }
+
+                  setTakenSeats(allTaken);
+                  console.log(
+                    "[seat-hold] SmallVenue TAKEN 좌석 업데이트:",
+                    Array.from(allTaken)
+                  );
+                } else {
+                  // MediumVenue/LargeVenue: 해당 섹션들의 좌석 현황 가져오기
+                  // 섹션 polygon을 클릭하여 좌석 현황을 새로고침
+                  for (const sectionId of sectionIds) {
+                    try {
+                      // DOM에서 해당 섹션의 polygon 찾기
+                      const polygon = document.querySelector(
+                        `polygon[data-id="${sectionId}"]`
+                      ) as SVGPolygonElement | null;
+
+                      if (polygon) {
+                        // 섹션 좌석 현황 API 호출
+                        const statusResponse = await getSectionSeatsStatus(
+                          matchId,
+                          sectionId,
+                          currentUserId
+                        );
+                        console.log(
+                          `[seat-hold] 섹션 ${sectionId} 좌석 현황:`,
+                          statusResponse
+                        );
+
+                        // polygon 클릭 이벤트 트리거하여 컴포넌트 내부 상태 업데이트
+                        // (MediumVenue/LargeVenue는 섹션 클릭 시 자동으로 좌석 현황을 가져옴)
+                        polygon.dispatchEvent(
+                          new MouseEvent("click", {
+                            bubbles: true,
+                            cancelable: true,
+                          })
+                        );
+                      } else {
+                        console.warn(
+                          `[seat-hold] 섹션 ${sectionId} polygon을 찾을 수 없음`
+                        );
+                      }
+                    } catch (error) {
+                      console.error(
+                        `[seat-hold] 섹션 ${sectionId} 좌석 현황 조회 실패:`,
+                        error
+                      );
+                    }
+                  }
+                }
+              }
+
+              // 선택된 좌석 초기화
+              setSelected([]);
+              // 알림 표시
+              setShowSeatTakenAlert(true);
+              _setSeatTakenAlertCount((prev) => prev + 1);
+              // 다음 페이지로 이동하지 않고 현재 페이지에 머물기
+              return;
+            }
+
+            // 성공한 경우에만 다음 페이지로 이동
+            console.log("[seat-hold] 좌석 선점 성공, 다음 페이지로 이동");
           } else {
             console.warn(
               "[seat-hold] 좌석 정보를 찾을 수 없어 API 호출을 건너뜁니다."
             );
+            return;
           }
         } catch (error) {
           console.error("[seat-hold] API 호출 실패:", error);
+          // 에러 발생 시에도 알림 표시하고 현재 페이지에 머물기
+          setSelected([]);
+          setShowSeatTakenAlert(true);
+          _setSeatTakenAlertCount((prev) => prev + 1);
+          return;
         }
       } else {
         console.warn(
           "[seat-hold] matchId 또는 userId가 없어 API 호출을 건너뜁니다.",
           { matchId, currentUserId }
         );
+        return;
       }
     }
 
+    // API 호출이 성공한 경우에만 다음 페이지로 이동
     sessionStorage.setItem("reserve.capBackspaces", String(captchaBackspaces));
     sessionStorage.setItem("reserve.capWrong", String(captchaWrongAttempts));
     const nextUrl = new URL(window.location.origin + paths.booking.price);
