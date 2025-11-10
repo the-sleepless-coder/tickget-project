@@ -1,11 +1,19 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useMemo } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { paths } from "../../../../app/routes/paths";
 import BookingLayout from "./_components/BookingLayout";
 import { buildMetricsQueryFromStorage } from "../../../../shared/utils/reserveMetrics";
+import dayjs from "dayjs";
+
+type SeatData = {
+  grade: string;
+  count: number;
+  price: number;
+};
 
 export default function PaymentPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [method, setMethod] = useState<string>("kakao");
   // 카드 할부 등 추가 옵션이 생기면 확장 예정
   const goPrev = () => navigate(paths.booking.orderConfirm);
@@ -24,10 +32,46 @@ export default function PaymentPage() {
     }
   };
 
-  const ticketPrice = 143000;
-  const fee = 2000;
-  const shipping = 3700;
-  const total = ticketPrice + fee + shipping;
+  // URL에서 선택 좌석 정보 가져오기
+  const seatsParam = searchParams.get("seats");
+  const selectedSeats: SeatData[] = useMemo(() => {
+    if (!seatsParam) {
+      return [{ grade: "SR석", count: 1, price: 143000 }]; // 기본값
+    }
+    try {
+      const parsed = JSON.parse(decodeURIComponent(seatsParam));
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+      return [{ grade: "SR석", count: 1, price: 143000 }]; // 기본값
+    } catch (e) {
+      console.error("좌석 정보 파싱 실패:", e);
+      return [{ grade: "SR석", count: 1, price: 143000 }]; // 기본값
+    }
+  }, [seatsParam]);
+
+  // 선택 좌석 요약 텍스트
+  const selectedSeatsSummary = useMemo(() => {
+    return selectedSeats.map((s) => `${s.grade} ${s.count}석`).join(", ");
+  }, [selectedSeats]);
+
+  // 가격 정보
+  const ticketPrice = Number(searchParams.get("totalPrice")) || 143000;
+  const fee = Number(searchParams.get("fee")) || 2000;
+  const shipping = Number(searchParams.get("deliveryFee")) || 3700;
+  const total =
+    Number(searchParams.get("total")) || ticketPrice + fee + shipping;
+
+  // 날짜/시간 정보
+  const dateParam = searchParams.get("date");
+  const timeParam = searchParams.get("time");
+  const formattedDateTime = useMemo(() => {
+    if (!dateParam) return "2025.12.20 (토) 18:00"; // 기본값
+    const date = dayjs(dateParam);
+    const weekday = ["일", "월", "화", "수", "목", "금", "토"][date.day()];
+    const time = timeParam || "18:00";
+    return `${date.format("YYYY.MM.DD")} (${weekday}) ${time}`;
+  }, [dateParam, timeParam]);
 
   return (
     <BookingLayout activeStep={4}>
@@ -194,11 +238,11 @@ export default function PaymentPage() {
           <dl className="text-sm text-gray-700 flex-1 overflow-y-auto min-h-0">
             <div className="flex py-1 border-b">
               <dt className="w-20 text-gray-500 text-xs">일시</dt>
-              <dd className="flex-1 text-xs">2025.12.20 (토) 18:00</dd>
+              <dd className="flex-1 text-xs">{formattedDateTime}</dd>
             </div>
             <div className="flex py-1 border-b">
               <dt className="w-20 text-gray-500 text-xs">선택좌석</dt>
-              <dd className="flex-1 text-xs">SR석 1석</dd>
+              <dd className="flex-1 text-xs">{selectedSeatsSummary}</dd>
             </div>
             <div className="flex py-1 border-b">
               <dt className="w-20 text-gray-500 text-xs">티켓금액</dt>

@@ -47,6 +47,19 @@ const GRADE_META: Record<
   STANDING: { name: "스탠딩석", color: "#9ca3af", price: 170000 },
 };
 
+// 등급 레이블로 가격 찾기
+const getPriceByGradeLabel = (gradeLabel: string): number => {
+  // "스탠딩석", "VIP석", "R석", "S석", "A석", "SR석" 등
+  if (gradeLabel.includes("스탠딩")) return GRADE_META.STANDING.price;
+  if (gradeLabel.includes("VIP")) return GRADE_META.SR.price; // VIP석 = SR석 가격
+  if (gradeLabel.includes("R석")) return GRADE_META.R.price;
+  if (gradeLabel.includes("S석")) return GRADE_META.S.price;
+  if (gradeLabel.includes("A석")) return GRADE_META.A.price;
+  if (gradeLabel.includes("SR석")) return GRADE_META.SR.price;
+  // 기본값
+  return GRADE_META.S.price;
+};
+
 type VenueKind = "small" | "medium" | "large";
 
 export default function SelectSeatPage() {
@@ -368,6 +381,8 @@ export default function SelectSeatPage() {
                 <SmallVenue
                   selectedIds={selected.map((s) => s.id)}
                   onToggleSeat={(seat) => {
+                    const price =
+                      seat.price ?? getPriceByGradeLabel(seat.gradeLabel);
                     setSelected((prev) => {
                       const exists = prev.some((x) => x.id === seat.id);
                       if (exists) return prev.filter((x) => x.id !== seat.id);
@@ -378,7 +393,7 @@ export default function SelectSeatPage() {
                           id: seat.id,
                           gradeLabel: seat.gradeLabel,
                           label: seat.label,
-                          price: seat.price,
+                          price,
                         },
                       ];
                     });
@@ -390,6 +405,8 @@ export default function SelectSeatPage() {
                   onBackToOverview={mediumVenueRef}
                   selectedIds={selected.map((s) => s.id)}
                   onToggleSeat={(seat) => {
+                    const price =
+                      seat.price ?? getPriceByGradeLabel(seat.gradeLabel);
                     setSelected((prev) => {
                       const exists = prev.some((x) => x.id === seat.id);
                       if (exists) return prev.filter((x) => x.id !== seat.id);
@@ -400,7 +417,7 @@ export default function SelectSeatPage() {
                           id: seat.id,
                           gradeLabel: seat.gradeLabel,
                           label: seat.label,
-                          price: seat.price,
+                          price,
                         },
                       ];
                     });
@@ -412,6 +429,8 @@ export default function SelectSeatPage() {
                   onBackToOverview={largeVenueRef}
                   selectedIds={selected.map((s) => s.id)}
                   onToggleSeat={(seat) => {
+                    const price =
+                      seat.price ?? getPriceByGradeLabel(seat.gradeLabel);
                     setSelected((prev) => {
                       const exists = prev.some((x) => x.id === seat.id);
                       if (exists) return prev.filter((x) => x.id !== seat.id);
@@ -422,7 +441,7 @@ export default function SelectSeatPage() {
                           id: seat.id,
                           gradeLabel: seat.gradeLabel,
                           label: seat.label,
-                          price: seat.price,
+                          price,
                         },
                       ];
                     });

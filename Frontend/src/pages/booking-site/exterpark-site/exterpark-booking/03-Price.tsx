@@ -180,7 +180,23 @@ export default function PricePage() {
   }, [selectedSeats]);
 
   const goPrev = () => navigate(paths.booking.selectSeat);
-  const goNext = () => navigate(paths.booking.orderConfirm);
+  const goNext = () => {
+    const nextUrl = new URL(
+      window.location.origin + paths.booking.orderConfirm
+    );
+    // 선택 좌석 정보 전달
+    if (selectedSeats.length > 0) {
+      nextUrl.searchParams.set("seats", JSON.stringify(selectedSeats));
+    }
+    // 가격 정보 전달
+    nextUrl.searchParams.set("totalPrice", String(totalSelectedPrice));
+    nextUrl.searchParams.set("fee", String(fee));
+    nextUrl.searchParams.set("total", String(total));
+    // 날짜/시간 정보 전달
+    if (dateParam) nextUrl.searchParams.set("date", dateParam);
+    if (timeParam) nextUrl.searchParams.set("time", timeParam);
+    navigate(nextUrl.pathname + nextUrl.search);
+  };
 
   return (
     <BookingLayout activeStep={2}>
