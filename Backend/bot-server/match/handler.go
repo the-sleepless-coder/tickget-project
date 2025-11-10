@@ -50,7 +50,7 @@ func (h *Handler) SetBotsForMatch(c *gin.Context) {
 	logger.Info("매치 시작 요청됨",
 		zap.Int64("match_id", matchID),
 		zap.Int("bot_count", req.BotCount),
-		zap.Time("start_time", req.StartTime),
+		zap.Time("start_time", req.StartTime.Time),
 	)
 
 	// 매치를 위한 봇 세팅 시작

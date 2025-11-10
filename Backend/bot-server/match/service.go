@@ -19,16 +19,16 @@ import (
 type Service struct {
 	matches      map[int64]*MatchContext
 	scheduler    *scheduler.Scheduler
-	botService   *bot.Service          // 봇 리소스 관리 서비스
-	minioClient  MinioClient           // Minio 클라이언트 인터페이스
-	httpClient   *client.HTTPClient    // HTTP 클라이언트
-	waitChannels sync.Map              // map[int64]chan struct{} - matchID별 대기 채널
+	botService   *bot.Service       // 봇 리소스 관리 서비스
+	minioClient  MinioClient        // Minio 클라이언트 인터페이스
+	httpClient   *client.HTTPClient // HTTP 클라이언트
+	waitChannels sync.Map           // map[int64]chan struct{} - matchID별 대기 채널
 	mu           sync.RWMutex
 }
 
 // MinioClient 인터페이스
 type MinioClient interface {
-	GetHallLayout(ctx context.Context, hallID string) (*models.HallLayout, error)
+	GetHallLayout(ctx context.Context, hallID int64) (*models.HallLayout, error)
 }
 
 // 새로운 매치 서비스를 생성
@@ -78,7 +78,7 @@ func (s *Service) SetBotsForMatch(matchID int64, req models.MatchSettingRequest)
 	}
 
 	// 4. 매치 컨텍스트 생성
-	matchCtx := NewMatchContext(matchID, req.BotCount, req.StartTime, req.Difficulty, hallLayout)
+	matchCtx := NewMatchContext(matchID, req.BotCount, req.StartTime.Time, req.Difficulty, hallLayout)
 
 	s.mu.Lock()
 	s.matches[matchID] = matchCtx
@@ -86,9 +86,9 @@ func (s *Service) SetBotsForMatch(matchID int64, req models.MatchSettingRequest)
 
 	matchLogger.Info("매치 등록됨",
 		zap.Int("bot_count", req.BotCount),
-		zap.Time("start_time", req.StartTime),
+		zap.Time("start_time", req.StartTime.Time),
 		zap.String("difficulty", string(req.Difficulty)),
-		zap.String("hall_id", req.HallID),
+		zap.Int64("hall_id", req.HallID),
 		zap.Int("sections", len(hallLayout.Sections)),
 	)
 
@@ -99,7 +99,7 @@ func (s *Service) SetBotsForMatch(matchID int64, req models.MatchSettingRequest)
 		matchCtx.SetStatus(StatusScheduled)
 
 		// 시간까지 대기 후 실행
-		err := s.scheduler.ScheduleAt(matchCtx.Context(), req.StartTime, func() error {
+		err := s.scheduler.ScheduleAt(matchCtx.Context(), req.StartTime.Time, func() error {
 			return s.runMatch(matchCtx)
 		})
 
