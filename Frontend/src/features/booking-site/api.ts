@@ -24,6 +24,8 @@ import type {
   SeatHoldResult,
   SeatCancelResult,
   SeatCancelResponse,
+  SeatConfirmRequest,
+  SeatConfirmResponse,
 } from "./types";
 
 export async function getRooms(params?: { page?: number; size?: number }) {
@@ -240,6 +242,50 @@ export async function holdSeat(
   };
   try {
     body = (await res.json()) as SeatHoldResponse;
+  } catch {
+    // 본문이 없거나 JSON 파싱 실패 시 기본값 유지
+  }
+  return { status: res.status, body };
+}
+
+// POST /tkt/ticketing/matches/{matchId}/seats/confirm
+export async function confirmSeat(
+  matchId: string | number,
+  payload: SeatConfirmRequest
+): Promise<{ status: number; body: SeatConfirmResponse }> {
+  const { getAuthHeaders } = useAuthStore.getState();
+  const headers: Record<string, string> = {
+    ...getAuthHeaders(),
+    "Content-Type": "application/json",
+  };
+
+  const base = TICKETING_SERVER_BASE_URL;
+  const path = `ticketing/matches/${encodeURIComponent(String(matchId))}/seats/confirm`;
+  let url: string;
+  if (base.startsWith("/")) {
+    const fullPath = base.replace(/\/$/, "") + "/" + path.replace(/^\//, "");
+    url = new URL(fullPath, window.location.origin).toString();
+  } else {
+    url = new URL(path, base).toString();
+  }
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(payload),
+  });
+
+  let body: SeatConfirmResponse = {
+    success: false,
+    message: "",
+    userRank: 0,
+    confirmedSeats: [],
+    matchId: String(matchId),
+    userId: String(payload.userId),
+    status: null,
+  };
+  try {
+    body = (await res.json()) as SeatConfirmResponse;
   } catch {
     // 본문이 없거나 JSON 파싱 실패 시 기본값 유지
   }
