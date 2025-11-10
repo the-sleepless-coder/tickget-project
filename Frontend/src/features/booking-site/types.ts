@@ -107,3 +107,23 @@ export interface CaptchaValidateResult {
     [key: string]: unknown;
   };
 }
+
+// ----- Queue (Ticketing) -----
+export interface QueueEnqueueRequest {
+  clickMiss?: number; // 기본값 0 (봇 등)
+  duration?: number; // 걸린 시간(초)
+}
+
+export type PlayerType = "user" | "robot";
+export type QueueStatus = "ENQUEUED" | "ALREADY_IN_QUEUE";
+
+export interface QueueEnqueueResponse {
+  eventId: string;
+  matchId: string;
+  playerType: PlayerType;
+  playerId: string;
+  status: QueueStatus;
+  positionAhead: number;
+  positionBehind: number;
+  totalNum: number;
+}
