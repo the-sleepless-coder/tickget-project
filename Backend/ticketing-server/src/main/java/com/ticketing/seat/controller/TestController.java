@@ -6,8 +6,9 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class TestController {
 
-    @GetMapping("/health")
+    /*@GetMapping("/health")
     public String checkHealth() {
         return "Ticketing Server is running";
     }
+    */
 }

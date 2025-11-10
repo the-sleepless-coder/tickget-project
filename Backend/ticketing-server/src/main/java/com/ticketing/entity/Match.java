@@ -62,6 +62,7 @@ public class Match {
     @Column(name = "update_at", nullable = false)
     private LocalDateTime updatedAt;
 
+
     public enum Difficulty {
         EASY, NORMAL, HARD
     }
