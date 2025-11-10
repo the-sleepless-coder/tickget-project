@@ -16,6 +16,8 @@ import type {
   CaptchaValidateRequest,
   CaptchaValidateResponse,
   CaptchaValidateResult,
+  QueueEnqueueRequest,
+  QueueEnqueueResponse,
 } from "./types";
 
 export async function getRooms(params?: { page?: number; size?: number }) {
@@ -115,4 +117,25 @@ export async function validateCaptcha(
     // ignore non-json
   }
   return { status: res.status, body };
+}
+
+// ----- Queue (Ticketing) -----
+export async function enqueueTicketingQueue(
+  matchId: string | number,
+  payload: QueueEnqueueRequest
+): Promise<QueueEnqueueResponse> {
+  const { getAuthHeaders, userId } = useAuthStore.getState();
+  const headers: Record<string, string> = {
+    ...getAuthHeaders(),
+    "Content-Type": "application/json",
+  };
+  if (userId != null) headers["userId"] = String(userId);
+
+  // POST /tkt/ticketing/queue/{matchId}
+  const path = `ticketing/queue/${encodeURIComponent(String(matchId))}`;
+  const body = {
+    clickMiss: payload.clickMiss ?? 0,
+    duration: payload.duration ?? 0,
+  };
+  return ticketingApi.postJson<QueueEnqueueResponse>(path, body, { headers });
 }
