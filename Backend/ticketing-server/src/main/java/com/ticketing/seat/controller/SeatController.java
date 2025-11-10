@@ -62,6 +62,7 @@ public class SeatController {
     private SeatReservationResponse buildErrorResponse(String message) {
         return SeatReservationResponse.builder()
                 .success(false)
+                .message(message)
                 .build();
     }
 }
