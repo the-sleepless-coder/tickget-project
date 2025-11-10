@@ -81,7 +81,43 @@ export default function ITicketPage() {
   const joinResponse = location.state?.joinResponse as
     | JoinRoomResponse
     | undefined;
-  const [secondsLeft, setSecondsLeft] = useState<number>(3);
+
+  // 상세 응답 기반 표시값
+  const [roomDetail, setRoomDetail] = useState<RoomDetailResponse | null>(null);
+
+  // 게임 시작 시간 기반 카운트다운 계산
+  // 게임 시작 시간의 30초 전부터 카운트다운 시작, 정확히 그 시간이 되면 버튼 활성화
+  const calculateSecondsLeft = useCallback(() => {
+    const gameStartTimeStr =
+      roomDetail?.startTime || roomRequest?.gameStartTime;
+    if (!gameStartTimeStr) {
+      return 0; // 게임 시작 시간이 없으면 즉시 활성화
+    }
+
+    const gameStartTime = dayjs(gameStartTimeStr);
+    const now = dayjs();
+    const countdownStartTime = gameStartTime.subtract(30, "second"); // 30초 전
+
+    // 게임 시작 시간이 이미 지났으면 즉시 활성화
+    if (now.isAfter(gameStartTime)) {
+      return 0;
+    }
+
+    // 카운트다운 시작 시간(게임 시작 시간 - 30초)이 아직 안 왔으면 대기
+    // 이 경우 카운트다운 시작 시간까지의 시간을 반환 (30초 전까지는 카운트다운 안 함)
+    if (now.isBefore(countdownStartTime)) {
+      const diffSeconds = countdownStartTime.diff(now, "second");
+      return diffSeconds + 30; // 카운트다운 시작 시간까지의 시간 + 30초 (30초 전부터 카운트다운 시작)
+    }
+
+    // 카운트다운 시작 시간이 지났으면 게임 시작 시간까지의 남은 시간 (30초부터 0초까지)
+    const diffSeconds = gameStartTime.diff(now, "second");
+    return Math.max(0, diffSeconds);
+  }, [roomDetail?.startTime, roomRequest?.gameStartTime]);
+
+  const [secondsLeft, setSecondsLeft] = useState<number>(() =>
+    calculateSecondsLeft()
+  );
   const [showBanner, setShowBanner] = useState<boolean>(true);
   const [reserveAppearedAt, setReserveAppearedAt] = useState<number | null>(
     null
@@ -460,8 +496,6 @@ export default function ITicketPage() {
     }));
   }, [roomMembers, hostUserId]);
 
-  // 상세 응답 기반 표시값
-  const [roomDetail, setRoomDetail] = useState<RoomDetailResponse | null>(null);
   // maxUserCount를 총 인원수로 사용 (상세 우선)
   const capacity =
     roomDetail?.maxUserCount ||
@@ -479,12 +513,27 @@ export default function ITicketPage() {
     }
   }, []);
 
+  // 게임 시작 시간이 변경되면 카운트다운 재계산
+  useEffect(() => {
+    const newSecondsLeft = calculateSecondsLeft();
+    setSecondsLeft(newSecondsLeft);
+  }, [calculateSecondsLeft]);
+
+  // 1초마다 카운트다운 업데이트
   useEffect(() => {
     const id = setInterval(() => {
-      setSecondsLeft((s) => (s > 0 ? s - 1 : 0));
+      setSecondsLeft((prev) => {
+        const newSecondsLeft = calculateSecondsLeft();
+        // 계산된 값과 현재 값이 다르면 계산된 값 사용 (시간 동기화)
+        if (Math.abs(newSecondsLeft - prev) > 1) {
+          return newSecondsLeft;
+        }
+        // 그 외에는 1초씩 감소
+        return prev > 0 ? prev - 1 : 0;
+      });
     }, 1000);
     return () => clearInterval(id);
-  }, []);
+  }, [calculateSecondsLeft]);
 
   useEffect(() => {
     if (secondsLeft === 0 && reserveAppearedAt === null) {
@@ -517,8 +566,17 @@ export default function ITicketPage() {
     return () => document.removeEventListener("click", onDocClick);
   }, [isTrackingClicks]);
 
-  const formatted =
-    secondsLeft < 10 ? `00:0${secondsLeft}` : `00:${secondsLeft}`;
+  // 카운트다운 포맷팅 (MM:SS 형식)
+  const formatted = useMemo(() => {
+    if (secondsLeft <= 0) {
+      return "00:00";
+    }
+    const minutes = Math.floor(secondsLeft / 60);
+    const seconds = secondsLeft % 60;
+    return `${minutes.toString().padStart(2, "0")}:${seconds
+      .toString()
+      .padStart(2, "0")}`;
+  }, [secondsLeft]);
 
   // 방 나가기 핸들러
   const handleExitRoom = useCallback(async () => {
@@ -636,6 +694,25 @@ export default function ITicketPage() {
           ? String(matchIdFromStore)
           : undefined;
 
+    // hallId 결정: roomDetail → roomData → roomRequest 순으로 확인
+    const hallId =
+      roomDetail?.hallId ?? roomData?.hallId ?? roomRequest?.hallId;
+    const hallIdParam = hallId
+      ? `&hallId=${encodeURIComponent(String(hallId))}`
+      : "";
+
+    // 일자 정보 결정: roomDetail → roomRequest 순으로 확인
+    const startTime = roomDetail?.startTime ?? roomRequest?.gameStartTime;
+    const reservationDay = startTime
+      ? dayjs(startTime).format("YYYY-MM-DD")
+      : roomRequest?.reservationDay;
+
+    const dateParam = reservationDay
+      ? `&date=${encodeURIComponent(reservationDay)}`
+      : "";
+    // 회차는 단일 회차(1회차)로 고정
+    const roundParam = `&round=1`;
+
     if (reserveAppearedAt) {
       const clickedTs = Date.now();
       const reactionMs = clickedTs - reserveAppearedAt;
@@ -651,14 +728,14 @@ export default function ITicketPage() {
       setIsTrackingClicks(false);
       finalUrl = `${baseUrl}?rtSec=${encodeURIComponent(String(reactionSec))}&nrClicks=${encodeURIComponent(String(nonReserveClickCount))}${
         matchIdParam ? `&matchId=${encodeURIComponent(matchIdParam)}` : ""
-      }`;
+      }${hallIdParam}${dateParam}${roundParam}`;
     } else {
       console.log(
         "[ReserveTiming] Click without appearance timestamp (possibly test click)"
       );
       finalUrl = `${baseUrl}?rtSec=0&nrClicks=${encodeURIComponent(String(nonReserveClickCount))}${
         matchIdParam ? `&matchId=${encodeURIComponent(matchIdParam)}` : ""
-      }`;
+      }${hallIdParam}${dateParam}${roundParam}`;
     }
 
     window.open(

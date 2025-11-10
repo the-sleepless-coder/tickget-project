@@ -51,7 +51,41 @@ type PatternComponentProps = {
 // - 중앙 그룹: 부채꼴 형태, 상단 5행은 각각 10개, 6번째 행은 8개 (중앙 그룹 내에서 5,8번째 위치가 빈 공간), 그 아래로 줄어듦
 // - 오른쪽 그룹: 왼쪽과 대칭 (상단 5열 4행 주황색 20개, 아래 오른쪽 3열 2행 회색 6개)
 
-export default function LargeVenue() {
+export interface LargeVenueRef {
+  backToOverview: () => void;
+}
+
+type LargeVenueSeat = {
+  id: string;
+  gradeLabel: string;
+  label: string;
+  price?: number;
+};
+
+export default function LargeVenue({
+  onBackToOverview,
+  selectedIds = [],
+  onToggleSeat,
+}: {
+  onBackToOverview?: React.MutableRefObject<LargeVenueRef | null>;
+  selectedIds?: string[];
+  onToggleSeat?: (seat: LargeVenueSeat) => void;
+} = {}) {
+  // 외부에서 전체 보기로 돌아가기 위한 함수 노출
+  useEffect(() => {
+    if (onBackToOverview) {
+      onBackToOverview.current = {
+        backToOverview: () => {
+          setShowDetailView(false);
+        },
+      };
+    }
+    return () => {
+      if (onBackToOverview) {
+        onBackToOverview.current = null;
+      }
+    };
+  }, [onBackToOverview]);
   const [tooltip, setTooltip] = useState<{
     visible: boolean;
     x: number;
@@ -75,7 +109,7 @@ export default function LargeVenue() {
     gap: number;
   } | null>(null);
 
-  // Enforce VIP color to #7C50E4 on overview SVG
+  // Enforce VIP color to #7C50E4 on overview SVG and add tooltips
   useEffect(() => {
     if (showDetailView) return; // only applies to overview SVG
     const svg = containerRef.current?.querySelector("svg");
@@ -117,6 +151,14 @@ export default function LargeVenue() {
         minY = Math.min(minY, b.y);
         maxX = Math.max(maxX, b.x + b.width);
         maxY = Math.max(maxY, b.y + b.height);
+
+        // 브라우저 기본 툴팁 설정 (전체 뷰)
+        const idAttr = p.getAttribute("data-id") || "";
+        const level = p.getAttribute("data-seat-level") || "";
+        if (idAttr && idAttr !== "0" && level) {
+          const gradeLabel = level === "STANDING" ? "스탠딩석" : `${level}석`;
+          p.setAttribute("title", `[${gradeLabel}] ${idAttr}구역`);
+        }
       });
       if (
         isFinite(minX) &&
@@ -158,30 +200,7 @@ export default function LargeVenue() {
     return Math.min(scaleX, scaleY, 1); // 1을 넘지 않도록
   };
 
-  const handlePolygonMouseEnter = (
-    e: React.MouseEvent<SVGPolygonElement>,
-    polygon: SVGPolygonElement
-  ) => {
-    // 상세 보기 중에는 외부 폴리곤 호버 툴팁을 노출하지 않음
-    if (showDetailView) return;
-    const lv = polygon.dataset.seatLevel || "";
-    const id = polygon.dataset.id || "";
-    const text = lv && id ? `${lv} • ${id}` : lv || id;
-
-    if (containerRef.current) {
-      const rect = containerRef.current.getBoundingClientRect();
-      setTooltip({
-        visible: true,
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top,
-        text,
-      });
-    }
-  };
-
-  const handlePolygonMouseLeave = () => {
-    setTooltip({ visible: false, x: 0, y: 0, text: "" });
-  };
+  // 커스텀 툴팁 핸들러 제거 (브라우저 기본 툴팁 사용)
 
   const handlePolygonClick = (polygon: SVGPolygonElement) => {
     const data: PolygonData = {
@@ -311,34 +330,7 @@ export default function LargeVenue() {
     }
   };
 
-  // 상세 좌석 호버용 핸들러
-  const handleSeatMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!showDetailView || !containerRef.current) return;
-    const target = e.target as HTMLElement | null;
-    if (!target) {
-      if (tooltip.visible) setTooltip({ visible: false, x: 0, y: 0, text: "" });
-      return;
-    }
-    const row = target.getAttribute("row");
-    const seat = target.getAttribute("seat");
-    const active = target.getAttribute("active");
-    if (!row || !seat || active !== "1") {
-      if (tooltip.visible) setTooltip({ visible: false, x: 0, y: 0, text: "" });
-      return;
-    }
-    const rect = containerRef.current.getBoundingClientRect();
-    setTooltip({
-      visible: true,
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
-      text: `${row}행 ${seat}번`,
-    });
-  };
-
-  const handleSeatMouseLeave = () => {
-    if (!tooltip.visible) return;
-    setTooltip({ visible: false, x: 0, y: 0, text: "" });
-  };
+  // 상세 좌석 호버용 핸들러 제거 (브라우저 기본 툴팁 사용)
 
   // 좌석 셀에 데이터 속성 부여 (row/seat/section/grade/active)
   useEffect(() => {
@@ -359,7 +351,8 @@ export default function LargeVenue() {
         seatNumberInRow = 0; // 새 행 시작: 좌석 번호 초기화
       }
 
-      el.setAttribute("row", String(rowIndex + 1));
+      const row = String(rowIndex + 1);
+      el.setAttribute("row", row);
       el.setAttribute("col", String(colIndex + 1)); // 디버깅용 절대 열 번호
       el.setAttribute("section", selectedMeta.id);
       el.setAttribute("grade", selectedMeta.level);
@@ -369,14 +362,60 @@ export default function LargeVenue() {
       if (isTransparent) {
         el.setAttribute("active", "0");
         el.removeAttribute("seat");
+        el.removeAttribute("title");
         // 고유 번호 계산: (row - 1) * totalCols + col
         const seatNumber =
           (rowIndex + 1 - 1) * selectedMeta.columns + (colIndex + 1);
         inactiveSeatNumbers.push(seatNumber);
       } else {
         seatNumberInRow += 1;
+        const seat = String(seatNumberInRow);
         el.setAttribute("active", "1");
-        el.setAttribute("seat", String(seatNumberInRow));
+        el.setAttribute("seat", seat);
+
+        // 브라우저 기본 툴팁 설정
+        const gradeLabel =
+          selectedMeta.level === "STANDING"
+            ? "스탠딩석"
+            : `${selectedMeta.level}석`;
+        el.setAttribute(
+          "title",
+          `[${gradeLabel}] ${selectedMeta.id}구역-${row}열-${seat}`
+        );
+
+        // 좌석 ID 생성 (section-row-seat 형식)
+        const seatId = `${selectedMeta.id}-${row}-${seat}`;
+        el.setAttribute("data-seat-id", seatId);
+
+        // 선택된 좌석인지 확인하고 색상 업데이트
+        const isSelected = selectedIds.includes(seatId);
+        if (isSelected) {
+          el.style.backgroundColor = "#4a4a4a"; // 선택된 좌석은 어두운 회색
+        } else {
+          el.style.backgroundColor = detailViewColor; // 원래 색상으로 복원
+        }
+
+        // 기존 클릭 핸들러 제거 후 새로 추가 (중복 방지)
+        const existingClickHandler = (el as any).__clickHandler;
+        if (existingClickHandler) {
+          el.removeEventListener("click", existingClickHandler);
+        }
+
+        const clickHandler = () => {
+          if (onToggleSeat) {
+            const gradeLabelForSeat =
+              selectedMeta.level === "STANDING"
+                ? "스탠딩석"
+                : `${selectedMeta.level}석`;
+            onToggleSeat({
+              id: seatId,
+              gradeLabel: gradeLabelForSeat,
+              label: `${selectedMeta.id}구역-${row}열-${seat}`,
+            });
+          }
+        };
+        (el as any).__clickHandler = clickHandler;
+        el.addEventListener("click", clickHandler);
       }
     });
 
@@ -485,26 +524,19 @@ export default function LargeVenue() {
       "nonFlippedSectionsWithSamePattern:",
       nonFlippedSectionsWithSamePattern.join(", ")
     );
-  }, [showDetailView, selectedPattern, selectedMeta]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    showDetailView,
+    selectedPattern,
+    selectedMeta,
+    selectedIds,
+    detailViewColor,
+  ]);
 
   return (
     <div className="relative w-full h-full" ref={containerRef}>
       {showDetailView ? (
         <div className="relative w-full h-full">
-          {/* 상단 중앙: 선택된 구역 라벨 */}
-          {selectedMeta && (
-            <div className="absolute left-1/2 -translate-x-1/2 top-2 z-10 px-3 py-1 rounded-md bg-black/70 text-white text-xs shadow">
-              {selectedMeta.level} • {selectedMeta.id}
-            </div>
-          )}
-          <div className="absolute top-2 right-2 z-10">
-            <button
-              onClick={() => setShowDetailView(false)}
-              className="bg-purple-500 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-purple-600 transition-colors shadow-md"
-            >
-              전체 보기
-            </button>
-          </div>
           <div className="w-full h-full flex justify-center items-center bg-neutral-100 overflow-hidden">
             {selectedPattern &&
               (() => {
@@ -562,11 +594,7 @@ export default function LargeVenue() {
                         )}
 
                         {/* 실제 패턴 그리드 */}
-                        <div
-                          ref={patternWrapperRef}
-                          onMouseMove={handleSeatMouseMove}
-                          onMouseLeave={handleSeatMouseLeave}
-                        >
+                        <div ref={patternWrapperRef}>
                           <PatternComponent
                             activeColor={detailViewColor}
                             flipHorizontal={isFlipped}
@@ -2574,19 +2602,7 @@ export default function LargeVenue() {
         </div>
       )}
 
-      {/* Tooltip */}
-      {tooltip.visible && (
-        <div
-          className="fixed pointer-events-none z-[9999] px-2 py-1.5 bg-black/75 text-white text-xs rounded-md shadow-lg"
-          style={{
-            left: `${tooltip.x}px`,
-            top: `${tooltip.y}px`,
-            transform: `translate(-50%, ${showDetailView ? "-90%" : "-140%"})`,
-          }}
-        >
-          {tooltip.text}
-        </div>
-      )}
+      {/* 커스텀 툴팁 제거 (브라우저 기본 툴팁 사용) */}
     </div>
   );
 }

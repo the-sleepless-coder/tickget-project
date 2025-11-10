@@ -67,8 +67,20 @@ export default function BookingWaitingPage() {
         clearInterval(progressInterval);
         const rtSec = searchParams.get("rtSec") ?? "0";
         const nrClicks = searchParams.get("nrClicks") ?? "0";
-        const nextUrl = `${paths.booking.selectSeat}?rtSec=${encodeURIComponent(rtSec)}&nrClicks=${encodeURIComponent(nrClicks)}`;
-        navigate(nextUrl, { replace: true });
+        const hallId = searchParams.get("hallId");
+        const matchId = searchParams.get("matchId");
+        const date = searchParams.get("date");
+        const round = searchParams.get("round");
+        const nextUrl = new URL(
+          window.location.origin + paths.booking.selectSeat
+        );
+        nextUrl.searchParams.set("rtSec", rtSec);
+        nextUrl.searchParams.set("nrClicks", nrClicks);
+        if (hallId) nextUrl.searchParams.set("hallId", hallId);
+        if (matchId) nextUrl.searchParams.set("matchId", matchId);
+        if (date) nextUrl.searchParams.set("date", date);
+        if (round) nextUrl.searchParams.set("round", round);
+        navigate(nextUrl.pathname + nextUrl.search, { replace: true });
       }
     }, 350);
     return () => {

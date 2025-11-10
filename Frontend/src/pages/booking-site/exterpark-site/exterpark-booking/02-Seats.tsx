@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  useRef,
+  type CSSProperties,
+} from "react";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
 import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
 import RefreshIcon from "@mui/icons-material/Refresh";
@@ -12,8 +18,12 @@ import {
 import Viewport from "./_components/Viewport";
 import CaptchaModal from "./_components/CaptchaModal";
 import SmallVenue from "../../../performance-halls/small-venue/CharlotteTheater";
-import MediumVenue from "../../../performance-halls/medium-venue/OlympicHall";
-import LargeVenue from "../../../performance-halls/large-venue/InspireArena";
+import MediumVenue, {
+  type MediumVenueRef,
+} from "../../../performance-halls/medium-venue/OlympicHall";
+import LargeVenue, {
+  type LargeVenueRef,
+} from "../../../performance-halls/large-venue/InspireArena";
 
 type GradeKey = "SR" | "R" | "S";
 type SelectedSeat = {
@@ -42,14 +52,33 @@ export default function SelectSeatPage() {
   const [showCaptcha, setShowCaptcha] = useState<boolean>(true);
   const [captchaBackspaces, setCaptchaBackspaces] = useState<number>(0);
   const [captchaWrongAttempts, setCaptchaWrongAttempts] = useState<number>(0);
+  const mediumVenueRef = useRef<MediumVenueRef | null>(null);
+  const largeVenueRef = useRef<LargeVenueRef | null>(null);
 
-  // venue 쿼리 처리 (small | medium | large)
+  // hallId 기반 venue 결정
+  // hallId 2: 샤롯데씨어터 (small)
+  // hallId 3: 올림픽 홀 (medium)
+  // hallId 4: 인스파이어 아레나 (large)
+  const hallIdParam = searchParams.get("hallId");
+  const hallId = hallIdParam ? Number(hallIdParam) : null;
+
+  // hallId를 venue로 변환
+  const getVenueFromHallId = (id: number | null): VenueKind => {
+    if (id === 2) return "small"; // 샤롯데씨어터
+    if (id === 3) return "medium"; // 올림픽 홀
+    if (id === 4) return "large"; // 인스파이어 아레나
+    return "small"; // 기본값
+  };
+
+  // 기존 venue 쿼리 파라미터도 지원 (하위 호환성)
   const venueParam = searchParams.get("venue");
-  const venueKey: VenueKind =
-    venueParam === "medium" || venueParam === "large" || venueParam === "small"
+  const venueKey: VenueKind = hallId
+    ? getVenueFromHallId(hallId)
+    : venueParam === "medium" ||
+        venueParam === "large" ||
+        venueParam === "small"
       ? venueParam
       : "small";
-  // 현재 venueLabel은 UI 문구 노출에 사용하지 않음 (필요 시 추가 표시)
 
   // URL 파라미터에서 날짜와 시간 정보 가져오기
   const dateParam = searchParams.get("date") || "";
@@ -313,14 +342,65 @@ export default function SelectSeatPage() {
                   }}
                 />
               )}
-              {venueKey === "medium" && <MediumVenue />}
-              {venueKey === "large" && <LargeVenue />}
+              {venueKey === "medium" && (
+                <MediumVenue
+                  onBackToOverview={mediumVenueRef}
+                  selectedIds={selected.map((s) => s.id)}
+                  onToggleSeat={(seat) => {
+                    setSelected((prev) => {
+                      const exists = prev.some((x) => x.id === seat.id);
+                      if (exists) return prev.filter((x) => x.id !== seat.id);
+                      if (prev.length >= 2) return prev;
+                      return [
+                        ...prev,
+                        {
+                          id: seat.id,
+                          gradeLabel: seat.gradeLabel,
+                          label: seat.label,
+                          price: seat.price,
+                        },
+                      ];
+                    });
+                  }}
+                />
+              )}
+              {venueKey === "large" && (
+                <LargeVenue
+                  onBackToOverview={largeVenueRef}
+                  selectedIds={selected.map((s) => s.id)}
+                  onToggleSeat={(seat) => {
+                    setSelected((prev) => {
+                      const exists = prev.some((x) => x.id === seat.id);
+                      if (exists) return prev.filter((x) => x.id !== seat.id);
+                      if (prev.length >= 2) return prev;
+                      return [
+                        ...prev,
+                        {
+                          id: seat.id,
+                          gradeLabel: seat.gradeLabel,
+                          label: seat.label,
+                          price: seat.price,
+                        },
+                      ];
+                    });
+                  }}
+                />
+              )}
             </div>
 
             {/* 우측: 사이드 정보 220 x 620 */}
             <aside className="w-[220px] h-[620px] space-y-3">
               <div className="bg-white rounded-md border border-[#e3e3e3] shadow">
-                <div className="px-3 py-2 bg-[linear-gradient(to_right,#104bb7,#4383fb,#4383fb,#4383fb,#104bb7)] text-white font-semibold rounded-t-md">
+                <div
+                  className="px-3 py-2 bg-[linear-gradient(to_right,#104bb7,#4383fb,#4383fb,#4383fb,#104bb7)] text-white font-semibold rounded-t-md cursor-pointer hover:opacity-90 transition-opacity"
+                  onClick={() => {
+                    if (venueKey === "medium" && mediumVenueRef.current) {
+                      mediumVenueRef.current.backToOverview();
+                    } else if (venueKey === "large" && largeVenueRef.current) {
+                      largeVenueRef.current.backToOverview();
+                    }
+                  }}
+                >
                   ≪ 좌석도 전체보기
                 </div>
                 <div className="h-[1px] bg-[#e5e5e5] opacity-80" />

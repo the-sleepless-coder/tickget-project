@@ -38,6 +38,7 @@ export interface RoomDetailResponse {
   roomType: RoomType;
   status: RoomStatus;
   startTime: string; // ISO string
+  hallId: number;
   hallSize: HallSize;
   hallName: string;
   thumbnailType: ThumbnailType;
