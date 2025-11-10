@@ -47,6 +47,13 @@ export default function SeatGrades({ hallId, gradeMeta }: SeatGradesProps) {
       if (k === "S") return "#FFCC10";
       if (k === "A") return "#7C50E4";
     }
+    // hallId = 4 (인스파이어 아레나): STANDING #FE4AB9, VIP(SR) #7C50E4, R #4CA0FF, S #FFCC10
+    if (hallId === 4) {
+      if (k === "STANDING") return "#FE4AB9";
+      if (k === "SR") return "#7C50E4";
+      if (k === "R") return "#4CA0FF";
+      if (k === "S") return "#FFCC10";
+    }
     return gradeMeta[k].color;
   };
 
