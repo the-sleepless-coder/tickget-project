@@ -1,0 +1,32 @@
+export const paths = {
+  home: "/",
+  iTicket: "/i-ticket",
+  seatsTest: "/seatstest",
+  rooms: "/rooms",
+  auth: {
+    root: "/auth",
+    login: "/auth/login",
+    signup: "/auth/signup",
+  },
+  booking: {
+    root: "/booking",
+    selectVenue: "/booking/select-venue",
+    selectSeat: "/booking/select-seat",
+    selectSchedule: "/booking/select-schedule",
+    price: "/booking/price",
+    orderConfirm: "/booking/order-confirm",
+    cancelFee: "/booking/cancel-fee",
+    complete: "/booking/complete",
+    payment: "/booking/payment",
+    waiting: "/booking/waiting",
+    gameResult: "/booking/game-result",
+  },
+  mypage: {
+    root: "/mypage",
+    reservations: "/mypage/reservations",
+  },
+  dashboard: "/dashboard",
+  profile: "/profile",
+  gameResult: "/game-result",
+  notFound: "*",
+} as const;
