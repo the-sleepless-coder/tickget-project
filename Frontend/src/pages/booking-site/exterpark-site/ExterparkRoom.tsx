@@ -107,12 +107,14 @@ export default function ITicketPage() {
       payload?: {
         userId?: number;
         username?: string;
+        userName?: string; // 대문자 N 형식 지원
         totalUsersInRoom?: number;
         [key: string]: unknown;
       };
       roomMembers?: RoomMember[]; // 기존 형식 지원
       userId?: number; // 기존 형식 지원
       username?: string; // 기존 형식 지원
+      userName?: string; // 대문자 N 형식 지원
       [key: string]: unknown;
     }) => {
       const eventType = event.eventType || event.type; // eventType 우선, 없으면 type
@@ -122,7 +124,12 @@ export default function ITicketPage() {
         case "USER_JOINED":
         case "USER_ENTERED": {
           const userId = payload?.userId || event.userId;
-          const username = payload?.username || event.username;
+          // userName (대문자 N)과 username (소문자 n) 모두 지원
+          const username =
+            payload?.userName ||
+            payload?.username ||
+            event.userName ||
+            event.username;
           const totalUsersInRoom = payload?.totalUsersInRoom;
 
           if (userId) {
@@ -133,10 +140,23 @@ export default function ITicketPage() {
 
             setRoomMembers((prev) => {
               // 이미 존재하는지 확인
-              const exists = prev.some((m) => m.userId === userId);
-              if (exists) {
-                console.log("⚠️ 이미 존재하는 유저입니다:", userId);
-                return prev;
+              const existingIndex = prev.findIndex((m) => m.userId === userId);
+              if (existingIndex !== -1) {
+                // 이미 존재하는 유저인 경우 이름 업데이트
+                if (username) {
+                  console.log(
+                    `🔄 유저 이름 업데이트: userId=${userId}, 새 이름=${username}`
+                  );
+                  const updated = [...prev];
+                  updated[existingIndex] = {
+                    ...updated[existingIndex],
+                    username: username,
+                  };
+                  return updated;
+                } else {
+                  console.log("⚠️ 이미 존재하는 유저입니다:", userId);
+                  return prev;
+                }
               }
 
               // 새 유저 추가 (username이 없으면 임시로 "사용자{userId}" 사용)
