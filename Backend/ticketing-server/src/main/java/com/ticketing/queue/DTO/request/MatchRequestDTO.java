@@ -1,4 +1,4 @@
-package com.ticketing.queue.DTO;
+package com.ticketing.queue.DTO.request;
 
 import com.ticketing.entity.Match;
 import lombok.AllArgsConstructor;

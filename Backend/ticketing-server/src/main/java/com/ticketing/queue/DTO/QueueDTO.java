@@ -21,11 +21,9 @@ public class QueueDTO {
     long positionAhead;
     long positionBehind;
     Long totalNum;
-    //private int clickMiss; // Nullable: Robot
-    //private int duration;  // Nullable: Robot
 
-    public void setEventId(String uuid){
-        this.eventId = uuid;
+    public void setEventId(String uuidString){
+        this.eventId = uuidString;
     }
     // private Instant occuredAt;   // 클라이언트 송신 시각
     // private Instant receivedAt;  // 서버 수신 시각

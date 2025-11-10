@@ -1,8 +1,10 @@
 package com.ticketing.queue.controller;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.ticketing.entity.Match;
 import com.ticketing.queue.DTO.*;
+import com.ticketing.queue.DTO.request.MatchRequestDTO;
+import com.ticketing.queue.DTO.response.MatchIdResponseDTO;
+import com.ticketing.queue.DTO.response.MatchResponseDTO;
 import com.ticketing.queue.service.QueueLogProducerKafka;
 import com.ticketing.queue.service.QueueService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -55,7 +57,7 @@ public class QueueController {
 
     // 사용자 Enqueue하는 API
     @PostMapping("/queue/{matchId}")
-    public ResponseEntity<?> enterQueue(@PathVariable Long matchId, HttpServletRequest request, @RequestBody QueueUserInfoDTO dto){
+    public ResponseEntity<?> enterQueue(@PathVariable Long matchId, HttpServletRequest request, @RequestBody QueueUserInfoDTO dto) throws ExecutionException, InterruptedException {
         Long userId = Long.valueOf(request.getHeader("userId"));
         QueueDTO result = service.enqueue(matchId, userId, dto);
         return ResponseEntity.ok(result);
@@ -77,5 +79,13 @@ public class QueueController {
                 .body(match);
     }
 
+    // WAITING 상태의 roomId에 대한 match 정보 불러오기
+    @GetMapping("/matches/{roomId}")
+    public ResponseEntity<?> getMatchDBData(@PathVariable Long roomId){
+
+        MatchIdResponseDTO res = service.getMatchData(roomId);
+
+        return ResponseEntity.ok(res);
+    }
 
 }
