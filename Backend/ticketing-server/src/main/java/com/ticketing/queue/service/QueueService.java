@@ -122,9 +122,8 @@ public class QueueService {
 
         // Log정보를 MongoDB에 저장한다.
         // Kafka 비동기로 MongoDB 처리.
-        QueueLogDTO logDto = QueueLogDTO.of(randomUUID, matchId, playerType, userId, status, positionAhead, positionBehind, total, userInfo.getClickMiss(), userInfo.getDuration(), LocalDateTime.now());
-        SendResult<String, Object> recordData = kafkaTemplate.send(KafkaTopic.USER_LOG_QUEUE.getTopicName(), userId, logDto).get();
-
+        // QueueLogDTO logDto = QueueLogDTO.of(randomUUID, matchId, playerType, userId, status, positionAhead, positionBehind, total, userInfo.getClickMiss(), userInfo.getDuration(), LocalDateTime.now());
+        // SendResult<String, Object> recordData = kafkaTemplate.send(KafkaTopic.USER_LOG_QUEUE.getTopicName(), userId, logDto).get();
 
         return queueInfo;
     }
