@@ -750,7 +750,7 @@ export default function MediumVenue({
 
         // 좌석 ID 생성 (section-row-seat 형식)
         const seatId = `${selectedMeta.id}-${row}-${seat}`;
-        el.setAttribute("data-seat-id", seatId);
+        el.setAttribute("seatid", seatId);
 
         // TAKEN 좌석 확인 (API 응답은 section-row-col 형식이므로 col로 매칭)
         const col = String(colIndex + 1);
@@ -881,6 +881,7 @@ export default function MediumVenue({
     selectedIds,
     detailViewColor,
     onToggleSeat,
+    takenSeats,
   ]);
 
   // Analyze grid after render to determine fully empty rows

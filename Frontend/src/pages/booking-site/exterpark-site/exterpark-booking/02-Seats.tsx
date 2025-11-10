@@ -319,17 +319,32 @@ export default function SelectSeatPage() {
           }> = [];
 
           selected.forEach((seat) => {
-            // 좌석 DIV에서 커스텀 속성 읽기
-            const seatElement = document.querySelector(
+            // 좌석 DIV에서 커스텀 속성 읽기 (신규 속성 seatid, 호환용 data-seat-id)
+            let seatElement = document.querySelector(
               `[seatid="${seat.id}"]`
             ) as HTMLElement | null;
+            if (!seatElement) {
+              seatElement = document.querySelector(
+                `[data-seat-id="${seat.id}"]`
+              ) as HTMLElement | null;
+            }
 
             if (seatElement) {
-              const sectionId = seatElement.getAttribute("section");
-              const row = seatElement.getAttribute("row");
-              const col = seatElement.getAttribute("col");
-              const grade = seatElement.getAttribute("grade");
-              const active = seatElement.getAttribute("active");
+              const sectionId =
+                seatElement.getAttribute("section") ??
+                seatElement.getAttribute("data-section");
+              const row =
+                seatElement.getAttribute("row") ??
+                seatElement.getAttribute("data-row");
+              const col =
+                seatElement.getAttribute("col") ??
+                seatElement.getAttribute("data-col");
+              const grade =
+                seatElement.getAttribute("grade") ??
+                seatElement.getAttribute("data-grade");
+              const active =
+                seatElement.getAttribute("active") ??
+                seatElement.getAttribute("data-active");
 
               if (sectionId && row && col && grade && active === "1") {
                 seats.push({
