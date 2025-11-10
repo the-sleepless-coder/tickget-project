@@ -667,6 +667,7 @@ export default function CreateRoomModal({
                           roomId: roomDetail.roomId,
                           roomName: roomDetail.roomName,
                           thumbnailValue: roomDetail.thumbnailValue,
+                          thumbnailType: roomDetail.thumbnailType,
                           hallId: roomDetail.hallId,
                           hallName: roomDetail.hallName,
                           startTime: roomDetail.startTime,

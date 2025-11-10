@@ -5,6 +5,7 @@ interface RoomInfo {
   roomId: number | null;
   roomName: string | null;
   thumbnailValue: string | null;
+  thumbnailType: string | null;
   hallId: number | null;
   hallName: string | null;
   startTime: string | null;
@@ -22,6 +23,7 @@ const initialRoomInfo: RoomInfo = {
   roomId: null,
   roomName: null,
   thumbnailValue: null,
+  thumbnailType: null,
   hallId: null,
   hallName: null,
   startTime: null,

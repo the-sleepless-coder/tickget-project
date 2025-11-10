@@ -50,7 +50,9 @@ export default function SelectSeatPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [selected, setSelected] = useState<SelectedSeat[]>([]);
-  const eventTitle = "방 이름 입력";
+  const roomInfo = useRoomStore((s) => s.roomInfo);
+  const eventTitle = roomInfo.roomName || "방 이름 입력";
+  const venueName = roomInfo.hallName || "공연장 이름";
   const captchaPassed = useRoomStore((s) => s.roomInfo.captchaPassed);
   const setCaptchaPassed = useRoomStore((s) => s.setCaptchaPassed);
   // captchaPassed가 false일 때만 캡챠 표시
@@ -216,6 +218,26 @@ export default function SelectSeatPage() {
     if (dateParam) nextUrl.searchParams.set("date", dateParam);
     if (timeParam) nextUrl.searchParams.set("time", timeParam);
     if (roundParam) nextUrl.searchParams.set("round", roundParam);
+    // 선택한 좌석 정보 전달 (등급별로 그룹화)
+    const seatsByGrade = selected.reduce(
+      (acc, seat) => {
+        const grade = seat.gradeLabel;
+        if (!acc[grade]) {
+          acc[grade] = { count: 0, price: seat.price ?? 0 };
+        }
+        acc[grade].count += 1;
+        return acc;
+      },
+      {} as Record<string, { count: number; price: number }>
+    );
+    const seatsData = Object.entries(seatsByGrade).map(([grade, data]) => ({
+      grade,
+      count: data.count,
+      price: data.price,
+    }));
+    if (seatsData.length > 0) {
+      nextUrl.searchParams.set("seats", JSON.stringify(seatsData));
+    }
     navigate(nextUrl.pathname + nextUrl.search);
   };
 
@@ -269,7 +291,7 @@ export default function SelectSeatPage() {
               <div className="text-[15px] font-bold text-[#222]">
                 {eventTitle}
                 <span className="text-[12px] text-gray-400 ml-5">
-                  | 공연장 이름
+                  | {venueName}
                 </span>
               </div>
               <div className="flex items-center gap-2 text-[12px] text-[#555]">

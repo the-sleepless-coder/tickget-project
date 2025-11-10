@@ -4,7 +4,6 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { paths } from "../../../../app/routes/paths";
 import Viewport from "./_components/Viewport";
 import {
-  health as bookingHealth,
   requestCaptchaImage,
   enqueueTicketingQueue,
 } from "@features/booking-site/api";
@@ -32,15 +31,9 @@ export default function BookingWaitingPage() {
     return () => clearTimeout(timer);
   }, []);
 
-  // booking-site API 연결: 서버 상태/캡차 이미지 사전 확인
+  // booking-site API 연결: 캡차 이미지 사전 확인
   useEffect(() => {
     (async () => {
-      try {
-        const res = await bookingHealth();
-        console.log("[booking-site][health] 성공:", res);
-      } catch (error) {
-        console.error("[booking-site][health] 실패:", error);
-      }
       try {
         const captcha = await requestCaptchaImage();
         console.log("[booking-site][captcha.request] 성공:", captcha);

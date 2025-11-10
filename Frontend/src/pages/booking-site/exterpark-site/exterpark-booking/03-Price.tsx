@@ -1,12 +1,106 @@
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import BookingLayout from "./_components/BookingLayout";
 import { paths } from "../../../../app/routes/paths";
+import { useRoomStore } from "@features/room/store";
+import dayjs from "dayjs";
+import Thumbnail01 from "../../../../shared/images/thumbnail/Thumbnail01.webp";
+import Thumbnail02 from "../../../../shared/images/thumbnail/Thumbnail02.webp";
+import Thumbnail03 from "../../../../shared/images/thumbnail/Thumbnail03.webp";
+import Thumbnail04 from "../../../../shared/images/thumbnail/Thumbnail04.webp";
+import Thumbnail05 from "../../../../shared/images/thumbnail/Thumbnail05.webp";
+import Thumbnail06 from "../../../../shared/images/thumbnail/Thumbnail06.webp";
+
+type SeatData = {
+  grade: string;
+  count: number;
+  price: number;
+};
 
 export default function PricePage() {
   const navigate = useNavigate();
-  const basePrice = 143000;
+  const [searchParams] = useSearchParams();
+  const roomInfo = useRoomStore((s) => s.roomInfo);
   const fee = 2000;
+
+  // 썸네일 번호 -> 이미지 매핑
+  const THUMBNAIL_IMAGES: Record<string, string> = {
+    "1": Thumbnail01,
+    "2": Thumbnail02,
+    "3": Thumbnail03,
+    "4": Thumbnail04,
+    "5": Thumbnail05,
+    "6": Thumbnail06,
+  };
+
+  // 썸네일 이미지 경로 계산
+  const thumbnailSrc = useMemo(() => {
+    if (!roomInfo.thumbnailValue) return null;
+
+    if (roomInfo.thumbnailType === "PRESET") {
+      // PRESET인 경우 썸네일 번호로 이미지 선택
+      return THUMBNAIL_IMAGES[roomInfo.thumbnailValue] || Thumbnail03;
+    } else if (roomInfo.thumbnailType === "UPLOADED") {
+      // UPLOADED인 경우 URL 직접 사용
+      return roomInfo.thumbnailValue;
+    } else {
+      // thumbnailType이 없으면 thumbnailValue 형식으로 판단
+      // 숫자 문자열이면 PRESET, 그렇지 않으면 UPLOADED
+      if (/^\d+$/.test(roomInfo.thumbnailValue)) {
+        return THUMBNAIL_IMAGES[roomInfo.thumbnailValue] || Thumbnail03;
+      } else {
+        return roomInfo.thumbnailValue;
+      }
+    }
+  }, [roomInfo.thumbnailValue, roomInfo.thumbnailType]);
+
+  // URL에서 선택한 좌석 정보 가져오기
+  const seatsParam = searchParams.get("seats");
+  const selectedSeats: SeatData[] = useMemo(() => {
+    if (!seatsParam) {
+      return [{ grade: "SR석", count: 1, price: 143000 }]; // 기본값
+    }
+    try {
+      const parsed = JSON.parse(decodeURIComponent(seatsParam));
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+      return [{ grade: "SR석", count: 1, price: 143000 }]; // 기본값
+    } catch (e) {
+      console.error("좌석 정보 파싱 실패:", e);
+      return [{ grade: "SR석", count: 1, price: 143000 }]; // 기본값
+    }
+  }, [seatsParam]);
+
+  // 등급별 좌석 정보
+  const seatsByGrade = useMemo(() => {
+    return selectedSeats.reduce(
+      (acc, seat) => {
+        acc[seat.grade] = seat;
+        return acc;
+      },
+      {} as Record<string, SeatData>
+    );
+  }, [selectedSeats]);
+
+  // 총 좌석 수
+  const totalSeatCount = useMemo(
+    () => selectedSeats.reduce((sum, s) => sum + s.count, 0),
+    [selectedSeats]
+  );
+
+  // 선택된 좌석 등급 텍스트
+  const selectedSeatsText = useMemo(() => {
+    if (selectedSeats.length === 0) return "";
+    if (selectedSeats.length === 1) {
+      const seat = selectedSeats[0];
+      return `${seat.grade} | 좌석 ${seat.count}매를 선택하셨습니다.`;
+    }
+    const grades = selectedSeats
+      .map((s) => `${s.grade} ${s.count}매`)
+      .join(", ");
+    return `${grades}를 선택하셨습니다.`;
+  }, [selectedSeats]);
   const discounts = useMemo(
     () => [
       { label: "중중장애인(1~3급/동반1인)20%", rate: 0.2 },
@@ -16,25 +110,74 @@ export default function PricePage() {
     []
   );
 
-  // 선택 상태: 기본가("base") 또는 할인 인덱스(0..n-1) 또는 null(미선택)
-  const [selection, setSelection] = useState<"base" | number | null>("base");
+  // 등급별 선택 상태: { grade: "base" | number | null }
+  const [selections, setSelections] = useState<
+    Record<string, "base" | number | null>
+  >(() => {
+    const initial: Record<string, "base" | number | null> = {};
+    selectedSeats.forEach((seat) => {
+      initial[seat.grade] = "base";
+    });
+    return initial;
+  });
 
-  const selectedPrice = useMemo(() => {
-    if (selection === "base") return basePrice;
-    if (typeof selection === "number")
-      return Math.round(basePrice * (1 - discounts[selection].rate));
-    return 0;
-  }, [selection, basePrice, discounts]);
+  // 등급별 선택된 가격 계산
+  const selectedPrices = useMemo(() => {
+    const prices: Record<string, number> = {};
+    selectedSeats.forEach((seat) => {
+      const selection = selections[seat.grade];
+      if (selection === "base") {
+        prices[seat.grade] = seat.price * seat.count;
+      } else if (typeof selection === "number") {
+        prices[seat.grade] = Math.round(
+          seat.price * (1 - discounts[selection].rate) * seat.count
+        );
+      } else {
+        prices[seat.grade] = 0;
+      }
+    });
+    return prices;
+  }, [selections, selectedSeats, discounts]);
 
-  const discountAmount = useMemo(() => {
-    if (selection === null || selection === "base") return 0;
-    return basePrice - selectedPrice;
-  }, [selection, basePrice, selectedPrice]);
+  // 총 선택 가격
+  const totalSelectedPrice = useMemo(() => {
+    return Object.values(selectedPrices).reduce((sum, price) => sum + price, 0);
+  }, [selectedPrices]);
+
+  // 총 할인 금액
+  const totalDiscountAmount = useMemo(() => {
+    let total = 0;
+    selectedSeats.forEach((seat) => {
+      const selection = selections[seat.grade];
+      if (selection !== null && selection !== "base") {
+        const originalPrice = seat.price * seat.count;
+        const discountedPrice = selectedPrices[seat.grade];
+        total += originalPrice - discountedPrice;
+      }
+    });
+    return total;
+  }, [selections, selectedSeats, selectedPrices]);
 
   const total = useMemo(
-    () => (selectedPrice > 0 ? selectedPrice + fee : 0),
-    [selectedPrice, fee]
+    () => (totalSelectedPrice > 0 ? totalSelectedPrice + fee : 0),
+    [totalSelectedPrice, fee]
   );
+
+  // 날짜/시간 포맷팅
+  const dateParam = searchParams.get("date");
+  const timeParam = searchParams.get("time");
+  const formattedDateTime = useMemo(() => {
+    if (!dateParam) return "";
+    const date = dayjs(dateParam);
+    const weekday = ["일", "월", "화", "수", "목", "금", "토"][date.day()];
+    const time = timeParam || "18:00";
+    return `${date.format("YYYY.MM.DD")} (${weekday}) ${time}`;
+  }, [dateParam, timeParam]);
+
+  // 선택 좌석 요약 텍스트
+  const selectedSeatsSummary = useMemo(() => {
+    return selectedSeats.map((s) => `${s.grade} ${s.count}석`).join(", ");
+  }, [selectedSeats]);
 
   const goPrev = () => navigate(paths.booking.selectSeat);
   const goNext = () => navigate(paths.booking.orderConfirm);
@@ -44,32 +187,50 @@ export default function PricePage() {
       <div className="p-3 flex gap-3">
         <div className="flex-1 bg-white rounded-md shadow border border-[#e3e3e3]">
           <div className="px-3 py-2 text-sm border-b bg-[#fafafa]">
-            SR석 | 좌석 1매를 선택하셨습니다.
+            {selectedSeatsText || "좌석을 선택해주세요."}
           </div>
           <div className="divide-y">
-            <Row
-              label="기본가"
-              right={
-                <PriceCell
-                  price={basePrice}
-                  value={selection === "base" ? 1 : 0}
-                  onChange={(v) => setSelection(v === 1 ? "base" : null)}
+            {selectedSeats.map((seat) => (
+              <div key={seat.grade}>
+                {/* 기본가 */}
+                <Row
+                  label={`기본가 (${seat.grade})`}
+                  right={
+                    <PriceCell
+                      price={seat.price}
+                      value={selections[seat.grade] === "base" ? seat.count : 0}
+                      maxValue={seat.count}
+                      onChange={(v) => {
+                        setSelections((prev) => ({
+                          ...prev,
+                          [seat.grade]: v === seat.count ? "base" : null,
+                        }));
+                      }}
+                    />
+                  }
                 />
-              }
-            />
-            {discounts.map((d, idx) => (
-              <Row
-                key={d.label}
-                label={`기본할인`}
-                sub={d.label}
-                right={
-                  <PriceCell
-                    price={Math.round(basePrice * (1 - d.rate))}
-                    value={selection === idx ? 1 : 0}
-                    onChange={(v) => setSelection(v === 1 ? idx : null)}
+                {/* 할인 옵션 */}
+                {discounts.map((d, idx) => (
+                  <Row
+                    key={`${seat.grade}-${d.label}`}
+                    label={`기본할인 (${seat.grade})`}
+                    sub={d.label}
+                    right={
+                      <PriceCell
+                        price={Math.round(seat.price * (1 - d.rate))}
+                        value={selections[seat.grade] === idx ? seat.count : 0}
+                        maxValue={seat.count}
+                        onChange={(v) => {
+                          setSelections((prev) => ({
+                            ...prev,
+                            [seat.grade]: v === seat.count ? idx : null,
+                          }));
+                        }}
+                      />
+                    }
                   />
-                }
-              />
+                ))}
+              </div>
             ))}
           </div>
 
@@ -93,14 +254,40 @@ export default function PricePage() {
         <aside className="w-64 space-y-3">
           <div className="bg-white rounded-md p-2 shadow border border-[#e3e3e3]">
             <div className="flex gap-3">
-              <div className="w-24 h-32 bg-gray-200 rounded" />
-              <div className="text-sm">
-                <div className="font-bold">방 이름1</div>
-                <div className="text-gray-600">방 이름2</div>
-                <div className="text-[12px] mt-1 text-gray-500">
-                  2025.12.20 ~ 2025.12.20
+              {thumbnailSrc ? (
+                <img
+                  src={thumbnailSrc}
+                  alt="방 썸네일"
+                  className="w-24 h-32 object-cover rounded"
+                  onError={(e) => {
+                    // 이미지 로드 실패 시 플레이스홀더 표시
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = "none";
+                    const placeholder =
+                      target.nextElementSibling as HTMLDivElement;
+                    if (placeholder) {
+                      placeholder.style.display = "block";
+                    }
+                  }}
+                />
+              ) : null}
+              {!thumbnailSrc && (
+                <div className="w-24 h-32 bg-gray-200 rounded flex items-center justify-center text-xs text-gray-500">
+                  방 썸네일
                 </div>
-                <div className="text-[12px] text-gray-500">엑스코 서관 1홀</div>
+              )}
+              <div className="text-sm">
+                <div className="font-bold">
+                  {roomInfo.roomName || "방 이름"}
+                </div>
+                {roomInfo.startTime && (
+                  <div className="text-[12px] mt-1 text-gray-500">
+                    {dayjs(roomInfo.startTime).format("YYYY.MM.DD")}
+                  </div>
+                )}
+                <div className="text-[12px] text-gray-500">
+                  {roomInfo.hallName || "공연장 이름"}
+                </div>
                 <div className="text-[12px] text-gray-500">
                   만 7세이상 • 120분
                 </div>
@@ -113,15 +300,21 @@ export default function PricePage() {
             <dl className="text-sm text-gray-700">
               <div className="flex py-1 border-b">
                 <dt className="w-24 text-gray-500">일시</dt>
-                <dd className="flex-1">2025.12.20 (토) 18:00</dd>
+                <dd className="flex-1">
+                  {formattedDateTime || "날짜/시간을 선택해주세요"}
+                </dd>
               </div>
               <div className="flex py-1 border-b">
                 <dt className="w-24 text-gray-500">선택좌석</dt>
-                <dd className="flex-1">SR석 1석</dd>
+                <dd className="flex-1">
+                  {selectedSeatsSummary || "좌석을 선택해주세요"}
+                </dd>
               </div>
               <div className="flex py-1">
                 <dt className="w-24 text-gray-500">티켓금액</dt>
-                <dd className="flex-1">{selectedPrice.toLocaleString()}원</dd>
+                <dd className="flex-1">
+                  {totalSelectedPrice.toLocaleString()}원
+                </dd>
               </div>
               <div className="flex py-1">
                 <dt className="w-24 text-gray-500">수수료</dt>
@@ -130,8 +323,8 @@ export default function PricePage() {
               <div className="flex py-1">
                 <dt className="w-24 text-gray-500">할인</dt>
                 <dd className="flex-1">
-                  {discountAmount > 0
-                    ? `-${discountAmount.toLocaleString()}원`
+                  {totalDiscountAmount > 0
+                    ? `-${totalDiscountAmount.toLocaleString()}원`
                     : "-"}
                 </dd>
               </div>
@@ -189,11 +382,13 @@ function PriceCell({
   value,
   onChange,
   disabled,
+  maxValue = 1,
 }: {
   price: number;
   value: number;
   onChange?: (v: number) => void;
   disabled?: boolean;
+  maxValue?: number;
 }) {
   return (
     <div className="flex items-center justify-between px-3 py-2 text-sm">
@@ -205,8 +400,11 @@ function PriceCell({
         className="border rounded px-2 py-1 text-sm"
         aria-label="count"
       >
-        <option value={0}>0매</option>
-        <option value={1}>1매</option>
+        {Array.from({ length: maxValue + 1 }, (_, i) => (
+          <option key={i} value={i}>
+            {i}매
+          </option>
+        ))}
       </select>
     </div>
   );

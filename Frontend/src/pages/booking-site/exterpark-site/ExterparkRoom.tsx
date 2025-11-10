@@ -478,6 +478,7 @@ export default function ITicketPage() {
           roomId: data.roomId,
           roomName: data.roomName,
           thumbnailValue: data.thumbnailValue,
+          thumbnailType: data.thumbnailType,
           hallId: data.hallId,
           hallName: data.hallName,
           startTime: data.startTime,
