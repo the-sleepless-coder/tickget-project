@@ -229,6 +229,20 @@ export default function Step1BasicForm({
                       },
                     },
                   },
+                  popper: {
+                    placement: "bottom-start",
+                    sx: {
+                      zIndex: 9999, // 모달보다 높은 z-index 설정
+                    },
+                    modifiers: [
+                      {
+                        name: "offset",
+                        options: {
+                          offset: [0, 8],
+                        },
+                      },
+                    ],
+                  },
                 }}
               />
             </LocalizationProvider>
