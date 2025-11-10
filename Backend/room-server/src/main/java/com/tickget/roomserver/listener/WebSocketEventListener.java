@@ -36,8 +36,7 @@ public class WebSocketEventListener {
         StompHeaderAccessor headers = StompHeaderAccessor.wrap(event.getMessage());
         String sessionId = headers.getSessionId();
 
-        String userIdStr = headers.getFirstNativeHeader("userId");
-        Long userId = Long.parseLong(userIdStr);
+        Long userId = (Long) headers.getSessionAttributes().get("userId");
 
         String serverId = serverIdProvider.getServerId();
 
