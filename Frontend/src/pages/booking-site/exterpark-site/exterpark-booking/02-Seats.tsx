@@ -9,6 +9,7 @@ import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
 import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useRoomStore } from "@features/room/store";
 import { paths } from "../../../../app/routes/paths";
 import {
   saveInitialReaction,
@@ -49,9 +50,17 @@ export default function SelectSeatPage() {
   const [searchParams] = useSearchParams();
   const [selected, setSelected] = useState<SelectedSeat[]>([]);
   const eventTitle = "방 이름 입력";
-  const [showCaptcha, setShowCaptcha] = useState<boolean>(true);
+  const captchaPassed = useRoomStore((s) => s.roomInfo.captchaPassed);
+  const setCaptchaPassed = useRoomStore((s) => s.setCaptchaPassed);
+  // captchaPassed가 false일 때만 캡챠 표시
+  const [showCaptcha, setShowCaptcha] = useState<boolean>(!captchaPassed);
   const [captchaBackspaces, setCaptchaBackspaces] = useState<number>(0);
   const [captchaWrongAttempts, setCaptchaWrongAttempts] = useState<number>(0);
+
+  // captchaPassed 상태가 변경되면 showCaptcha 업데이트
+  useEffect(() => {
+    setShowCaptcha(!captchaPassed);
+  }, [captchaPassed]);
   const mediumVenueRef = useRef<MediumVenueRef | null>(null);
   const largeVenueRef = useRef<LargeVenueRef | null>(null);
 
@@ -173,7 +182,12 @@ export default function SelectSeatPage() {
   );
 
   const clearSelection = () => setSelected([]);
-  const goPrev = () => navigate(paths.booking.selectSchedule);
+  const goPrev = () => {
+    const url = new URL(window.location.origin + paths.booking.selectSchedule);
+    // hallId가 있으면 전달
+    if (hallId) url.searchParams.set("hallId", String(hallId));
+    navigate(url.pathname + url.search);
+  };
   const complete = () => {
     const durationSec = recordSeatCompleteNow();
     console.log("[ReserveTiming] Seat complete", {
@@ -228,6 +242,8 @@ export default function SelectSeatPage() {
           setCaptchaBackspaces(backspaceCount);
           setCaptchaWrongAttempts(wrongAttempts);
           setCaptchaEndNow(sec, backspaceCount, wrongAttempts);
+          // 캡챠 통과 시 room store에 true로 저장
+          setCaptchaPassed(true);
           console.log("[ReserveTiming] Captcha verified", {
             captchaSec: sec,
             backspaceCount,

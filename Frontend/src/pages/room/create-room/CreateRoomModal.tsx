@@ -20,6 +20,8 @@ import ThumbnailSelectModal from "./CreateRoomThumbnailSelect";
 import { Snackbar, Alert } from "@mui/material";
 import { useAuthStore } from "@features/auth/store";
 import { createRoom } from "@features/room/api";
+import { getRoomDetail } from "@features/room/api";
+import { useRoomStore } from "@features/room/store";
 import type { CreateRoomRequest } from "@features/room/types";
 
 export default function CreateRoomModal({
@@ -658,6 +660,26 @@ export default function CreateRoomModal({
 
                     // 성공 시 방으로 이동 (응답 데이터와 요청 데이터를 location state로 전달)
                     if (response.roomId) {
+                      // 방 상세 정보를 가져와서 room store에 저장
+                      try {
+                        const roomDetail = await getRoomDetail(response.roomId);
+                        useRoomStore.getState().setRoomInfo({
+                          roomId: roomDetail.roomId,
+                          roomName: roomDetail.roomName,
+                          thumbnailValue: roomDetail.thumbnailValue,
+                          hallId: roomDetail.hallId,
+                          hallName: roomDetail.hallName,
+                          startTime: roomDetail.startTime,
+                          captchaPassed: false, // 방 생성 시 캡챠 false로 초기화
+                        });
+                      } catch (error) {
+                        console.error(
+                          "[CreateRoom] 방 상세 정보 가져오기 실패:",
+                          error
+                        );
+                        // 실패해도 계속 진행 (ExterparkRoom에서 다시 시도)
+                      }
+
                       const roomPath = paths.iTicketRoom(response.roomId);
                       console.log(`📍 방으로 이동: ${roomPath}`);
                       onClose();

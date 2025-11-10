@@ -18,6 +18,7 @@ import { useWebSocketStore } from "../../../shared/lib/websocket-store";
 import { subscribe, type Subscription } from "../../../shared/lib/websocket";
 import { useAuthStore } from "@features/auth/store";
 import { exitRoom, getRoomDetail } from "@features/room/api";
+import { useRoomStore } from "@features/room/store";
 import { useMatchStore } from "@features/booking-site/store";
 import { useNavigate } from "react-router-dom";
 import ExitToAppIcon from "@mui/icons-material/ExitToApp";
@@ -472,6 +473,16 @@ export default function ITicketPage() {
         const data: RoomDetailResponse = await getRoomDetail(Number(targetId));
         // 상세 응답 상태 저장
         setRoomDetail(data);
+        // Room store에 방 정보 저장 (방 입장 시 captcha는 false로 초기화)
+        useRoomStore.getState().setRoomInfo({
+          roomId: data.roomId,
+          roomName: data.roomName,
+          thumbnailValue: data.thumbnailValue,
+          hallId: data.hallId,
+          hallName: data.hallName,
+          startTime: data.startTime,
+          captchaPassed: false, // 방 입장 시 캡챠 false로 초기화
+        });
         // 입장자 목록 업데이트
         if (Array.isArray(data.roomMembers)) {
           setRoomMembers(data.roomMembers);
@@ -615,6 +626,9 @@ export default function ITicketPage() {
       console.log("✅ 방 나가기 성공:", JSON.stringify(response, null, 2));
       console.log("📊 남은 인원:", response.leftUserCount);
       console.log("📊 방 상태:", response.roomStatus);
+
+      // Room store 초기화
+      useRoomStore.getState().clearRoomInfo();
 
       // WebSocket 구독 해제
       if (subscriptionRef.current) {
