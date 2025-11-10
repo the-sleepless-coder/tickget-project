@@ -1,6 +1,7 @@
 package com.ticketing.queue.service;
 
-import com.ticketing.queue.DTO.BotRequestDTO;
+import com.ticketing.queue.DTO.request.BotRequestDTO;
+import com.ticketing.queue.DTO.response.BotResponseDTO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
@@ -14,6 +15,9 @@ import java.time.LocalDateTime;
 public class BotClientService {
     @Value("${bot-server.url}")
     private String botServerUrl;
+
+    @Value("${room-server.url}")
+    private String roomServerUrl;
 
     private final RestTemplate restTemplate;
 
@@ -34,11 +38,11 @@ public class BotClientService {
         HttpEntity<BotRequestDTO> entity = new HttpEntity<>(body, headers);
 
         try {
-            ResponseEntity<String> response = restTemplate.exchange(
+            ResponseEntity<BotResponseDTO> response = restTemplate.exchange(
                     url,
                     HttpMethod.POST,
                     entity,
-                    String.class
+                    BotResponseDTO.class
             );
 
             log.info("🤖 Bot 요청 전송 완료 | matchId={} | status={}", matchId, response.getStatusCode());
@@ -53,7 +57,7 @@ public class BotClientService {
     }
 
     public ResponseEntity<?> changeStartState(Long roomId){
-        String url = botServerUrl + "/rooms/" + roomId + "/start";
+        String url = roomServerUrl + "/rooms/" + roomId + "/start";
 
         // 헤더
         HttpHeaders headers = new HttpHeaders();

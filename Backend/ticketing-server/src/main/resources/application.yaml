@@ -102,3 +102,6 @@ captcha:
 
 bot-server:
   url: ${BOT_SERVICE_URL:http://localhost:8082}
+
+room-server:
+  url: ${ROOM_SERVICE_URL:http://localhost:8083}

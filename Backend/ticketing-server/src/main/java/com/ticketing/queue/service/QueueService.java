@@ -2,7 +2,6 @@ package com.ticketing.queue.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ticketing.KafkaTopic;
-import com.ticketing.queue.DTO.BotRequestDTO;
 import com.ticketing.queue.DTO.QueueLogDTO;
 import com.ticketing.queue.DTO.request.MatchRequestDTO;
 import com.ticketing.queue.DTO.response.MatchIdResponseDTO;
