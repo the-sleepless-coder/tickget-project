@@ -33,6 +33,7 @@ public class SeatConfirmationService {
     private final UserStatsRepository userStatsRepository;
     private final StringRedisTemplate redisTemplate;
     private final MatchStatusSyncService matchStatusSyncService;
+    private final RoomServerClient roomServerClient;
 
     @Transactional
     public SeatConfirmationResponse confirmSeats(Long matchId, SeatConfirmationRequest request) {
@@ -165,8 +166,16 @@ public class SeatConfirmationService {
                     // Redis 전체 정리
                     cleanupAllMatchRedis(matchId);
 
-                    log.info("경기 자동 종료 완료: matchId={}, status=FINISHED, endedAt={}",
-                            matchId, match.getEndedAt());
+                    // 룸 서버에 매치 종료 알림
+                    Long roomId = match.getRoomId();
+                    boolean notificationSuccess = roomServerClient.notifyMatchEnd(roomId);
+
+                    if (notificationSuccess) {
+                        log.info("경기 자동 종료 및 룸 서버 알림 완료: matchId={}, roomId={}, status=FINISHED, endedAt={}",
+                                matchId, roomId, match.getEndedAt());
+                    } else {
+                        log.warn("경기는 종료되었으나 룸 서버 알림 실패: matchId={}, roomId={}", matchId, roomId);
+                    }
                 } else {
                     log.debug("만석이지만 아직 Confirm 대기 중: matchId={}, confirmed={}, reserved={}",
                             matchId, confirmedCount, reservedCount);
