@@ -2,6 +2,7 @@ package com.ticketing.queue.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ticketing.KafkaTopic;
+import com.ticketing.queue.DTO.BotRequestDTO;
 import com.ticketing.queue.DTO.QueueLogDTO;
 import com.ticketing.queue.DTO.request.MatchRequestDTO;
 import com.ticketing.queue.DTO.response.MatchIdResponseDTO;
@@ -36,6 +37,7 @@ public class QueueService {
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final MatchRepository matchRepository;
     private final ApplicationEventPublisher publisher;
+    private final BotClientService botClient;
 
     // 대기 상태 ENUM
     private static final String ALREADY_IN_QUEUE="ALREADY_IN_QUEUE";
@@ -47,12 +49,13 @@ public class QueueService {
 
     private static final int MATCH_EXPIRE_TIME = 30;
 
-    public QueueService(StringRedisTemplate redis, ObjectMapper mapper, KafkaTemplate kafkaTemplate, MatchRepository matchRepository, ApplicationEventPublisher publisher){
+    public QueueService(StringRedisTemplate redis, ObjectMapper mapper, KafkaTemplate kafkaTemplate, MatchRepository matchRepository, ApplicationEventPublisher publisher, BotClientService botClient){
         this.redis = redis;
         this.mapper = mapper;
         this.kafkaTemplate = kafkaTemplate;
         this.matchRepository = matchRepository;
         this.publisher = publisher;
+        this.botClient = botClient;
     }
 
     // Redis에 Queue에 대한 순서 정보 저장
@@ -158,6 +161,16 @@ public class QueueService {
             // DB에 커밋되고 나서, Redis에 room:{roomId}:match:{matchId}
             publisher.publishEvent(new MatchCacheRepository.MatchCreatedEvent(saved.getMatchId()));
 
+            // 경기 시작 뒤, 봇 서버로 요청을 보낸다.
+            // 경기 서버에 대해 봇 서버가 알 수 있게 정보를 보내준다.
+            Long matchId = saved.getMatchId();
+            int botCount = saved.getUsedBotCount();
+            LocalDateTime startedAt = saved.getStartedAt();
+            String difficulty = saved.getDifficulty().toString();
+            Long hallId = dto.getHallId();
+
+            botClient.sendBotRequest(matchId, botCount, startedAt, difficulty, hallId);
+
             return res;
 
         }catch(DataIntegrityViolationException e){
@@ -167,6 +180,7 @@ public class QueueService {
             e.printStackTrace();
             return null;
         }
+
     }
 
     // roomId를 입력하면 WAITING 상태의 matchId를 반환한다.

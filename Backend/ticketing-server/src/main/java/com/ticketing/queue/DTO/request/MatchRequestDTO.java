@@ -18,4 +18,6 @@ public class MatchRequestDTO {
     private Integer botCount;           // 사용된 봇 수
     private Match.Difficulty difficulty;     // 난이도 (EASY, NORMAL, HARD)
     private LocalDateTime startedAt;                // 경기 시작 시간
+    private Long hallId;
+
 }
