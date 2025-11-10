@@ -2,6 +2,7 @@ package com.ticketing.queue.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ticketing.KafkaTopic;
+import com.ticketing.queue.DTO.MatchInsertedEventDTO;
 import com.ticketing.queue.DTO.QueueLogDTO;
 import com.ticketing.queue.DTO.request.MatchRequestDTO;
 import com.ticketing.queue.DTO.response.MatchIdResponseDTO;
@@ -161,6 +162,12 @@ public class QueueService {
 
             MatchResponseDTO res = new MatchResponseDTO(saved.getMatchId(), saved.getRoomId(), saved.getMatchName(), saved.getMaxUser(), saved.getDifficulty().name(), saved.getStartedAt());
 
+            // 시작 시간 N초 전, Bot 서버로 요청 및 Redis 키 업데이트.
+            publisher.publishEvent(new MatchInsertedEventDTO(
+                saved.getMatchId(), saved.getRoomId(), saved.getStartedAt(), saved.getUsedBotCount(), saved.getDifficulty().toString(), dto.getHallId()
+            ));
+
+            /**
             // @Transactional
             // DB에 커밋되고 나서, Redis에 room:{roomId}:match:{matchId}
             publisher.publishEvent(new MatchCacheRepository.MatchCreatedEvent(saved.getMatchId()));
@@ -173,15 +180,12 @@ public class QueueService {
             String difficulty = saved.getDifficulty().toString();
             Long hallId = dto.getHallId();
 
-            // match:{matchId}:matchStatus:startedAt   Redis 키값 생성 후 삭제.
-            String key = "match:" + matchId;
-            Map<String, String> data = new HashMap<>();
-            data.put("status", match.getStatus().name());
-            data.put("startedAt", match.getStartedAt().toString());
-
+            // LocalDateTime now = LocalDateTime.now();
+            //LocalDateTime millisecond = startedAt - now;
 
             // 경기 시작하면서 Bot에게 요청을 보낸다.
             botClient.sendBotRequest(matchId, botCount, startedAt, difficulty, hallId);
+            */
 
             return res;
 
