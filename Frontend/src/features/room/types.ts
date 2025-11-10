@@ -55,6 +55,7 @@ export interface JoinRoomResponse {
   roomMembers: RoomMember[];
   roomStatus: string; // e.g., "WAITING"
   subscriptionTopic: string; // e.g., "/topic/rooms/1"
+  totalSeat?: number; // 총 좌석 수
 }
 
 // Room exit - Types
@@ -87,4 +88,5 @@ export interface RoomDetailResponse {
   hallName: string;
   thumbnailType: ThumbnailType;
   thumbnailValue: string | null;
+  totalSeat?: number; // 총 좌석 수
 }

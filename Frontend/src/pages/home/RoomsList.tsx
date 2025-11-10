@@ -34,6 +34,7 @@ export default function RoomsPage() {
     difficulty?: string;
     maxUserCount?: number;
     botCount?: number;
+    totalSeat?: number;
   };
 
   const [rooms, setRooms] = useState<UiRoom[]>([]);
@@ -84,13 +85,18 @@ export default function RoomsPage() {
   const generateCapacityText = (
     difficulty?: string,
     maxUserCount?: number,
-    botCount?: number
+    botCount?: number,
+    totalSeat?: number
   ): string => {
     const difficultyLabel = difficulty
       ? convertDifficultyToKorean(difficulty)
       : "어려움";
-    const maxUserLabel =
-      maxUserCount !== undefined ? `최대 ${maxUserCount}명` : "최대 0명";
+    // totalSeat가 있으면 "총 좌석 수 --명"으로 표시, 없으면 기존 "최대 --명" 표시
+    const maxUserLabel = totalSeat
+      ? `총 좌석 수 ${totalSeat.toLocaleString()}명`
+      : maxUserCount !== undefined
+        ? `최대 ${maxUserCount}명`
+        : "최대 0명";
     const botLabel = botCount !== undefined ? `봇 ${botCount}명` : "봇 0명";
     return `${difficultyLabel}  |  ${maxUserLabel}  |  ${botLabel}`;
   };
@@ -130,6 +136,7 @@ export default function RoomsPage() {
               difficulty: r.difficulty,
               maxUserCount: r.maxUserCount,
               botCount: r.botCount,
+              totalSeat: r.totalSeat,
             };
           }
         );
@@ -283,7 +290,8 @@ export default function RoomsPage() {
             capacityText={generateCapacityText(
               room.difficulty,
               room.maxUserCount,
-              room.botCount
+              room.botCount,
+              room.totalSeat
             )}
             participants={room.participants}
             startTime={room.startTime}

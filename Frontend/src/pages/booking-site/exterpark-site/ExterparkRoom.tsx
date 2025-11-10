@@ -656,6 +656,12 @@ export default function ITicketPage() {
             difficulty={roomDetail?.difficulty}
             maxUserCount={roomDetail?.maxUserCount}
             botCount={roomDetail?.botCount}
+            totalSeat={
+              roomDetail?.totalSeat ||
+              roomData?.totalSeat ||
+              (joinResponse as { totalSeat?: number })?.totalSeat ||
+              roomRequest?.totalSeat
+            }
           />
           <TitleSection
             matchName={roomDetail?.roomName}
@@ -744,10 +750,12 @@ function TagsRow({
   difficulty,
   maxUserCount,
   botCount,
+  totalSeat,
 }: {
   difficulty?: string;
   maxUserCount?: number;
   botCount?: number;
+  totalSeat?: number;
 }) {
   const Pill = ({
     children,
@@ -769,9 +777,12 @@ function TagsRow({
   const difficultyLabel = difficulty
     ? DIFFICULTY_TO_LABEL[difficulty] || difficulty
     : "어려움";
-  const maxLabel = maxUserCount
-    ? `최대 ${maxUserCount.toLocaleString()}명`
-    : "최대 10명";
+  // totalSeat가 있으면 "총 좌석 수 --명"으로 표시, 없으면 기존 "최대 --명" 표시
+  const maxLabel = totalSeat
+    ? `총 좌석 수 ${totalSeat.toLocaleString()}명`
+    : maxUserCount
+      ? `최대 ${maxUserCount.toLocaleString()}명`
+      : "최대 10명";
   const botLabel = botCount ? `봇 ${botCount.toLocaleString()}명` : "봇 3000명";
 
   return (

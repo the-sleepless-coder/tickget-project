@@ -20,6 +20,7 @@ export interface RoomResponse {
   hallName: string;
   thumbnailType: ThumbnailType;
   thumbnailValue: string;
+  totalSeat?: number; // 총 좌석 수
 }
 
 export interface RoomDetailResponse {
@@ -41,6 +42,7 @@ export interface RoomDetailResponse {
   hallName: string;
   thumbnailType: ThumbnailType;
   thumbnailValue: string;
+  totalSeat?: number; // 총 좌석 수
 }
 
 export interface CreateRoomRequest {
