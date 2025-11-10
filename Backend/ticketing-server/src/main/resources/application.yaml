@@ -101,4 +101,4 @@ captcha:
   timeout: ${CAPTCHA_TIMEOUT:5000}
 
 bot-server:
-  url: ${BOT_SERVICE_URL}
+  url: ${BOT_SERVICE_URL:http://localhost:8082}

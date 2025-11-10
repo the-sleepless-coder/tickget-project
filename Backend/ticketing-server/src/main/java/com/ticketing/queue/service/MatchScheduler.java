@@ -27,6 +27,7 @@ public class MatchScheduler {
     private final MatchRepository matchRepository;
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final StringRedisTemplate redis;
+    private final BotClientService botClient;
 
     private static final String MATCH_STATUS = "match:%s:status";
     private static final String OPEN = "OPEN";
@@ -55,40 +56,18 @@ public class MatchScheduler {
         /**
          * DB 변경 후, Kafka Publisher 발행
          * Outbox Pattern 구현*/
-        // 2. Kafka에 이벤트 발행
         for(Match match: matches){
             String matchIdString = String.valueOf(match.getMatchId());
-            MatchStartDTO dto = MatchStartDTO.builder()
-                   .roomId(match.getRoomId())
-                   .matchId(match.getMatchId())
-                   .startedAt(match.getStartedAt())
-                   .status(match.getStatus())
-                   .timestamp(LocalDateTime.now())
-                   .build();
+            Long roomId = match.getRoomId();
 
-           // 3. Redis Key 발급
-           // matchStartKey에 OPEN을 설정.
-           String matchStartKey = MATCH_STATUS.formatted(matchIdString);
-           redis.opsForValue().set(matchStartKey, OPEN);
+            //2. Bot 서버로 시작했다는 요청을 보낸다.
+            botClient.changeStartState(roomId);
 
-           try{
-               SendResult<String, Object> kafkaObject = kafkaTemplate.send(KafkaTopic.ROOM_PLAYING_STARTED_EVENTS.getTopicName(), matchIdString, dto ).get();
+            // 3. Redis Key 발급
+            // matchStartKey에 OPEN을 설정.
+            String matchStartKey = MATCH_STATUS.formatted(matchIdString);
+            redis.opsForValue().set(matchStartKey, OPEN);
 
-               // 성공 로그 출력
-               RecordMetadata metadata = kafkaObject.getRecordMetadata();
-               log.info("[KAFKA PUBLISH SUCCESS] topic={}, partition={}, offset={}, key={}, value={}",
-                       metadata.topic(),
-                       metadata.partition(),
-                       metadata.offset(),
-                       matchIdString,
-                       dto
-               );
-
-           }catch(Exception e){
-               log.info("Kafka publish failed for matchId=\" + match.getMatchId() +\n" +
-                       "            \", roomId=\" + match.getRoomId()");
-               e.printStackTrace();
-           }
         }
 
 
