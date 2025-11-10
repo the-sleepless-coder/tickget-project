@@ -53,8 +53,8 @@ export function createStompClient(options: WebSocketOptions = {}): Client {
     onDisconnect,
     onError,
     reconnectDelay = 5000,
-    heartbeatIncoming = 10000,
-    heartbeatOutgoing = 10000,
+    heartbeatIncoming = 0,
+    heartbeatOutgoing = 0,
   } = options;
 
   // 액세스 토큰 (API 요청 시 필요, STOMP CONNECT 헤더에도 포함 가능)
@@ -186,5 +186,3 @@ export function sendMessage(
     headers: headers || {},
   });
 }
-
-
