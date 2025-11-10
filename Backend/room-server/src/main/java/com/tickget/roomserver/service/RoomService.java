@@ -184,7 +184,7 @@ public class RoomService {
 
         log.info("사용자  {}(id:{})(이)가 방 {}에 입장 성공 - 현재 인원: {}",userName, userId, roomId, currentUserCount);
 
-        UserJoinedRoomEvent event = UserJoinedRoomEvent.of(userId, roomId, currentUserCount);
+        UserJoinedRoomEvent event = UserJoinedRoomEvent.of(userId,userName, roomId, currentUserCount);
         roomEventProducer.publishUserJoinedEvent(event);
 
 

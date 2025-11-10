@@ -12,13 +12,15 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class UserJoinedRoomEvent {
     private Long userId;
+    private String userName;
     private Long roomId;
     private LocalDateTime joinedAt;
     private int totalUsersInRoom;
 
-    public static UserJoinedRoomEvent of(Long userId, Long roomId, int totalUsersInRoom) {
+    public static UserJoinedRoomEvent of(Long userId,String userName, Long roomId, int totalUsersInRoom) {
         return UserJoinedRoomEvent.builder()
                 .userId(userId)
+                .userName(userName)
                 .roomId(roomId)
                 .joinedAt(LocalDateTime.now())
                 .totalUsersInRoom(totalUsersInRoom)
