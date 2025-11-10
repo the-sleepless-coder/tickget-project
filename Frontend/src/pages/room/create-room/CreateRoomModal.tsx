@@ -526,12 +526,25 @@ export default function CreateRoomModal({
                     const maxUserCount =
                       matchType === "solo" ? 1 : parseInt(participantCount, 10);
 
-                    // reservationDay (yyyy-MM-dd)
-                    const reservationDay = startTime.format("YYYY-MM-DD");
+                    // reservationDay (yyyy-MM-dd) - 오늘 날짜 기준
+                    const reservationDay = dayjs().format("YYYY-MM-DD");
 
-                    // gameStartTime (KST, ISO with offset +09:00)
-                    const gameStartTime =
-                      startTime.format("YYYY-MM-DD[T]HH:mm:ss") + "+09:00";
+                    // gameStartTime - 오늘 날짜 + 사용자가 선택한 시간
+                    if (!startTime) {
+                      throw new Error("시작 시간이 설정되지 않았습니다.");
+                    }
+                    const selectedHour = startTime.hour();
+                    const selectedMinute = startTime.minute();
+                    const selectedSecond = startTime.second();
+                    const selectedTime = `${String(selectedHour).padStart(2, "0")}:${String(selectedMinute).padStart(2, "0")}:${String(selectedSecond).padStart(2, "0")}`;
+                    const gameStartTime = `${dayjs().format("YYYY-MM-DD")}T${selectedTime}`;
+
+                    console.log("⏰ 시간 정보:", {
+                      startTime: startTime?.format("YYYY-MM-DD HH:mm:ss"),
+                      selectedTime,
+                      gameStartTime,
+                      reservationDay,
+                    });
 
                     // thumbnailType 및 thumbnailValue
                     const isUploaded =
@@ -560,6 +573,29 @@ export default function CreateRoomModal({
                       }
                     }
 
+                    // 필드 검증
+                    if (!userId || userId <= 0) {
+                      throw new Error("유효하지 않은 사용자 ID입니다.");
+                    }
+                    if (!username || username.trim().length === 0) {
+                      throw new Error("사용자 이름이 필요합니다.");
+                    }
+                    if (!hallId || hallId <= 0) {
+                      throw new Error("공연장 ID가 유효하지 않습니다.");
+                    }
+                    if (!difficultyValue) {
+                      throw new Error("난이도가 설정되지 않았습니다.");
+                    }
+                    if (!botCount || isNaN(parseInt(botCount, 10))) {
+                      throw new Error("봇 인원수가 유효하지 않습니다.");
+                    }
+                    if (!gameStartTime || gameStartTime.trim().length === 0) {
+                      throw new Error("경기 시작 시간이 설정되지 않았습니다.");
+                    }
+                    if (!reservationDay || reservationDay.trim().length === 0) {
+                      throw new Error("예약일이 설정되지 않았습니다.");
+                    }
+
                     const payload: CreateRoomRequest = {
                       userId,
                       username: username || "",
@@ -574,7 +610,7 @@ export default function CreateRoomModal({
                       reservationDay,
                       gameStartTime,
                       thumbnailType,
-                      thumbnailValue,
+                      thumbnailValue: thumbnailValue || null,
                     };
 
                     console.log("🚀 방 생성 요청 시작");
@@ -582,6 +618,24 @@ export default function CreateRoomModal({
                       "📦 요청 바디:",
                       JSON.stringify(payload, null, 2)
                     );
+                    console.log("🔍 필드 검증:", {
+                      userId: typeof userId === "number" && userId > 0,
+                      username:
+                        typeof username === "string" && username.length > 0,
+                      hallId: typeof hallId === "number" && hallId > 0,
+                      difficulty: difficultyValue,
+                      botCount:
+                        typeof payload.botCount === "number" &&
+                        payload.botCount > 0,
+                      gameStartTime:
+                        typeof gameStartTime === "string" &&
+                        gameStartTime.length > 0,
+                      reservationDay:
+                        typeof reservationDay === "string" &&
+                        reservationDay.length > 0,
+                      thumbnailType,
+                      thumbnailValue,
+                    });
                     if (thumbnailFile) {
                       console.log("📎 썸네일 파일:", {
                         name: thumbnailFile.name,
