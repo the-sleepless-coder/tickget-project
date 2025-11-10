@@ -8,6 +8,7 @@ import {
   requestCaptchaImage,
   enqueueTicketingQueue,
 } from "@features/booking-site/api";
+import { useMatchStore } from "@features/booking-site/store";
 
 export default function BookingWaitingPage() {
   const navigate = useNavigate();
@@ -15,6 +16,7 @@ export default function BookingWaitingPage() {
   const [stage, setStage] = useState<"loading" | "queue" | "captcha">(
     "loading"
   );
+  const matchIdFromStore = useMatchStore((s) => s.matchId);
   const [rank, setRank] = useState<number>(60);
   const totalQueue = 73;
   const PROGRESS_STEPS = useMemo(
@@ -77,7 +79,14 @@ export default function BookingWaitingPage() {
   // 대기열 진입 시 큐 등록 API 호출 (matchId가 있을 때만)
   useEffect(() => {
     if (stage !== "queue") return;
-    const matchId = searchParams.get("matchId");
+    const matchId =
+      searchParams.get("matchId") ??
+      (matchIdFromStore != null ? String(matchIdFromStore) : null);
+    console.log("[booking-site][queue.enqueue] matchId 확인:", {
+      fromQuery: searchParams.get("matchId"),
+      fromStore: matchIdFromStore,
+      used: matchId,
+    });
     const clickMiss = Number(searchParams.get("nrClicks")) || 0;
     const duration = Number(searchParams.get("rtSec")) || 0;
     if (!matchId) {
@@ -103,7 +112,7 @@ export default function BookingWaitingPage() {
         console.error("[booking-site][queue.enqueue] 실패:", error);
       }
     })();
-  }, [stage, searchParams]);
+  }, [stage, searchParams, matchIdFromStore]);
 
   // 캡차는 좌석 선택 페이지의 모달로 이동
 
