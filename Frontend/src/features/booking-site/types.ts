@@ -176,6 +176,32 @@ export interface SeatHoldResult {
   body: SeatHoldResponse;
 }
 
+// ----- Seat Confirm (Ticketing) -----
+export interface SeatConfirmRequest {
+  userId: number;
+  dateSelectTime: number; // float
+  dateMissCount: number; // int
+  seccodeSelectTime: number; // float
+  seccodeBackspaceCount: number; // int
+  seccodeTryCount: number; // int
+  seatSelectTime: number; // float
+  seatSelectTryCount: number; // int
+  seatSelectClickMissCount: number; // int
+}
+
+export interface SeatConfirmResponse {
+  success: boolean;
+  message: string;
+  userRank: number;
+  confirmedSeats: Array<{
+    seatId: string;
+    sectionId: string;
+  }>;
+  matchId: string;
+  userId: string;
+  status: string | null; // null=경기 진행중, CLOSED이면 전체 경기 종료
+}
+
 // ----- Seat Cancel (Ticketing) -----
 export interface SeatCancelResponse {
   success: boolean;

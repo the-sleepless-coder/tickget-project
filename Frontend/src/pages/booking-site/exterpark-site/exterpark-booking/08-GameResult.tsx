@@ -97,6 +97,13 @@ export default function GameResultPage() {
 
   const fmt = formatSecondsHuman;
 
+  // userRank를 URL 파라미터 또는 sessionStorage에서 가져오기
+  const userRank = useMemo(() => {
+    const userRankParam = searchParams.get("userRank");
+    const userRankStorage = sessionStorage.getItem("reserve.userRank");
+    return userRankParam || userRankStorage || null;
+  }, [searchParams]);
+
   useEffect(() => {
     // 2분 뒤 자동 이동 → rooms
     const id = setTimeout(
@@ -133,7 +140,7 @@ export default function GameResultPage() {
         {/* 성과 요약 */}
         <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="rounded-lg bg-[#6e8ee3] text-white text-center py-4 text-3xl font-extrabold">
-            3등
+            {userRank ? `${userRank}등` : "등수 계산 중..."}
           </div>
           <div className="rounded-lg bg-[#6e8ee3] text-white text-center py-4 text-3xl font-extrabold">
             {fmt(totalSec)}
