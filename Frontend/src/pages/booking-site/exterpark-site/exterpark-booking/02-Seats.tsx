@@ -323,11 +323,15 @@ export default function SelectSeatPage() {
             venueName === "OlympicHall" || venueName === "InspireArena";
 
           selected.forEach((seat) => {
-            // 좌석 DIV에서 커스텀 속성 읽기
-            // 샤롯데는 seatid 속성, 올림픽홀/인스파이어 아레나는 data-seat-id 속성 사용
+            // 좌석 DIV에서 커스텀 속성 읽기 (신규 속성 seatid, 호환용 data-seat-id)
             let seatElement = document.querySelector(
               `[seatid="${seat.id}"]`
             ) as HTMLElement | null;
+            if (!seatElement) {
+              seatElement = document.querySelector(
+                `[data-seat-id="${seat.id}"]`
+              ) as HTMLElement | null;
+            }
 
             // seatid로 찾지 못하면 data-seat-id로 시도
             if (!seatElement) {
@@ -337,10 +341,18 @@ export default function SelectSeatPage() {
             }
 
             if (seatElement) {
-              const sectionId = seatElement.getAttribute("section");
-              const row = seatElement.getAttribute("row");
-              const grade = seatElement.getAttribute("grade");
-              const active = seatElement.getAttribute("active");
+              const sectionId =
+                seatElement.getAttribute("section") ??
+                seatElement.getAttribute("data-section");
+              const row =
+                seatElement.getAttribute("row") ??
+                seatElement.getAttribute("data-row");
+              const grade =
+                seatElement.getAttribute("grade") ??
+                seatElement.getAttribute("data-grade");
+              const active =
+                seatElement.getAttribute("active") ??
+                seatElement.getAttribute("data-active");
 
               // 올림픽홀/인스파이어 아레나는 seat 속성 사용 (섹션 내 좌석 번호)
               // 샤롯데는 col 속성 사용
