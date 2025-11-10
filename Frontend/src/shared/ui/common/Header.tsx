@@ -76,7 +76,7 @@ export default function Header() {
   };
 
   return (
-    <header className="border-b border-neutral-200">
+    <header className="mt-1">
       <div className="w-full px-5 py-3">
         <div className="flex items-center justify-between">
           <button
@@ -90,60 +90,62 @@ export default function Header() {
                 isITicket ? "/header-logo-blue.svg" : "/header-logo-violet.svg"
               }
               alt="Tickget"
-              className="h-7 w-auto"
+              className="h-7 w-auto ml-2"
             />
           </button>
 
           <div className="flex items-center gap-3">
-            {isITicket ? (
-              <button
-                type="button"
-                aria-label="프로필"
-                onClick={handleMyPageClick}
-              >
-                <span
-                  className="inline-flex items-center justify-center w-8 h-8 rounded-full"
-                  style={
-                    {
-                      // backgroundColor: "var(--color-c-blue-100)",
-                    }
-                  }
-                >
-                  <AccountCircleOutlinedIcon
-                    style={{ color: "var(--color-c-blue-200)" }}
-                  />
-                </span>
-              </button>
-            ) : (
-              <button
-                type="button"
-                aria-label="프로필"
-                onClick={handleMyPageClick}
-              >
-                <AccountCircleOutlinedIcon className="text-purple-500" />
-              </button>
-            )}
-            {isLoggedIn && nickname && (
-              <button
-                type="button"
-                onClick={handleMyPageClick}
-                className="text-sm text-neutral-700 hover:text-neutral-900"
-                aria-label="마이페이지"
-              >
-                {nickname}
-              </button>
-            )}
             {isLoggedIn ? (
-              <button
-                onClick={handleLogout}
-                className="text-sm text-neutral-700 hover:text-neutral-900"
-              >
-                로그아웃
-              </button>
+              <>
+                {isITicket ? (
+                  <button
+                    type="button"
+                    aria-label="프로필"
+                    onClick={handleMyPageClick}
+                  >
+                    <span
+                      className="inline-flex items-center justify-center w-8 h-8 rounded-full"
+                      style={
+                        {
+                          // backgroundColor: "var(--color-c-blue-100)",
+                        }
+                      }
+                    >
+                      <AccountCircleOutlinedIcon
+                        style={{ color: "var(--color-c-blue-200)" }}
+                      />
+                    </span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    aria-label="프로필"
+                    onClick={handleMyPageClick}
+                  >
+                    <AccountCircleOutlinedIcon className="text-purple-500" />
+                  </button>
+                )}
+                {nickname && (
+                  <button
+                    type="button"
+                    onClick={handleMyPageClick}
+                    className="text-sm text-neutral-700 hover:text-neutral-900"
+                    aria-label="마이페이지"
+                  >
+                    {nickname}
+                  </button>
+                )}
+                <button
+                  onClick={handleLogout}
+                  className="text-sm text-neutral-700 hover:text-neutral-900"
+                >
+                  로그아웃
+                </button>
+              </>
             ) : (
               <Link
                 to="/auth/login"
-                className="text-sm text-neutral-700 hover:text-neutral-900"
+                className="text-md font-bold text-neutral-700 hover:text-neutral-900 mr-4"
               >
                 로그인
               </Link>

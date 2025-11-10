@@ -311,7 +311,11 @@ export default function RoomCard({
 
     setIsJoining(true);
     try {
-      console.log("🚪 방 입장 요청 시작:", { roomId, userId, userName: nickname });
+      console.log("🚪 방 입장 요청 시작:", {
+        roomId,
+        userId,
+        userName: nickname,
+      });
 
       const response = await joinRoom(roomId, {
         userId,
@@ -320,6 +324,28 @@ export default function RoomCard({
 
       console.log("✅ 방 입장 성공:", JSON.stringify(response, null, 2));
       console.log("📋 방 멤버 목록:", response.roomMembers);
+      // Match Store에 matchId 저장 (다른 경기 API에서 재사용)
+      try {
+        const { useMatchStore } = await import("@features/booking-site/store");
+        const raw =
+          (response as { matchId?: unknown; roomId?: unknown })?.matchId ??
+          (response as { roomId?: unknown })?.roomId;
+        const parsed =
+          typeof raw === "string" || typeof raw === "number"
+            ? Number(raw)
+            : NaN;
+        if (Number.isFinite(parsed)) {
+          useMatchStore.getState().setMatchId(parsed);
+          console.log("[booking-site] matchId 저장 완료:", parsed);
+        } else {
+          console.warn(
+            "[booking-site] 응답에 matchId가 없어 저장을 건너뜁니다.",
+            { matchId: raw }
+          );
+        }
+      } catch (e) {
+        console.error("[booking-site] matchId 저장 중 오류:", e);
+      }
 
       // 응답 데이터를 기반으로 게임룸으로 이동
       const roomPath = paths.iTicketRoom(response.roomId);
@@ -409,9 +435,7 @@ export default function RoomCard({
               </span>
             ) : null}
             {participantsText ? (
-              <span className="text-sm text-gray-400">
-                {participantsText}
-              </span>
+              <span className="text-sm text-gray-400">{participantsText}</span>
             ) : null}
           </div>
 
@@ -427,9 +451,7 @@ export default function RoomCard({
           <div className="h-px bg-gray-300 mb-2" />
 
           {/* First detail line */}
-          <div className="text-base text-gray-500 mb-1">
-            {capacityText}
-          </div>
+          <div className="text-base text-gray-500 mb-1">{capacityText}</div>
 
           {/* Second detail line */}
           <div className="text-base text-gray-500 mb-auto">

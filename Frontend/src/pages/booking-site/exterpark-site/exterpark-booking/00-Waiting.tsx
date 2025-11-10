@@ -3,6 +3,12 @@ import ConfirmationNumberOutlinedIcon from "@mui/icons-material/ConfirmationNumb
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { paths } from "../../../../app/routes/paths";
 import Viewport from "./_components/Viewport";
+import {
+  health as bookingHealth,
+  requestCaptchaImage,
+  enqueueTicketingQueue,
+} from "@features/booking-site/api";
+import { useMatchStore } from "@features/booking-site/store";
 
 export default function BookingWaitingPage() {
   const navigate = useNavigate();
@@ -10,6 +16,7 @@ export default function BookingWaitingPage() {
   const [stage, setStage] = useState<"loading" | "queue" | "captcha">(
     "loading"
   );
+  const matchIdFromStore = useMatchStore((s) => s.matchId);
   const [rank, setRank] = useState<number>(60);
   const totalQueue = 73;
   const PROGRESS_STEPS = useMemo(
@@ -23,6 +30,24 @@ export default function BookingWaitingPage() {
   useEffect(() => {
     const timer = setTimeout(() => setStage("queue"), 1200);
     return () => clearTimeout(timer);
+  }, []);
+
+  // booking-site API 연결: 서버 상태/캡차 이미지 사전 확인
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await bookingHealth();
+        console.log("[booking-site][health] 성공:", res);
+      } catch (error) {
+        console.error("[booking-site][health] 실패:", error);
+      }
+      try {
+        const captcha = await requestCaptchaImage();
+        console.log("[booking-site][captcha.request] 성공:", captcha);
+      } catch (error) {
+        console.error("[booking-site][captcha.request] 실패:", error);
+      }
+    })();
   }, []);
 
   useEffect(() => {
@@ -50,6 +75,44 @@ export default function BookingWaitingPage() {
       clearInterval(progressInterval);
     };
   }, [stage, PROGRESS_STEPS, navigate, searchParams]);
+
+  // 대기열 진입 시 큐 등록 API 호출 (matchId가 있을 때만)
+  useEffect(() => {
+    if (stage !== "queue") return;
+    const matchId =
+      searchParams.get("matchId") ??
+      (matchIdFromStore != null ? String(matchIdFromStore) : null);
+    console.log("[booking-site][queue.enqueue] matchId 확인:", {
+      fromQuery: searchParams.get("matchId"),
+      fromStore: matchIdFromStore,
+      used: matchId,
+    });
+    const clickMiss = Number(searchParams.get("nrClicks")) || 0;
+    const duration = Number(searchParams.get("rtSec")) || 0;
+    if (!matchId) {
+      console.log("[booking-site][queue.enqueue] matchId가 없어 생략합니다.", {
+        clickMiss,
+        duration,
+      });
+      return;
+    }
+    (async () => {
+      try {
+        console.log("[booking-site][queue.enqueue] 요청 시작:", {
+          matchId,
+          clickMiss,
+          duration,
+        });
+        const res = await enqueueTicketingQueue(matchId, {
+          clickMiss,
+          duration,
+        });
+        console.log("[booking-site][queue.enqueue] 성공:", res);
+      } catch (error) {
+        console.error("[booking-site][queue.enqueue] 실패:", error);
+      }
+    })();
+  }, [stage, searchParams, matchIdFromStore]);
 
   // 캡차는 좌석 선택 페이지의 모달로 이동
 

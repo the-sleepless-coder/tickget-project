@@ -18,6 +18,7 @@ import { useWebSocketStore } from "../../../shared/lib/websocket-store";
 import { subscribe, type Subscription } from "../../../shared/lib/websocket";
 import { useAuthStore } from "@features/auth/store";
 import { exitRoom, getRoomDetail } from "@features/room/api";
+import { useMatchStore } from "@features/booking-site/store";
 import { useNavigate } from "react-router-dom";
 import ExitToAppIcon from "@mui/icons-material/ExitToApp";
 import Thumbnail01 from "../../../shared/images/thumbnail/Thumbnail01.webp";
@@ -93,6 +94,7 @@ export default function ITicketPage() {
   const wsClient = useWebSocketStore((state) => state.client);
   const currentUserNickname = useAuthStore((state) => state.nickname);
   const currentUserId = useAuthStore((state) => state.userId);
+  const matchIdFromStore = useMatchStore((s) => s.matchId);
 
   // WebSocket 이벤트 핸들러
   const handleRoomEvent = useCallback(
@@ -223,45 +225,6 @@ export default function ITicketPage() {
       );
     }
   }, [roomData, roomRequest, joinResponse, roomId]);
-
-  // WebSocket 연결 상태 모니터링
-  useEffect(() => {
-    if (!wsClient) {
-      console.warn("⚠️ [WebSocket] 클라이언트가 없습니다.");
-      return;
-    }
-
-    console.log("🔍 [WebSocket] 연결 상태 확인:", {
-      connected: wsClient.connected,
-      active: wsClient.active,
-      subscriptions: (() => {
-        const subs = (
-          wsClient as unknown as { subscriptions?: Record<string, unknown> }
-        ).subscriptions;
-        return subs ? Object.keys(subs).length : 0;
-      })(),
-    });
-
-    // 주기적으로 연결 상태 확인 (5초마다)
-    const interval = setInterval(() => {
-      if (wsClient) {
-        console.log("🔍 [WebSocket] 주기적 상태 확인:", {
-          connected: wsClient.connected,
-          active: wsClient.active,
-          subscriptions: (() => {
-            const subs = (
-              wsClient as unknown as {
-                subscriptions?: Record<string, unknown>;
-              }
-            ).subscriptions;
-            return subs ? Object.keys(subs).length : 0;
-          })(),
-        });
-      }
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, [wsClient]);
 
   // WebSocket 구독: /topic/rooms/{roomId}
   useEffect(() => {
@@ -607,6 +570,20 @@ export default function ITicketPage() {
       (paths as { booking: { waiting: string } })?.booking?.waiting ??
       "/booking/waiting";
 
+    // matchId 결정: joinResponse.matchId(문자/숫자) → store → roomId(최후수단)
+    const jr = joinResponse as unknown as {
+      matchId?: unknown;
+      roomId?: unknown;
+    };
+    const rawMatchId =
+      jr?.matchId ?? jr?.roomId ?? roomData?.roomId ?? matchIdFromStore;
+    const matchIdParam =
+      typeof rawMatchId === "string" || typeof rawMatchId === "number"
+        ? String(rawMatchId)
+        : matchIdFromStore != null
+          ? String(matchIdFromStore)
+          : undefined;
+
     if (reserveAppearedAt) {
       const clickedTs = Date.now();
       const reactionMs = clickedTs - reserveAppearedAt;
@@ -620,12 +597,16 @@ export default function ITicketPage() {
         nonReserveClickCount,
       });
       setIsTrackingClicks(false);
-      finalUrl = `${baseUrl}?rtSec=${encodeURIComponent(String(reactionSec))}&nrClicks=${encodeURIComponent(String(nonReserveClickCount))}`;
+      finalUrl = `${baseUrl}?rtSec=${encodeURIComponent(String(reactionSec))}&nrClicks=${encodeURIComponent(String(nonReserveClickCount))}${
+        matchIdParam ? `&matchId=${encodeURIComponent(matchIdParam)}` : ""
+      }`;
     } else {
       console.log(
         "[ReserveTiming] Click without appearance timestamp (possibly test click)"
       );
-      finalUrl = `${baseUrl}?rtSec=0&nrClicks=${encodeURIComponent(String(nonReserveClickCount))}`;
+      finalUrl = `${baseUrl}?rtSec=0&nrClicks=${encodeURIComponent(String(nonReserveClickCount))}${
+        matchIdParam ? `&matchId=${encodeURIComponent(matchIdParam)}` : ""
+      }`;
     }
 
     window.open(
