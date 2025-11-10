@@ -17,6 +17,8 @@ import {
   recordSeatCompleteNow,
 } from "../../../../shared/utils/reserveMetrics";
 import Viewport from "./_components/Viewport";
+import SeatGrades from "./_components/Side_Grades";
+import SeatSidebarBanner from "./_components/Side_Banner";
 import CaptchaModal from "./_components/CaptchaModal";
 import SmallVenue from "../../../performance-halls/small-venue/CharlotteTheater";
 import MediumVenue, {
@@ -26,7 +28,7 @@ import LargeVenue, {
   type LargeVenueRef,
 } from "../../../performance-halls/large-venue/InspireArena";
 
-type GradeKey = "SR" | "R" | "S" | "A";
+type GradeKey = "SR" | "R" | "S" | "A" | "STANDING";
 type SelectedSeat = {
   id: string;
   gradeLabel: string;
@@ -38,10 +40,11 @@ const GRADE_META: Record<
   GradeKey,
   { name: string; color: string; price: number }
 > = {
-  SR: { name: "SR석", color: "#6f53e3", price: 143000 },
+  SR: { name: "VIP석", color: "#6f53e3", price: 143000 },
   R: { name: "R석", color: "#3da14b", price: 132000 },
   S: { name: "S석", color: "#59b3ea", price: 110000 },
   A: { name: "A석", color: "#FB7E4E", price: 80000 },
+  STANDING: { name: "스탠딩석", color: "#9ca3af", price: 170000 },
 };
 
 type VenueKind = "small" | "medium" | "large";
@@ -70,7 +73,8 @@ export default function SelectSeatPage() {
   // hallId 3: 올림픽 홀 (medium)
   // hallId 4: 인스파이어 아레나 (large)
   const hallIdParam = searchParams.get("hallId");
-  const hallId = hallIdParam ? Number(hallIdParam) : null;
+  const hallIdFromStore = useRoomStore((s) => s.roomInfo.hallId);
+  const hallId = hallIdParam ? Number(hallIdParam) : (hallIdFromStore ?? null);
 
   // hallId를 venue로 변환
   const getVenueFromHallId = (id: number | null): VenueKind => {
@@ -407,74 +411,18 @@ export default function SelectSeatPage() {
 
             {/* 우측: 사이드 정보 220 x 620 */}
             <aside className="w-[220px] h-[620px] space-y-3">
-              <div className="bg-white rounded-md border border-[#e3e3e3] shadow">
-                <div className="px-3 py-2 text-sm bg-[linear-gradient(to_right,#104bb7,#4383fb,#4383fb,#4383fb,#104bb7)] text-white font-semibold rounded-t-md">
-                  원하시는 좌석 위치를 선택해주세요
-                </div>
-                <div className="h-[1px] bg-[#e5e5e5] opacity-80" />
-                <div className="px-3 py-2 h-40 flex items-center justify-center text-center text-sm font-semibold text-gray-400">
-                  원하는 위치의 <br /> 좌석을 선택해주세요!
-                </div>
-              </div>
+              <SeatSidebarBanner
+                hallId={hallId}
+                venueKey={venueKey}
+                mediumVenueRef={mediumVenueRef}
+                largeVenueRef={largeVenueRef}
+              />
 
               {/* 좌석등급 / 잔여석: 선택좌석 위로 이동 */}
               <div className="bg-white rounded-md border border-[#e3e3e3] shadow">
                 <div className="px-3 py-2 font-semibold">좌석등급 / 가격</div>
                 <div className="px-3 pb-3 text-xs">
-                  <ul className="space-y-2">
-                    <li className="flex items-center justify-between">
-                      <span className="flex items-center gap-2">
-                        <span
-                          className="inline-block w-3 h-3 rounded-sm"
-                          style={{ background: GRADE_META.SR.color }}
-                        />
-                        <span className="font-semibold">VIP석</span>
-                        {/* <span className="text-[#b77c6a]">1석</span> */}
-                      </span>
-                      <span className="text-gray-700">
-                        {GRADE_META.SR.price.toLocaleString()}원
-                      </span>
-                    </li>
-                    <li className="flex items-center justify-between">
-                      <span className="flex items-center gap-2">
-                        <span
-                          className="inline-block w-3 h-3 rounded-sm"
-                          style={{ background: GRADE_META.R.color }}
-                        />
-                        <span className="font-semibold">R석</span>
-                        {/* <span className="text-[#b77c6a]">102석</span> */}
-                      </span>
-                      <span className="text-gray-700">
-                        {GRADE_META.R.price.toLocaleString()}원
-                      </span>
-                    </li>
-                    <li className="flex items-center justify-between">
-                      <span className="flex items-center gap-2">
-                        <span
-                          className="inline-block w-3 h-3 rounded-sm"
-                          style={{ background: GRADE_META.S.color }}
-                        />
-                        <span className="font-semibold">S석</span>
-                        {/* <span className="text-[#b77c6a]">59석</span> */}
-                      </span>
-                      <span className="text-gray-700">
-                        {GRADE_META.S.price.toLocaleString()}원
-                      </span>
-                    </li>
-                    <li className="flex items-center justify-between">
-                      <span className="flex items-center gap-2">
-                        <span
-                          className="inline-block w-3 h-3 rounded-sm"
-                          style={{ background: GRADE_META.A.color }}
-                        />
-                        <span className="font-semibold">A석</span>
-                        {/* <span className="text-[#b77c6a]">81석</span> */}
-                      </span>
-                      <span className="text-gray-700">
-                        {GRADE_META.A.price.toLocaleString()}원
-                      </span>
-                    </li>
-                  </ul>
+                  <SeatGrades hallId={hallId} gradeMeta={GRADE_META} />
                 </div>
               </div>
 

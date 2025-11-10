@@ -214,7 +214,7 @@ export default function BookingSelectSchedulePage() {
               {/* 회차 */}
               <div className="bg-white rounded-md shadow p-2 border border-[#e3e3e3]">
                 <div className="text-sm font-bold mb-2">회차(관람시간)</div>
-                <div className="h-[230px] border rounded overflow-y-auto">
+                <div className="h-[230px] rounded overflow-y-auto">
                   {selectedDate ? (
                     <div className="p-2 space-y-2">
                       {rounds.map((round) => (
@@ -247,7 +247,7 @@ export default function BookingSelectSchedulePage() {
               {/* 좌석등급/잔여석 - 내부 비어있음 */}
               <div className="bg-white rounded-md shadow p-2 border border-[#e3e3e3]">
                 <div className="text-sm font-bold mb-2">좌석등급 / 잔여석</div>
-                <div className="h-[230px] border rounded overflow-y-auto">
+                <div className="h-[230px] rounded overflow-y-auto">
                   {/* 빈칸 */}
                 </div>
               </div>
