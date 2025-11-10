@@ -475,8 +475,9 @@ export default function SelectSeatPage() {
                   </div>
                 </div>
                 <div className="p-2">
+                  {/* Header with top/bottom divider */}
                   <table className="w-full text-sm">
-                    <thead>
+                    <thead className="border-y border-gray-200">
                       <tr className="text-gray-500">
                         <th className="text-left font-normal w-24 whitespace-nowrap px-2">
                           좌석등급
@@ -486,42 +487,33 @@ export default function SelectSeatPage() {
                         </th>
                       </tr>
                     </thead>
-                    <tbody>
-                      {selected.length === 0 ? (
-                        <tr>
-                          <td
-                            colSpan={3}
-                            className="text-center text-gray-400 py-8"
-                          >
-                            선택된 좌석이 없습니다.
-                          </td>
-                        </tr>
-                      ) : (
-                        selected.map((s) => (
-                          <tr key={s.id} className="border-t">
-                            <td className="py-1.5 whitespace-nowrap">
-                              {s.gradeLabel}
-                            </td>
-                            <td className="whitespace-nowrap">{s.label}</td>
-                            <td className="text-right">
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setSelected((prev) =>
-                                    prev.filter((x) => x.id !== s.id)
-                                  )
-                                }
-                                className="inline-flex items-center justify-center w-7 h-7 rounded border border-[#e0e0e0] text-gray-500 hover:bg-[#f6f6f6]"
-                                aria-label={`remove-${s.id}`}
-                              >
-                                ×
-                              </button>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
                   </table>
+                  {/* Fixed-height, scrollable body */}
+                  <div className="h-[160px] overflow-y-auto">
+                    <table className="w-full text-sm">
+                      <tbody>
+                        {selected.length === 0 ? (
+                          <tr>
+                            <td
+                              colSpan={2}
+                              className="text-center text-gray-400 py-8"
+                            ></td>
+                          </tr>
+                        ) : (
+                          selected.map((s) => (
+                            <tr key={s.id} className="border-t border-gray-100">
+                              <td className="py-1.5 whitespace-nowrap w-24 px-2">
+                                {s.gradeLabel}
+                              </td>
+                              <td className="whitespace-nowrap px-2">
+                                {s.label}
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                   <button
                     disabled={selected.length === 0}
                     onClick={complete}
