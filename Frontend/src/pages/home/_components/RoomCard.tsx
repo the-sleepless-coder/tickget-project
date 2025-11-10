@@ -154,7 +154,7 @@ export default function RoomCard({
         img.onload = () => {
           try {
             const canvas = document.createElement("canvas");
-            const ctx = canvas.getContext("2d");
+            const ctx = canvas.getContext("2d", { willReadFrequently: true });
 
             if (!ctx) {
               resolve([gradient.from, gradient.to]);
