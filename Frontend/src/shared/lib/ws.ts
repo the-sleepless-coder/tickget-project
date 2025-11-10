@@ -1,5 +1,6 @@
 import * as Stomp from "stompjs";
-import SockJS from "sockjs-client";
+import SockJS from "sockjs-client/dist/sockjs";
+import { useAuthStore } from "../../features/auth/store";
 
 export type WebSocketEvent = {
   eventType: string;
@@ -89,7 +90,10 @@ function buildStompClient(transport: "websocket" | "sockjs"): Stomp.Client {
   return client;
 }
 
-export function connect(handlers: ConnectHandlers = {}): void {
+export function connect(
+  handlers: ConnectHandlers = {},
+  headers?: Record<string, string>
+): void {
   if (stompClient?.connected) {
     handlers.onConnected?.();
     return;
@@ -104,8 +108,18 @@ export function connect(handlers: ConnectHandlers = {}): void {
     if (t === "sockjs") triedSockJs = true;
 
     const client = buildStompClient(t);
+
+    // 기본 헤더: 토큰 및 userId (스토어에 존재하는 경우)
+    const defaultHeaders: Record<string, string> = {};
+    const { accessToken, userId } = useAuthStore.getState();
+    if (accessToken) defaultHeaders.Authorization = `Bearer ${accessToken}`;
+    if (userId != null) defaultHeaders.userId = String(userId);
+
+    // 호출자가 전달한 headers가 우선하도록 병합
+    const connectHeaders = { ...defaultHeaders, ...(headers ?? {}) };
+
     client.connect(
-      {},
+      connectHeaders,
       () => {
         stompClient = client;
         handlers.onConnected?.();
