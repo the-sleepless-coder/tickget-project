@@ -12,6 +12,7 @@ import lombok.Getter;
 @AllArgsConstructor
 public class CreateMatchRequest {
     private Long roomId;
+    private Long hallId;
     private String matchName;
 
     private int maxUserCount;
@@ -24,6 +25,7 @@ public class CreateMatchRequest {
     public static CreateMatchRequest of(CreateRoomRequest request, Long roomId) {
         return CreateMatchRequest.builder()
                 .roomId(roomId)
+                .hallId(request.getHallId())
                 .matchName(request.getMatchName())
                 .maxUserCount(request.getMaxUserCount())
                 .botCount(request.getBotCount())
