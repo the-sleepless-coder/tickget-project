@@ -84,9 +84,11 @@ export default function BookingWaitingPage() {
   // 대기열 진입 시 큐 등록 API 호출 (matchId가 있을 때만)
   useEffect(() => {
     if (stage !== "queue") return;
+    // matchId 결정: store 우선, 없으면 URL 파라미터에서 가져오기
     const matchId =
-      searchParams.get("matchId") ??
-      (matchIdFromStore != null ? String(matchIdFromStore) : null);
+      matchIdFromStore != null
+        ? String(matchIdFromStore)
+        : (searchParams.get("matchId") ?? null);
     console.log("[booking-site][queue.enqueue] matchId 확인:", {
       fromQuery: searchParams.get("matchId"),
       fromStore: matchIdFromStore,

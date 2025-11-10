@@ -734,19 +734,18 @@ export default function ITicketPage() {
     const clickedTs = Date.now();
     const totalStartAt = getTotalStartAtMs() ?? clickedTs;
 
-    // matchId 결정: joinResponse.matchId(문자/숫자) → store → roomId(최후수단)
+    // matchId 결정: store 우선 → joinResponse.matchId → roomId(최후수단)
     const jr = joinResponse as unknown as {
       matchId?: unknown;
       roomId?: unknown;
     };
     const rawMatchId =
-      jr?.matchId ?? jr?.roomId ?? roomData?.roomId ?? matchIdFromStore;
+      matchIdFromStore ?? jr?.matchId ?? jr?.roomId ?? roomData?.roomId ?? null;
     const matchIdParam =
-      typeof rawMatchId === "string" || typeof rawMatchId === "number"
+      rawMatchId != null &&
+      (typeof rawMatchId === "string" || typeof rawMatchId === "number")
         ? String(rawMatchId)
-        : matchIdFromStore != null
-          ? String(matchIdFromStore)
-          : undefined;
+        : undefined;
 
     // hallId 결정: roomDetail → roomData → roomRequest 순으로 확인
     const hallId =
