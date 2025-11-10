@@ -963,7 +963,7 @@ function TitleSection({
         <span>{sizeLabel}</span>
         <span className="text-gray-300">|</span>
         <span>{venueLabel}</span>
-        <span className="text-gray-300">|</span>
+        {/* <span className="text-gray-300">|</span>
         <button
           type="button"
           className="inline-flex items-center gap-1 text-gray-500 cursor-pointer hover:text-gray-700"
@@ -971,7 +971,7 @@ function TitleSection({
         >
           <SettingsOutlinedIcon fontSize="small" />
           <span>방 설정</span>
-        </button>
+        </button> */}
       </div>
     </div>
   );
