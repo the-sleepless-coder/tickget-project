@@ -1,17 +1,21 @@
 import RoomCard from "./_components/RoomCard";
 import { useEffect, useMemo, useState } from "react";
+import dayjs from "dayjs";
 import Tooltip from "@mui/material/Tooltip";
 import InfoOutlined from "@mui/icons-material/InfoOutlined";
 import SearchIcon from "@mui/icons-material/Search";
 import CreateRoomModal from "../room/create-room/CreateRoomModal";
 import { getRooms } from "@features/booking-site/api";
 import type { RoomResponse } from "@features/booking-site/types";
+import { useAuthStore } from "@features/auth/store";
 import Thumbnail01 from "../../shared/images/thumbnail/Thumbnail01.webp";
 import Thumbnail02 from "../../shared/images/thumbnail/Thumbnail02.webp";
 import Thumbnail03 from "../../shared/images/thumbnail/Thumbnail03.webp";
 import Thumbnail04 from "../../shared/images/thumbnail/Thumbnail04.webp";
 import Thumbnail05 from "../../shared/images/thumbnail/Thumbnail05.webp";
 import Thumbnail06 from "../../shared/images/thumbnail/Thumbnail06.webp";
+import RoomSortControls from "./_components/RoomSortButton";
+import { sortRooms } from "./_components/RoomSortUtil";
 
 type SortKey = "start" | "latest";
 
@@ -19,6 +23,8 @@ export default function RoomsPage() {
   const [activeSort, setActiveSort] = useState<SortKey>("start");
   const [query, setQuery] = useState("");
   const [openCreate, setOpenCreate] = useState(false);
+  const userId = useAuthStore((s) => s.userId);
+  const nickname = useAuthStore((s) => s.nickname);
 
   type UiRoom = {
     id: number;
@@ -29,6 +35,7 @@ export default function RoomsPage() {
     imageSrc?: string;
     participants?: { current: number; capacity: number };
     startTime?: string;
+    startAtMs?: number;
     ongoing?: boolean;
     createdAtMs?: number;
     difficulty?: string;
@@ -104,7 +111,11 @@ export default function RoomsPage() {
           (r: RoomResponse): UiRoom => {
             const size =
               (r.hallSize?.toLowerCase() as UiRoom["size"]) ?? undefined;
-            const createdAtMs = r.createdAt ? Date.parse(r.createdAt) : 0;
+            const createdAtMs = r.createdAt ? dayjs(r.createdAt).valueOf() : 0;
+            const startAtMs =
+              r.startTime && dayjs(r.startTime).isValid()
+                ? dayjs(r.startTime).valueOf()
+                : undefined;
             const startTime =
               r.startTime && r.startTime.length >= 16
                 ? r.startTime.substring(11, 16)
@@ -125,6 +136,7 @@ export default function RoomsPage() {
                 capacity: r.maxUserCount,
               },
               startTime,
+              startAtMs,
               ongoing: r.status === "PLAYING",
               createdAtMs,
               difficulty: r.difficulty,
@@ -158,13 +170,10 @@ export default function RoomsPage() {
     });
 
   const sortedRooms = useMemo(() => {
-    if (activeSort === "latest") {
-      return [...filteredRooms].sort(
-        (a, b) => (b.createdAtMs ?? 0) - (a.createdAtMs ?? 0)
-      );
-    }
-    // 'start' 정렬은 간단히 그대로 둠 (서버 정렬 신뢰)
-    return filteredRooms;
+    return sortRooms(
+      filteredRooms,
+      activeSort === "latest" ? "latest" : "start"
+    );
   }, [filteredRooms, activeSort]);
   return (
     <div className="mx-auto max-w-7xl p-4 sm:p-6">
@@ -223,7 +232,13 @@ export default function RoomsPage() {
           </div>
           <button
             type="button"
-            onClick={() => setOpenCreate(true)}
+            onClick={() => {
+              if (!userId || !nickname) {
+                alert("로그인이 필요합니다.");
+                return;
+              }
+              setOpenCreate(true);
+            }}
             className="rounded-full bg-purple-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-purple-600 cursor-pointer"
           >
             + 방 만들기
@@ -242,30 +257,10 @@ export default function RoomsPage() {
           </button>
         </div>
         <div className="flex items-center gap-2 text-sm self-end md:self-auto">
-          <button
-            type="button"
-            aria-pressed={activeSort === "start"}
-            onClick={() => setActiveSort("start")}
-            className={`rounded-full px-4 py-2 transition-colors cursor-pointer ${
-              activeSort === "start"
-                ? "text-purple-600 bg-purple-50"
-                : "text-gray-900 bg-gray-100"
-            }`}
-          >
-            시작순
-          </button>
-          <button
-            type="button"
-            aria-pressed={activeSort === "latest"}
-            onClick={() => setActiveSort("latest")}
-            className={`rounded-full px-4 py-2 transition-colors cursor-pointer ${
-              activeSort === "latest"
-                ? "text-purple-600 bg-purple-50"
-                : "text-gray-900 bg-gray-100"
-            }`}
-          >
-            최신순
-          </button>
+          <RoomSortControls
+            activeSort={activeSort === "latest" ? "latest" : "start"}
+            onChange={(k) => setActiveSort(k)}
+          />
         </div>
       </div>
 
