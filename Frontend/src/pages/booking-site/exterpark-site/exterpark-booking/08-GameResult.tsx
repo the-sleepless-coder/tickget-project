@@ -25,6 +25,8 @@ export default function GameResultPage() {
     capToCompleteSec,
     capBackspaces,
     capWrong,
+    seatClickMiss,
+    seatTakenCount,
   } = useMemo(() => readMetricsWithFallback(searchParams), [searchParams]);
 
   const totalSec = useMemo(() => {
@@ -125,12 +127,12 @@ export default function GameResultPage() {
             },
             {
               label: "클릭 실수",
-              value: "3회",
+              value: `${seatClickMiss}회`,
               icon: <AdsClickIcon fontSize="small" className="text-gray-500" />,
             },
             {
               label: "이선좌",
-              value: "2회",
+              value: `${seatTakenCount}회`,
               icon: (
                 <EventSeatIcon fontSize="small" className="text-gray-500" />
               ),

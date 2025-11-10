@@ -20,6 +20,7 @@ import Viewport from "./_components/Viewport";
 import SeatGrades from "./_components/Side_Grades";
 import SeatSidebarBanner from "./_components/Side_Banner";
 import CaptchaModal from "./_components/CaptchaModal";
+import SeatTakenAlert from "../../../../components/SeatTakenAlert";
 import SmallVenue from "../../../performance-halls/small-venue/CharlotteTheater";
 import MediumVenue, {
   type MediumVenueRef,
@@ -75,11 +76,65 @@ export default function SelectSeatPage() {
   const [showCaptcha, setShowCaptcha] = useState<boolean>(!captchaPassed);
   const [captchaBackspaces, setCaptchaBackspaces] = useState<number>(0);
   const [captchaWrongAttempts, setCaptchaWrongAttempts] = useState<number>(0);
+  // 보안문자 입력 이후 클릭 실수 추적
+  const [isTrackingSeatClicks, setIsTrackingSeatClicks] =
+    useState<boolean>(false);
+  const [seatClickMissCount, setSeatClickMissCount] = useState<number>(0);
+  // 이미 선택한 좌석 알림 표시 횟수
+  const [seatTakenAlertCount, setSeatTakenAlertCount] = useState<number>(0);
+  const [showSeatTakenAlert, setShowSeatTakenAlert] = useState<boolean>(false);
 
   // captchaPassed 상태가 변경되면 showCaptcha 업데이트
   useEffect(() => {
     setShowCaptcha(!captchaPassed);
   }, [captchaPassed]);
+
+  // 보안문자 입력 이후 섹션이나 좌석 이외의 영역 클릭 실수 추적
+  useEffect(() => {
+    if (!isTrackingSeatClicks) return;
+    const onDocClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      // 좌석 선택 영역인지 확인 (섹션이나 좌석)
+      const isSeatArea = Boolean(
+        target.closest("[data-seat-id]") || // 좌석 요소
+          target.closest("polygon[data-id]") || // 섹션 polygon
+          target.closest("[data-enabled-seat]") || // 활성화된 좌석
+          target.closest("svg") || // SVG 영역
+          target.closest("button[data-seat-button]") // 좌석 관련 버튼
+      );
+      // 좌석 선택 완료 버튼은 허용 (클릭 실수로 처리하지 않음)
+      const isCompleteButton = Boolean(
+        target.closest("button")?.textContent?.includes("좌석선택완료") ||
+          target.textContent?.includes("좌석선택완료")
+      );
+      // 좌석 다시 선택 버튼은 이미 clearSelection에서 처리됨
+      const isReselectButton = Boolean(
+        target.closest("button")?.textContent?.includes("좌석 다시 선택")
+      );
+      // 좌석도 전체보기 버튼은 이미 SeatSidebarBanner의 onBackToOverview에서 처리됨
+      const isBackToOverviewButton = Boolean(
+        target.closest("div")?.textContent?.includes("좌석도 전체보기")
+      );
+      // 섹션이나 좌석 이외의 영역 클릭은 실수로 처리
+      if (
+        !isSeatArea &&
+        !isCompleteButton &&
+        !isReselectButton &&
+        !isBackToOverviewButton
+      ) {
+        setSeatClickMissCount((prev) => {
+          const next = prev + 1;
+          console.log("[ReserveTiming] Non-seat area click (miss)", {
+            count: next,
+          });
+          return next;
+        });
+      }
+    };
+    document.addEventListener("click", onDocClick);
+    return () => document.removeEventListener("click", onDocClick);
+  }, [isTrackingSeatClicks]);
   const mediumVenueRef = useRef<MediumVenueRef | null>(null);
   const largeVenueRef = useRef<LargeVenueRef | null>(null);
 
@@ -201,19 +256,45 @@ export default function SelectSeatPage() {
     [selected]
   );
 
-  const clearSelection = () => setSelected([]);
+  const clearSelection = () => {
+    // 좌석 다시 선택 버튼 클릭은 클릭 실수로 처리
+    if (isTrackingSeatClicks) {
+      setSeatClickMissCount((prev) => {
+        const next = prev + 1;
+        console.log("[ReserveTiming] Seat reselect click (miss)", {
+          count: next,
+        });
+        return next;
+      });
+    }
+    setSelected([]);
+  };
   const goPrev = () => {
     const url = new URL(window.location.origin + paths.booking.selectSchedule);
     // hallId가 있으면 전달
     if (hallId) url.searchParams.set("hallId", String(hallId));
     navigate(url.pathname + url.search);
   };
+  // 이미 선택한 좌석 알림 표시 함수
+  const showSeatTakenAlertAndCount = () => {
+    if (isTrackingSeatClicks) {
+      setSeatTakenAlertCount((prev) => {
+        const next = prev + 1;
+        console.log("[ReserveTiming] Seat taken alert shown", { count: next });
+        return next;
+      });
+    }
+    setShowSeatTakenAlert(true);
+  };
+
   const complete = () => {
     const durationSec = recordSeatCompleteNow();
     console.log("[ReserveTiming] Seat complete", {
       durationFromCaptchaSec: durationSec,
       captchaBackspaces,
       captchaWrongAttempts,
+      seatClickMissCount,
+      seatTakenAlertCount,
     });
     sessionStorage.setItem("reserve.capBackspaces", String(captchaBackspaces));
     sessionStorage.setItem("reserve.capWrong", String(captchaWrongAttempts));
@@ -222,6 +303,15 @@ export default function SelectSeatPage() {
       nextUrl.searchParams.set("capToCompleteSec", String(durationSec));
     nextUrl.searchParams.set("capBackspaces", String(captchaBackspaces));
     nextUrl.searchParams.set("capWrong", String(captchaWrongAttempts));
+    // 보안문자 입력 이후 클릭 실수 전달
+    nextUrl.searchParams.set("seatClickMiss", String(seatClickMissCount));
+    sessionStorage.setItem("reserve.seatClickMiss", String(seatClickMissCount));
+    // 이미 선택한 좌석 알림 표시 횟수 전달
+    nextUrl.searchParams.set("seatTakenCount", String(seatTakenAlertCount));
+    sessionStorage.setItem(
+      "reserve.seatTakenCount",
+      String(seatTakenAlertCount)
+    );
     const rt =
       searchParams.get("rtSec") ?? sessionStorage.getItem("reserve.rtSec");
     const nrc =
@@ -290,8 +380,17 @@ export default function SelectSeatPage() {
             wrongAttempts,
           });
           setShowCaptcha(false);
+          // 보안문자 통과 후 클릭 실수 추적 시작
+          setIsTrackingSeatClicks(true);
+          setSeatClickMissCount(0);
         }}
         onReselect={goPrev}
+      />
+      <SeatTakenAlert
+        open={showSeatTakenAlert}
+        onClose={() => {
+          setShowSeatTakenAlert(false);
+        }}
       />
       {/* 고정 레이아웃 컨테이너: 전체 900 x 670 */}
       <div className="mx-auto w-[880px] h-[670px]">
@@ -385,6 +484,17 @@ export default function SelectSeatPage() {
                       seat.price ?? getPriceByGradeLabel(seat.gradeLabel);
                     setSelected((prev) => {
                       const exists = prev.some((x) => x.id === seat.id);
+                      // 선택한 좌석을 다시 누른 경우 클릭 실수로 처리
+                      if (exists && isTrackingSeatClicks) {
+                        setSeatClickMissCount((prev) => {
+                          const next = prev + 1;
+                          console.log(
+                            "[ReserveTiming] Selected seat re-click (miss)",
+                            { count: next }
+                          );
+                          return next;
+                        });
+                      }
                       if (exists) return prev.filter((x) => x.id !== seat.id);
                       if (prev.length >= 2) return prev;
                       return [
@@ -409,6 +519,17 @@ export default function SelectSeatPage() {
                       seat.price ?? getPriceByGradeLabel(seat.gradeLabel);
                     setSelected((prev) => {
                       const exists = prev.some((x) => x.id === seat.id);
+                      // 선택한 좌석을 다시 누른 경우 클릭 실수로 처리
+                      if (exists && isTrackingSeatClicks) {
+                        setSeatClickMissCount((prev) => {
+                          const next = prev + 1;
+                          console.log(
+                            "[ReserveTiming] Selected seat re-click (miss)",
+                            { count: next }
+                          );
+                          return next;
+                        });
+                      }
                       if (exists) return prev.filter((x) => x.id !== seat.id);
                       if (prev.length >= 2) return prev;
                       return [
@@ -433,6 +554,17 @@ export default function SelectSeatPage() {
                       seat.price ?? getPriceByGradeLabel(seat.gradeLabel);
                     setSelected((prev) => {
                       const exists = prev.some((x) => x.id === seat.id);
+                      // 선택한 좌석을 다시 누른 경우 클릭 실수로 처리
+                      if (exists && isTrackingSeatClicks) {
+                        setSeatClickMissCount((prev) => {
+                          const next = prev + 1;
+                          console.log(
+                            "[ReserveTiming] Selected seat re-click (miss)",
+                            { count: next }
+                          );
+                          return next;
+                        });
+                      }
                       if (exists) return prev.filter((x) => x.id !== seat.id);
                       if (prev.length >= 2) return prev;
                       return [
@@ -457,6 +589,19 @@ export default function SelectSeatPage() {
                 venueKey={venueKey}
                 mediumVenueRef={mediumVenueRef}
                 largeVenueRef={largeVenueRef}
+                onBackToOverview={() => {
+                  // 좌석도 전체보기 버튼 클릭은 클릭 실수로 처리
+                  if (isTrackingSeatClicks) {
+                    setSeatClickMissCount((prev) => {
+                      const next = prev + 1;
+                      console.log(
+                        "[ReserveTiming] Back to overview click (miss)",
+                        { count: next }
+                      );
+                      return next;
+                    });
+                  }
+                }}
               />
 
               {/* 좌석등급 / 잔여석: 선택좌석 위로 이동 */}

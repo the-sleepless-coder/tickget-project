@@ -7,6 +7,7 @@ interface Props {
   venueKey: VenueKind;
   mediumVenueRef: RefObject<{ backToOverview: () => void } | null>;
   largeVenueRef: RefObject<{ backToOverview: () => void } | null>;
+  onBackToOverview?: () => void; // 클릭 실수 처리를 위한 콜백
 }
 
 export default function SeatSidebarBanner({
@@ -14,6 +15,7 @@ export default function SeatSidebarBanner({
   venueKey,
   mediumVenueRef,
   largeVenueRef,
+  onBackToOverview,
 }: Props) {
   // hallId === 2 → 현재 스타일 유지
   if (hallId === 2) {
@@ -32,6 +34,10 @@ export default function SeatSidebarBanner({
 
   // hallId !== 2 → 기존 "좌석도 전체보기" + 안내 텍스트
   const handleBack = () => {
+    // 좌석도 전체보기 버튼 클릭은 클릭 실수로 처리
+    if (onBackToOverview) {
+      onBackToOverview();
+    }
     if (venueKey === "medium" && mediumVenueRef.current) {
       mediumVenueRef.current.backToOverview();
       return;

@@ -37,7 +37,10 @@ export function getCaptchaEndMs(): number | null {
 export function recordSeatCompleteNow(): number | null {
   const now = Date.now();
   const end = getCaptchaEndMs();
-  const durationSec = end ? Math.max(0, Math.round((now - end) / 1000)) : null;
+  // 밀리초 단위로 계산 후 초 단위로 변환 (소수점 2자리까지)
+  const durationSec = end
+    ? Math.max(0, Number(((now - end) / 1000).toFixed(2)))
+    : null;
   if (durationSec != null)
     sessionStorage.setItem(KEYS.capToCompleteSec, String(durationSec));
   return durationSec;
@@ -68,6 +71,8 @@ export function readMetricsWithFallback(sp: URLSearchParams): {
   capToCompleteSec: number | null;
   capBackspaces: number | null;
   capWrong: number | null;
+  seatClickMiss: number;
+  seatTakenCount: number;
 } {
   const getNum = (param: string, storageKey: string, nullable = false) => {
     const v = sp.get(param) ?? sessionStorage.getItem(storageKey);
@@ -82,6 +87,8 @@ export function readMetricsWithFallback(sp: URLSearchParams): {
     capToCompleteSec: getNum("capToCompleteSec", KEYS.capToCompleteSec, true),
     capBackspaces: getNum("capBackspaces", KEYS.capBackspaces, true),
     capWrong: getNum("capWrong", KEYS.capWrong, true),
+    seatClickMiss: getNum("seatClickMiss", "reserve.seatClickMiss"),
+    seatTakenCount: getNum("seatTakenCount", "reserve.seatTakenCount"),
   };
 }
 

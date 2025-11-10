@@ -178,6 +178,7 @@ export default function BookingSelectSchedulePage() {
                         <button
                           type="button"
                           disabled={!isAvailable}
+                          data-enabled-date={isAvailable ? "true" : undefined}
                           onClick={() => {
                             if (isAvailable) {
                               setSelectedDate(new Date(year, month, d));

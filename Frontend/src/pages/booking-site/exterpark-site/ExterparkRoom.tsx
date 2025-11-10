@@ -547,6 +547,7 @@ export default function ITicketPage() {
     return () => clearInterval(id);
   }, [calculateSecondsLeft]);
 
+  // 예매하기 버튼이 활성화되는 순간의 타임스탬프 기록
   useEffect(() => {
     if (secondsLeft === 0 && reserveAppearedAt === null) {
       const appearedTs = Date.now();
@@ -560,13 +561,34 @@ export default function ITicketPage() {
     }
   }, [secondsLeft, reserveAppearedAt]);
 
+  // 초기 마운트 시 이미 버튼이 활성화된 경우 처리
+  useEffect(() => {
+    const initialSecondsLeft = calculateSecondsLeft();
+    if (initialSecondsLeft === 0 && reserveAppearedAt === null) {
+      const appearedTs = Date.now();
+      setReserveAppearedAt(appearedTs);
+      setNonReserveClickCount(0);
+      setIsTrackingClicks(true);
+      console.log("[ReserveTiming] Button already active on mount", {
+        appearedAt: new Date(appearedTs).toISOString(),
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // 초기 마운트 시에만 실행
+
   useEffect(() => {
     if (!isTrackingClicks) return;
     const onDocClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement | null;
       if (!target) return;
+      // 예매하기 버튼 클릭은 허용
       const isReserveButton = Boolean(target.closest("[data-reserve-button]"));
-      if (!isReserveButton) {
+      // 활성화된 날짜 버튼 클릭도 허용
+      const isEnabledDateButton = Boolean(
+        target.closest("[data-enabled-date='true']")
+      );
+      // 예매하기 버튼과 활성화된 날짜 버튼 외의 클릭은 실수로 처리
+      if (!isReserveButton && !isEnabledDateButton) {
         setNonReserveClickCount((prev) => {
           const next = prev + 1;
           console.log("[ReserveTiming] Non-reserve click", { count: next });
@@ -731,7 +753,8 @@ export default function ITicketPage() {
     if (reserveAppearedAt) {
       const clickedTs = Date.now();
       const reactionMs = clickedTs - reserveAppearedAt;
-      const reactionSec = Number((reactionMs / 1000).toFixed(3));
+      // 밀리초 단위로 계산 후 초 단위로 변환 (소수점 2자리까지)
+      const reactionSec = Number((reactionMs / 1000).toFixed(2));
       // Log: reaction time between appearance and click
       console.log("[ReserveTiming] Reaction time until click", {
         reactionMs,
