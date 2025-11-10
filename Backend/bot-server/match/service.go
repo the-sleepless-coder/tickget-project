@@ -28,7 +28,7 @@ type Service struct {
 
 // MinioClient 인터페이스
 type MinioClient interface {
-	GetHallLayout(ctx context.Context, hallID string) (*models.HallLayout, error)
+	GetHallLayout(ctx context.Context, hallID int64) (*models.HallLayout, error)
 }
 
 // 새로운 매치 서비스를 생성
@@ -88,7 +88,7 @@ func (s *Service) SetBotsForMatch(matchID int64, req models.MatchSettingRequest)
 		zap.Int("bot_count", req.BotCount),
 		zap.Time("start_time", req.StartTime.Time),
 		zap.String("difficulty", string(req.Difficulty)),
-		zap.String("hall_id", req.HallID),
+		zap.Int64("hall_id", req.HallID),
 		zap.Int("sections", len(hallLayout.Sections)),
 	)
 
