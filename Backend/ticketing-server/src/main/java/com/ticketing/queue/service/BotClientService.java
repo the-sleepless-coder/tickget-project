@@ -18,7 +18,7 @@ import java.util.Map;
 @Slf4j
 @Component
 public class BotClientService {
-    @Value("${bot-service.url}")
+    @Value("${bot-server.url}")
     private String botServerUrl;
 
     private final RestTemplate restTemplate;

@@ -99,3 +99,6 @@ management:
 captcha:
   address: ${CAPTCHA_ADDRESS:http://localhost:8080/api/v1.0/captcha/}
   timeout: ${CAPTCHA_TIMEOUT:5000}
+
+bot-server:
+  url: ${BOT_SERVICE_URL}
