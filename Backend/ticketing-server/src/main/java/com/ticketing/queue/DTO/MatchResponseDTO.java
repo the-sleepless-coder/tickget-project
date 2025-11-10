@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @NoArgsConstructor
 public class MatchResponseDTO {
-    private Long id;
+    private Long Id;
     private Long roomId;
     private String matchName;
     private Integer maxUserCount;
