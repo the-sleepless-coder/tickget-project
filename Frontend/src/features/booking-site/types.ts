@@ -127,3 +127,58 @@ export interface QueueEnqueueResponse {
   positionBehind: number;
   totalNum: number;
 }
+
+// ----- Seating (Ticketing) -----
+export type SeatReservationStatus = "MY_RESERVED" | "TAKEN";
+
+export interface SectionSeatStatusItem {
+  seatId: string;
+  grade: string; // e.g., "R석", "S석"
+  status: SeatReservationStatus;
+}
+
+export interface SectionSeatsStatusResponse {
+  sectionId: string;
+  seats: SectionSeatStatusItem[];
+}
+
+// ----- Seat Hold (Ticketing) -----
+export interface SeatHoldRequest {
+  userId: number;
+  sectionId: number;
+  row: number;
+  col: number;
+  grade: string;
+  totalSeat: number;
+}
+
+export interface SeatHoldItem {
+  sectionId: string;
+  seatId: string;
+  grade: string;
+}
+
+export interface SeatHoldResponse {
+  success: boolean;
+  heldSeats: SeatHoldItem[];
+  failedSeats: SeatHoldItem[];
+}
+
+export interface SeatHoldResult {
+  status: number; // 200 | 409 등
+  body: SeatHoldResponse;
+}
+
+// ----- Seat Cancel (Ticketing) -----
+export interface SeatCancelResponse {
+  success: boolean;
+  message: string;
+  matchId: number;
+  userId: number;
+  cancelledSeatCount: number;
+}
+
+export interface SeatCancelResult {
+  status: number; // 200 | 404 | 409 | 500 등
+  body: SeatCancelResponse;
+}

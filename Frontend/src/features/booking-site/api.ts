@@ -18,6 +18,12 @@ import type {
   CaptchaValidateResult,
   QueueEnqueueRequest,
   QueueEnqueueResponse,
+  SectionSeatsStatusResponse,
+  SeatHoldRequest,
+  SeatHoldResponse,
+  SeatHoldResult,
+  SeatCancelResult,
+  SeatCancelResponse,
 } from "./types";
 
 export async function getRooms(params?: { page?: number; size?: number }) {
@@ -119,6 +125,49 @@ export async function validateCaptcha(
   return { status: res.status, body };
 }
 
+// DELETE /tkt/ticketing/matches/{matchId}/seats/cancel?userId={userId}
+// 200 OK, 404 Not Found, 409 Conflict, 500 Internal Server Error
+export async function cancelSeats(
+  matchId: string | number,
+  userId: string | number
+): Promise<SeatCancelResult> {
+  const { getAuthHeaders } = useAuthStore.getState();
+  const headers: Record<string, string> = {
+    ...getAuthHeaders(),
+    Accept: "application/json",
+  };
+
+  const base = TICKETING_SERVER_BASE_URL;
+  const path = `ticketing/matches/${encodeURIComponent(String(matchId))}/seats/cancel`;
+  let urlObj: URL;
+  if (base.startsWith("/")) {
+    const fullPath = base.replace(/\/$/, "") + "/" + path.replace(/^\//, "");
+    urlObj = new URL(fullPath, window.location.origin);
+  } else {
+    urlObj = new URL(path, base);
+  }
+  urlObj.searchParams.set("userId", String(userId));
+
+  const res = await fetch(urlObj.toString(), {
+    method: "DELETE",
+    headers,
+  });
+
+  let body: SeatCancelResponse = {
+    success: false,
+    message: "",
+    matchId: Number(matchId),
+    userId: Number(userId),
+    cancelledSeatCount: 0,
+  };
+  try {
+    body = (await res.json()) as SeatCancelResponse;
+  } catch {
+    // 본문이 없거나 JSON 파싱 실패 시 기본값 유지
+  }
+  return { status: res.status, body };
+}
+
 // ----- Queue (Ticketing) -----
 export async function enqueueTicketingQueue(
   matchId: string | number,
@@ -138,4 +187,61 @@ export async function enqueueTicketingQueue(
     duration: payload.duration ?? 0,
   };
   return ticketingApi.postJson<QueueEnqueueResponse>(path, body, { headers });
+}
+
+// ----- Seating (Ticketing) -----
+// GET /tkt/ticketing/matches/{matchId}/sections/{sectionId}/seats/status?userId={userId}
+export async function getSectionSeatsStatus(
+  matchId: string | number,
+  sectionId: string | number,
+  userId: string | number
+) {
+  const headers = useAuthStore.getState().getAuthHeaders();
+  const path = `ticketing/matches/${encodeURIComponent(String(matchId))}/sections/${encodeURIComponent(String(sectionId))}/seats/status`;
+  return ticketingApi.get<SectionSeatsStatusResponse>(path, {
+    params: { userId },
+    headers,
+  });
+}
+
+// POST /tkt/ticketing/matches/{matchId}/hold
+// 200: { success: true, heldSeats: [...], failedSeats: [] }
+// 409: { success: false, heldSeats: [], failedSeats: [...] }
+export async function holdSeat(
+  matchId: string | number,
+  payload: SeatHoldRequest
+): Promise<SeatHoldResult> {
+  const { getAuthHeaders } = useAuthStore.getState();
+  const headers: Record<string, string> = {
+    ...getAuthHeaders(),
+    "Content-Type": "application/json",
+  };
+
+  const base = TICKETING_SERVER_BASE_URL;
+  const path = `ticketing/matches/${encodeURIComponent(String(matchId))}/hold`;
+  let url: string;
+  if (base.startsWith("/")) {
+    const fullPath = base.replace(/\/$/, "") + "/" + path.replace(/^\//, "");
+    url = new URL(fullPath, window.location.origin).toString();
+  } else {
+    url = new URL(path, base).toString();
+  }
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(payload),
+  });
+
+  let body: SeatHoldResponse = {
+    success: false,
+    heldSeats: [],
+    failedSeats: [],
+  };
+  try {
+    body = (await res.json()) as SeatHoldResponse;
+  } catch {
+    // 본문이 없거나 JSON 파싱 실패 시 기본값 유지
+  }
+  return { status: res.status, body };
 }
