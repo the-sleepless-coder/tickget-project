@@ -11,6 +11,7 @@ import com.tickget.roomserver.util.ServerIdProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
+import org.springframework.messaging.Message;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.messaging.SessionConnectedEvent;
@@ -36,7 +37,20 @@ public class WebSocketEventListener {
         StompHeaderAccessor headers = StompHeaderAccessor.wrap(event.getMessage());
         String sessionId = headers.getSessionId();
 
-        Long userId = (Long) headers.getSessionAttributes().get("userId");
+        // simpConnectMessage에서 세션 속성 가져오기 (여기가 핵심!)
+        Message<?> connectMessage = (Message<?>) headers.getHeader("simpConnectMessage");
+        if (connectMessage == null) {
+            log.error("simpConnectMessage가 null - sessionId: {}", sessionId);
+            return;
+        }
+
+        StompHeaderAccessor connectHeaders = StompHeaderAccessor.wrap(connectMessage);
+        Long userId = (Long) connectHeaders.getSessionAttributes().get("userId");
+
+        if (userId == null) {
+            log.error("세션 속성에 userId가 없음 - sessionId: {}", sessionId);
+            return;
+        }
 
         String serverId = serverIdProvider.getServerId();
 
