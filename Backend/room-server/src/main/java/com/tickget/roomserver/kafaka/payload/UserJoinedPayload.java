@@ -11,5 +11,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class UserJoinedPayload {
     private Long userId;
+    private String userName;
     private Integer totalUsersInRoom;
 }

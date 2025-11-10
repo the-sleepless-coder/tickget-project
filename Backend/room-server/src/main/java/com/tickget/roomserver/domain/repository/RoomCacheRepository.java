@@ -251,7 +251,7 @@ public class RoomCacheRepository {
     }
 
     // 방 ID로 매치 ID 조회
-    public String getMatchIdByRoomId(Long roomId) {
+    public Long getMatchIdByRoomId(Long roomId) {
         // 실제로 저장된 구조 -> room:{roomId}:match:{matchId}
         String pattern = "room:" + roomId + ":match:*";
         Set<String> keys = redisTemplate.keys(pattern);
@@ -266,12 +266,12 @@ public class RoomCacheRepository {
         String[] parts = key.split(":");
         String matchId = parts[parts.length - 1];
 
-        return matchId;
+        return Long.valueOf(matchId);
     }
 
 
     //유저의 대기열 상태 조회
-    public QueueStatus getQueueStatus(String matchId, Long userId) {
+    public QueueStatus getQueueStatus(Long matchId, Long userId) {
         String queueKey = "queue:" + matchId + ":" + userId;
         String json = redisTemplate.opsForValue().get(queueKey);
 

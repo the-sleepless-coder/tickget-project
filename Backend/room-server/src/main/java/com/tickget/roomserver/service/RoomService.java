@@ -102,7 +102,7 @@ public class RoomService {
             log.info("사용자 {}(id:{})이(가) 방 {}을 생성 후 입장",
                     request.getUsername(), request.getUserId(), room.getId());
 
-            return CreateRoomResponse.from(room);
+            return CreateRoomResponse.of(room, matchResponse.getId());
 
         } catch (CreateMatchFailedException | CreateMatchDeclinedException e) {
             log.error("방 생성 중 매치 생성 실패 - roomId: {}, userId: {}, error: {}",
@@ -181,15 +181,16 @@ public class RoomService {
         }
 
         List<RoomMember> roomMembers = roomCacheRepository.getRoomMembers(roomId);
+        Long matchId = roomCacheRepository.getMatchIdByRoomId(roomId);
 
-        log.info("사용자  {}(id:{})(이)가 방 {}에 입장 성공 - 현재 인원: {}",userName, userId, roomId, currentUserCount);
+        log.info("사용자  {}(id:{})(이)가 방 {}(매치 {} 대기 중)에 입장 성공 - 현재 인원: {}",userName, userId, roomId,matchId, currentUserCount);
 
-        UserJoinedRoomEvent event = UserJoinedRoomEvent.of(userId, roomId, currentUserCount);
+        UserJoinedRoomEvent event = UserJoinedRoomEvent.of(userId,userName, roomId, currentUserCount);
         roomEventProducer.publishUserJoinedEvent(event);
 
 
 
-        return JoinRoomResponse.of(room, currentUserCount, roomMembers);
+        return JoinRoomResponse.of(room, currentUserCount, roomMembers,matchId);
 
     }
 

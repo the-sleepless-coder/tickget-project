@@ -4,7 +4,6 @@ import com.tickget.roomserver.domain.entity.Room;
 import com.tickget.roomserver.domain.enums.RoomStatus;
 
 import java.util.List;
-import java.util.Map;
 
 import com.tickget.roomserver.dto.cache.RoomMember;
 import lombok.AllArgsConstructor;
@@ -18,15 +17,17 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class JoinRoomResponse {
     private Long roomId;
+    private Long matchId;
     private int currentUserCount;
     private List<RoomMember> roomMembers ; // id:name
     private RoomStatus roomStatus;
     private String subscriptionTopic;
 
-    public static JoinRoomResponse of (Room room, int currentUserCount , List<RoomMember> roomMembers){
+    public static JoinRoomResponse of (Room room, int currentUserCount , List<RoomMember> roomMembers, Long matchId) {
 
         return JoinRoomResponse.builder()
                 .roomId(room.getId())
+                .matchId(matchId)
                 .currentUserCount(currentUserCount)
                 .subscriptionTopic("/topic/rooms/" + room.getId())
                 .roomMembers(roomMembers)
