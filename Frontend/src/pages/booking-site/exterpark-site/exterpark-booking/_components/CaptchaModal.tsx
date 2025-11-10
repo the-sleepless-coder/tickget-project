@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import VolumeUpOutlinedIcon from "@mui/icons-material/VolumeUpOutlined";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
@@ -30,6 +30,8 @@ export default function CaptchaModal({ open, onVerify, onReselect }: Props) {
   const [wrongAttempts, setWrongAttempts] = useState<number>(0);
   const [captchaImg, setCaptchaImg] = useState<string>("");
   const [captchaId, setCaptchaId] = useState<string>("");
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const lastBackspaceAtRef = useRef<number>(0);
 
   // bump seed to refresh image when needed
 
@@ -44,6 +46,15 @@ export default function CaptchaModal({ open, onVerify, onReselect }: Props) {
       setSeed((s) => s + 1); // refresh image on each open
       setBackspaceCount(0);
       setWrongAttempts(0);
+      // 초기화: HUD 실시간 표시에 대비하여 세션 스토리지 값도 0으로 리셋
+      try {
+        sessionStorage.setItem("reserve.capBackspaces", "0");
+        sessionStorage.setItem("reserve.capWrong", "0");
+      } catch {}
+      // 입력창 자동 포커스
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 0);
     }
   }, [open]);
 
@@ -94,7 +105,13 @@ export default function CaptchaModal({ open, onVerify, onReselect }: Props) {
           setError("입력한 문자를 다시 확인해주세요");
           setInput("");
           setIsFocused(false);
-          setWrongAttempts((w) => w + 1);
+          setWrongAttempts((w) => {
+            const next = w + 1;
+            try {
+              sessionStorage.setItem("reserve.capWrong", String(next));
+            } catch {}
+            return next;
+          });
           return;
         }
         if (result.status === 400) {
@@ -115,12 +132,24 @@ export default function CaptchaModal({ open, onVerify, onReselect }: Props) {
         setError("입력한 문자를 다시 확인해주세요");
         setInput("");
         setIsFocused(false);
-        setWrongAttempts((w) => w + 1);
+        setWrongAttempts((w) => {
+          const next = w + 1;
+          try {
+            sessionStorage.setItem("reserve.capWrong", String(next));
+          } catch {}
+          return next;
+        });
       } catch {
         setError("입력한 문자를 다시 확인해주세요");
         setInput("");
         setIsFocused(false);
-        setWrongAttempts((w) => w + 1);
+        setWrongAttempts((w) => {
+          const next = w + 1;
+          try {
+            sessionStorage.setItem("reserve.capWrong", String(next));
+          } catch {}
+          return next;
+        });
         // 잘못된 경우 새 캡챠 요청
         setSeed((s) => s + 1);
       }
@@ -128,7 +157,13 @@ export default function CaptchaModal({ open, onVerify, onReselect }: Props) {
       setError("입력한 문자를 다시 확인해주세요");
       setInput("");
       setIsFocused(false);
-      setWrongAttempts((w) => w + 1);
+      setWrongAttempts((w) => {
+        const next = w + 1;
+        try {
+          sessionStorage.setItem("reserve.capWrong", String(next));
+        } catch {}
+        return next;
+      });
     }
   };
 
@@ -187,13 +222,48 @@ export default function CaptchaModal({ open, onVerify, onReselect }: Props) {
                   } bg-white rounded-none`}
                 >
                   <input
+                    ref={inputRef}
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
+                    onInput={(e) => {
+                      // 모바일/IME 환경에서 Backspace는 inputType으로 감지
+                      const asAny = e as unknown as { nativeEvent?: any };
+                      const it = asAny?.nativeEvent?.inputType;
+                      if (it === "deleteContentBackward") {
+                        const now = Date.now();
+                        // 키다운 이벤트와 중복 방지
+                        if (now - lastBackspaceAtRef.current > 30) {
+                          setBackspaceCount((c) => {
+                            const next = c + 1;
+                            try {
+                              sessionStorage.setItem(
+                                "reserve.capBackspaces",
+                                String(next)
+                              );
+                            } catch {}
+                            return next;
+                          });
+                          lastBackspaceAtRef.current = now;
+                        }
+                      }
+                    }}
                     onFocus={() => setIsFocused(true)}
                     onBlur={() => setIsFocused(false)}
                     onKeyDown={(e) => {
-                      if (e.key === "Backspace")
-                        setBackspaceCount((c) => c + 1);
+                      if (e.key === "Backspace") {
+                        const now = Date.now();
+                        lastBackspaceAtRef.current = now;
+                        setBackspaceCount((c) => {
+                          const next = c + 1;
+                          try {
+                            sessionStorage.setItem(
+                              "reserve.capBackspaces",
+                              String(next)
+                            );
+                          } catch {}
+                          return next;
+                        });
+                      }
                     }}
                     className={`absolute inset-0 w-full h-full px-3 outline-none bg-transparent rounded-none ${
                       isFocused || input ? "pt-3" : ""

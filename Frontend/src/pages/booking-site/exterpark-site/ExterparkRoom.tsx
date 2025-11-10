@@ -3,7 +3,6 @@ import { useParams, useLocation } from "react-router-dom";
 import { Collapse, IconButton } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import PeopleIcon from "@mui/icons-material/People";
-import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import { paths } from "../../../app/routes/paths";
 import RoomSettingModal from "../../room/edit-room-setting/RoomSettingModal";
 import type {
@@ -28,6 +27,10 @@ import Thumbnail03 from "../../../shared/images/thumbnail/Thumbnail03.webp";
 import Thumbnail04 from "../../../shared/images/thumbnail/Thumbnail04.webp";
 import Thumbnail05 from "../../../shared/images/thumbnail/Thumbnail05.webp";
 import Thumbnail06 from "../../../shared/images/thumbnail/Thumbnail06.webp";
+import {
+  setTotalStartAtMs,
+  getTotalStartAtMs,
+} from "../../../shared/utils/reserveMetrics";
 
 type Participant = {
   name: string;
@@ -460,6 +463,17 @@ export default function ITicketPage() {
 
   // 방 상세 조회: roomMembers가 없고 roomId가 있으면 API로 가져오기 (fallback)
   useEffect(() => {
+    // 총 소요 시간 측정 시작: 방 입장 시점에 없으면 초기화
+    try {
+      if (!sessionStorage.getItem("reserve.totalStartAtMs")) {
+        setTotalStartAtMs();
+      }
+    } catch (err) {
+      if (import.meta.env.DEV) {
+        console.warn("Failed to init totalStartAtMs", err);
+      }
+    }
+
     const params = new URLSearchParams(location.search);
     const qsId = params.get("roomId");
     const targetId =
@@ -716,6 +730,8 @@ export default function ITicketPage() {
     const baseUrl =
       (paths as { booking: { waiting: string } })?.booking?.waiting ??
       "/booking/waiting";
+    const clickedTs = Date.now();
+    const totalStartAt = getTotalStartAtMs() ?? clickedTs;
 
     // matchId 결정: joinResponse.matchId(문자/숫자) → store → roomId(최후수단)
     const jr = joinResponse as unknown as {
@@ -751,7 +767,6 @@ export default function ITicketPage() {
     const roundParam = `&round=1`;
 
     if (reserveAppearedAt) {
-      const clickedTs = Date.now();
       const reactionMs = clickedTs - reserveAppearedAt;
       // 밀리초 단위로 계산 후 초 단위로 변환 (소수점 2자리까지)
       const reactionSec = Number((reactionMs / 1000).toFixed(2));
@@ -764,14 +779,14 @@ export default function ITicketPage() {
         nonReserveClickCount,
       });
       setIsTrackingClicks(false);
-      finalUrl = `${baseUrl}?rtSec=${encodeURIComponent(String(reactionSec))}&nrClicks=${encodeURIComponent(String(nonReserveClickCount))}${
+      finalUrl = `${baseUrl}?rtSec=${encodeURIComponent(String(reactionSec))}&nrClicks=${encodeURIComponent(String(nonReserveClickCount))}&tStart=${encodeURIComponent(String(totalStartAt))}${
         matchIdParam ? `&matchId=${encodeURIComponent(matchIdParam)}` : ""
       }${hallIdParam}${dateParam}${roundParam}`;
     } else {
       console.log(
         "[ReserveTiming] Click without appearance timestamp (possibly test click)"
       );
-      finalUrl = `${baseUrl}?rtSec=0&nrClicks=${encodeURIComponent(String(nonReserveClickCount))}${
+      finalUrl = `${baseUrl}?rtSec=0&nrClicks=${encodeURIComponent(String(nonReserveClickCount))}&tStart=${encodeURIComponent(String(totalStartAt))}${
         matchIdParam ? `&matchId=${encodeURIComponent(matchIdParam)}` : ""
       }${hallIdParam}${dateParam}${roundParam}`;
     }
@@ -801,7 +816,6 @@ export default function ITicketPage() {
         <div className="productWrapper max-w-[1280px] w-full mx-auto px-4 md:px-6">
           <TagsRow
             difficulty={roomDetail?.difficulty}
-            maxUserCount={roomDetail?.maxUserCount}
             botCount={roomDetail?.botCount}
             totalSeat={
               roomDetail?.totalSeat ||
@@ -895,12 +909,10 @@ function TopBanner({ onClose }: { onClose: (hideFor3Days: boolean) => void }) {
 
 function TagsRow({
   difficulty,
-  maxUserCount,
   botCount,
   totalSeat,
 }: {
   difficulty?: string;
-  maxUserCount?: number;
   botCount?: number;
   totalSeat?: number;
 }) {
@@ -949,7 +961,6 @@ function TitleSection({
   matchName,
   hallSize,
   venue,
-  onOpenSettings,
   onExitRoom,
   isExiting,
 }: {

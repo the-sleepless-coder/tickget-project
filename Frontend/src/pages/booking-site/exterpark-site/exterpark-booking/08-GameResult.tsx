@@ -10,6 +10,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import EventSeatIcon from "@mui/icons-material/EventSeat";
 import MeetingRoomOutlinedIcon from "@mui/icons-material/MeetingRoomOutlined";
 import { paths } from "../../../../app/routes/paths";
+import { finalizeTotalNow } from "../../../../shared/utils/reserveMetrics";
 import { useAuthStore } from "@features/auth/store";
 import { useRoomStore } from "@features/room/store";
 import { exitRoom } from "@features/room/api";
@@ -86,7 +87,6 @@ export default function GameResultPage() {
     capToCompleteSec,
     capBackspaces,
     capWrong,
-    seatClickMiss,
     seatTakenCount,
   } = useMemo(() => readMetricsWithFallback(searchParams), [searchParams]);
 
@@ -107,6 +107,11 @@ export default function GameResultPage() {
     );
     return () => clearTimeout(id);
   }, [navigate]);
+
+  useEffect(() => {
+    // 총 소요 시간 최종 마킹
+    finalizeTotalNow();
+  }, []);
 
   return (
     <>
@@ -188,13 +193,13 @@ export default function GameResultPage() {
                   <AccessTimeIcon fontSize="small" className="text-gray-500" />
                 ),
               },
-              {
-                label: "클릭 실수",
-                value: `${seatClickMiss}회`,
-                icon: (
-                  <AdsClickIcon fontSize="small" className="text-gray-500" />
-                ),
-              },
+              // {
+              //   label: "클릭 실수",
+              //   value: `${seatClickMiss}회`,
+              //   icon: (
+              //     <AdsClickIcon fontSize="small" className="text-gray-500" />
+              //   ),
+              // },
               {
                 label: "이선좌",
                 value: `${seatTakenCount}회`,
