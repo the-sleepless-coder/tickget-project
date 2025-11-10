@@ -333,10 +333,16 @@ export default function SocialLogin() {
             backgroundColor: "transparent",
             color: "#FFFFFF",
             border: "1px solid transparent",
-            "&:hover": {
+            "&:hover:not(:disabled)": {
               backgroundColor: "#ef4444",
               color: "#ffffff",
               border: "1px solid #ef4444",
+            },
+            "&:disabled": {
+              backgroundColor: "transparent",
+              color: "#FFFFFF",
+              border: "1px solid transparent",
+              opacity: 0.5,
             },
           }}
           onClick={handleAdminButtonClick}
