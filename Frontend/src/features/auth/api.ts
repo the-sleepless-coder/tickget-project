@@ -20,3 +20,33 @@ export const testAccountLogin = async (): Promise<TestAccountLoginResponse> => {
     throw error;
   }
 };
+
+export const adminAccountLogin =
+  async (): Promise<TestAccountLoginResponse> => {
+    console.log("Request URL:", `${AUTH_BASE_URL}/test/admin/login`);
+    try {
+      const result =
+        await authApi.postJson<TestAccountLoginResponse>("/test/admin/login");
+      return result;
+    } catch (error) {
+      console.error("adminAccountLogin error:", error);
+      throw error;
+    }
+  };
+
+export const adminAccountLoginByName = async (
+  nickname: string
+): Promise<TestAccountLoginResponse> => {
+  console.log("Request URL:", `${AUTH_BASE_URL}/test/admin/login`);
+  console.log("Request Body:", { nickname });
+  try {
+    const result = await authApi.postJson<TestAccountLoginResponse>(
+      "/test/admin/login",
+      { nickname }
+    );
+    return result;
+  } catch (error) {
+    console.error(`adminAccountLoginByName(${nickname}) error:`, error);
+    throw error;
+  }
+};
