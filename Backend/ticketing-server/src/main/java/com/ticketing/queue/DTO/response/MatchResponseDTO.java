@@ -1,4 +1,4 @@
-package com.ticketing.queue.DTO;
+package com.ticketing.queue.DTO.response;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

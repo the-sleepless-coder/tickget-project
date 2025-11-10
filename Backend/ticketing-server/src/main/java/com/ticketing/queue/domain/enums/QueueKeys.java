@@ -1,4 +1,4 @@
-package com.ticketing.queue;
+package com.ticketing.queue.domain.enums;
 
 public class QueueKeys {
     private QueueKeys(){}
