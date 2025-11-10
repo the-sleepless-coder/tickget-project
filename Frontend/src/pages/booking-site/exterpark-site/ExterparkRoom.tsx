@@ -224,45 +224,6 @@ export default function ITicketPage() {
     }
   }, [roomData, roomRequest, joinResponse, roomId]);
 
-  // WebSocket 연결 상태 모니터링
-  useEffect(() => {
-    if (!wsClient) {
-      console.warn("⚠️ [WebSocket] 클라이언트가 없습니다.");
-      return;
-    }
-
-    console.log("🔍 [WebSocket] 연결 상태 확인:", {
-      connected: wsClient.connected,
-      active: wsClient.active,
-      subscriptions: (() => {
-        const subs = (
-          wsClient as unknown as { subscriptions?: Record<string, unknown> }
-        ).subscriptions;
-        return subs ? Object.keys(subs).length : 0;
-      })(),
-    });
-
-    // 주기적으로 연결 상태 확인 (5초마다)
-    const interval = setInterval(() => {
-      if (wsClient) {
-        console.log("🔍 [WebSocket] 주기적 상태 확인:", {
-          connected: wsClient.connected,
-          active: wsClient.active,
-          subscriptions: (() => {
-            const subs = (
-              wsClient as unknown as {
-                subscriptions?: Record<string, unknown>;
-              }
-            ).subscriptions;
-            return subs ? Object.keys(subs).length : 0;
-          })(),
-        });
-      }
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, [wsClient]);
-
   // WebSocket 구독: /topic/rooms/{roomId}
   useEffect(() => {
     const targetRoomId =
