@@ -35,6 +35,7 @@ public class RoomResponse {
 
     private HallSize hallSize;
     private String hallName;
+    private int totalSeat;
 
     private ThumbnailType thumbnailType;
     private String thumbnailValue;
@@ -59,6 +60,7 @@ public class RoomResponse {
                 .startTime(startTime)
                 .hallSize(room.getHallSize())
                 .hallName(room.getHallName())
+                .totalSeat(room.getTotalSeat())
                 .thumbnailType(room.getThumbnailType())
                 .thumbnailValue(room.getThumbnailValue())
                 .build();
