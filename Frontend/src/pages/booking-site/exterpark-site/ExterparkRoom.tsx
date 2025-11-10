@@ -49,6 +49,16 @@ const DIFFICULTY_TO_LABEL: Record<string, string> = {
   HARD: "어려움",
 };
 
+// hallName을 한글로 변환하는 함수
+const convertHallNameToKorean = (hallName: string): string => {
+  const hallNameMap: Record<string, string> = {
+    InspireArena: "인스파이어 아레나",
+    CharlotteTheater: "샤롯데씨어터",
+    OlympicHall: "올림픽공원 올림픽홀",
+  };
+  return hallNameMap[hallName] || hallName;
+};
+
 // 썸네일 번호 -> 이미지 매핑
 const THUMBNAIL_IMAGES: Record<string, string> = {
   "1": Thumbnail01,
@@ -797,7 +807,7 @@ function TitleSection({
   const sizeLabel = hallSize
     ? HALL_SIZE_TO_LABEL[hallSize] || hallSize
     : "소형";
-  const venueLabel = venue || "샤롯데씨어터";
+  const venueLabel = venue ? convertHallNameToKorean(venue) : "샤롯데씨어터";
 
   return (
     <div>
