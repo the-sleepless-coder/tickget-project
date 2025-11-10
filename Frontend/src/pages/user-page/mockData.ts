@@ -43,7 +43,7 @@ export const mockMatchHistory: MatchHistory[] = [
     venueType: "커스텀",
     tags: [
       { label: "어려움", color: "red" },
-      { label: "최대 10명", color: "blue" },
+      { label: "총 좌석수 10명", color: "blue" },
       { label: "봇 3000명", color: "blue" },
     ],
     date: "2024-01-20",
@@ -73,7 +73,7 @@ export const mockMatchHistory: MatchHistory[] = [
     venueType: "자동",
     tags: [
       { label: "보통", color: "green" },
-      { label: "최대 15명", color: "blue" },
+      { label: "총 좌석수 15명", color: "blue" },
       { label: "봇 2000명", color: "blue" },
     ],
     date: "2024-01-18",
@@ -221,7 +221,7 @@ export const mockMatchHistory: MatchHistory[] = [
     venueType: "자동",
     tags: [
       { label: "쉬움", color: "green" },
-      { label: "최대 20명", color: "blue" },
+      { label: "총 좌석수 20명", color: "blue" },
       { label: "봇 1500명", color: "blue" },
     ],
     date: "2024-01-22",
@@ -284,7 +284,7 @@ export const mockMatchHistory: MatchHistory[] = [
     venueType: "커스텀",
     tags: [
       { label: "보통", color: "green" },
-      { label: "최대 12명", color: "blue" },
+      { label: "총 좌석수 12명", color: "blue" },
       { label: "봇 5000명", color: "blue" },
     ],
     date: "2024-01-19",
@@ -377,7 +377,7 @@ export const mockMatchHistory: MatchHistory[] = [
     venueType: "자동",
     tags: [
       { label: "어려움", color: "red" },
-      { label: "최대 8명", color: "blue" },
+      { label: "총 좌석수 8명", color: "blue" },
       { label: "봇 3500명", color: "blue" },
     ],
     date: "2024-01-23",
@@ -425,7 +425,7 @@ export const mockMatchHistory: MatchHistory[] = [
     venueType: "커스텀",
     tags: [
       { label: "쉬움", color: "green" },
-      { label: "최대 5명", color: "blue" },
+      { label: "총 좌석수 5명", color: "blue" },
       { label: "봇 1000명", color: "blue" },
     ],
     date: "2024-01-17",
@@ -453,7 +453,7 @@ export const mockMatchHistory: MatchHistory[] = [
     venueType: "자동",
     tags: [
       { label: "보통", color: "green" },
-      { label: "최대 18명", color: "blue" },
+      { label: "총 좌석수 18명", color: "blue" },
       { label: "봇 2500명", color: "blue" },
     ],
     date: "2024-01-21",
@@ -531,7 +531,7 @@ export const mockMatchHistory: MatchHistory[] = [
     venueType: "커스텀",
     tags: [
       { label: "어려움", color: "red" },
-      { label: "최대 7명", color: "blue" },
+      { label: "총 좌석수 7명", color: "blue" },
       { label: "봇 2800명", color: "blue" },
     ],
     date: "2024-01-15",
@@ -559,7 +559,7 @@ export const mockMatchHistory: MatchHistory[] = [
     venueType: "자동",
     tags: [
       { label: "쉬움", color: "green" },
-      { label: "최대 25명", color: "blue" },
+      { label: "총 좌석수 25명", color: "blue" },
       { label: "봇 1800명", color: "blue" },
     ],
     date: "2024-01-24",
@@ -667,7 +667,7 @@ export const mockMatchHistory: MatchHistory[] = [
     venueType: "커스텀",
     tags: [
       { label: "보통", color: "green" },
-      { label: "최대 9명", color: "blue" },
+      { label: "총 좌석수 9명", color: "blue" },
       { label: "봇 4000명", color: "blue" },
     ],
     date: "2024-01-16",
@@ -715,7 +715,7 @@ export const mockMatchHistory: MatchHistory[] = [
     venueType: "자동",
     tags: [
       { label: "쉬움", color: "green" },
-      { label: "최대 6명", color: "blue" },
+      { label: "총 좌석수 6명", color: "blue" },
       { label: "봇 1200명", color: "blue" },
     ],
     date: "2024-01-14",
@@ -743,7 +743,7 @@ export const mockMatchHistory: MatchHistory[] = [
     venueType: "커스텀",
     tags: [
       { label: "어려움", color: "red" },
-      { label: "최대 30명", color: "blue" },
+      { label: "총 좌석수 30명", color: "blue" },
       { label: "봇 6000명", color: "blue" },
     ],
     date: "2024-01-13",
@@ -866,7 +866,7 @@ export const mockMatchHistory: MatchHistory[] = [
     venueType: "자동",
     tags: [
       { label: "보통", color: "green" },
-      { label: "최대 4명", color: "blue" },
+      { label: "총 좌석수 4명", color: "blue" },
       { label: "봇 800명", color: "blue" },
     ],
     date: "2024-01-25",

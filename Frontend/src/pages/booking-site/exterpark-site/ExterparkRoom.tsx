@@ -886,12 +886,10 @@ function TagsRow({
   const difficultyLabel = difficulty
     ? DIFFICULTY_TO_LABEL[difficulty] || difficulty
     : "어려움";
-  // totalSeat가 있으면 "총 좌석 수 --명"으로 표시, 없으면 기존 "최대 --명" 표시
+  // totalSeat가 있으면 "총 좌석 수 --명"으로 표시, 없으면 최대 천 명
   const maxLabel = totalSeat
-    ? `총 좌석 수 ${totalSeat.toLocaleString()}명`
-    : maxUserCount
-      ? `최대 ${maxUserCount.toLocaleString()}명`
-      : "최대 10명";
+    ? `총 좌석수 ${totalSeat.toLocaleString()}명`
+    : `총 좌석수 1,000명`;
   const botLabel = botCount ? `봇 ${botCount.toLocaleString()}명` : "봇 3000명";
 
   return (
