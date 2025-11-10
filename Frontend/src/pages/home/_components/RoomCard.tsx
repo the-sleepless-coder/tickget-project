@@ -44,7 +44,7 @@ const VARIANT_BADGE_BG: Record<RoomCardVariant, string> = {
 export default function RoomCard({
   title,
   imageSrc,
-  capacityText = "어려움  |  최대 10명  |  봇 3000명",
+  capacityText = "어려움  |  총 촤석 수 1,000명  |  봇 3000명",
   tagsText,
   badgeText,
   variant = "purple",

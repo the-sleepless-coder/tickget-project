@@ -98,12 +98,12 @@ export default function RoomsPage() {
     const difficultyLabel = difficulty
       ? convertDifficultyToKorean(difficulty)
       : "어려움";
-    // totalSeat가 있으면 "총 좌석 수 --명"으로 표시, 없으면 기존 "최대 --명" 표시
+    // totalSeat가 있으면 "총 좌석 수 --명"으로 표시, 없으면 기존 "총 좌석 수 --명" 표시
     const maxUserLabel = totalSeat
       ? `총 좌석 수 ${totalSeat.toLocaleString()}명`
       : maxUserCount !== undefined
-        ? `최대 ${maxUserCount}명`
-        : "최대 0명";
+        ? `총 좌석 수 ${maxUserCount}명`
+        : "총 좌석 수 1,000명";
     const botLabel = botCount !== undefined ? `봇 ${botCount}명` : "봇 0명";
     return `${difficultyLabel}  |  ${maxUserLabel}  |  ${botLabel}`;
   };
