@@ -11,12 +11,12 @@ public class SeatConfirmationRequest {
     private Long userId;
 
     // 통계 데이터
-    private Integer dateSelectTime;
+    private float dateSelectTime;
     private Integer dateMissCount;
-    private Integer seccodeSelectTime;
+    private float seccodeSelectTime;
     private Integer seccodeBackspaceCount;
     private Integer seccodeTryCount;
-    private Integer seatSelectTime;
+    private float seatSelectTime;
     private Integer seatSelectTryCount;
     private Integer seatSelectClickMissCount;
 }

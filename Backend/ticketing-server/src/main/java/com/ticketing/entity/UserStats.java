@@ -33,13 +33,13 @@ public class UserStats {
     private String selectedSeat;
 
     @Column(name = "date_select_time", nullable = false)
-    private Integer dateSelectTime;
+    private float dateSelectTime;
 
     @Column(name = "date_miss_count", nullable = false)
     private Integer dateMissCount;
 
     @Column(name = "seccode_select_time", nullable = false)
-    private Integer seccodeSelectTime;
+    private float seccodeSelectTime;
 
     @Column(name = "seccode_backspace_count", nullable = false)
     private Integer seccodeBackspaceCount;
@@ -48,7 +48,7 @@ public class UserStats {
     private Integer seccodeTryCount;
 
     @Column(name = "seat_select_time", nullable = false)
-    private Integer seatSelectTime;
+    private float seatSelectTime;
 
     @Column(name = "seat_select_try_count", nullable = false)
     private Integer seatSelectTryCount;
