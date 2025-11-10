@@ -9,5 +9,5 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class QueueUserInfoDTO {
     int clickMiss;
-    int duration;
+    float duration;
 }

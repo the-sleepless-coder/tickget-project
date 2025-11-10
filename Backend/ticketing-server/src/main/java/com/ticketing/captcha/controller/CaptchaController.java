@@ -28,13 +28,24 @@ public class CaptchaController {
     // Captcha 문자열을 입력했을 때의 응답을 받는다.
     @PostMapping("/captcha/validate")
     public ResponseEntity<?> validateCaptcha(@RequestBody CaptchaDTO userInput, HttpServletRequest request) throws IOException {
-        Long userId = Long.valueOf(request.getHeader("userId"));
-        HttpResultDTO res = service.validateCaptcha(userInput, userId);
+        String userIdString = request.getHeader("userId");
+        if(userIdString == null || userIdString.isEmpty()){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("message","Missing userId in request"));
+        }
+        try{
+            Long userId = Long.valueOf(request.getHeader("userId"));
+            HttpResultDTO res = service.validateCaptcha(userInput, userId);
 
-        return ResponseEntity.status(res.getStatus())
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(res.getBody())
-                ;
+            return ResponseEntity.status(res.getStatus())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(res.getBody())
+                    ;
+        }catch(NumberFormatException e){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("message","Invalid userId format"));
+        }
+
     }
 
     // 사용자에게 보여줄 CaptchaId를 base64인코딩된 값을 가져온다.

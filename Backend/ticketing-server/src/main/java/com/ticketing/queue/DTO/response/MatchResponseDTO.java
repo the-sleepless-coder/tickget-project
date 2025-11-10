@@ -1,4 +1,4 @@
-package com.ticketing.queue.DTO;
+package com.ticketing.queue.DTO.response;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @NoArgsConstructor
 public class MatchResponseDTO {
-    private Long Id;
+    private Long matchId;
     private Long roomId;
     private String matchName;
     private Integer maxUserCount;

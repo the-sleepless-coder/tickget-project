@@ -1,7 +1,6 @@
-package com.ticketing.queue.service;
+package com.ticketing.repository;
 
 import com.ticketing.entity.Match;
-import com.ticketing.repository.MatchRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
@@ -12,12 +11,13 @@ import java.time.Duration;
 
 @Component
 @RequiredArgsConstructor
-public class MatchCacheWriter {
+public class MatchCacheRepository {
     private final MatchRepository matchRepository;
     private final StringRedisTemplate redis;
-    record MatchCreatedEvent(Long matchId){}
 
-    // DB 커밋 이후 Redis에 Key 발행.
+    public record MatchCreatedEvent(Long matchId){}
+
+    // DB 커밋 이후 Redis에 roomId, matchId에 대한 정보를 담은 Key 발행.
     @TransactionalEventListener(phase= TransactionPhase.AFTER_COMMIT)
     public void onMatchCreated(MatchCreatedEvent e){
         // DB에서 해당 matchId에 대한 roomId 조회
