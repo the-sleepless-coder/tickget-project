@@ -14,4 +14,5 @@ public class SeatReservationResponse {
     private boolean success;
     private List<ReservedSeatInfoDto> heldSeats;
     private List<ReservedSeatInfoDto> failedSeats;
+    private String message;
 }
