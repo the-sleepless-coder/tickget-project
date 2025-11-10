@@ -146,18 +146,19 @@ export default function SmallVenue({
             colIndex + 1
           );
           const isOpSeat = seatColor === COLORS.OP;
-          const grade =
+          // 선점 API용 grade 코드 (석 제외)
+          const gradeCode =
             seatColor === COLORS.OP
-              ? "OP석"
+              ? "STANDING"
               : seatColor === COLORS.VIP
-                ? "VIP석"
+                ? "VIP"
                 : seatColor === COLORS.R
-                  ? "R석"
+                  ? "R"
                   : seatColor === COLORS.S
-                    ? "S석"
+                    ? "S"
                     : seatColor === COLORS.A
-                      ? "A석"
-                      : "R석";
+                      ? "A"
+                      : "R";
           const displaySection = seatColor === COLORS.OP ? "0" : sectionPart;
           const displayRowInSection =
             floor === 2 ? (rowOffset >= 7 ? 7 + rowNo : rowNo) : rowNo;
@@ -168,6 +169,9 @@ export default function SmallVenue({
           const takenSeatId = `${displaySection}-${displayRowInSection}-${col}`;
           const isTaken = takenSeats.has(takenSeatId);
 
+          // 전 좌석을 하나의 섹션(1)으로 간주, 위→아래/좌→우 스캔라인 기준 전역 row/col
+          const scanRow = (floor === 1 ? 0 : 23) + effectiveRowNo; // 1층 1~23, 2층 24~
+          const scanCol = col; // 블록 오프셋을 포함한 전역 열 인덱스 (좌→우)
           const opacityVal = (() => {
             if (isOpSeat) return 0;
             if (isHiddenRow) return 0;
@@ -191,14 +195,21 @@ export default function SmallVenue({
             }
             return 1;
           })();
-          // const displayColInSection = colIndex + 1;
-          const isSpecialGrey =
-            displaySection === "2" && displayRowInSection === 1 && col === 15;
+          const activeValue = opacityVal === 0 ? "0" : "1";
+          const customSeatProps = {
+            seatid: seatId,
+            grade: gradeCode,
+            section: "1",
+            row: String(scanRow),
+            col: String(scanCol),
+            active: activeValue,
+          };
           return (
             <div
               key={`${keyPrefix}${rowIndex}-${colIndex}`}
               // 원래 티켓팅 사이트에서 행, 열이 바뀌어 있음, 행, 열 순서를 바꿔서 표시
-              title={`[${grade}] ${displaySection}구역-${displayRowInSection}열-${col}`}
+              title={`[${gradeCode}석] ${displaySection}구역-${displayRowInSection}열-${col}`}
+              {...(customSeatProps as Record<string, string>)}
               style={{
                 ...seatStyle,
                 backgroundColor: isSelected ? "#4a4a4a" : seatColor,
@@ -218,7 +229,7 @@ export default function SmallVenue({
                 }
                 onToggleSeat?.({
                   id: seatId,
-                  gradeLabel: grade,
+                  gradeLabel: gradeCode,
                   label: `${displaySection}구역-${displayRowInSection}열-${col}`,
                 });
               }}

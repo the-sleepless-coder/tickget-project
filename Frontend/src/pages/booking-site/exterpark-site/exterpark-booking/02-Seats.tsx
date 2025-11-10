@@ -319,9 +319,9 @@ export default function SelectSeatPage() {
           }> = [];
 
           selected.forEach((seat) => {
-            // data-seat-id를 사용해서 DOM 요소 찾기
+            // 좌석 DIV에서 커스텀 속성 읽기
             const seatElement = document.querySelector(
-              `[data-seat-id="${seat.id}"]`
+              `[seatid="${seat.id}"]`
             ) as HTMLElement | null;
 
             if (seatElement) {
@@ -329,8 +329,9 @@ export default function SelectSeatPage() {
               const row = seatElement.getAttribute("row");
               const col = seatElement.getAttribute("col");
               const grade = seatElement.getAttribute("grade");
+              const active = seatElement.getAttribute("active");
 
-              if (sectionId && row && col && grade) {
+              if (sectionId && row && col && grade && active === "1") {
                 seats.push({
                   sectionId: Number(sectionId),
                   row: Number(row),
