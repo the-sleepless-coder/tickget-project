@@ -31,16 +31,29 @@ export default function Step1BasicForm({
   showErrors?: boolean;
 }) {
   // 한국 시간 기준으로 현재 시간을 5분 단위로 반올림하고, +5분부터 1시간까지 설정
+  // const { minTime, maxTime } = useMemo(() => {
+  //   const now = dayjs(); // 한국 시간 (dayjs는 기본적으로 로컬 시간 사용)
+  //   const currentMinute = now.minute();
+
+  //   // 5분 단위로 반올림
+  //   const roundedMinute = Math.ceil(currentMinute / 5) * 5;
+  //   const roundedTime = now.minute(roundedMinute).second(0).millisecond(0);
+
+  //   // 반올림한 시간 + 5분을 최소 시간으로 설정
+  //   const min = roundedTime.add(5, "minute");
+
+  //   // 최소 시간 + 1시간을 최대 시간으로 설정
+  //   const max = min.add(1, "hour");
+
+  //   return { minTime: min, maxTime: max };
+  // }, []);
+
+  // 현재 시간 기준으로 1분 단위로 설정 가능
   const { minTime, maxTime } = useMemo(() => {
     const now = dayjs(); // 한국 시간 (dayjs는 기본적으로 로컬 시간 사용)
-    const currentMinute = now.minute();
 
-    // 5분 단위로 반올림
-    const roundedMinute = Math.ceil(currentMinute / 5) * 5;
-    const roundedTime = now.minute(roundedMinute).second(0).millisecond(0);
-
-    // 반올림한 시간 + 5분을 최소 시간으로 설정
-    const min = roundedTime.add(5, "minute");
+    // 현재 시간 + 1분을 최소 시간으로 설정
+    const min = now.add(1, "minute").second(0).millisecond(0);
 
     // 최소 시간 + 1시간을 최대 시간으로 설정
     const max = min.add(1, "hour");
@@ -48,18 +61,27 @@ export default function Step1BasicForm({
     return { minTime: min, maxTime: max };
   }, []);
 
-  // 5분 간격이 아닌 시간을 비활성화하는 함수
-  const shouldDisableTime = (
-    value: Dayjs,
-    view: "hours" | "minutes" | "seconds"
-  ) => {
-    if (view === "minutes") {
-      const minute = value.minute();
-      // 5분 간격이 아닌 분은 비활성화
-      return minute % 5 !== 0;
-    }
-    return false;
-  };
+  // 5분 간격이 아닌 시간을 비활성화하는 함수 (주석 처리됨 - 1분 단위로 변경)
+  // const shouldDisableTime = (
+  //   value: Dayjs,
+  //   view: "hours" | "minutes" | "seconds"
+  // ) => {
+  //   if (view === "minutes") {
+  //     const minute = value.minute();
+  //     // 5분 간격이 아닌 분은 비활성화
+  //     return minute % 5 !== 0;
+  //   }
+  //   return false;
+  // };
+
+  // 모든 분을 활성화하는 함수 (1분 단위 선택을 위해) - timeSteps 사용으로 불필요
+  // const shouldDisableTime = (
+  //   value: Dayjs,
+  //   view: "hours" | "minutes" | "seconds"
+  // ) => {
+  //   // 모든 시간과 분을 활성화 (비활성화하지 않음)
+  //   return false;
+  // };
 
   // 시간 변경 핸들러: 범위를 벗어나면 자동으로 조정
   const handleTimeChange = useCallback(
@@ -82,12 +104,15 @@ export default function Step1BasicForm({
       }
 
       // 5분 간격으로 조정
-      const minute = value.minute();
-      const adjustedMinute = Math.round(minute / 5) * 5;
-      const adjustedTime = value
-        .minute(adjustedMinute)
-        .second(0)
-        .millisecond(0);
+      // const minute = value.minute();
+      // const adjustedMinute = Math.round(minute / 5) * 5;
+      // const adjustedTime = value
+      //   .minute(adjustedMinute)
+      //   .second(0)
+      //   .millisecond(0);
+
+      // 1분 단위로 설정 (초와 밀리초만 0으로 설정)
+      const adjustedTime = value.second(0).millisecond(0);
 
       setStartTime(adjustedTime);
     },
@@ -191,8 +216,8 @@ export default function Step1BasicForm({
                 onChange={handleTimeChange}
                 minTime={minTime}
                 maxTime={maxTime}
-                minutesStep={5}
-                shouldDisableTime={shouldDisableTime}
+                views={["hours", "minutes"]}
+                timeSteps={{ hours: 1, minutes: 1 }}
                 slotProps={{
                   textField: {
                     size: "small",
