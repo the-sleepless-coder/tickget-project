@@ -229,3 +229,25 @@ build:captcha-server:
     - *update_manifest
   tags:
     - docker
+
+build:seatmap-server:
+  stage: build
+  image: docker:24-dind
+  services:
+    - docker:24-dind
+  only:
+    refs:
+      - dev
+    changes:
+      - AI/seatmap_to_html/**/*
+  before_script:
+    - *docker_buildx_setup
+  script:
+    - export SERVICE_NAME="seatmap-server"
+    - cd AI/seatmap_to_html
+    - IMAGE_TAG="dev-latest"
+    - echo "Building seatmap-server with tag $IMAGE_TAG"
+    - docker buildx build --platform linux/arm64 -t kkaebu/seatmap-server:$IMAGE_TAG --push .
+    - *update_manifest
+  tags:
+    - docker
