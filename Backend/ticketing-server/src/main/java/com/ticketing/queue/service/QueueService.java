@@ -33,7 +33,7 @@ public class QueueService {
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final MatchRepository matchRepository;
     private final ApplicationEventPublisher publisher;
-    private final ClientService botClient;
+    private final ClientService Client;
 
     // 대기 상태 ENUM
     private static final String ALREADY_IN_QUEUE="ALREADY_IN_QUEUE";
@@ -45,13 +45,13 @@ public class QueueService {
 
     private static final int MATCH_EXPIRE_TIME = 30;
 
-    public QueueService(StringRedisTemplate redis, ObjectMapper mapper, KafkaTemplate kafkaTemplate, MatchRepository matchRepository, ApplicationEventPublisher publisher, ClientService botClient){
+    public QueueService(StringRedisTemplate redis, ObjectMapper mapper, KafkaTemplate kafkaTemplate, MatchRepository matchRepository, ApplicationEventPublisher publisher, ClientService Client){
         this.redis = redis;
         this.mapper = mapper;
         this.kafkaTemplate = kafkaTemplate;
         this.matchRepository = matchRepository;
         this.publisher = publisher;
-        this.botClient = botClient;
+        this.Client = Client;
     }
 
     // Redis에 Queue에 대한 순서 정보 저장
@@ -154,10 +154,36 @@ public class QueueService {
             Match saved = matchRepository.save(match);
 
             MatchResponseDTO res = new MatchResponseDTO(saved.getMatchId(), saved.getRoomId(), saved.getMatchName(), saved.getMaxUser(), saved.getDifficulty().name(), saved.getStartedAt());
-            System.out.println(res);
 
-            // 시작 시간 N초 전 Thread 실행
-            // Transactional로 Playing, Bot 서버로 요청 및 Redis 키 업데이트
+            Long matchId = saved.getMatchId();
+            int botCount = saved.getUsedBotCount();
+            LocalDateTime startedAt = saved.getStartedAt();
+            String difficulty = saved.getDifficulty().toString();
+            Long hallId = dto.getHallId();
+            Long roomId = saved.getRoomId();
+
+            // 1) 로봇(봇 서버)에게 시작 알림 전송
+            // 봇 생성 시간이 걸림.
+            try {
+                Client.sendBotRequest(matchId, botCount, startedAt, difficulty, hallId);
+                log.debug("Successfully sent request to bot. matchId:{}, botCount:{}, startedAt:{}",matchId, botCount, startedAt);
+            } catch (Exception ex) {
+                // 필요 시 재시도/보상 로직 연결 (DLQ, 재시도 큐 등)
+                // 로그만 남기고 종료할지, 예외를 던져 롤백할지는 정책에 따라 결정
+                // 여기서는 로그만:
+                log.error("Bot notify failed. roomId={} matchId={}", roomId, matchId, ex);
+            }
+
+            // 2) roomId에 대한 matchId를 Redis 키로 설정
+            // DB에서 해당 matchId에 대한 roomId 조회
+            Match MATCH = matchRepository.findById(matchId).orElseThrow();
+            String key = "room:%s:match:%s".formatted(MATCH.getRoomId(), MATCH.getMatchId());
+
+            redis.opsForValue().set(key,"1");
+            redis.expire(key, Duration.ofMinutes(MATCH_EXPIRE_TIME));
+
+            // 3) 스케줄링을 통한, 시작 시간 N초 전 Thread 실행
+            // Transactional로 DB, Playing Status, 매치 참여 인원 Redis 키 설정.
             publisher.publishEvent(new MatchInsertedEventDTO(
                 saved.getMatchId(), saved.getRoomId(), saved.getStartedAt(), saved.getUsedBotCount(), saved.getDifficulty().toString(), dto.getHallId()
             ));

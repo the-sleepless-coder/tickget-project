@@ -45,23 +45,12 @@ public class MatchStatusChanger {
             matchRepository.save(m);
         }
 
-        // 2) ✅ 로봇(봇 서버)에게 시작 알림 전송
-        try {
-            Client.sendBotRequest(matchId, botCount, startedAt, difficulty, hallId);
-            log.debug("Succesfully sent request to bot");
-        } catch (Exception ex) {
-            // 필요 시 재시도/보상 로직 연결 (DLQ, 재시도 큐 등)
-            // 로그만 남기고 종료할지, 예외를 던져 롤백할지는 정책에 따라 결정
-            // 여기서는 로그만:
-            log.error("Bot notify failed. roomId={} matchId={}", roomId, matchId, ex);
-        }
-
-        // 3) 매치 게임 상태 Redis 키 설정
+        // 2) 매치 게임 상태 Redis 키 설정
         String statusKey = MATCH_STATUS_KEY.formatted(matchId);
         redis.opsForValue().set(statusKey, OPEN);
         redis.expire(statusKey, Duration.ofMinutes(EXPIRE_MINUTES));
 
-        // 4) 매치에 참여한 인원에 대한 Redis 키 설정
+        // 3) 매치에 참여한 인원에 대한 Redis 키 설정
         ResponseEntity<?> response = Client.getUserNum(roomId);
         if(response.getStatusCode().is2xxSuccessful()){
             Integer userNum = (Integer) response.getBody();
@@ -78,15 +67,7 @@ public class MatchStatusChanger {
             log.info("사용자 수를 못 가져왔습니다.");
         }
 
-        // 5) roomId에 대한 matchId를 Redis 키로 설정
-        // DB에서 해당 matchId에 대한 roomId 조회
-        Match MATCH = matchRepository.findById(matchId).orElseThrow();
-        String key = "room:%s:match:%s".formatted(MATCH.getRoomId(), MATCH.getMatchId());
-
-        redis.opsForValue().set(key,"1");
-        redis.expire(key, Duration.ofMinutes(EXPIRE_MINUTES));
-
-        // 6) room 서버에 시작했다는 사실 알림
+        // 4) room 서버에 시작했다는 사실 알림
         try{
             Client.changeStartState(roomId);
             log.info(" room 서버의 게임 상태가 PLAYING으로 바뀌었습니다. ");
