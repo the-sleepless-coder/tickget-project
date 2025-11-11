@@ -15,6 +15,9 @@ public class MongoConfig {
     @Value("${spring.data.mongodb.uri:mongodb://localhost:27017/ticketing_logs}")
     private String mongoUri;
 
+    @Value("${spring.data.mongodb.database:ticketing_logs}")
+    private String databaseName;
+
     @Bean
     public MongoClient mongoClient() {
         return MongoClients.create(mongoUri);
@@ -22,6 +25,6 @@ public class MongoConfig {
 
     @Bean
     public MongoTemplate mongoTemplate() {
-        return new MongoTemplate(new SimpleMongoClientDatabaseFactory(mongoClient(), "ticketing_logs"));
+        return new MongoTemplate(new SimpleMongoClientDatabaseFactory(mongoClient(), databaseName));
     }
 }

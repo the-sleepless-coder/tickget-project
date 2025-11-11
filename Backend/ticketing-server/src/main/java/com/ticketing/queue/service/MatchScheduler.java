@@ -18,7 +18,8 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-
+import java.util.concurrent.ExecutionException;
+/*
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -36,7 +37,7 @@ public class MatchScheduler {
     // 시작 10초 전에 경기 Status를 Playing으로 바꿔준다.
     @Scheduled(fixedRate = 10_000)
     @Transactional
-    public void updateMatchStatus() {
+    public void updateMatchStatus() throws ExecutionException, InterruptedException {
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime threshold = now.plusSeconds(15);
 
@@ -53,12 +54,23 @@ public class MatchScheduler {
 
         matchRepository.saveAll(matches);
 
-        /**
-         * DB 변경 후, Kafka Publisher 발행
-         * Outbox Pattern 구현*/
+
+//         DB 변경 후, Kafka Publisher 발행
+//         Outbox Pattern 구현
         for(Match match: matches){
             String matchIdString = String.valueOf(match.getMatchId());
             Long roomId = match.getRoomId();
+
+//            MatchStartDTO dto = MatchStartDTO.builder()
+//                    .roomId(match.getRoomId())
+//                    .matchId(match.getMatchId())
+//                    .startedAt(match.getStartedAt())
+//                    .status(match.getStatus())
+//                    .timestamp(LocalDateTime.now())
+//                    .build();
+//
+//            SendResult<String, Object> kafkaObject = kafkaTemplate.send(KafkaTopic.ROOM_PLAYING_STATUS_EVENTS.getTopicName(), matchIdString, dto).get();
+
 
             //2. Bot 서버로 시작했다는 요청을 보낸다.
             botClient.changeStartState(roomId);
@@ -73,4 +85,4 @@ public class MatchScheduler {
 
     }
 }
-
+**/

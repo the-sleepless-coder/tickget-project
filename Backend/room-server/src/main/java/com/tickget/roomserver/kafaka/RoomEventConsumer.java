@@ -26,7 +26,7 @@ public class RoomEventConsumer {
     private static final String ROOM_SETTING_UPDATED_TOPIC = "room-setting-updated-events";
     private static final String ROOM_PLAYING_STARTED_TOPIC = "room-playing-started-events";
     private static final String ROOM_PLAYING_ENDED_TOPIC = "room-playing-ended-events";
-    private static final String USER_DEQUEUED_TOPIC = "user-dequeued-events";
+    private static final String USER_DEQUEUED_TOPIC = "user-dequeued-publish";
 
     private final RoomEventHandler roomEventHandler;
 

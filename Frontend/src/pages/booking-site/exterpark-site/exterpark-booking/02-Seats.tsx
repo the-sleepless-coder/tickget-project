@@ -1,21 +1,33 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useState, useRef, type CSSProperties } from "react";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
 import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useRoomStore } from "@features/room/store";
+import { useMatchStore } from "@features/booking-site/store";
+import { useAuthStore } from "@features/auth/store";
+import { holdSeat, getSectionSeatsStatus } from "@features/booking-site/api";
 import { paths } from "../../../../app/routes/paths";
 import {
   saveInitialReaction,
   setCaptchaEndNow,
   recordSeatCompleteNow,
+  setTotalStartAtMs,
 } from "../../../../shared/utils/reserveMetrics";
 import Viewport from "./_components/Viewport";
+import SeatGrades from "./_components/Side_Grades";
+import SeatSidebarBanner from "./_components/Side_Banner";
 import CaptchaModal from "./_components/CaptchaModal";
+import SeatTakenAlert from "../../../../components/SeatTakenAlert";
 import SmallVenue from "../../../performance-halls/small-venue/CharlotteTheater";
-import MediumVenue from "../../../performance-halls/medium-venue/OlympicHall";
-import LargeVenue from "../../../performance-halls/large-venue/InspireArena";
+import MediumVenue, {
+  type MediumVenueRef,
+} from "../../../performance-halls/medium-venue/OlympicHall";
+import LargeVenue, {
+  type LargeVenueRef,
+} from "../../../performance-halls/large-venue/InspireArena";
 
-type GradeKey = "SR" | "R" | "S";
+type GradeKey = "SR" | "R" | "S" | "A" | "STANDING";
 type SelectedSeat = {
   id: string;
   gradeLabel: string;
@@ -27,9 +39,24 @@ const GRADE_META: Record<
   GradeKey,
   { name: string; color: string; price: number }
 > = {
-  SR: { name: "SR석", color: "#6f53e3", price: 143000 },
+  SR: { name: "VIP석", color: "#6f53e3", price: 143000 },
   R: { name: "R석", color: "#3da14b", price: 132000 },
   S: { name: "S석", color: "#59b3ea", price: 110000 },
+  A: { name: "A석", color: "#FB7E4E", price: 80000 },
+  STANDING: { name: "스탠딩석", color: "#9ca3af", price: 170000 },
+};
+
+// 등급 레이블로 가격 찾기
+const getPriceByGradeLabel = (gradeLabel: string): number => {
+  // "스탠딩석", "VIP석", "R석", "S석", "A석", "SR석" 등
+  if (gradeLabel.includes("스탠딩")) return GRADE_META.STANDING.price;
+  if (gradeLabel.includes("VIP")) return GRADE_META.SR.price; // VIP석 = SR석 가격
+  if (gradeLabel.includes("R석")) return GRADE_META.R.price;
+  if (gradeLabel.includes("S석")) return GRADE_META.S.price;
+  if (gradeLabel.includes("A석")) return GRADE_META.A.price;
+  if (gradeLabel.includes("SR석")) return GRADE_META.SR.price;
+  // 기본값
+  return GRADE_META.S.price;
 };
 
 type VenueKind = "small" | "medium" | "large";
@@ -38,18 +65,82 @@ export default function SelectSeatPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [selected, setSelected] = useState<SelectedSeat[]>([]);
-  const eventTitle = "방 이름 입력";
-  const [showCaptcha, setShowCaptcha] = useState<boolean>(true);
+  const roomInfo = useRoomStore((s) => s.roomInfo);
+  const eventTitle = roomInfo.roomName || "방 이름 입력";
+  const venueName = roomInfo.hallName || "공연장 이름";
+  const captchaPassed = useRoomStore((s) => s.roomInfo.captchaPassed);
+  const setCaptchaPassed = useRoomStore((s) => s.setCaptchaPassed);
+  // captchaPassed가 false일 때만 캡챠 표시
+  const [showCaptcha, setShowCaptcha] = useState<boolean>(!captchaPassed);
   const [captchaBackspaces, setCaptchaBackspaces] = useState<number>(0);
   const [captchaWrongAttempts, setCaptchaWrongAttempts] = useState<number>(0);
+  // 보안문자 입력 이후 클릭 실수 추적
+  const [isTrackingSeatClicks, setIsTrackingSeatClicks] =
+    useState<boolean>(false);
+  const [seatClickMissCount, setSeatClickMissCount] = useState<number>(0);
+  // 이미 선택한 좌석 알림 표시 횟수
+  const [seatTakenAlertCount, _setSeatTakenAlertCount] = useState<number>(0);
+  const [showSeatTakenAlert, setShowSeatTakenAlert] = useState<boolean>(false);
 
-  // venue 쿼리 처리 (small | medium | large)
+  // captchaPassed 상태가 변경되면 showCaptcha 업데이트
+  useEffect(() => {
+    setShowCaptcha(!captchaPassed);
+  }, [captchaPassed]);
+
+  // 보안문자 입력 이후 섹션이나 좌석 이외의 영역 클릭 실수 추적 (현재 비활성화)
+  useEffect(() => {
+    if (!isTrackingSeatClicks) return;
+    const onDocClick = () => {
+      // 요구사항: 좌석 선택 단계에서 클릭 실수 카운트 증가시키지 않음
+      return;
+    };
+    document.addEventListener("click", onDocClick);
+    return () => document.removeEventListener("click", onDocClick);
+  }, [isTrackingSeatClicks]);
+
+  // Captcha modal open time for live measurement (and let HUD pick it up)
+  useEffect(() => {
+    if (showCaptcha) {
+      sessionStorage.setItem("reserve.captchaStartAtMs", String(Date.now()));
+    } else {
+      sessionStorage.removeItem("reserve.captchaStartAtMs");
+    }
+  }, [showCaptcha]);
+
+  // 이미 선택한 좌석 알림이 표시될 때마다 카운트 증가
+  useEffect(() => {
+    if (showSeatTakenAlert && isTrackingSeatClicks) {
+      _setSeatTakenAlertCount((prev) => prev + 1);
+    }
+  }, [showSeatTakenAlert, isTrackingSeatClicks]);
+  const mediumVenueRef = useRef<MediumVenueRef | null>(null);
+  const largeVenueRef = useRef<LargeVenueRef | null>(null);
+
+  // hallId 기반 venue 결정
+  // hallId 2: 샤롯데씨어터 (small)
+  // hallId 3: 올림픽 홀 (medium)
+  // hallId 4: 인스파이어 아레나 (large)
+  const hallIdParam = searchParams.get("hallId");
+  const hallIdFromStore = useRoomStore((s) => s.roomInfo.hallId);
+  const hallId = hallIdParam ? Number(hallIdParam) : (hallIdFromStore ?? null);
+
+  // hallId를 venue로 변환
+  const getVenueFromHallId = (id: number | null): VenueKind => {
+    if (id === 2) return "small"; // 샤롯데씨어터
+    if (id === 3) return "medium"; // 올림픽 홀
+    if (id === 4) return "large"; // 인스파이어 아레나
+    return "small"; // 기본값
+  };
+
+  // 기존 venue 쿼리 파라미터도 지원 (하위 호환성)
   const venueParam = searchParams.get("venue");
-  const venueKey: VenueKind =
-    venueParam === "medium" || venueParam === "large" || venueParam === "small"
+  const venueKey: VenueKind = hallId
+    ? getVenueFromHallId(hallId)
+    : venueParam === "medium" ||
+        venueParam === "large" ||
+        venueParam === "small"
       ? venueParam
       : "small";
-  // 현재 venueLabel은 UI 문구 노출에 사용하지 않음 (필요 시 추가 표시)
 
   // URL 파라미터에서 날짜와 시간 정보 가져오기
   const dateParam = searchParams.get("date") || "";
@@ -138,20 +229,363 @@ export default function SelectSeatPage() {
     }
   }, [isSeatBlocked]);
 
-  const totalPrice = useMemo(
-    () => selected.reduce((sum, s) => sum + (s.price ?? 0), 0),
-    [selected]
-  );
+  // const totalPrice = useMemo(
+  //   () => selected.reduce((sum, s) => sum + (s.price ?? 0), 0),
+  //   [selected]
+  // );
 
-  const clearSelection = () => setSelected([]);
-  const goPrev = () => navigate(paths.booking.selectSchedule);
-  const complete = () => {
+  const clearSelection = () => {
+    setSelected([]);
+  };
+  const goPrev = () => {
+    const url = new URL(window.location.origin + paths.booking.selectSchedule);
+    // hallId가 있으면 전달
+    if (hallId) url.searchParams.set("hallId", String(hallId));
+    navigate(url.pathname + url.search);
+  };
+  // 이미 선택한 좌석 알림 표시 횟수는 실제 좌석 모듈/서버 응답에서 모달을 띄울 때 setShowSeatTakenAlert(true)와 setSeatTakenAlertCount를 함께 호출합니다.
+
+  const matchIdFromStore = useMatchStore((s) => s.matchId);
+  const currentUserId = useAuthStore((s) => s.userId);
+  // TAKEN 좌석 정보 저장 (SmallVenue용, section-row-col 형식)
+  const [takenSeats, setTakenSeats] = useState<Set<string>>(new Set());
+
+  // SmallVenue의 경우 모든 섹션에 대해 TAKEN 좌석 조회
+  useEffect(() => {
+    if (venueKey !== "small" || !matchIdFromStore || !currentUserId) return;
+
+    const fetchAllSections = async () => {
+      const allTaken = new Set<string>();
+      // SmallVenue의 섹션: 1, 2, 3 (1층), 4, 5, 6 (2층)
+      const sections = ["1", "2", "3", "4", "5", "6"];
+
+      for (const sectionId of sections) {
+        try {
+          const response = await getSectionSeatsStatus(
+            matchIdFromStore,
+            sectionId,
+            currentUserId
+          );
+          if (response.seats) {
+            response.seats.forEach((seat) => {
+              // TAKEN 또는 MY_RESERVED 상태인 좌석은 선택할 수 없음
+              if (seat.status === "TAKEN" || seat.status === "MY_RESERVED") {
+                allTaken.add(seat.seatId);
+              }
+            });
+          }
+        } catch (error) {
+          console.error(`[seat-status] 섹션 ${sectionId} 조회 실패:`, error);
+        }
+      }
+
+      setTakenSeats(allTaken);
+      console.log(
+        "[seat-status] SmallVenue TAKEN 좌석 저장:",
+        Array.from(allTaken)
+      );
+    };
+
+    fetchAllSections();
+  }, [venueKey, matchIdFromStore, currentUserId]);
+
+  const complete = async () => {
     const durationSec = recordSeatCompleteNow();
     console.log("[ReserveTiming] Seat complete", {
       durationFromCaptchaSec: durationSec,
       captchaBackspaces,
       captchaWrongAttempts,
+      seatClickMissCount,
+      seatTakenAlertCount,
     });
+
+    // 좌석 선택 완료 시 API 호출
+    if (selected.length > 0) {
+      // matchId 결정: store 우선, 없으면 URL 파라미터에서 가져오기
+      const matchIdParam = searchParams.get("matchId");
+      const matchId =
+        matchIdFromStore ??
+        (matchIdParam && !Number.isNaN(Number(matchIdParam))
+          ? Number(matchIdParam)
+          : null);
+
+      if (matchId && currentUserId) {
+        try {
+          // 선택한 좌석들의 정보를 DOM에서 가져오기
+          const seats: Array<{
+            sectionId: number;
+            row: number;
+            col: number;
+            grade: string;
+          }> = [];
+
+          // 공연장 종류 확인 (올림픽홀, 인스파이어 아레나는 medium/large)
+          const isMediumOrLargeVenue =
+            venueName === "OlympicHall" || venueName === "InspireArena";
+
+          selected.forEach((seat) => {
+            // 좌석 DIV에서 커스텀 속성 읽기 (신규 속성 seatid, 호환용 data-seat-id)
+            let seatElement = document.querySelector(
+              `[seatid="${seat.id}"]`
+            ) as HTMLElement | null;
+            if (!seatElement) {
+              seatElement = document.querySelector(
+                `[data-seat-id="${seat.id}"]`
+              ) as HTMLElement | null;
+            }
+
+            // seatid로 찾지 못하면 data-seat-id로 시도
+            if (!seatElement) {
+              seatElement = document.querySelector(
+                `[data-seat-id="${seat.id}"]`
+              ) as HTMLElement | null;
+            }
+
+            if (seatElement) {
+              const sectionId =
+                seatElement.getAttribute("section") ??
+                seatElement.getAttribute("data-section");
+              const row =
+                seatElement.getAttribute("row") ??
+                seatElement.getAttribute("data-row");
+              const grade =
+                seatElement.getAttribute("grade") ??
+                seatElement.getAttribute("data-grade");
+              const active =
+                seatElement.getAttribute("active") ??
+                seatElement.getAttribute("data-active");
+
+              // 올림픽홀/인스파이어 아레나는 seat 속성 사용 (섹션 내 좌석 번호)
+              // 샤롯데는 col 속성 사용
+              let colValue: string | null;
+              if (isMediumOrLargeVenue) {
+                colValue = seatElement.getAttribute("seat"); // 섹션 내 좌석 번호
+              } else {
+                colValue = seatElement.getAttribute("col"); // 절대 열 번호
+              }
+
+              if (sectionId && row && colValue && grade && active === "1") {
+                const seatData = {
+                  sectionId: Number(sectionId),
+                  row: Number(row),
+                  col: Number(colValue),
+                  grade: grade,
+                };
+                seats.push(seatData);
+                console.log(`[seat-hold] 좌석 정보 추출:`, {
+                  seatId: seat.id,
+                  elementAttributes: {
+                    section: sectionId,
+                    row: row,
+                    col: colValue,
+                    seat: seatElement.getAttribute("seat"),
+                    grade: grade,
+                    active: active,
+                  },
+                  extractedData: seatData,
+                });
+              } else {
+                console.warn(`[seat-hold] 좌석 정보 불완전:`, {
+                  seatId: seat.id,
+                  sectionId,
+                  row,
+                  col: colValue,
+                  grade,
+                  active,
+                  isMediumOrLargeVenue,
+                });
+              }
+            } else {
+              console.warn(`[seat-hold] 좌석 요소를 찾을 수 없음:`, {
+                seatId: seat.id,
+                triedSelectors: [
+                  `[seatid="${seat.id}"]`,
+                  `[data-seat-id="${seat.id}"]`,
+                ],
+                venueName,
+                isMediumOrLargeVenue,
+                // DOM에서 실제로 존재하는 좌석 요소들 확인
+                allSeatIds: Array.from(
+                  document.querySelectorAll("[seatid], [data-seat-id]")
+                ).map((el) => ({
+                  seatid: el.getAttribute("seatid"),
+                  dataSeatId: el.getAttribute("data-seat-id"),
+                })),
+              });
+            }
+          });
+
+          // totalSeats 가져오기 (roomStore에서 가져오기)
+          const totalSeats = roomInfo.totalSeat ?? 100; // roomStore에서 가져오거나 기본값 100 사용
+
+          if (seats.length > 0) {
+            const requestPayload = {
+              userId: currentUserId,
+              seats,
+              totalSeats,
+            };
+            console.log("[seat-hold] API 요청:", {
+              matchId,
+              url: `/ticketing/matches/${matchId}/hold`,
+              payload: requestPayload,
+              venueName,
+              isMediumOrLargeVenue:
+                venueName === "OlympicHall" || venueName === "InspireArena",
+            });
+
+            const response = await holdSeat(matchId, requestPayload);
+
+            console.log("[seat-hold] API 응답:", {
+              status: response.status,
+              body: response.body,
+              success: response.body.success,
+              heldSeats: response.body.heldSeats,
+              failedSeats: response.body.failedSeats,
+            });
+
+            // 409 응답 또는 실패한 좌석이 있는 경우
+            if (
+              response.status === 409 ||
+              !response.body.success ||
+              (response.body.failedSeats &&
+                response.body.failedSeats.length > 0)
+            ) {
+              console.warn("[seat-hold] 좌석 선점 실패 - 이미 선택된 좌석");
+
+              // 선택한 좌석들의 섹션 ID 추출 (중복 제거)
+              const sectionIds = Array.from(
+                new Set(seats.map((seat) => String(seat.sectionId)))
+              );
+
+              console.log("[seat-hold] 섹션 좌석 현황 새로고침:", sectionIds);
+
+              // 각 섹션의 좌석 현황을 다시 가져오기
+              if (matchId && currentUserId) {
+                if (venueKey === "small") {
+                  // SmallVenue: 모든 섹션의 좌석 현황 가져오기
+                  const allTaken = new Set<string>();
+                  const sections = ["1", "2", "3", "4", "5", "6"];
+
+                  for (const sectionId of sections) {
+                    try {
+                      const statusResponse = await getSectionSeatsStatus(
+                        matchId,
+                        sectionId,
+                        currentUserId
+                      );
+                      if (statusResponse.seats) {
+                        statusResponse.seats.forEach((seat) => {
+                          if (seat.status === "TAKEN") {
+                            allTaken.add(seat.seatId);
+                          }
+                        });
+                      }
+                    } catch (error) {
+                      console.error(
+                        `[seat-hold] 섹션 ${sectionId} 좌석 현황 조회 실패:`,
+                        error
+                      );
+                    }
+                  }
+
+                  setTakenSeats(allTaken);
+                  console.log(
+                    "[seat-hold] SmallVenue TAKEN 좌석 업데이트:",
+                    Array.from(allTaken)
+                  );
+                } else {
+                  // MediumVenue/LargeVenue: 해당 섹션들의 좌석 현황 가져오기
+                  const venueRef =
+                    venueKey === "medium" ? mediumVenueRef : largeVenueRef;
+
+                  for (const sectionId of sectionIds) {
+                    try {
+                      // 섹션 좌석 현황 API 호출
+                      const statusResponse = await getSectionSeatsStatus(
+                        matchId,
+                        sectionId,
+                        currentUserId
+                      );
+                      console.log(
+                        `[seat-hold] 섹션 ${sectionId} 좌석 현황:`,
+                        statusResponse
+                      );
+
+                      // TAKEN 또는 MY_RESERVED 좌석 ID 추출
+                      // MY_RESERVED는 다른 사용자가 예약한 좌석이므로 선택할 수 없음
+                      const takenSeatIds: string[] = [];
+                      if (statusResponse.seats) {
+                        statusResponse.seats.forEach((seat) => {
+                          if (
+                            seat.status === "TAKEN" ||
+                            seat.status === "MY_RESERVED"
+                          ) {
+                            takenSeatIds.push(seat.seatId);
+                          }
+                        });
+                      }
+
+                      // ref를 통해 컴포넌트의 좌석 상태 직접 업데이트
+                      if (venueRef?.current?.refreshSeatStatus) {
+                        venueRef.current.refreshSeatStatus(
+                          sectionId,
+                          takenSeatIds
+                        );
+                        console.log(
+                          `[seat-hold] 섹션 ${sectionId} 좌석 상태 업데이트 완료:`,
+                          takenSeatIds.length,
+                          "개"
+                        );
+                      } else {
+                        console.warn(
+                          `[seat-hold] venueRef 또는 refreshSeatStatus를 찾을 수 없음`
+                        );
+                      }
+                    } catch (error) {
+                      console.error(
+                        `[seat-hold] 섹션 ${sectionId} 좌석 현황 조회 실패:`,
+                        error
+                      );
+                    }
+                  }
+                }
+              }
+
+              // 선택된 좌석 초기화
+              setSelected([]);
+              // 알림 표시
+              setShowSeatTakenAlert(true);
+              _setSeatTakenAlertCount((prev) => prev + 1);
+              // 다음 페이지로 이동하지 않고 현재 페이지에 머물기
+              return;
+            }
+
+            // 성공한 경우에만 다음 페이지로 이동
+            console.log("[seat-hold] 좌석 선점 성공, 다음 페이지로 이동");
+          } else {
+            console.warn(
+              "[seat-hold] 좌석 정보를 찾을 수 없어 API 호출을 건너뜁니다."
+            );
+            return;
+          }
+        } catch (error) {
+          console.error("[seat-hold] API 호출 실패:", error);
+          // 에러 발생 시에도 알림 표시하고 현재 페이지에 머물기
+          setSelected([]);
+          setShowSeatTakenAlert(true);
+          _setSeatTakenAlertCount((prev) => prev + 1);
+          return;
+        }
+      } else {
+        console.warn(
+          "[seat-hold] matchId 또는 userId가 없어 API 호출을 건너뜁니다.",
+          { matchId, currentUserId }
+        );
+        return;
+      }
+    }
+
+    // API 호출이 성공한 경우에만 다음 페이지로 이동
     sessionStorage.setItem("reserve.capBackspaces", String(captchaBackspaces));
     sessionStorage.setItem("reserve.capWrong", String(captchaWrongAttempts));
     const nextUrl = new URL(window.location.origin + paths.booking.price);
@@ -159,6 +593,15 @@ export default function SelectSeatPage() {
       nextUrl.searchParams.set("capToCompleteSec", String(durationSec));
     nextUrl.searchParams.set("capBackspaces", String(captchaBackspaces));
     nextUrl.searchParams.set("capWrong", String(captchaWrongAttempts));
+    // 보안문자 입력 이후 클릭 실수 전달
+    nextUrl.searchParams.set("seatClickMiss", String(seatClickMissCount));
+    sessionStorage.setItem("reserve.seatClickMiss", String(seatClickMissCount));
+    // 이미 선택한 좌석 알림 표시 횟수 전달
+    nextUrl.searchParams.set("seatTakenCount", String(seatTakenAlertCount));
+    sessionStorage.setItem(
+      "reserve.seatTakenCount",
+      String(seatTakenAlertCount)
+    );
     const rt =
       searchParams.get("rtSec") ?? sessionStorage.getItem("reserve.rtSec");
     const nrc =
@@ -172,6 +615,26 @@ export default function SelectSeatPage() {
     if (dateParam) nextUrl.searchParams.set("date", dateParam);
     if (timeParam) nextUrl.searchParams.set("time", timeParam);
     if (roundParam) nextUrl.searchParams.set("round", roundParam);
+    // 선택한 좌석 정보 전달 (등급별로 그룹화)
+    const seatsByGrade = selected.reduce(
+      (acc, seat) => {
+        const grade = seat.gradeLabel;
+        if (!acc[grade]) {
+          acc[grade] = { count: 0, price: seat.price ?? 0 };
+        }
+        acc[grade].count += 1;
+        return acc;
+      },
+      {} as Record<string, { count: number; price: number }>
+    );
+    const seatsData = Object.entries(seatsByGrade).map(([grade, data]) => ({
+      grade,
+      count: data.count,
+      price: data.price,
+    }));
+    if (seatsData.length > 0) {
+      nextUrl.searchParams.set("seats", JSON.stringify(seatsData));
+    }
     navigate(nextUrl.pathname + nextUrl.search);
   };
 
@@ -183,11 +646,18 @@ export default function SelectSeatPage() {
 
     const rtSec = searchParams.get("rtSec");
     const nrClicks = searchParams.get("nrClicks");
+    const tStart = searchParams.get("tStart");
     console.log("[ReserveTiming] Captcha input stage", {
       reactionSec: rtSec ? Number(rtSec) : null,
       nonReserveClickCount: nrClicks ? Number(nrClicks) : null,
     });
     saveInitialReaction(rtSec, nrClicks);
+    // 총 시간 시작 시각 전달 받으면 저장 (없으면 초기 진입 시점으로 설정)
+    if (tStart && !Number.isNaN(Number(tStart))) {
+      setTotalStartAtMs(Number(tStart));
+    } else if (!sessionStorage.getItem("reserve.totalStartAtMs")) {
+      setTotalStartAtMs();
+    }
   }, [searchParams]);
 
   return (
@@ -199,14 +669,25 @@ export default function SelectSeatPage() {
           setCaptchaBackspaces(backspaceCount);
           setCaptchaWrongAttempts(wrongAttempts);
           setCaptchaEndNow(sec, backspaceCount, wrongAttempts);
+          // 캡챠 통과 시 room store에 true로 저장
+          setCaptchaPassed(true);
           console.log("[ReserveTiming] Captcha verified", {
             captchaSec: sec,
             backspaceCount,
             wrongAttempts,
           });
           setShowCaptcha(false);
+          // 보안문자 통과 후 클릭 실수 추적 시작
+          setIsTrackingSeatClicks(true);
+          setSeatClickMissCount(0);
         }}
         onReselect={goPrev}
+      />
+      <SeatTakenAlert
+        open={showSeatTakenAlert}
+        onClose={() => {
+          setShowSeatTakenAlert(false);
+        }}
       />
       {/* 고정 레이아웃 컨테이너: 전체 900 x 670 */}
       <div className="mx-auto w-[880px] h-[670px]">
@@ -223,7 +704,7 @@ export default function SelectSeatPage() {
               <div className="text-[15px] font-bold text-[#222]">
                 {eventTitle}
                 <span className="text-[12px] text-gray-400 ml-5">
-                  | 공연장 이름
+                  | {venueName}
                 </span>
               </div>
               <div className="flex items-center gap-2 text-[12px] text-[#555]">
@@ -295,7 +776,10 @@ export default function SelectSeatPage() {
               {venueKey === "small" && (
                 <SmallVenue
                   selectedIds={selected.map((s) => s.id)}
+                  takenSeats={takenSeats}
                   onToggleSeat={(seat) => {
+                    const price =
+                      seat.price ?? getPriceByGradeLabel(seat.gradeLabel);
                     setSelected((prev) => {
                       const exists = prev.some((x) => x.id === seat.id);
                       if (exists) return prev.filter((x) => x.id !== seat.id);
@@ -306,92 +790,94 @@ export default function SelectSeatPage() {
                           id: seat.id,
                           gradeLabel: seat.gradeLabel,
                           label: seat.label,
-                          price: seat.price,
+                          price,
                         },
                       ];
                     });
                   }}
                 />
               )}
-              {venueKey === "medium" && <MediumVenue />}
-              {venueKey === "large" && <LargeVenue />}
+              {venueKey === "medium" && (
+                <MediumVenue
+                  onBackToOverview={mediumVenueRef}
+                  selectedIds={selected.map((s) => s.id)}
+                  onToggleSeat={(seat) => {
+                    const price =
+                      seat.price ?? getPriceByGradeLabel(seat.gradeLabel);
+                    setSelected((prev) => {
+                      const exists = prev.some((x) => x.id === seat.id);
+                      if (exists) return prev.filter((x) => x.id !== seat.id);
+                      if (prev.length >= 2) return prev;
+                      return [
+                        ...prev,
+                        {
+                          id: seat.id,
+                          gradeLabel: seat.gradeLabel,
+                          label: seat.label,
+                          price,
+                        },
+                      ];
+                    });
+                  }}
+                />
+              )}
+              {venueKey === "large" && (
+                <LargeVenue
+                  onBackToOverview={largeVenueRef}
+                  selectedIds={selected.map((s) => s.id)}
+                  onToggleSeat={(seat) => {
+                    const price =
+                      seat.price ?? getPriceByGradeLabel(seat.gradeLabel);
+                    setSelected((prev) => {
+                      const exists = prev.some((x) => x.id === seat.id);
+                      if (exists) return prev.filter((x) => x.id !== seat.id);
+                      if (prev.length >= 2) return prev;
+                      return [
+                        ...prev,
+                        {
+                          id: seat.id,
+                          gradeLabel: seat.gradeLabel,
+                          label: seat.label,
+                          price,
+                        },
+                      ];
+                    });
+                  }}
+                />
+              )}
             </div>
 
             {/* 우측: 사이드 정보 220 x 620 */}
             <aside className="w-[220px] h-[620px] space-y-3">
+              <SeatSidebarBanner
+                hallId={hallId}
+                venueKey={venueKey}
+                mediumVenueRef={mediumVenueRef}
+                largeVenueRef={largeVenueRef}
+                onBackToOverview={() => {}}
+              />
+
+              {/* 좌석등급 / 잔여석: 선택좌석 위로 이동 */}
               <div className="bg-white rounded-md border border-[#e3e3e3] shadow">
-                <div className="px-3 py-2 bg-[linear-gradient(to_right,#104bb7,#4383fb,#4383fb,#4383fb,#104bb7)] text-white font-semibold rounded-t-md">
-                  ≪ 좌석도 전체보기
-                </div>
-                <div className="h-[1px] bg-[#e5e5e5] opacity-80" />
-                <div className="px-3 py-2 text-[12px] text-[#666]">
-                  원하시는 좌석 위치를 선택하세요
-                </div>
-                <div className="p-2 text-sm">
-                  <div className="font-semibold mb-2">좌석등급 / 잔여석</div>
-                  <div className="rounded border border-[#ececec] p-2">
-                    <table className="w-full text-sm">
-                      <tbody>
-                        <tr>
-                          <td>
-                            <div className="flex items-center gap-2">
-                              <span
-                                className="inline-block w-3 h-3 rounded-sm"
-                                style={{ background: GRADE_META.SR.color }}
-                              />
-                              VIP석 180석
-                            </div>
-                          </td>
-                          <td className="text-right text-gray-700">
-                            {GRADE_META.SR.price.toLocaleString()}원
-                          </td>
-                        </tr>
-                        <tr>
-                          <td>
-                            <div className="flex items-center gap-2">
-                              <span
-                                className="inline-block w-3 h-3 rounded-sm"
-                                style={{ background: GRADE_META.R.color }}
-                              />
-                              R석 230석
-                            </div>
-                          </td>
-                          <td className="text-right text-gray-700">
-                            {GRADE_META.R.price.toLocaleString()}원
-                          </td>
-                        </tr>
-                        <tr>
-                          <td>
-                            <div className="flex items-center gap-2">
-                              <span
-                                className="inline-block w-3 h-3 rounded-sm"
-                                style={{ background: GRADE_META.S.color }}
-                              />
-                              S석 300석
-                            </div>
-                          </td>
-                          <td className="text-right text-gray-700">
-                            {GRADE_META.S.price.toLocaleString()}원
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
+                <div className="px-3 py-2 font-semibold">좌석등급 / 가격</div>
+                <div className="px-3 pb-3 text-xs">
+                  <SeatGrades hallId={hallId} gradeMeta={GRADE_META} />
                 </div>
               </div>
 
               <div className="bg-white rounded-md border border-[#e3e3e3] shadow">
-                <div className="px-3 py-2 flex items-center justify-between border-b">
+                <div className="px-3 py-1.5 flex items-center justify-between">
                   <div className="font-semibold">선택좌석</div>
-                  <div className="text-[#b02a2a] text-sm">
+                  <div className="text-[#b02a2a] text-xs">
                     총 {selected.length}석 선택되었습니다.
                   </div>
                 </div>
                 <div className="p-2">
+                  {/* Header with top/bottom divider */}
                   <table className="w-full text-sm">
-                    <thead>
+                    <thead className="border-y border-gray-200">
                       <tr className="text-gray-500">
-                        <th className="text-left font-normal w-24 whitespace-nowrap bg-[#f7f7f7] px-2">
+                        <th className="text-left font-normal w-24 whitespace-nowrap px-2">
                           좌석등급
                         </th>
                         <th className="text-left font-normal whitespace-nowrap px-2">
@@ -399,46 +885,37 @@ export default function SelectSeatPage() {
                         </th>
                       </tr>
                     </thead>
-                    <tbody>
-                      {selected.length === 0 ? (
-                        <tr>
-                          <td
-                            colSpan={3}
-                            className="text-center text-gray-400 py-8"
-                          >
-                            선택된 좌석이 없습니다.
-                          </td>
-                        </tr>
-                      ) : (
-                        selected.map((s) => (
-                          <tr key={s.id} className="border-t">
-                            <td className="py-2 whitespace-nowrap">
-                              {s.gradeLabel}
-                            </td>
-                            <td className="whitespace-nowrap">{s.label}</td>
-                            <td className="text-right">
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setSelected((prev) =>
-                                    prev.filter((x) => x.id !== s.id)
-                                  )
-                                }
-                                className="inline-flex items-center justify-center w-7 h-7 rounded border border-[#e0e0e0] text-gray-500 hover:bg-[#f6f6f6]"
-                                aria-label={`remove-${s.id}`}
-                              >
-                                ×
-                              </button>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
                   </table>
+                  {/* Fixed-height, scrollable body */}
+                  <div className="h-[160px] overflow-y-auto">
+                    <table className="w-full text-sm">
+                      <tbody>
+                        {selected.length === 0 ? (
+                          <tr>
+                            <td
+                              colSpan={2}
+                              className="text-center text-gray-400 py-8"
+                            ></td>
+                          </tr>
+                        ) : (
+                          selected.map((s) => (
+                            <tr key={s.id} className="border-t border-gray-100">
+                              <td className="py-1.5 whitespace-nowrap w-24 px-2">
+                                {s.gradeLabel}
+                              </td>
+                              <td className="whitespace-nowrap px-2">
+                                {s.label}
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                   <button
                     disabled={selected.length === 0}
                     onClick={complete}
-                    className="mt-3 w-full py-3 rounded font-bold bg-[linear-gradient(to_bottom,#4383fb,#104bb7)] text-white disabled:cursor-not-allowed"
+                    className="mt-2 w-full py-2.5 rounded font-bold bg-[linear-gradient(to_bottom,#4383fb,#104bb7)] text-white disabled:cursor-not-allowed"
                   >
                     <span className="inline-flex items-center gap-1">
                       좌석선택완료
@@ -448,28 +925,19 @@ export default function SelectSeatPage() {
                   <div className="mt-2 flex items-center gap-2 text-sm">
                     <button
                       onClick={goPrev}
-                      className="flex-1 text-[12px] border rounded px-1 py-2 bg-[#f4f4f4] hover:bg-[#ececec] inline-flex items-center justify-center gap-1"
+                      className="flex-1 text-[12px] border border-[#9b9b9b] rounded px-1 py-2 bg-[linear-gradient(to_bottom,#f7f7f7,#e2e2e2)] hover:bg-[linear-gradient(to_bottom,#ededed,#d9d9d9)] inline-flex items-center justify-center gap-1 text-gray-700"
                     >
                       <ArrowBackIosNewIcon style={{ fontSize: 12 }} />
                       이전단계
                     </button>
                     <button
                       onClick={clearSelection}
-                      className="flex-1 text-[12px] border rounded px-1 py-2 bg-[#f4f4f4] hover:bg-[#ececec] inline-flex items-center justify-center gap-1"
+                      className="flex-1 text-[12px] border border-[#9b9b9b] rounded px-1 py-2 bg-[linear-gradient(to_bottom,#f7f7f7,#e2e2e2)] hover:bg-[linear-gradient(to_bottom,#ededed,#d9d9d9)] inline-flex items-center justify-center gap-1 text-gray-700"
                     >
                       <RefreshIcon style={{ fontSize: 14 }} />
                       좌석 다시 선택
                     </button>
                   </div>
-                  <div className="mt-2 text-[12px] text-[#b02a2a]">
-                    ※ 좌석 선택시 유의사항
-                  </div>
-                </div>
-                <div className="px-3 py-2 text-right text-sm border-t bg-[#fafafa]">
-                  합계:{" "}
-                  <span className="font-semibold">
-                    {totalPrice.toLocaleString()}원
-                  </span>
                 </div>
               </div>
             </aside>

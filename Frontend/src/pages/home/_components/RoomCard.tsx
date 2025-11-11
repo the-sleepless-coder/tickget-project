@@ -44,7 +44,7 @@ const VARIANT_BADGE_BG: Record<RoomCardVariant, string> = {
 export default function RoomCard({
   title,
   imageSrc,
-  capacityText = "어려움  |  최대 10명  |  봇 3000명",
+  capacityText = "어려움  |  총 촤석 수 1,000명  |  봇 3000명",
   tagsText,
   badgeText,
   variant = "purple",
@@ -154,7 +154,7 @@ export default function RoomCard({
         img.onload = () => {
           try {
             const canvas = document.createElement("canvas");
-            const ctx = canvas.getContext("2d");
+            const ctx = canvas.getContext("2d", { willReadFrequently: true });
 
             if (!ctx) {
               resolve([gradient.from, gradient.to]);
@@ -325,22 +325,37 @@ export default function RoomCard({
       console.log("✅ 방 입장 성공:", JSON.stringify(response, null, 2));
       console.log("📋 방 멤버 목록:", response.roomMembers);
       // Match Store에 matchId 저장 (다른 경기 API에서 재사용)
+      // 주의: matchId는 티켓팅 시스템에서 생성되는 별도의 ID입니다.
+      // roomId와는 다른 개념이므로, matchId가 없으면 저장하지 않습니다.
+      // 새로운 matchId를 받으면 기존 matchId와 관계없이 업데이트합니다.
       try {
         const { useMatchStore } = await import("@features/booking-site/store");
-        const raw =
-          (response as { matchId?: unknown; roomId?: unknown })?.matchId ??
-          (response as { roomId?: unknown })?.roomId;
-        const parsed =
-          typeof raw === "string" || typeof raw === "number"
-            ? Number(raw)
-            : NaN;
-        if (Number.isFinite(parsed)) {
-          useMatchStore.getState().setMatchId(parsed);
-          console.log("[booking-site] matchId 저장 완료:", parsed);
+        const raw = (response as { matchId?: unknown })?.matchId;
+        if (raw != null) {
+          const parsed =
+            typeof raw === "string" || typeof raw === "number"
+              ? Number(raw)
+              : NaN;
+          if (Number.isFinite(parsed)) {
+            const currentMatchId = useMatchStore.getState().matchId;
+            useMatchStore.getState().setMatchId(parsed);
+            if (currentMatchId !== null && currentMatchId !== parsed) {
+              console.log(
+                "[booking-site] matchId 업데이트:",
+                currentMatchId,
+                "->",
+                parsed
+              );
+            } else {
+              console.log("[booking-site] matchId 저장 완료:", parsed);
+            }
+          } else {
+            console.warn("[booking-site] matchId 파싱 실패:", { matchId: raw });
+          }
         } else {
           console.warn(
-            "[booking-site] 응답에 matchId가 없어 저장을 건너뜁니다.",
-            { matchId: raw }
+            "[booking-site] 응답에 matchId가 없습니다. 티켓팅 API는 matchId가 필요할 수 있습니다.",
+            { response }
           );
         }
       } catch (e) {

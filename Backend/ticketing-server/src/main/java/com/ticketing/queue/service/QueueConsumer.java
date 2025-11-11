@@ -28,8 +28,8 @@ public class QueueConsumer {
 
     // 주기 설정
     private static final int CONSUME_RATE_PER_2S = 1;  // 2초당 최대 소비자 수
-    private static final int EMIT_MS = 2000;             // Kafka 발행 틱 (20ms)
-    private static final int COMMIT_MS = 6000;          // Redis 상태 커밋 주기 (2s)
+    private static final int EMIT_MS = 1000;             // Kafka 발행 틱 (20ms)
+    private static final int COMMIT_MS = 10_000;          // Redis 상태 커밋 주기 (2s)
 
     private static final String STATE = "state";
     private static final String DEQUEUED = "DEQUEUED";

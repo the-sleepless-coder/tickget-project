@@ -273,17 +273,51 @@ public class RoomCacheRepository {
     //유저의 대기열 상태 조회
     public QueueStatus getQueueStatus(Long matchId, Long userId) {
         String queueKey = "queue:" + matchId + ":" + userId;
-        String json = redisTemplate.opsForValue().get(queueKey);
 
-        if (json == null) {
+        // Hash의 모든 필드 조회
+        Map<Object, Object> data = redisTemplate.opsForHash().entries(queueKey);
+
+        if (data.isEmpty()) {
             return null;
         }
 
         try {
-            return mapper.readValue(json, QueueStatus.class);
-        } catch (JsonProcessingException e) {
-            log.error("대기열 상태 파싱 실패: matchId={}, userId={}, error={}",
+            // Hash 데이터를 QueueStatus 객체로 변환
+            return QueueStatus.builder()
+                    .ahead(getLong(data, "ahead"))
+                    .behind(getLong(data, "behind"))
+                    .total(getLong(data, "total"))
+                    .lastUpdated(getLong(data, "lastUpdated"))
+                    .build();
+
+        } catch (Exception e) {
+            log.error("대기열 상태 변환 실패: matchId={}, userId={}, error={}",
                     matchId, userId, e.getMessage());
+            return null;
+        }
+    }
+
+    private String getString(Map<Object, Object> data, String key) {
+        Object value = data.get(key);
+        return value != null ? value.toString() : null;
+    }
+
+    private Long getLong(Map<Object, Object> data, String key) {
+        Object value = data.get(key);
+        if (value == null) return null;
+        try {
+            return Long.parseLong(value.toString());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private Integer getInt(Map<Object, Object> data, String key) {
+        Object value = data.get(key);
+        if (value == null) return null;
+        try {
+            return Integer.parseInt(value.toString());
+        } catch (NumberFormatException e) {
             return null;
         }
     }

@@ -8,6 +8,7 @@ import com.ticketing.queue.DTO.response.MatchResponseDTO;
 import com.ticketing.queue.service.QueueLogProducerKafka;
 import com.ticketing.queue.service.QueueService;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 
+@Slf4j
 @RestController
 @RequestMapping("/ticketing")
 public class QueueController {
@@ -58,7 +60,7 @@ public class QueueController {
     // 사용자 Enqueue하는 API
     @PostMapping("/queue/{matchId}")
     public ResponseEntity<?> enterQueue(@PathVariable Long matchId, HttpServletRequest request, @RequestBody QueueUserInfoDTO dto) throws ExecutionException, InterruptedException {
-        Long userId = Long.valueOf(request.getHeader("userId"));
+        Long userId = Long.valueOf(request.getHeader("X-User-Id"));
         QueueDTO result = service.enqueue(matchId, userId, dto);
         return ResponseEntity.ok(result);
     }

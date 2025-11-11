@@ -8,9 +8,11 @@ type SmallVenueSeat = {
 export default function SmallVenue({
   selectedIds = [],
   onToggleSeat,
+  takenSeats = new Set<string>(),
 }: {
   selectedIds?: string[];
   onToggleSeat?: (seat: SmallVenueSeat) => void;
+  takenSeats?: Set<string>; // section-row-col 형식의 TAKEN 또는 MY_RESERVED 좌석 ID Set
 }) {
   // 좌석 정사각형 크기와 간격은 Tailwind + 인라인 스타일로 조절
   const seatStyle: React.CSSProperties = {
@@ -144,24 +146,34 @@ export default function SmallVenue({
             colIndex + 1
           );
           const isOpSeat = seatColor === COLORS.OP;
-          const grade =
+          // 선점 API용 grade 코드 (석 제외)
+          const gradeCode =
             seatColor === COLORS.OP
-              ? "OP석"
+              ? "STANDING"
               : seatColor === COLORS.VIP
-                ? "VIP석"
+                ? "VIP"
                 : seatColor === COLORS.R
-                  ? "R석"
+                  ? "R"
                   : seatColor === COLORS.S
-                    ? "S석"
+                    ? "S"
                     : seatColor === COLORS.A
-                      ? "A석"
-                      : "R석";
+                      ? "A"
+                      : "R";
           const displaySection = seatColor === COLORS.OP ? "0" : sectionPart;
+          const displayRowInSection =
+            floor === 2 ? (rowOffset >= 7 ? 7 + rowNo : rowNo) : rowNo;
           const seatId = `small-${floor}-${displaySection}-${row}-${col}`;
           const isSelected = selectedIds.includes(seatId);
+
+          // TAKEN 또는 MY_RESERVED 좌석 확인 (API 응답은 section-row-col 형식)
+          // MY_RESERVED는 다른 사용자가 예약한 좌석이므로 선택할 수 없음
+          const takenSeatId = `${displaySection}-${displayRowInSection}-${col}`;
+          const isTaken = takenSeats.has(takenSeatId);
+
           const opacityVal = (() => {
             if (isOpSeat) return 0;
             if (isHiddenRow) return 0;
+            if (isTaken) return 0; // TAKEN 또는 MY_RESERVED 좌석은 투명 처리
             if (
               trim > 0 &&
               ((block === "left" && colIndex + 1 <= trim) ||
@@ -181,16 +193,21 @@ export default function SmallVenue({
             }
             return 1;
           })();
-          const displayRowInSection =
-            floor === 2 ? (rowOffset >= 7 ? 7 + rowNo : rowNo) : rowNo;
-          // const displayColInSection = colIndex + 1;
-          const isSpecialGrey =
-            displaySection === "2" && displayRowInSection === 1 && col === 15;
+          const activeValue = opacityVal === 0 ? "0" : "1";
+          const customSeatProps = {
+            seatid: seatId,
+            grade: gradeCode,
+            section: displaySection,
+            row: String(displayRowInSection),
+            col: String(col),
+            active: activeValue,
+          };
           return (
             <div
               key={`${keyPrefix}${rowIndex}-${colIndex}`}
               // 원래 티켓팅 사이트에서 행, 열이 바뀌어 있음, 행, 열 순서를 바꿔서 표시
-              title={`[${grade}] ${displaySection}구역-${displayRowInSection}열-${col}`}
+              title={`[${gradeCode}석] ${displaySection}구역-${displayRowInSection}열-${col}`}
+              {...(customSeatProps as Record<string, string>)}
               style={{
                 ...seatStyle,
                 backgroundColor: isSelected ? "#4a4a4a" : seatColor,
@@ -200,9 +217,17 @@ export default function SmallVenue({
               }}
               onClick={() => {
                 if (opacityVal === 0) return;
+                // TAKEN 또는 MY_RESERVED 좌석은 클릭 불가
+                if (isTaken) {
+                  console.log(
+                    "[seat-click] TAKEN/MY_RESERVED 좌석은 선택할 수 없습니다:",
+                    takenSeatId
+                  );
+                  return;
+                }
                 onToggleSeat?.({
                   id: seatId,
-                  gradeLabel: grade,
+                  gradeLabel: gradeCode,
                   label: `${displaySection}구역-${displayRowInSection}열-${col}`,
                 });
               }}

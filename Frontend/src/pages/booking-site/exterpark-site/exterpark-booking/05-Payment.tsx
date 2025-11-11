@@ -1,17 +1,122 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useMemo } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { paths } from "../../../../app/routes/paths";
 import BookingLayout from "./_components/BookingLayout";
-import { buildMetricsQueryFromStorage } from "../../../../shared/utils/reserveMetrics";
+import {
+  buildMetricsQueryFromStorage,
+  ReserveMetricKeys,
+} from "../../../../shared/utils/reserveMetrics";
+import { useMatchStore } from "@features/booking-site/store";
+import { useAuthStore } from "@features/auth/store";
+import { confirmSeat } from "@features/booking-site/api";
+import dayjs from "dayjs";
+
+type SeatData = {
+  grade: string;
+  count: number;
+  price: number;
+};
 
 export default function PaymentPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [method, setMethod] = useState<string>("kakao");
   // 카드 할부 등 추가 옵션이 생기면 확장 예정
+  const matchIdFromStore = useMatchStore((s) => s.matchId);
+  const currentUserId = useAuthStore((s) => s.userId);
+
   const goPrev = () => navigate(paths.booking.orderConfirm);
-  const complete = () => {
+  const complete = async () => {
+    // matchId 결정: store 우선, 없으면 URL 파라미터에서 가져오기
+    const matchIdParam = searchParams.get("matchId");
+    const matchId =
+      matchIdFromStore ??
+      (matchIdParam && !Number.isNaN(Number(matchIdParam))
+        ? Number(matchIdParam)
+        : null);
+
+    // API 호출: 좌석 확정
+    if (matchId && currentUserId) {
+      try {
+        // 메트릭 데이터 수집
+        const getMetric = (key: string, defaultValue: number = 0): number => {
+          const value = sessionStorage.getItem(key);
+          if (value == null) return defaultValue;
+          const num = Number(value);
+          return isNaN(num) ? defaultValue : num;
+        };
+
+        // dateSelectTime: 예매 버튼 클릭 반응 시간 (rtSec)
+        const dateSelectTime = getMetric(ReserveMetricKeys.rtSec, 0);
+        // dateMissCount: 예매 버튼 클릭 전 클릭 실수 (nrClicks)
+        const dateMissCount = getMetric(ReserveMetricKeys.nrClicks, 0);
+        const seccodeSelectTime = getMetric(
+          ReserveMetricKeys.captchaDurationSec,
+          0
+        );
+        const seccodeBackspaceCount = getMetric(
+          ReserveMetricKeys.capBackspaces,
+          0
+        );
+        const seccodeTryCount = getMetric(ReserveMetricKeys.capWrong, 0);
+        const seatSelectTime = getMetric(ReserveMetricKeys.capToCompleteSec, 0);
+        const seatSelectTryCount = getMetric("reserve.seatTakenCount", 0);
+        const seatSelectClickMissCount = getMetric("reserve.seatClickMiss", 0);
+
+        const payload = {
+          userId: currentUserId,
+          dateSelectTime,
+          dateMissCount,
+          seccodeSelectTime,
+          seccodeBackspaceCount,
+          seccodeTryCount,
+          seatSelectTime,
+          seatSelectTryCount,
+          seatSelectClickMissCount,
+        };
+
+        console.log("[seat-confirm] API 호출:", {
+          matchId,
+          payload,
+        });
+
+        const response = await confirmSeat(matchId, payload);
+        console.log("[seat-confirm] API 응답:", response);
+
+        // userRank를 URL 파라미터로 전달
+        if (response.body && response.body.userRank) {
+          sessionStorage.setItem(
+            "reserve.userRank",
+            String(response.body.userRank)
+          );
+        }
+
+        // matchId를 store에 업데이트
+        if (response.body && response.body.matchId) {
+          const responseMatchId = Number(response.body.matchId);
+          if (!Number.isNaN(responseMatchId)) {
+            useMatchStore.getState().setMatchId(responseMatchId);
+            console.log("[seat-confirm] matchId 업데이트:", responseMatchId);
+          }
+        }
+      } catch (error) {
+        console.error("[seat-confirm] API 호출 실패:", error);
+      }
+    } else {
+      console.warn(
+        "[seat-confirm] matchId 또는 userId가 없어 API 호출을 건너뜁니다.",
+        { matchId, currentUserId }
+      );
+    }
+
+    // 기존 동작: 게임 결과 페이지로 이동
     const qs = buildMetricsQueryFromStorage();
-    const target = paths.gameResult + qs;
+    // userRank가 있으면 추가
+    const userRank = sessionStorage.getItem("reserve.userRank");
+    const finalQs = userRank
+      ? qs + (qs ? "&" : "?") + `userRank=${encodeURIComponent(userRank)}`
+      : qs;
+    const target = paths.gameResult + finalQs;
     try {
       if (window.opener && !window.opener.closed) {
         window.opener.location.href = target;
@@ -24,10 +129,46 @@ export default function PaymentPage() {
     }
   };
 
-  const ticketPrice = 143000;
-  const fee = 2000;
-  const shipping = 3700;
-  const total = ticketPrice + fee + shipping;
+  // URL에서 선택 좌석 정보 가져오기
+  const seatsParam = searchParams.get("seats");
+  const selectedSeats: SeatData[] = useMemo(() => {
+    if (!seatsParam) {
+      return [{ grade: "SR석", count: 1, price: 143000 }]; // 기본값
+    }
+    try {
+      const parsed = JSON.parse(decodeURIComponent(seatsParam));
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+      return [{ grade: "SR석", count: 1, price: 143000 }]; // 기본값
+    } catch (e) {
+      console.error("좌석 정보 파싱 실패:", e);
+      return [{ grade: "SR석", count: 1, price: 143000 }]; // 기본값
+    }
+  }, [seatsParam]);
+
+  // 선택 좌석 요약 텍스트
+  const selectedSeatsSummary = useMemo(() => {
+    return selectedSeats.map((s) => `${s.grade} ${s.count}석`).join(", ");
+  }, [selectedSeats]);
+
+  // 가격 정보
+  const ticketPrice = Number(searchParams.get("totalPrice")) || 143000;
+  const fee = Number(searchParams.get("fee")) || 2000;
+  const shipping = Number(searchParams.get("deliveryFee")) || 3700;
+  const total =
+    Number(searchParams.get("total")) || ticketPrice + fee + shipping;
+
+  // 날짜/시간 정보
+  const dateParam = searchParams.get("date");
+  const timeParam = searchParams.get("time");
+  const formattedDateTime = useMemo(() => {
+    if (!dateParam) return "2025.12.20 (토) 18:00"; // 기본값
+    const date = dayjs(dateParam);
+    const weekday = ["일", "월", "화", "수", "목", "금", "토"][date.day()];
+    const time = timeParam || "18:00";
+    return `${date.format("YYYY.MM.DD")} (${weekday}) ${time}`;
+  }, [dateParam, timeParam]);
 
   return (
     <BookingLayout activeStep={4}>
@@ -194,11 +335,11 @@ export default function PaymentPage() {
           <dl className="text-sm text-gray-700 flex-1 overflow-y-auto min-h-0">
             <div className="flex py-1 border-b">
               <dt className="w-20 text-gray-500 text-xs">일시</dt>
-              <dd className="flex-1 text-xs">2025.12.20 (토) 18:00</dd>
+              <dd className="flex-1 text-xs">{formattedDateTime}</dd>
             </div>
             <div className="flex py-1 border-b">
               <dt className="w-20 text-gray-500 text-xs">선택좌석</dt>
-              <dd className="flex-1 text-xs">SR석 1석</dd>
+              <dd className="flex-1 text-xs">{selectedSeatsSummary}</dd>
             </div>
             <div className="flex py-1 border-b">
               <dt className="w-20 text-gray-500 text-xs">티켓금액</dt>

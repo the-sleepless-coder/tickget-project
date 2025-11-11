@@ -104,7 +104,7 @@ public class RoomEventMessage {
                 .build();
     }
 
-    public static RoomEventMessage userDequeued(Long roomId, Long userId, String matchId, Long timestamp) {
+    public static RoomEventMessage userDequeued(Long roomId, Long userId, Long matchId, Long timestamp) {
         return RoomEventMessage.builder()
                 .eventType(EventType.USER_DEQUEUED)
                 .roomId(roomId)

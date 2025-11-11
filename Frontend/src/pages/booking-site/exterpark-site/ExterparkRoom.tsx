@@ -3,7 +3,6 @@ import { useParams, useLocation } from "react-router-dom";
 import { Collapse, IconButton } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import PeopleIcon from "@mui/icons-material/People";
-import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import { paths } from "../../../app/routes/paths";
 import RoomSettingModal from "../../room/edit-room-setting/RoomSettingModal";
 import type {
@@ -18,6 +17,7 @@ import { useWebSocketStore } from "../../../shared/lib/websocket-store";
 import { subscribe, type Subscription } from "../../../shared/lib/websocket";
 import { useAuthStore } from "@features/auth/store";
 import { exitRoom, getRoomDetail } from "@features/room/api";
+import { useRoomStore } from "@features/room/store";
 import { useMatchStore } from "@features/booking-site/store";
 import { useNavigate } from "react-router-dom";
 import ExitToAppIcon from "@mui/icons-material/ExitToApp";
@@ -27,6 +27,10 @@ import Thumbnail03 from "../../../shared/images/thumbnail/Thumbnail03.webp";
 import Thumbnail04 from "../../../shared/images/thumbnail/Thumbnail04.webp";
 import Thumbnail05 from "../../../shared/images/thumbnail/Thumbnail05.webp";
 import Thumbnail06 from "../../../shared/images/thumbnail/Thumbnail06.webp";
+import {
+  setTotalStartAtMs,
+  getTotalStartAtMs,
+} from "../../../shared/utils/reserveMetrics";
 
 type Participant = {
   name: string;
@@ -81,7 +85,43 @@ export default function ITicketPage() {
   const joinResponse = location.state?.joinResponse as
     | JoinRoomResponse
     | undefined;
-  const [secondsLeft, setSecondsLeft] = useState<number>(3);
+
+  // 상세 응답 기반 표시값
+  const [roomDetail, setRoomDetail] = useState<RoomDetailResponse | null>(null);
+
+  // 게임 시작 시간 기반 카운트다운 계산
+  // 게임 시작 시간의 30초 전부터 카운트다운 시작, 정확히 그 시간이 되면 버튼 활성화
+  const calculateSecondsLeft = useCallback(() => {
+    const gameStartTimeStr =
+      roomDetail?.startTime || roomRequest?.gameStartTime;
+    if (!gameStartTimeStr) {
+      return 0; // 게임 시작 시간이 없으면 즉시 활성화
+    }
+
+    const gameStartTime = dayjs(gameStartTimeStr);
+    const now = dayjs();
+    const countdownStartTime = gameStartTime.subtract(30, "second"); // 30초 전
+
+    // 게임 시작 시간이 이미 지났으면 즉시 활성화
+    if (now.isAfter(gameStartTime)) {
+      return 0;
+    }
+
+    // 카운트다운 시작 시간(게임 시작 시간 - 30초)이 아직 안 왔으면 대기
+    // 이 경우 카운트다운 시작 시간까지의 시간을 반환 (30초 전까지는 카운트다운 안 함)
+    if (now.isBefore(countdownStartTime)) {
+      const diffSeconds = countdownStartTime.diff(now, "second");
+      return diffSeconds + 30; // 카운트다운 시작 시간까지의 시간 + 30초 (30초 전부터 카운트다운 시작)
+    }
+
+    // 카운트다운 시작 시간이 지났으면 게임 시작 시간까지의 남은 시간 (30초부터 0초까지)
+    const diffSeconds = gameStartTime.diff(now, "second");
+    return Math.max(0, diffSeconds);
+  }, [roomDetail?.startTime, roomRequest?.gameStartTime]);
+
+  const [secondsLeft, setSecondsLeft] = useState<number>(() =>
+    calculateSecondsLeft()
+  );
   const [showBanner, setShowBanner] = useState<boolean>(true);
   const [reserveAppearedAt, setReserveAppearedAt] = useState<number | null>(
     null
@@ -107,12 +147,14 @@ export default function ITicketPage() {
       payload?: {
         userId?: number;
         username?: string;
+        userName?: string; // 대문자 N 형식 지원
         totalUsersInRoom?: number;
         [key: string]: unknown;
       };
       roomMembers?: RoomMember[]; // 기존 형식 지원
       userId?: number; // 기존 형식 지원
       username?: string; // 기존 형식 지원
+      userName?: string; // 대문자 N 형식 지원
       [key: string]: unknown;
     }) => {
       const eventType = event.eventType || event.type; // eventType 우선, 없으면 type
@@ -122,7 +164,12 @@ export default function ITicketPage() {
         case "USER_JOINED":
         case "USER_ENTERED": {
           const userId = payload?.userId || event.userId;
-          const username = payload?.username || event.username;
+          // userName (대문자 N)과 username (소문자 n) 모두 지원
+          const username =
+            payload?.userName ||
+            payload?.username ||
+            event.userName ||
+            event.username;
           const totalUsersInRoom = payload?.totalUsersInRoom;
 
           if (userId) {
@@ -133,10 +180,23 @@ export default function ITicketPage() {
 
             setRoomMembers((prev) => {
               // 이미 존재하는지 확인
-              const exists = prev.some((m) => m.userId === userId);
-              if (exists) {
-                console.log("⚠️ 이미 존재하는 유저입니다:", userId);
-                return prev;
+              const existingIndex = prev.findIndex((m) => m.userId === userId);
+              if (existingIndex !== -1) {
+                // 이미 존재하는 유저인 경우 이름 업데이트
+                if (username) {
+                  console.log(
+                    `🔄 유저 이름 업데이트: userId=${userId}, 새 이름=${username}`
+                  );
+                  const updated = [...prev];
+                  updated[existingIndex] = {
+                    ...updated[existingIndex],
+                    username: username,
+                  };
+                  return updated;
+                } else {
+                  console.log("⚠️ 이미 존재하는 유저입니다:", userId);
+                  return prev;
+                }
               }
 
               // 새 유저 추가 (username이 없으면 임시로 "사용자{userId}" 사용)
@@ -403,6 +463,17 @@ export default function ITicketPage() {
 
   // 방 상세 조회: roomMembers가 없고 roomId가 있으면 API로 가져오기 (fallback)
   useEffect(() => {
+    // 총 소요 시간 측정 시작: 방 입장 시점에 없으면 초기화
+    try {
+      if (!sessionStorage.getItem("reserve.totalStartAtMs")) {
+        setTotalStartAtMs();
+      }
+    } catch (err) {
+      if (import.meta.env.DEV) {
+        console.warn("Failed to init totalStartAtMs", err);
+      }
+    }
+
     const params = new URLSearchParams(location.search);
     const qsId = params.get("roomId");
     const targetId =
@@ -416,6 +487,18 @@ export default function ITicketPage() {
         const data: RoomDetailResponse = await getRoomDetail(Number(targetId));
         // 상세 응답 상태 저장
         setRoomDetail(data);
+        // Room store에 방 정보 저장 (방 입장 시 captcha는 false로 초기화)
+        useRoomStore.getState().setRoomInfo({
+          roomId: data.roomId,
+          roomName: data.roomName,
+          thumbnailValue: data.thumbnailValue,
+          thumbnailType: data.thumbnailType,
+          hallId: data.hallId,
+          hallName: data.hallName,
+          startTime: data.startTime,
+          captchaPassed: false, // 방 입장 시 캡챠 false로 초기화
+          totalSeat: data.totalSeat ?? null, // 총 좌석 수 저장
+        });
         // 입장자 목록 업데이트
         if (Array.isArray(data.roomMembers)) {
           setRoomMembers(data.roomMembers);
@@ -440,8 +523,6 @@ export default function ITicketPage() {
     }));
   }, [roomMembers, hostUserId]);
 
-  // 상세 응답 기반 표시값
-  const [roomDetail, setRoomDetail] = useState<RoomDetailResponse | null>(null);
   // maxUserCount를 총 인원수로 사용 (상세 우선)
   const capacity =
     roomDetail?.maxUserCount ||
@@ -459,13 +540,29 @@ export default function ITicketPage() {
     }
   }, []);
 
+  // 게임 시작 시간이 변경되면 카운트다운 재계산
+  useEffect(() => {
+    const newSecondsLeft = calculateSecondsLeft();
+    setSecondsLeft(newSecondsLeft);
+  }, [calculateSecondsLeft]);
+
+  // 1초마다 카운트다운 업데이트
   useEffect(() => {
     const id = setInterval(() => {
-      setSecondsLeft((s) => (s > 0 ? s - 1 : 0));
+      setSecondsLeft((prev) => {
+        const newSecondsLeft = calculateSecondsLeft();
+        // 계산된 값과 현재 값이 다르면 계산된 값 사용 (시간 동기화)
+        if (Math.abs(newSecondsLeft - prev) > 1) {
+          return newSecondsLeft;
+        }
+        // 그 외에는 1초씩 감소
+        return prev > 0 ? prev - 1 : 0;
+      });
     }, 1000);
     return () => clearInterval(id);
-  }, []);
+  }, [calculateSecondsLeft]);
 
+  // 예매하기 버튼이 활성화되는 순간의 타임스탬프 기록
   useEffect(() => {
     if (secondsLeft === 0 && reserveAppearedAt === null) {
       const appearedTs = Date.now();
@@ -479,13 +576,34 @@ export default function ITicketPage() {
     }
   }, [secondsLeft, reserveAppearedAt]);
 
+  // 초기 마운트 시 이미 버튼이 활성화된 경우 처리
+  useEffect(() => {
+    const initialSecondsLeft = calculateSecondsLeft();
+    if (initialSecondsLeft === 0 && reserveAppearedAt === null) {
+      const appearedTs = Date.now();
+      setReserveAppearedAt(appearedTs);
+      setNonReserveClickCount(0);
+      setIsTrackingClicks(true);
+      console.log("[ReserveTiming] Button already active on mount", {
+        appearedAt: new Date(appearedTs).toISOString(),
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // 초기 마운트 시에만 실행
+
   useEffect(() => {
     if (!isTrackingClicks) return;
     const onDocClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement | null;
       if (!target) return;
+      // 예매하기 버튼 클릭은 허용
       const isReserveButton = Boolean(target.closest("[data-reserve-button]"));
-      if (!isReserveButton) {
+      // 활성화된 날짜 버튼 클릭도 허용
+      const isEnabledDateButton = Boolean(
+        target.closest("[data-enabled-date='true']")
+      );
+      // 예매하기 버튼과 활성화된 날짜 버튼 외의 클릭은 실수로 처리
+      if (!isReserveButton && !isEnabledDateButton) {
         setNonReserveClickCount((prev) => {
           const next = prev + 1;
           console.log("[ReserveTiming] Non-reserve click", { count: next });
@@ -497,11 +615,20 @@ export default function ITicketPage() {
     return () => document.removeEventListener("click", onDocClick);
   }, [isTrackingClicks]);
 
-  const formatted =
-    secondsLeft < 10 ? `00:0${secondsLeft}` : `00:${secondsLeft}`;
+  // 카운트다운 포맷팅 (MM:SS 형식)
+  const formatted = useMemo(() => {
+    if (secondsLeft <= 0) {
+      return "00:00";
+    }
+    const minutes = Math.floor(secondsLeft / 60);
+    const seconds = secondsLeft % 60;
+    return `${minutes.toString().padStart(2, "0")}:${seconds
+      .toString()
+      .padStart(2, "0")}`;
+  }, [secondsLeft]);
 
   // 방 나가기 핸들러
-  const handleExitRoom = async () => {
+  const handleExitRoom = useCallback(async () => {
     const targetRoomId =
       roomId ||
       joinResponse?.roomId?.toString() ||
@@ -538,6 +665,9 @@ export default function ITicketPage() {
       console.log("📊 남은 인원:", response.leftUserCount);
       console.log("📊 방 상태:", response.roomStatus);
 
+      // Room store 초기화
+      useRoomStore.getState().clearRoomInfo();
+
       // WebSocket 구독 해제
       if (subscriptionRef.current) {
         console.log(`🔌 방 구독 해제: ${response.unsubscriptionTopic}`);
@@ -562,32 +692,81 @@ export default function ITicketPage() {
     } finally {
       setIsExiting(false);
     }
-  };
+  }, [
+    roomId,
+    joinResponse?.roomId,
+    roomData?.roomId,
+    currentUserId,
+    currentUserNickname,
+    navigate,
+  ]);
+
+  // 브라우저 뒤로가기 시에도 '방 나가기'와 동일한 동작 수행
+  useEffect(() => {
+    const pushState = () => {
+      try {
+        window.history.pushState(null, "", window.location.href);
+      } catch (err) {
+        if (import.meta.env.DEV) {
+          console.warn("history.pushState 실패:", err);
+        }
+      }
+    };
+    // 현재 위치를 한 번 더 쌓아 뒤로가기를 중단시킴
+    pushState();
+    const onPopState = () => {
+      // 즉시 현재 페이지에 머물도록 다시 푸시
+      pushState();
+      // 동일한 퇴장 로직 호출 (확인창 포함)
+      handleExitRoom();
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => {
+      window.removeEventListener("popstate", onPopState);
+    };
+  }, [handleExitRoom]);
 
   const openQueueWindow = () => {
     let finalUrl: string;
     const baseUrl =
       (paths as { booking: { waiting: string } })?.booking?.waiting ??
       "/booking/waiting";
+    const clickedTs = Date.now();
+    const totalStartAt = getTotalStartAtMs() ?? clickedTs;
 
-    // matchId 결정: joinResponse.matchId(문자/숫자) → store → roomId(최후수단)
+    // matchId 결정: store 우선 → joinResponse.matchId
+    // 주의: matchId는 티켓팅 시스템의 ID이고, roomId와는 다른 개념입니다.
+    // roomId를 matchId로 사용하지 않습니다.
     const jr = joinResponse as unknown as {
       matchId?: unknown;
-      roomId?: unknown;
     };
     const rawMatchId =
-      jr?.matchId ?? jr?.roomId ?? roomData?.roomId ?? matchIdFromStore;
-    const matchIdParam =
-      typeof rawMatchId === "string" || typeof rawMatchId === "number"
-        ? String(rawMatchId)
-        : matchIdFromStore != null
-          ? String(matchIdFromStore)
-          : undefined;
+      matchIdFromStore ?? (jr?.matchId != null ? Number(jr.matchId) : null);
+    const matchIdParam = rawMatchId != null ? String(rawMatchId) : undefined;
+
+    // hallId 결정: roomDetail → roomData → roomRequest 순으로 확인
+    const hallId =
+      roomDetail?.hallId ?? roomData?.hallId ?? roomRequest?.hallId;
+    const hallIdParam = hallId
+      ? `&hallId=${encodeURIComponent(String(hallId))}`
+      : "";
+
+    // 일자 정보 결정: roomDetail → roomRequest 순으로 확인
+    const startTime = roomDetail?.startTime ?? roomRequest?.gameStartTime;
+    const reservationDay = startTime
+      ? dayjs(startTime).format("YYYY-MM-DD")
+      : roomRequest?.reservationDay;
+
+    const dateParam = reservationDay
+      ? `&date=${encodeURIComponent(reservationDay)}`
+      : "";
+    // 회차는 단일 회차(1회차)로 고정
+    const roundParam = `&round=1`;
 
     if (reserveAppearedAt) {
-      const clickedTs = Date.now();
       const reactionMs = clickedTs - reserveAppearedAt;
-      const reactionSec = Number((reactionMs / 1000).toFixed(3));
+      // 밀리초 단위로 계산 후 초 단위로 변환 (소수점 2자리까지)
+      const reactionSec = Number((reactionMs / 1000).toFixed(2));
       // Log: reaction time between appearance and click
       console.log("[ReserveTiming] Reaction time until click", {
         reactionMs,
@@ -597,16 +776,16 @@ export default function ITicketPage() {
         nonReserveClickCount,
       });
       setIsTrackingClicks(false);
-      finalUrl = `${baseUrl}?rtSec=${encodeURIComponent(String(reactionSec))}&nrClicks=${encodeURIComponent(String(nonReserveClickCount))}${
+      finalUrl = `${baseUrl}?rtSec=${encodeURIComponent(String(reactionSec))}&nrClicks=${encodeURIComponent(String(nonReserveClickCount))}&tStart=${encodeURIComponent(String(totalStartAt))}${
         matchIdParam ? `&matchId=${encodeURIComponent(matchIdParam)}` : ""
-      }`;
+      }${hallIdParam}${dateParam}${roundParam}`;
     } else {
       console.log(
         "[ReserveTiming] Click without appearance timestamp (possibly test click)"
       );
-      finalUrl = `${baseUrl}?rtSec=0&nrClicks=${encodeURIComponent(String(nonReserveClickCount))}${
+      finalUrl = `${baseUrl}?rtSec=0&nrClicks=${encodeURIComponent(String(nonReserveClickCount))}&tStart=${encodeURIComponent(String(totalStartAt))}${
         matchIdParam ? `&matchId=${encodeURIComponent(matchIdParam)}` : ""
-      }`;
+      }${hallIdParam}${dateParam}${roundParam}`;
     }
 
     window.open(
@@ -634,8 +813,13 @@ export default function ITicketPage() {
         <div className="productWrapper max-w-[1280px] w-full mx-auto px-4 md:px-6">
           <TagsRow
             difficulty={roomDetail?.difficulty}
-            maxUserCount={roomDetail?.maxUserCount}
             botCount={roomDetail?.botCount}
+            totalSeat={
+              roomDetail?.totalSeat ||
+              roomData?.totalSeat ||
+              (joinResponse as { totalSeat?: number })?.totalSeat ||
+              roomRequest?.totalSeat
+            }
           />
           <TitleSection
             matchName={roomDetail?.roomName}
@@ -722,12 +906,12 @@ function TopBanner({ onClose }: { onClose: (hideFor3Days: boolean) => void }) {
 
 function TagsRow({
   difficulty,
-  maxUserCount,
   botCount,
+  totalSeat,
 }: {
   difficulty?: string;
-  maxUserCount?: number;
   botCount?: number;
+  totalSeat?: number;
 }) {
   const Pill = ({
     children,
@@ -749,9 +933,10 @@ function TagsRow({
   const difficultyLabel = difficulty
     ? DIFFICULTY_TO_LABEL[difficulty] || difficulty
     : "어려움";
-  const maxLabel = maxUserCount
-    ? `최대 ${maxUserCount.toLocaleString()}명`
-    : "최대 10명";
+  // totalSeat가 있으면 "총 좌석 수 --명"으로 표시, 없으면 최대 천 명
+  const maxLabel = totalSeat
+    ? `총 좌석수 ${totalSeat.toLocaleString()}명`
+    : `총 좌석수 1,000명`;
   const botLabel = botCount ? `봇 ${botCount.toLocaleString()}명` : "봇 3000명";
 
   return (
@@ -773,7 +958,6 @@ function TitleSection({
   matchName,
   hallSize,
   venue,
-  onOpenSettings,
   onExitRoom,
   isExiting,
 }: {
@@ -810,7 +994,7 @@ function TitleSection({
         <span>{sizeLabel}</span>
         <span className="text-gray-300">|</span>
         <span>{venueLabel}</span>
-        <span className="text-gray-300">|</span>
+        {/* <span className="text-gray-300">|</span>
         <button
           type="button"
           className="inline-flex items-center gap-1 text-gray-500 cursor-pointer hover:text-gray-700"
@@ -818,7 +1002,7 @@ function TitleSection({
         >
           <SettingsOutlinedIcon fontSize="small" />
           <span>방 설정</span>
-        </button>
+        </button> */}
       </div>
     </div>
   );

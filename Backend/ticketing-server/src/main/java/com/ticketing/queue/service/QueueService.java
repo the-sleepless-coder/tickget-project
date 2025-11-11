@@ -1,9 +1,7 @@
 package com.ticketing.queue.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.ticketing.KafkaTopic;
-import com.ticketing.queue.DTO.BotRequestDTO;
-import com.ticketing.queue.DTO.QueueLogDTO;
+import com.ticketing.queue.DTO.MatchInsertedEventDTO;
 import com.ticketing.queue.DTO.request.MatchRequestDTO;
 import com.ticketing.queue.DTO.response.MatchIdResponseDTO;
 import com.ticketing.queue.DTO.QueueDTO;
@@ -12,7 +10,6 @@ import com.ticketing.queue.DTO.response.MatchResponseDTO;
 import com.ticketing.queue.domain.enums.QueueKeys;
 import com.ticketing.entity.Match;
 import com.ticketing.queue.exception.DuplicateMatchFoundException;
-import com.ticketing.repository.MatchCacheRepository;
 import com.ticketing.repository.MatchRepository;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
@@ -20,7 +17,6 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -37,7 +33,7 @@ public class QueueService {
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final MatchRepository matchRepository;
     private final ApplicationEventPublisher publisher;
-    private final BotClientService botClient;
+    private final ClientService Client;
 
     // 대기 상태 ENUM
     private static final String ALREADY_IN_QUEUE="ALREADY_IN_QUEUE";
@@ -49,13 +45,13 @@ public class QueueService {
 
     private static final int MATCH_EXPIRE_TIME = 30;
 
-    public QueueService(StringRedisTemplate redis, ObjectMapper mapper, KafkaTemplate kafkaTemplate, MatchRepository matchRepository, ApplicationEventPublisher publisher, BotClientService botClient){
+    public QueueService(StringRedisTemplate redis, ObjectMapper mapper, KafkaTemplate kafkaTemplate, MatchRepository matchRepository, ApplicationEventPublisher publisher, ClientService Client){
         this.redis = redis;
         this.mapper = mapper;
         this.kafkaTemplate = kafkaTemplate;
         this.matchRepository = matchRepository;
         this.publisher = publisher;
-        this.botClient = botClient;
+        this.Client = Client;
     }
 
     // Redis에 Queue에 대한 순서 정보 저장
@@ -123,9 +119,11 @@ public class QueueService {
 
         // Log정보를 MongoDB에 저장한다.
         // Kafka 비동기로 MongoDB 처리.
-        QueueLogDTO logDto = QueueLogDTO.of(randomUUID, matchId, playerType, userId, status, positionAhead, positionBehind, total, userInfo.getClickMiss(), userInfo.getDuration(), LocalDateTime.now());
-        SendResult<String, Object> recordData = kafkaTemplate.send(KafkaTopic.USER_LOG_QUEUE.getTopicName(), userId, logDto).get();
-
+        /**
+         * DLT 처리가 필요할까?
+         * */
+        // QueueLogDTO logDto = QueueLogDTO.of(randomUUID, matchId, playerType, userId, status, positionAhead, positionBehind, total, userInfo.getClickMiss(), userInfo.getDuration(), LocalDateTime.now());
+        // SendResult<String, Object> recordData = kafkaTemplate.send(KafkaTopic.USER_LOG_QUEUE.getTopicName(), userId, logDto).get();
 
         return queueInfo;
     }
@@ -139,7 +137,6 @@ public class QueueService {
     // 경기 시작 시, MatchStatus.Playing으로 바꿔준다.
     // 정해진 KafkaTopic에 시작했다는 사실을 발행한다.
     // Websocket으로 받는다.
-
     @Transactional
     public MatchResponseDTO insertMatchData(MatchRequestDTO dto){
         try{
@@ -158,18 +155,38 @@ public class QueueService {
 
             MatchResponseDTO res = new MatchResponseDTO(saved.getMatchId(), saved.getRoomId(), saved.getMatchName(), saved.getMaxUser(), saved.getDifficulty().name(), saved.getStartedAt());
 
-            // DB에 커밋되고 나서, Redis에 room:{roomId}:match:{matchId}
-            publisher.publishEvent(new MatchCacheRepository.MatchCreatedEvent(saved.getMatchId()));
-
-            // 경기 시작 뒤, 봇 서버로 요청을 보낸다.
-            // 경기 서버에 대해 봇 서버가 알 수 있게 정보를 보내준다.
             Long matchId = saved.getMatchId();
             int botCount = saved.getUsedBotCount();
             LocalDateTime startedAt = saved.getStartedAt();
             String difficulty = saved.getDifficulty().toString();
             Long hallId = dto.getHallId();
+            Long roomId = saved.getRoomId();
 
-            botClient.sendBotRequest(matchId, botCount, startedAt, difficulty, hallId);
+            // 1) 로봇(봇 서버)에게 시작 알림 전송
+            // 봇 생성 시간이 걸림.
+            try {
+                Client.sendBotRequest(matchId, botCount, startedAt, difficulty, hallId);
+                log.debug("Successfully sent request to bot. matchId:{}, botCount:{}, startedAt:{}",matchId, botCount, startedAt);
+            } catch (Exception ex) {
+                // 필요 시 재시도/보상 로직 연결 (DLQ, 재시도 큐 등)
+                // 로그만 남기고 종료할지, 예외를 던져 롤백할지는 정책에 따라 결정
+                // 여기서는 로그만:
+                log.error("Bot notify failed. roomId={} matchId={}", roomId, matchId, ex);
+            }
+
+            // 2) roomId에 대한 matchId를 Redis 키로 설정
+            // DB에서 해당 matchId에 대한 roomId 조회
+            Match MATCH = matchRepository.findById(matchId).orElseThrow();
+            String key = "room:%s:match:%s".formatted(MATCH.getRoomId(), MATCH.getMatchId());
+
+            redis.opsForValue().set(key,"1");
+            redis.expire(key, Duration.ofMinutes(MATCH_EXPIRE_TIME));
+
+            // 3) 스케줄링을 통한, 시작 시간 N초 전 Thread 실행
+            // Transactional로 DB, Playing Status, 매치 참여 인원 Redis 키 설정.
+            publisher.publishEvent(new MatchInsertedEventDTO(
+                saved.getMatchId(), saved.getRoomId(), saved.getStartedAt(), saved.getUsedBotCount(), saved.getDifficulty().toString(), dto.getHallId()
+            ));
 
             return res;
 

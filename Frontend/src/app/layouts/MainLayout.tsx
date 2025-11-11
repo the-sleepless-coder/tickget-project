@@ -1,4 +1,4 @@
-import { Outlet } from "react-router-dom";
+import { Outlet, useNavigate } from "react-router-dom";
 import Header from "../../shared/ui/common/Header";
 import Footer from "../../shared/ui/common/Footer";
 import ScrollToTop from "../routes/ScrollToTop";
@@ -17,6 +17,7 @@ export default function MainLayout() {
   const isLoggedIn = !!accessToken;
   const clientRef = useRef<StompClient | null>(null);
   const setClient = useWebSocketStore((s) => s.setClient);
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (isLoggedIn && !clientRef.current) {
@@ -26,10 +27,21 @@ export default function MainLayout() {
             console.log("✅ 홈 진입: WebSocket 연결 완료");
           }
         },
+        onDisconnect: () => {
+          if (import.meta.env.DEV) {
+            console.log("⚠️ WebSocket 연결 끊김 - 자동 로그아웃");
+          }
+          // 웹소켓 연결이 끊기면 자동 로그아웃
+          useAuthStore.getState().clearAuth();
+          navigate("/", { replace: true });
+        },
         onError: (err) => {
           if (import.meta.env.DEV) {
             console.error("❌ WebSocket 에러:", err);
           }
+          // 웹소켓 에러 발생 시에도 자동 로그아웃
+          useAuthStore.getState().clearAuth();
+          navigate("/", { replace: true });
         },
       });
       clientRef.current = client;
@@ -45,7 +57,7 @@ export default function MainLayout() {
         clientRef.current = null;
       }
     };
-  }, [isLoggedIn, setClient]);
+  }, [isLoggedIn, setClient, navigate]);
 
   return (
     <div className="min-h-screen flex flex-col">

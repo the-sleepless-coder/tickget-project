@@ -55,6 +55,7 @@ export interface JoinRoomResponse {
   roomMembers: RoomMember[];
   roomStatus: string; // e.g., "WAITING"
   subscriptionTopic: string; // e.g., "/topic/rooms/1"
+  totalSeat?: number; // 총 좌석 수
 }
 
 // Room exit - Types
@@ -83,8 +84,34 @@ export interface RoomDetailResponse {
   roomType: string;
   status: string;
   startTime: string; // ISO string
+  hallId: number;
   hallSize: HallSize;
   hallName: string;
   thumbnailType: ThumbnailType;
   thumbnailValue: string | null;
+  totalSeat?: number; // 총 좌석 수
 }
+
+// AI Seatmap TSX generation - Types
+export interface ProcessTsxSuccessResponse {
+  ok: true;
+  hallId: number;
+  minio: {
+    tsx: { bucket: string; key: string; url: string };
+    meta: { bucket: string; key: string; url: string };
+  };
+  local: {
+    tsx: { path: string; saved: boolean };
+    meta: { path: string; saved: boolean };
+  };
+  warn?: string[];
+}
+
+export interface ProcessTsxFailResponse {
+  ok: false;
+  detail: string;
+}
+
+export type ProcessTsxResponse =
+  | ProcessTsxSuccessResponse
+  | ProcessTsxFailResponse;

@@ -12,7 +12,7 @@ import (
 
 // 티케팅 봇
 type Bot struct {
-	ID          int
+	UserID      int64       // 사용자 ID (봇은 음수)
 	MatchID     int64
 	Level       Level       // 봇 레벨 (초보/중수/고수)
 	DelayConfig DelayConfig // 딜레이 설정
@@ -31,9 +31,9 @@ type Seat struct {
 }
 
 // 새로운 봇을 생성
-func NewBot(id int, matchID int64, level Level, httpClient *client.HTTPClient, waitChannel <-chan struct{}, logger *zap.Logger) *Bot {
+func NewBot(userID int64, matchID int64, level Level, httpClient *client.HTTPClient, waitChannel <-chan struct{}, logger *zap.Logger) *Bot {
 	return &Bot{
-		ID:          -id,
+		UserID:      userID,
 		MatchID:     matchID,
 		Level:       level,
 		DelayConfig: level.GetDelayConfig(),
@@ -48,7 +48,7 @@ func (b *Bot) Run(ctx context.Context) error {
 	b.startTime = time.Now()
 
 	b.logger.Debug("봇 시작됨",
-		zap.Int("bot_id", b.ID),
+		zap.Int64("user_id", b.UserID),
 		zap.Int64("match_id", b.MatchID),
 		zap.String("level", b.Level.String()),
 	)
@@ -60,13 +60,13 @@ func (b *Bot) Run(ctx context.Context) error {
 
 	// 단계 1.5: 큐에서 매치 시작 신호 대기
 	b.logger.Debug("매치 시작 신호 대기 중",
-		zap.Int("bot_id", b.ID),
+		zap.Int64("user_id", b.UserID),
 	)
 
 	select {
 	case <-b.waitChannel:
 		b.logger.Debug("매치 시작 신호 수신",
-			zap.Int("bot_id", b.ID),
+			zap.Int64("user_id", b.UserID),
 		)
 	case <-ctx.Done():
 		return ctx.Err()
@@ -89,7 +89,7 @@ func (b *Bot) Run(ctx context.Context) error {
 
 	duration := time.Since(b.startTime)
 	b.logger.Info("봇 성공적으로 완료됨",
-		zap.Int("bot_id", b.ID),
+		zap.Int64("user_id", b.UserID),
 		zap.Int64("match_id", b.MatchID),
 		zap.Duration("duration", duration),
 	)
@@ -112,13 +112,13 @@ func (b *Bot) selectDay(ctx context.Context) error {
 			Duration:  durationMs,
 		}
 
-		_, err := b.httpClient.JoinQueue(ctx, b.MatchID, req, int64(b.ID))
+		_, err := b.httpClient.JoinQueue(ctx, b.MatchID, req, b.UserID)
 		if err != nil {
 			return fmt.Errorf("요일 선택 실패: %w", err)
 		}
 
 		b.logger.Debug("요일 선택됨",
-			zap.Int("bot_id", b.ID),
+			zap.Int64("user_id", b.UserID),
 			zap.Duration("delay", delay),
 			zap.Int("duration_ms", durationMs),
 		)
@@ -136,7 +136,7 @@ func (b *Bot) solveCaptcha(ctx context.Context) error {
 	case <-time.After(delay):
 		// 요청 생성
 		req := &client.ValidateCaptchaRequest{
-			UserId: int64(b.ID),
+			UserId: b.UserID,
 		}
 
 		err := b.httpClient.ValidateCaptcha(ctx, req)
@@ -145,7 +145,7 @@ func (b *Bot) solveCaptcha(ctx context.Context) error {
 		}
 
 		b.logger.Debug("보안문자 통과",
-			zap.Int("bot_id", b.ID),
+			zap.Int64("user_id", b.UserID),
 			zap.Duration("delay", delay),
 		)
 		return nil
@@ -181,14 +181,14 @@ func (b *Bot) selectSeat(ctx context.Context) error {
 
 		// 실제 API 호출로 좌석 선점 시도
 		req := &client.SeatSelectRequest{
-			UserId:  int64(b.ID),
+			UserId:  b.UserID,
 			SeatIds: []string{seatId},
 		}
 
 		resp, err := b.httpClient.HoldSeats(ctx, b.MatchID, req)
 		if err != nil {
 			b.logger.Warn("좌석 선점 API 호출 실패",
-				zap.Int("bot_id", b.ID),
+				zap.Int64("user_id", b.UserID),
 				zap.Int("attempt", i+1),
 				zap.String("section", seat.SectionID),
 				zap.Int("seat_number", seat.SeatNumber),
@@ -208,7 +208,7 @@ func (b *Bot) selectSeat(ctx context.Context) error {
 		// 성공 여부 확인
 		if resp.Success && len(resp.HeldSeats) > 0 {
 			b.logger.Info("좌석 선택 성공",
-				zap.Int("bot_id", b.ID),
+				zap.Int64("user_id", b.UserID),
 				zap.Int("attempt", i+1),
 				zap.String("section", seat.SectionID),
 				zap.Int("seat_number", seat.SeatNumber),
@@ -222,7 +222,7 @@ func (b *Bot) selectSeat(ctx context.Context) error {
 
 		// 실패 시 로그
 		b.logger.Debug("좌석 선점 실패, 다음 후보로 재시도",
-			zap.Int("bot_id", b.ID),
+			zap.Int64("user_id", b.UserID),
 			zap.Int("attempt", i+1),
 			zap.String("section", seat.SectionID),
 			zap.Int("seat_number", seat.SeatNumber),
@@ -245,7 +245,7 @@ func (b *Bot) selectSeat(ctx context.Context) error {
 func (b *Bot) confirmSeats(ctx context.Context) error {
 	// 요청 생성 (userId만 실제 값, 나머지는 0)
 	req := &client.SeatConfirmRequest{
-		UserId:                   int64(b.ID),
+		UserId:                   b.UserID,
 		DateSelectTime:           0.0,
 		SeccodeSelectTime:        0.0,
 		SeccodeBackspaceCount:    0,
@@ -258,14 +258,14 @@ func (b *Bot) confirmSeats(ctx context.Context) error {
 	resp, err := b.httpClient.ConfirmSeats(ctx, b.MatchID, req)
 	if err != nil {
 		b.logger.Error("좌석 확정 실패",
-			zap.Int("bot_id", b.ID),
+			zap.Int64("user_id", b.UserID),
 			zap.Error(err),
 		)
 		return fmt.Errorf("좌석 확정 실패: %w", err)
 	}
 
 	b.logger.Info("좌석 확정 성공",
-		zap.Int("bot_id", b.ID),
+		zap.Int64("user_id", b.UserID),
 		zap.Bool("success", resp.Success),
 		zap.String("message", resp.Message),
 		zap.Int("user_rank", resp.UserRank),
