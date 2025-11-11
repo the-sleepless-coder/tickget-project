@@ -111,6 +111,7 @@ public class RoomNotificationScheduler {
 
             if (allMembers.isEmpty()) {
                 log.debug("방 {}에 멤버가 없음", roomId);
+                stopScheduling(roomId);
                 return;
             }
 
