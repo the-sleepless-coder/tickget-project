@@ -46,10 +46,10 @@ func NewService(botService *bot.Service, minioClient MinioClient, httpClient *cl
 func (s *Service) SetBotsForMatch(matchID int64, req models.MatchSettingRequest) error {
 	matchLogger := logger.WithMatchContext(matchID)
 
-	// 0. 시작 시간 검증 (현재 시간 + 30초 이전 거부)
-	minStartTime := time.Now().Add(30 * time.Second)
+	// 0. 시작 시간 검증 (현재 시간 + 10초 이전 거부)
+	minStartTime := time.Now().Add(10 * time.Second)
 	if req.StartTime.Before(minStartTime) {
-		return fmt.Errorf("시작 시간은 현재 시간으로부터 최소 30초 이후여야 합니다")
+		return fmt.Errorf("시작 시간은 현재 시간으로부터 최소 10초 이후여야 합니다")
 	}
 
 	// 1. 봇 리소스 할당 (차감)
