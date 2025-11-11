@@ -532,7 +532,7 @@ def build_sections_json(img_name: str, regions: list[dict], total_attendees: int
         section_num = int(_re.sub(r"[^0-9]", "", rid) or "0")
 
         out_sections.append({
-            "section": section_num,
+            "section": str(section_num),
             "grade": str(r.get("seat_grade","")),
             "totalRows": int(totalRows),
             "totalCols": int(totalCols),
