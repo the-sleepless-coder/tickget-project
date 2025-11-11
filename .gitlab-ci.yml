@@ -26,10 +26,10 @@ variables:
     # 환경 결정 (dev 브랜치 → dev, master 브랜치 → prod)
     if [ "$CI_COMMIT_BRANCH" = "dev" ]; then
       ENVIRONMENT="dev"
-      IMAGE_TAG="dev-latest"
+      IMAGE_TAG="dev-${CI_COMMIT_SHORT_SHA}"
     elif [ "$CI_COMMIT_BRANCH" = "master" ]; then
       ENVIRONMENT="prod"
-      IMAGE_TAG="latest"
+      IMAGE_TAG="prod-${CI_COMMIT_SHORT_SHA}"
     else
       echo "Unknown branch: $CI_COMMIT_BRANCH"
       exit 1
@@ -88,9 +88,9 @@ build:frontend:
     - cd Frontend
     - |
       if [ "$CI_COMMIT_BRANCH" = "dev" ]; then
-        IMAGE_TAG="dev-latest"
+        IMAGE_TAG="dev-${CI_COMMIT_SHORT_SHA}"
       else
-        IMAGE_TAG="latest"
+        IMAGE_TAG="prod-${CI_COMMIT_SHORT_SHA}"
       fi
     - echo "Building Frontend with tag $IMAGE_TAG"
     - docker buildx build --platform linux/arm64 -t kkaebu/tickget-frontend:$IMAGE_TAG --push .
@@ -120,9 +120,9 @@ build:auth-server:
     - cd Backend/auth-server
     - |
       if [ "$CI_COMMIT_BRANCH" = "dev" ]; then
-        IMAGE_TAG="dev-latest"
+        IMAGE_TAG="dev-${CI_COMMIT_SHORT_SHA}"
       else
-        IMAGE_TAG="latest"
+        IMAGE_TAG="prod-${CI_COMMIT_SHORT_SHA}"
       fi
     - echo "Building auth-server with tag $IMAGE_TAG"
     - docker buildx build --platform linux/arm64 -t kkaebu/auth-server:$IMAGE_TAG --push .
@@ -148,9 +148,9 @@ build:room-server:
     - cd Backend/room-server
     - |
       if [ "$CI_COMMIT_BRANCH" = "dev" ]; then
-        IMAGE_TAG="dev-latest"
+        IMAGE_TAG="dev-${CI_COMMIT_SHORT_SHA}"
       else
-        IMAGE_TAG="latest"
+        IMAGE_TAG="prod-${CI_COMMIT_SHORT_SHA}"
       fi
     - echo "Building room-server with tag $IMAGE_TAG"
     - docker buildx build --platform linux/arm64 -t kkaebu/room-server:$IMAGE_TAG --push .
@@ -176,9 +176,9 @@ build:ticketing-server:
     - cd Backend/ticketing-server
     - |
       if [ "$CI_COMMIT_BRANCH" = "dev" ]; then
-        IMAGE_TAG="dev-latest"
+        IMAGE_TAG="dev-${CI_COMMIT_SHORT_SHA}"
       else
-        IMAGE_TAG="latest"
+        IMAGE_TAG="prod-${CI_COMMIT_SHORT_SHA}"
       fi
     - echo "Building ticketing-server with tag $IMAGE_TAG"
     - docker buildx build --platform linux/arm64 -t kkaebu/ticketing-server:$IMAGE_TAG --push .
@@ -201,7 +201,7 @@ build:bot-server:
   script:
     - export SERVICE_NAME="bot-server"
     - cd Backend/bot-server
-    - IMAGE_TAG="dev-latest"
+    - IMAGE_TAG="dev-${CI_COMMIT_SHORT_SHA}"
     - echo "Building bot-server with tag $IMAGE_TAG"
     - docker buildx build --platform linux/arm64 -t kkaebu/bot-server:$IMAGE_TAG --push .
     - *update_manifest
@@ -223,7 +223,7 @@ build:captcha-server:
   script:
     - export SERVICE_NAME="captcha-server"
     - cd Backend/catpcha-server
-    - IMAGE_TAG="dev-latest"
+    - IMAGE_TAG="dev-${CI_COMMIT_SHORT_SHA}"
     - echo "Building captcha-server with tag $IMAGE_TAG"
     - docker buildx build --platform linux/arm64 -t kkaebu/captcha-server:$IMAGE_TAG --push .
     - *update_manifest
@@ -245,7 +245,7 @@ build:seatmap-server:
   script:
     - export SERVICE_NAME="seatmap-server"
     - cd AI/seatmap_to_html
-    - IMAGE_TAG="dev-latest"
+    - IMAGE_TAG="dev-${CI_COMMIT_SHORT_SHA}"
     - echo "Building seatmap-server with tag $IMAGE_TAG"
     - docker buildx build --platform linux/arm64 -t kkaebu/seatmap-server:$IMAGE_TAG --push .
     - *update_manifest
