@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 
 @Slf4j
 @Component
-public class BotClientService {
+public class ClientService {
     @Value("${bot-server.url}")
     private String botServerUrl;
 
@@ -21,10 +21,12 @@ public class BotClientService {
 
     private final RestTemplate restTemplate;
 
-    public BotClientService(RestTemplate restTemplate) {
+    public ClientService(RestTemplate restTemplate) {
         this.restTemplate = restTemplate;
     }
-
+    /**
+     * 봇 서버
+     * */
     public ResponseEntity<?> sendBotRequest(Long matchId, int botCount, LocalDateTime startTime, String difficulty, Long hallId) {
         String url = botServerUrl + "/matches/" + matchId + "/bots";
 
@@ -56,6 +58,9 @@ public class BotClientService {
         }
     }
 
+    /**
+     * 룸 서버
+     * */
     public ResponseEntity<?> changeStartState(Long roomId){
         String url = roomServerUrl + "/rooms/" + roomId + "/start";
 
@@ -81,6 +86,36 @@ public class BotClientService {
             return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
                     .body("{\"message\":\"bot request failed\"}");
         }
+    }
+
+    // 주어진 방의 사용자 정보를 가져온다.
+    public ResponseEntity<?> getUserNum(Long roomId){
+        String url = roomServerUrl + "/rooms/" + roomId;
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<Void> request = new HttpEntity<>(headers);
+
+        // Url, 메서드, 요청, 응답
+        try{
+            ResponseEntity<Integer> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.GET,
+                    request,
+                    Integer.class
+            );
+
+            log.info("사용자 수를 가져옵니다.");
+
+            return response;
+        }catch(Exception e){
+            e.printStackTrace();
+            log.info("사용자 수를 가져오지 못했습니다.");
+
+            return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+                    .body("{\"message\":\"failed to get user numbers\"}");
+        }
+
     }
 
 

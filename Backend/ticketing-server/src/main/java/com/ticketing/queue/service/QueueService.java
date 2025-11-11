@@ -1,9 +1,7 @@
 package com.ticketing.queue.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.ticketing.KafkaTopic;
 import com.ticketing.queue.DTO.MatchInsertedEventDTO;
-import com.ticketing.queue.DTO.QueueLogDTO;
 import com.ticketing.queue.DTO.request.MatchRequestDTO;
 import com.ticketing.queue.DTO.response.MatchIdResponseDTO;
 import com.ticketing.queue.DTO.QueueDTO;
@@ -12,7 +10,6 @@ import com.ticketing.queue.DTO.response.MatchResponseDTO;
 import com.ticketing.queue.domain.enums.QueueKeys;
 import com.ticketing.entity.Match;
 import com.ticketing.queue.exception.DuplicateMatchFoundException;
-import com.ticketing.repository.MatchCacheRepository;
 import com.ticketing.repository.MatchRepository;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
@@ -20,14 +17,11 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 
@@ -39,7 +33,7 @@ public class QueueService {
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final MatchRepository matchRepository;
     private final ApplicationEventPublisher publisher;
-    private final BotClientService botClient;
+    private final ClientService botClient;
 
     // 대기 상태 ENUM
     private static final String ALREADY_IN_QUEUE="ALREADY_IN_QUEUE";
@@ -51,7 +45,7 @@ public class QueueService {
 
     private static final int MATCH_EXPIRE_TIME = 30;
 
-    public QueueService(StringRedisTemplate redis, ObjectMapper mapper, KafkaTemplate kafkaTemplate, MatchRepository matchRepository, ApplicationEventPublisher publisher, BotClientService botClient){
+    public QueueService(StringRedisTemplate redis, ObjectMapper mapper, KafkaTemplate kafkaTemplate, MatchRepository matchRepository, ApplicationEventPublisher publisher, ClientService botClient){
         this.redis = redis;
         this.mapper = mapper;
         this.kafkaTemplate = kafkaTemplate;
@@ -143,7 +137,6 @@ public class QueueService {
     // 경기 시작 시, MatchStatus.Playing으로 바꿔준다.
     // 정해진 KafkaTopic에 시작했다는 사실을 발행한다.
     // Websocket으로 받는다.
-
     @Transactional
     public MatchResponseDTO insertMatchData(MatchRequestDTO dto){
         try{
@@ -161,31 +154,13 @@ public class QueueService {
             Match saved = matchRepository.save(match);
 
             MatchResponseDTO res = new MatchResponseDTO(saved.getMatchId(), saved.getRoomId(), saved.getMatchName(), saved.getMaxUser(), saved.getDifficulty().name(), saved.getStartedAt());
+            System.out.println(res);
 
-            // 시작 시간 N초 전, Bot 서버로 요청 및 Redis 키 업데이트.
+            // 시작 시간 N초 전 Thread 실행
+            // Transactional로 Playing, Bot 서버로 요청 및 Redis 키 업데이트
             publisher.publishEvent(new MatchInsertedEventDTO(
                 saved.getMatchId(), saved.getRoomId(), saved.getStartedAt(), saved.getUsedBotCount(), saved.getDifficulty().toString(), dto.getHallId()
             ));
-
-            /**
-            // @Transactional
-            // DB에 커밋되고 나서, Redis에 room:{roomId}:match:{matchId}
-            publisher.publishEvent(new MatchCacheRepository.MatchCreatedEvent(saved.getMatchId()));
-
-            // 경기 시작 뒤, 봇 서버로 요청을 보낸다.
-            // 경기 서버에 대해 봇 서버가 알 수 있게 정보를 보내준다.
-            Long matchId = saved.getMatchId();
-            int botCount = saved.getUsedBotCount();
-            LocalDateTime startedAt = saved.getStartedAt();
-            String difficulty = saved.getDifficulty().toString();
-            Long hallId = dto.getHallId();
-
-            // LocalDateTime now = LocalDateTime.now();
-            //LocalDateTime millisecond = startedAt - now;
-
-            // 경기 시작하면서 Bot에게 요청을 보낸다.
-            botClient.sendBotRequest(matchId, botCount, startedAt, difficulty, hallId);
-            */
 
             return res;
 
