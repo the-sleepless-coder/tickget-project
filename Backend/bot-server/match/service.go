@@ -116,14 +116,63 @@ func (s *Service) SetBotsForMatch(matchID int64, req models.MatchSettingRequest)
 	return nil
 }
 
-// 매치 실행 - 매치가 시작 시간에 도달했을 때 호출 (봇은 즉시 생성하지 않음)
+// 매치 실행 - 매치가 시작 시간에 도달했을 때 모든 봇 생성 및 시작
 func (s *Service) runMatch(matchCtx *MatchContext) error {
 	matchLogger := logger.WithMatchContext(matchCtx.MatchID)
 	matchCtx.SetStatus(StatusRunning)
 
-	matchLogger.Info("매치 시작 준비 완료, 봇들은 Kafka 이벤트를 기다립니다",
-		zap.Int("bot_count", matchCtx.BotCount),
+	matchLogger.Info("봇 시작 중",
+		zap.Int("count", matchCtx.BotCount),
 	)
+
+	// 1. 봇 인스턴스 생성 (각 봇은 -1, -2, -3, ... 형식의 음수 userId 사용)
+	bots := make([]*bot.Bot, matchCtx.BotCount)
+	for i := 0; i < matchCtx.BotCount; i++ {
+		userID := int64(-(i + 1)) // -1, -2, -3, ...
+		botLogger := logger.Get().With(
+			zap.Int64("match_id", matchCtx.MatchID),
+			zap.Int64("user_id", userID),
+		)
+		botLevel := matchCtx.BotLevels[i]
+
+		// 개별 봇용 대기 채널 생성 및 저장
+		waitChannel := make(chan struct{})
+		channelKey := getBotWaitChannelKey(matchCtx.MatchID, userID)
+		s.waitChannels.Store(channelKey, waitChannel)
+
+		bots[i] = bot.NewBot(userID, matchCtx.MatchID, botLevel, s.httpClient, waitChannel, botLogger)
+	}
+
+	// 2. 봇들에게 목표 좌석 할당 (레벨별 우선순위)
+	if matchCtx.HallLayout != nil {
+		bot.AssignTargetSeats(bots, matchCtx.HallLayout)
+		matchLogger.Info("봇들에게 목표 좌석 할당 완료",
+			zap.Int("bot_count", len(bots)),
+		)
+	} else {
+		matchLogger.Warn("공연장 정보가 없어 좌석 할당을 건너뜁니다")
+	}
+
+	// 3. 봇들을 goroutine으로 실행 (JoinQueue 호출 후 대기 상태로 진입)
+	for _, b := range bots {
+		matchCtx.AddBot()
+
+		go func(botInstance *bot.Bot) {
+			defer matchCtx.DoneBot()
+			defer func() {
+				// 봇 완료 시 채널 정리
+				channelKey := getBotWaitChannelKey(matchCtx.MatchID, botInstance.UserID)
+				s.waitChannels.Delete(channelKey)
+			}()
+
+			if err := botInstance.Run(matchCtx.Context()); err != nil {
+				logger.Get().With(
+					zap.Int64("match_id", matchCtx.MatchID),
+					zap.Int64("user_id", botInstance.UserID),
+				).Warn("봇 실행 실패", zap.Error(err))
+			}
+		}(b)
+	}
 
 	// 모든 봇 완료 대기
 	matchCtx.Wait()
@@ -160,66 +209,25 @@ func getBotWaitChannelKey(matchID int64, userID int64) string {
 	return fmt.Sprintf("%d:%d", matchID, userID)
 }
 
-// SignalBotStart Kafka 이벤트로 개별 봇 시작 신호를 받았을 때 호출
+// SignalBotStart Kafka 이벤트로 개별 봇의 대기를 해제
 func (s *Service) SignalBotStart(matchID int64, userID int64) {
 	matchLogger := logger.WithMatchContext(matchID)
 
-	// 매치 컨텍스트 확인
-	s.mu.RLock()
-	matchCtx, exists := s.matches[matchID]
-	s.mu.RUnlock()
+	// 개별 봇의 대기 채널 찾기
+	channelKey := getBotWaitChannelKey(matchID, userID)
+	chInterface, ok := s.waitChannels.Load(channelKey)
 
-	if !exists {
-		matchLogger.Warn("매치를 찾을 수 없습니다", zap.Int64("user_id", userID))
+	if !ok {
+		matchLogger.Warn("대기 중인 봇을 찾을 수 없습니다", zap.Int64("user_id", userID))
 		return
 	}
 
-	// 개별 봇 대기 채널 생성
-	ch := make(chan struct{})
-	channelKey := getBotWaitChannelKey(matchID, userID)
-	s.waitChannels.Store(channelKey, ch)
+	ch := chInterface.(chan struct{})
 
-	// 봇 카운트 증가
-	matchCtx.AddBot()
+	matchLogger.Info("개별 봇 시작 신호 전송",
+		zap.Int64("user_id", userID),
+	)
 
-	// 봇 생성 및 실행
-	go func() {
-		defer matchCtx.DoneBot()
-		defer s.waitChannels.Delete(channelKey)
-
-		// 봇 레벨 선택 (간단하게 라운드 로빈 또는 랜덤)
-		botIndex := int(userID % int64(len(matchCtx.BotLevels)))
-		if botIndex < 0 {
-			botIndex = -botIndex
-		}
-		botLevel := matchCtx.BotLevels[botIndex]
-
-		botLogger := logger.Get().With(
-			zap.Int64("match_id", matchID),
-			zap.Int64("user_id", userID),
-		)
-
-		// 봇 인스턴스 생성
-		botInstance := bot.NewBot(userID, matchID, botLevel, s.httpClient, ch, botLogger)
-
-		// 좌석 할당
-		if matchCtx.HallLayout != nil {
-			// 단일 봇에 좌석 할당
-			bots := []*bot.Bot{botInstance}
-			bot.AssignTargetSeats(bots, matchCtx.HallLayout)
-		}
-
-		matchLogger.Info("개별 봇 시작",
-			zap.Int64("user_id", userID),
-			zap.String("level", botLevel.String()),
-		)
-
-		// 즉시 채널 닫아서 봇 시작 (대기 없이)
-		close(ch)
-
-		// 봇 실행
-		if err := botInstance.Run(matchCtx.Context()); err != nil {
-			botLogger.Warn("봇 실행 실패", zap.Error(err))
-		}
-	}()
+	// 해당 봇의 채널을 닫아서 대기 해제
+	close(ch)
 }
