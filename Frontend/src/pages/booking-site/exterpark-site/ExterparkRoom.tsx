@@ -138,11 +138,12 @@ export default function ITicketPage() {
   const [isRoomModalOpen, setIsRoomModalOpen] = useState<boolean>(false);
   const [isExiting, setIsExiting] = useState<boolean>(false);
   const subscriptionRef = useRef<Subscription | null>(null);
+  const bridgeRef = useRef<BroadcastChannel | null>(null);
   const wsClient = useWebSocketStore((state) => state.client);
   const currentUserNickname = useAuthStore((state) => state.nickname);
   const currentUserId = useAuthStore((state) => state.userId);
   const matchIdFromStore = useMatchStore((s) => s.matchId);
-  const [myQueueStatus, setMyQueueStatus] = useState<QueueStatus | null>(null);
+  const [, setMyQueueStatus] = useState<QueueStatus | null>(null);
 
   // WebSocket 이벤트 핸들러
   const handleRoomEvent = useCallback(
@@ -252,10 +253,10 @@ export default function ITicketPage() {
             const key = String(myUserId);
             // 키가 문자열로 올 수 있으니 문자열 우선 조회, 보조로 숫자 키도 조회 시도
             const raw =
-              (queueStatuses as Record<string, any>)[key] ??
-              (queueStatuses as unknown as Record<number, any>)[
-                myUserId as number
-              ];
+              (queueStatuses as Record<string, Partial<QueueStatus>>)[key] ??
+              (
+                queueStatuses as unknown as Record<number, Partial<QueueStatus>>
+              )[myUserId as number];
 
             if (raw) {
               const next: QueueStatus = {
@@ -434,6 +435,20 @@ export default function ITicketPage() {
     let retryCount = 0;
     const maxRetries = 20; // 최대 10초 대기 (500ms * 20)
 
+    // Bridge 채널 준비 (교차 창 전달용)
+    const bridgeChannelName = `room-${targetRoomId}-events`;
+    try {
+      if ("BroadcastChannel" in window) {
+        bridgeRef.current?.close();
+        bridgeRef.current = new BroadcastChannel(bridgeChannelName);
+        console.log("🔗 [bridge] 채널 준비:", bridgeChannelName);
+      } else {
+        console.warn("⚠️ [bridge] BroadcastChannel 미지원 - 브릿지 비활성");
+      }
+    } catch (e) {
+      console.warn("⚠️ [bridge] 채널 생성 실패:", e);
+    }
+
     console.log("🚀 [구독] 구독 프로세스 시작:", {
       targetRoomId,
       destination,
@@ -466,6 +481,13 @@ export default function ITicketPage() {
                 `🔔 [메시지 수신] 이벤트 타입: ${data.eventType}`,
                 data
               );
+              // Bridge로 교차 창에 전달
+              try {
+                bridgeRef.current?.postMessage(data);
+                // console.debug("📡 [bridge] 이벤트 전달:", data.eventType);
+              } catch (e) {
+                console.warn("⚠️ [bridge] 이벤트 전달 실패:", e);
+              }
               handleRoomEvent(data);
             }
             // roomMembers 배열이 있으면 무조건 업데이트 (기존 형식 지원)
@@ -550,6 +572,17 @@ export default function ITicketPage() {
         });
         subscriptionRef.current.unsubscribe();
         subscriptionRef.current = null;
+      }
+      if (bridgeRef.current) {
+        try {
+          bridgeRef.current.close();
+          console.log("🔌 [bridge] 채널 종료:", bridgeChannelName);
+        } catch (err) {
+          if (import.meta.env.DEV) {
+            console.warn("[bridge] close 실패:", err);
+          }
+        }
+        bridgeRef.current = null;
       }
     };
   }, [
