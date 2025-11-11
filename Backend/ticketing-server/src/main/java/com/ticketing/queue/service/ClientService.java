@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 @Slf4j
 @Component
@@ -77,7 +78,7 @@ public class ClientService {
                     String.class
             );
 
-            log.info("🤖 Bot 시작 요청 전송 완료 | roomId={} | status={}", roomId, response.getStatusCode());
+            log.info(" Room 서버 시작 요청 전송 완료 | roomId={} | status={}", roomId, response.getStatusCode());
             log.debug("➡️ 응답 본문: {}", response.getBody());
             return response;
         } catch (Exception e) {
@@ -98,16 +99,21 @@ public class ClientService {
 
         // Url, 메서드, 요청, 응답
         try{
-            ResponseEntity<Integer> response = restTemplate.exchange(
+            ResponseEntity<Map> response = restTemplate.exchange(
                     url,
                     HttpMethod.GET,
                     request,
-                    Integer.class
+                    Map.class
             );
+            Map<String, Object> body = response.getBody();
+            if(body != null){
+                Integer currentUserCount = (Integer) body.get("currentUserCount");
+                log.info("사용자 수: {}를 가져옵니다.", currentUserCount);
+                return ResponseEntity.ok(currentUserCount);
+            }
+            return ResponseEntity.status(HttpStatus.NO_CONTENT)
+                    .body("{\"message\": \"no data returned from room server\"}");
 
-            log.info("사용자 수를 가져옵니다.");
-
-            return response;
         }catch(Exception e){
             e.printStackTrace();
             log.info("사용자 수를 가져오지 못했습니다.");

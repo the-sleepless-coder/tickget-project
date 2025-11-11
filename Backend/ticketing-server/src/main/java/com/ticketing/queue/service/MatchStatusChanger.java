@@ -56,7 +56,7 @@ public class MatchStatusChanger {
             log.error("Bot notify failed. roomId={} matchId={}", roomId, matchId, ex);
         }
 
-        // 3) 매치 상태 Redis 키 설정
+        // 3) 매치 게임 상태 Redis 키 설정
         String statusKey = MATCH_STATUS_KEY.formatted(matchId);
         redis.opsForValue().set(statusKey, OPEN);
         redis.expire(statusKey, Duration.ofMinutes(EXPIRE_MINUTES));
@@ -85,6 +85,19 @@ public class MatchStatusChanger {
 
         redis.opsForValue().set(key,"1");
         redis.expire(key, Duration.ofMinutes(EXPIRE_MINUTES));
+
+        // 6) room 서버에 시작했다는 사실 알림
+        try{
+            Client.changeStartState(roomId);
+            log.info(" room 서버의 게임 상태가 PLAYING으로 바뀌었습니다. ");
+
+        }catch(Exception e){
+            e.printStackTrace();
+            log.info(" room 서버의 게임 상태가 바뀌지 못했습니다. ");
+        }
+
+
+
     }
 
 
