@@ -91,3 +91,27 @@ export interface RoomDetailResponse {
   thumbnailValue: string | null;
   totalSeat?: number; // 총 좌석 수
 }
+
+// AI Seatmap TSX generation - Types
+export interface ProcessTsxSuccessResponse {
+  ok: true;
+  hallId: number;
+  minio: {
+    tsx: { bucket: string; key: string; url: string };
+    meta: { bucket: string; key: string; url: string };
+  };
+  local: {
+    tsx: { path: string; saved: boolean };
+    meta: { path: string; saved: boolean };
+  };
+  warn: string[];
+}
+
+export interface ProcessTsxFailResponse {
+  ok: false;
+  detail: string;
+}
+
+export type ProcessTsxResponse =
+  | ProcessTsxSuccessResponse
+  | ProcessTsxFailResponse;

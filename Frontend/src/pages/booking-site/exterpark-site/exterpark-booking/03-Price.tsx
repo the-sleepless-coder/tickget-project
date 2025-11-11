@@ -3,6 +3,9 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import BookingLayout from "./_components/BookingLayout";
 import { paths } from "../../../../app/routes/paths";
 import { useRoomStore } from "@features/room/store";
+import { useMatchStore } from "@features/booking-site/store";
+import { useAuthStore } from "@features/auth/store";
+import { cancelSeats } from "@features/performance-hall/api";
 import dayjs from "dayjs";
 import Thumbnail01 from "../../../../shared/images/thumbnail/Thumbnail01.webp";
 import Thumbnail02 from "../../../../shared/images/thumbnail/Thumbnail02.webp";
@@ -21,6 +24,8 @@ export default function PricePage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const roomInfo = useRoomStore((s) => s.roomInfo);
+  const matchIdFromStore = useMatchStore((s) => s.matchId);
+  const currentUserId = useAuthStore((s) => s.userId);
   const fee = 2000;
 
   // 썸네일 번호 -> 이미지 매핑
@@ -72,22 +77,7 @@ export default function PricePage() {
     }
   }, [seatsParam]);
 
-  // 등급별 좌석 정보
-  const seatsByGrade = useMemo(() => {
-    return selectedSeats.reduce(
-      (acc, seat) => {
-        acc[seat.grade] = seat;
-        return acc;
-      },
-      {} as Record<string, SeatData>
-    );
-  }, [selectedSeats]);
-
-  // 총 좌석 수
-  const totalSeatCount = useMemo(
-    () => selectedSeats.reduce((sum, s) => sum + s.count, 0),
-    [selectedSeats]
-  );
+  // (unused 계산 제거: seatsByGrade, totalSeatCount)
 
   // 선택된 좌석 등급 텍스트
   const selectedSeatsText = useMemo(() => {
@@ -179,7 +169,36 @@ export default function PricePage() {
     return selectedSeats.map((s) => `${s.grade} ${s.count}석`).join(", ");
   }, [selectedSeats]);
 
-  const goPrev = () => navigate(paths.booking.selectSeat);
+  const goPrev = async () => {
+    // matchId 결정: store 우선, 없으면 URL 파라미터에서 가져오기
+    const matchIdParam = searchParams.get("matchId");
+    const matchId =
+      matchIdFromStore ??
+      (matchIdParam && !Number.isNaN(Number(matchIdParam))
+        ? Number(matchIdParam)
+        : null);
+
+    if (matchId && currentUserId) {
+      try {
+        console.log("[seat-cancel] API 호출:", {
+          matchId,
+          userId: currentUserId,
+          endpoint: `/ticketing/matches/${matchId}/seats/cancel?userId=${currentUserId}`,
+          method: "DELETE",
+        });
+        const response = await cancelSeats(matchId, currentUserId);
+        console.log("[seat-cancel] API 응답:", response);
+      } catch (err) {
+        console.error("[seat-cancel] API 에러:", err);
+      }
+    } else {
+      console.warn(
+        "[seat-cancel] matchId 또는 userId가 없어 API 호출을 건너뜁니다.",
+        { matchId, currentUserId }
+      );
+    }
+    navigate(paths.booking.selectSeat);
+  };
   const goNext = () => {
     const nextUrl = new URL(
       window.location.origin + paths.booking.orderConfirm
