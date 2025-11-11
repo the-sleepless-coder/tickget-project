@@ -280,8 +280,8 @@ export async function confirmSeat(
     message: "",
     userRank: 0,
     confirmedSeats: [],
-    matchId: String(matchId),
-    userId: String(payload.userId),
+    matchId: Number(matchId),
+    userId: Number(payload.userId),
     status: null,
   };
   try {
