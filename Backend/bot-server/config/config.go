@@ -46,7 +46,7 @@ func Load() *Config {
 		MinioUseSSL:       getEnvAsBool("MINIO_USE_SSL", false),
 		KafkaBrokers:      getEnv("KAFKA_BROKERS", "localhost:9092"),
 		KafkaGroupID:      getEnv("KAFKA_GROUP_ID", "bot-server-group"),
-		KafkaTopic:        getEnv("KAFKA_TOPIC", "match-start"),
+		KafkaTopic:        getEnv("KAFKA_TOPIC", "bot-dequeued-publish"),
 	}
 
 	logger.Info("설정 로드됨",
