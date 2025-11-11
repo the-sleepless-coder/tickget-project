@@ -169,9 +169,6 @@ export default function SmallVenue({
           const takenSeatId = `${displaySection}-${displayRowInSection}-${col}`;
           const isTaken = takenSeats.has(takenSeatId);
 
-          // 전 좌석을 하나의 섹션(1)으로 간주, 위→아래/좌→우 스캔라인 기준 전역 row/col
-          const scanRow = (floor === 1 ? 0 : 23) + effectiveRowNo; // 1층 1~23, 2층 24~
-          const scanCol = col; // 블록 오프셋을 포함한 전역 열 인덱스 (좌→우)
           const opacityVal = (() => {
             if (isOpSeat) return 0;
             if (isHiddenRow) return 0;
@@ -199,9 +196,9 @@ export default function SmallVenue({
           const customSeatProps = {
             seatid: seatId,
             grade: gradeCode,
-            section: "1",
-            row: String(scanRow),
-            col: String(scanCol),
+            section: displaySection,
+            row: String(displayRowInSection),
+            col: String(col),
             active: activeValue,
           };
           return (
