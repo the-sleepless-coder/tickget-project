@@ -122,7 +122,7 @@ export type QueueStatus = "ENQUEUED" | "ALREADY_IN_QUEUE";
 
 export interface QueueEnqueueResponse {
   eventId: string;
-  matchId: string;
+  matchId: number; // Java Long 타입
   playerType: PlayerType;
   playerId: string;
   status: QueueStatus;
@@ -197,8 +197,8 @@ export interface SeatConfirmResponse {
     seatId: string;
     sectionId: string;
   }>;
-  matchId: string;
-  userId: string;
+  matchId: number; // Java Long 타입
+  userId: number; // Java Long 타입
   status: string | null; // null=경기 진행중, CLOSED이면 전체 경기 종료
 }
 

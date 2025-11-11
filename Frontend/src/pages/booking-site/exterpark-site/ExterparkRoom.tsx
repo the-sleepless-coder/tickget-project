@@ -734,18 +734,15 @@ export default function ITicketPage() {
     const clickedTs = Date.now();
     const totalStartAt = getTotalStartAtMs() ?? clickedTs;
 
-    // matchId 결정: store 우선 → joinResponse.matchId → roomId(최후수단)
+    // matchId 결정: store 우선 → joinResponse.matchId
+    // 주의: matchId는 티켓팅 시스템의 ID이고, roomId와는 다른 개념입니다.
+    // roomId를 matchId로 사용하지 않습니다.
     const jr = joinResponse as unknown as {
       matchId?: unknown;
-      roomId?: unknown;
     };
     const rawMatchId =
-      matchIdFromStore ?? jr?.matchId ?? jr?.roomId ?? roomData?.roomId ?? null;
-    const matchIdParam =
-      rawMatchId != null &&
-      (typeof rawMatchId === "string" || typeof rawMatchId === "number")
-        ? String(rawMatchId)
-        : undefined;
+      matchIdFromStore ?? (jr?.matchId != null ? Number(jr.matchId) : null);
+    const matchIdParam = rawMatchId != null ? String(rawMatchId) : undefined;
 
     // hallId 결정: roomDetail → roomData → roomRequest 순으로 확인
     const hallId =

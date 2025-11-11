@@ -325,22 +325,26 @@ export default function RoomCard({
       console.log("✅ 방 입장 성공:", JSON.stringify(response, null, 2));
       console.log("📋 방 멤버 목록:", response.roomMembers);
       // Match Store에 matchId 저장 (다른 경기 API에서 재사용)
+      // 주의: matchId는 티켓팅 시스템에서 생성되는 별도의 ID입니다.
+      // roomId와는 다른 개념이므로, matchId가 없으면 저장하지 않습니다.
       try {
         const { useMatchStore } = await import("@features/booking-site/store");
-        const raw =
-          (response as { matchId?: unknown; roomId?: unknown })?.matchId ??
-          (response as { roomId?: unknown })?.roomId;
-        const parsed =
-          typeof raw === "string" || typeof raw === "number"
-            ? Number(raw)
-            : NaN;
-        if (Number.isFinite(parsed)) {
-          useMatchStore.getState().setMatchId(parsed);
-          console.log("[booking-site] matchId 저장 완료:", parsed);
+        const raw = (response as { matchId?: unknown })?.matchId;
+        if (raw != null) {
+          const parsed =
+            typeof raw === "string" || typeof raw === "number"
+              ? Number(raw)
+              : NaN;
+          if (Number.isFinite(parsed)) {
+            useMatchStore.getState().setMatchId(parsed);
+            console.log("[booking-site] matchId 저장 완료:", parsed);
+          } else {
+            console.warn("[booking-site] matchId 파싱 실패:", { matchId: raw });
+          }
         } else {
           console.warn(
-            "[booking-site] 응답에 matchId가 없어 저장을 건너뜁니다.",
-            { matchId: raw }
+            "[booking-site] 응답에 matchId가 없습니다. 티켓팅 API는 matchId가 필요할 수 있습니다.",
+            { response }
           );
         }
       } catch (e) {
