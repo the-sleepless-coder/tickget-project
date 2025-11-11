@@ -76,120 +76,89 @@ export async function getRoomDetail(roomId: number) {
 
 /**
  * AI Seatmap TSX generation
- * POST https://tickget.kr/api/v1/dev/stmap/pipeline/process_tsx
- * Body: { file: string ($binary base64), capacity: number }
+ * POST {VITE_API_ORIGIN||https://tickget.kr}/api/v1/dev/stmap/pipeline/process_tsx
+ * Body (multipart/form-data):
+ *  - file: File (e.g., images(1).png)
+ *  - capacity: text (e.g., "1246")
  */
-export async function processSeatmapTsx(payload: {
-  file: string;
-  capacity: number;
-}): Promise<ProcessTsxResponse> {
-  const url = "https://tickget.kr/api/v1/dev/stmap/pipeline/process_tsx";
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    Accept: "application/json",
-  };
-  // Include auth header if available
+export async function processSeatmapTsx(
+  file: File,
+  capacity: number
+): Promise<ProcessTsxResponse> {
+  const origin = import.meta.env.VITE_API_ORIGIN ?? "https://tickget.kr";
+  const url = `${origin}/api/v1/dev/stmap/pipeline/process_tsx`;
+
+  const form = new FormData();
+  form.append("file", file);
+  form.append("capacity", String(capacity));
+
+  // Build headers, excluding any content-type override for multipart
+  const headers: Record<string, string> = { Accept: "application/json" };
   try {
     const authHeaders = useAuthStore.getState().getAuthHeaders?.();
     if (authHeaders) {
       for (const [k, v] of Object.entries(authHeaders)) {
-        headers[k] = v as string;
+        if (k.toLowerCase() !== "content-type") {
+          headers[k] = v as string;
+        }
       }
     }
   } catch {
     // ignore
   }
 
-  // Debug: request log (do not dump the whole base64)
+  // Debug: log request summary (mask authorization)
   const maskedHeaders = Object.fromEntries(
-    Object.entries(headers).map(([k, v]) => {
-      if (k.toLowerCase() === "authorization") {
-        return [k, v ? `${v.slice(0, 8)}...` : ""];
-      }
-      return [k, v];
-    })
+    Object.entries(headers).map(([k, v]) =>
+      k.toLowerCase() === "authorization"
+        ? [k, v ? `${String(v).slice(0, 8)}...` : ""]
+        : [k, v]
+    )
   );
-  const fileLen = payload.file?.length ?? 0;
-  const filePreview = payload.file ? payload.file.slice(0, 24) : "";
-  console.log("[process-tsx] Request", {
-    url,
-    headers: maskedHeaders,
-    body: {
-      capacity: payload.capacity,
-      fileLength: fileLen,
-      filePreview, // first 24 chars, base64
-    },
+  try {
+    console.log("[processSeatmapTsx] Request", {
+      url,
+      headers: maskedHeaders,
+      body: {
+        fileName: file?.name,
+        fileSize: file?.size,
+        capacity,
+      },
+    });
+  } catch {
+    // ignore console issues
+  }
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers,
+    body: form,
+    credentials: "include",
   });
 
+  const text = await res.text();
+  let parsed: ProcessTsxResponse | null = null;
   try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(payload),
-      credentials: "include",
-    });
+    parsed = text ? (JSON.parse(text) as ProcessTsxResponse) : null;
+  } catch {
+    parsed = null;
+  }
 
-    const text = await res.text();
-    let parsed: ProcessTsxResponse | null = null;
-    try {
-      parsed = text
-        ? (JSON.parse(text) as ProcessTsxResponse)
-        : ({} as unknown as ProcessTsxResponse);
-    } catch {
-      parsed = null;
-    }
-
-    console.log("[process-tsx] HTTP response", {
+  try {
+    console.log("[processSeatmapTsx] Response", {
       status: res.status,
-      statusText: res.statusText,
       ok: res.ok,
-    });
-
-    if (parsed) {
-      if (parsed.ok === true) {
-        console.log("[process-tsx] Success", {
-          hallId: parsed.hallId,
-          minioTsx: parsed.minio?.tsx?.url,
-          minioMeta: parsed.minio?.meta?.url,
-          warn: parsed.warn,
-          raw: parsed,
-        });
-        return parsed;
-      } else if (parsed.ok === false) {
-        console.warn("[process-tsx] Fail", {
-          detail: parsed.detail,
-          raw: parsed,
-        });
-        return parsed;
-      }
-      // Unknown JSON shape
-      console.warn("[process-tsx] Unexpected JSON shape", parsed);
-      return {
-        ok: false,
-        detail: `Unexpected JSON response shape: ${text.slice(0, 200)}`,
-      };
-    }
-
-    // Non-JSON response
-    console.error("[process-tsx] Non-JSON response body", {
-      status: res.status,
-      statusText: res.statusText,
       bodyPreview: text.slice(0, 300),
     });
-    return {
-      ok: false,
-      detail: `Unexpected response: ${res.status} ${res.statusText}`,
-    };
-  } catch (err: unknown) {
-    const message =
-      err instanceof Error ? err.message : typeof err === "string" ? err : "";
-    console.error("[process-tsx] Request error", {
-      message,
-      error: err,
-    });
-    return {
-      ok: false,
-      detail: `Network or client error: ${message || String(err)}`,
-    };
+  } catch {
+    // ignore console issues
   }
+
+  if (parsed) {
+    return parsed;
+  }
+  return {
+    ok: false,
+    detail: `Unexpected response: ${res.status} ${res.statusText}`,
+  };
 }

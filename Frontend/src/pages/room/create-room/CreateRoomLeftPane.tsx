@@ -3,6 +3,7 @@ import { useState } from "react";
 import Loader from "../shared/Loader";
 import InsertPhotoOutlined from "@mui/icons-material/InsertPhotoOutlined";
 import { Alert, Snackbar } from "@mui/material";
+import TsxPreview from "@shared/components/TsxPreview";
 
 export default function LeftPane({
   step,
@@ -17,6 +18,7 @@ export default function LeftPane({
   isAIMode,
   isPresetMode,
   showLoader,
+  tsxUrl,
 }: {
   step: 1 | 2;
   thumbnailUrl: string | null;
@@ -30,6 +32,7 @@ export default function LeftPane({
   isAIMode?: boolean;
   isPresetMode?: boolean;
   showLoader?: boolean;
+  tsxUrl?: string | null;
 }) {
   const [toastOpen, setToastOpen] = useState(false);
   const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5MB
@@ -144,6 +147,9 @@ export default function LeftPane({
             const src = isPresetMode
               ? defaultSrc
               : layoutUrl || (isAIMode ? null : defaultSrc);
+            if (isAIMode && tsxUrl) {
+              return <TsxPreview src={tsxUrl} className="w-full h-full" />;
+            }
             return src ? (
               <img
                 src={src}

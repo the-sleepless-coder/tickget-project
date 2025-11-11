@@ -104,7 +104,7 @@ export interface ProcessTsxSuccessResponse {
     tsx: { path: string; saved: boolean };
     meta: { path: string; saved: boolean };
   };
-  warn: string[];
+  warn?: string[];
 }
 
 export interface ProcessTsxFailResponse {
