@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   formatSecondsHuman,
   ReserveMetricKeys,
-} from "../../utils/reserveMetrics";
+} from "../../../../shared/utils/reserveMetrics";
 
 type LiveOverrides = {
   // 예매 버튼
