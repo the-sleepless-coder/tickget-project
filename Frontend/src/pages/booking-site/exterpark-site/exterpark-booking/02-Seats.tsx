@@ -268,7 +268,8 @@ export default function SelectSeatPage() {
           );
           if (response.seats) {
             response.seats.forEach((seat) => {
-              if (seat.status === "TAKEN") {
+              // TAKEN 또는 MY_RESERVED 상태인 좌석은 선택할 수 없음
+              if (seat.status === "TAKEN" || seat.status === "MY_RESERVED") {
                 allTaken.add(seat.seatId);
               }
             });
@@ -494,37 +495,50 @@ export default function SelectSeatPage() {
                   );
                 } else {
                   // MediumVenue/LargeVenue: 해당 섹션들의 좌석 현황 가져오기
-                  // 섹션 polygon을 클릭하여 좌석 현황을 새로고침
+                  const venueRef =
+                    venueKey === "medium" ? mediumVenueRef : largeVenueRef;
+
                   for (const sectionId of sectionIds) {
                     try {
-                      // DOM에서 해당 섹션의 polygon 찾기
-                      const polygon = document.querySelector(
-                        `polygon[data-id="${sectionId}"]`
-                      ) as SVGPolygonElement | null;
+                      // 섹션 좌석 현황 API 호출
+                      const statusResponse = await getSectionSeatsStatus(
+                        matchId,
+                        sectionId,
+                        currentUserId
+                      );
+                      console.log(
+                        `[seat-hold] 섹션 ${sectionId} 좌석 현황:`,
+                        statusResponse
+                      );
 
-                      if (polygon) {
-                        // 섹션 좌석 현황 API 호출
-                        const statusResponse = await getSectionSeatsStatus(
-                          matchId,
+                      // TAKEN 또는 MY_RESERVED 좌석 ID 추출
+                      // MY_RESERVED는 다른 사용자가 예약한 좌석이므로 선택할 수 없음
+                      const takenSeatIds: string[] = [];
+                      if (statusResponse.seats) {
+                        statusResponse.seats.forEach((seat) => {
+                          if (
+                            seat.status === "TAKEN" ||
+                            seat.status === "MY_RESERVED"
+                          ) {
+                            takenSeatIds.push(seat.seatId);
+                          }
+                        });
+                      }
+
+                      // ref를 통해 컴포넌트의 좌석 상태 직접 업데이트
+                      if (venueRef?.current?.refreshSeatStatus) {
+                        venueRef.current.refreshSeatStatus(
                           sectionId,
-                          currentUserId
+                          takenSeatIds
                         );
                         console.log(
-                          `[seat-hold] 섹션 ${sectionId} 좌석 현황:`,
-                          statusResponse
-                        );
-
-                        // polygon 클릭 이벤트 트리거하여 컴포넌트 내부 상태 업데이트
-                        // (MediumVenue/LargeVenue는 섹션 클릭 시 자동으로 좌석 현황을 가져옴)
-                        polygon.dispatchEvent(
-                          new MouseEvent("click", {
-                            bubbles: true,
-                            cancelable: true,
-                          })
+                          `[seat-hold] 섹션 ${sectionId} 좌석 상태 업데이트 완료:`,
+                          takenSeatIds.length,
+                          "개"
                         );
                       } else {
                         console.warn(
-                          `[seat-hold] 섹션 ${sectionId} polygon을 찾을 수 없음`
+                          `[seat-hold] venueRef 또는 refreshSeatStatus를 찾을 수 없음`
                         );
                       }
                     } catch (error) {
