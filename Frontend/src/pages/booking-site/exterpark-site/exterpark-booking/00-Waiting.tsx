@@ -122,30 +122,33 @@ export default function BookingWaitingPage() {
               wsDestination: destination,
             });
 
-          // 임시 정책: total === 1 이면 좌석 선택 페이지로 이동
-          if (total === 1 && !hasDequeued && !autoNavigated) {
-            setAutoNavigated(true);
-            const rtSec = searchParams.get("rtSec") ?? "0";
-            const nrClicks = searchParams.get("nrClicks") ?? "0";
-            const hallId = searchParams.get("hallId");
-            const date = searchParams.get("date");
-            const round = searchParams.get("round");
-            const nextUrl = new URL(
-              window.location.origin + paths.booking.selectSeat
-            );
-            nextUrl.searchParams.set("rtSec", rtSec);
-            nextUrl.searchParams.set("nrClicks", nrClicks);
-            if (hallId) nextUrl.searchParams.set("hallId", hallId);
-            const fallbackMatch =
-              matchIdFromStore != null
-                ? String(matchIdFromStore)
-                : searchParams.get("matchId");
-            if (fallbackMatch) nextUrl.searchParams.set("matchId", fallbackMatch);
-            if (date) nextUrl.searchParams.set("date", date);
-            if (round) nextUrl.searchParams.set("round", round);
-            console.log("🚀 [waiting][AUTO] total=1 감지, 좌석 선택으로 이동");
-            navigate(nextUrl.pathname + nextUrl.search, { replace: true });
-          }
+            // 임시 정책: total === 1 이면 좌석 선택 페이지로 이동
+            if (total === 1 && !hasDequeued && !autoNavigated) {
+              setAutoNavigated(true);
+              const rtSec = searchParams.get("rtSec") ?? "0";
+              const nrClicks = searchParams.get("nrClicks") ?? "0";
+              const hallId = searchParams.get("hallId");
+              const date = searchParams.get("date");
+              const round = searchParams.get("round");
+              const nextUrl = new URL(
+                window.location.origin + paths.booking.selectSeat
+              );
+              nextUrl.searchParams.set("rtSec", rtSec);
+              nextUrl.searchParams.set("nrClicks", nrClicks);
+              if (hallId) nextUrl.searchParams.set("hallId", hallId);
+              const fallbackMatch =
+                matchIdFromStore != null
+                  ? String(matchIdFromStore)
+                  : searchParams.get("matchId");
+              if (fallbackMatch)
+                nextUrl.searchParams.set("matchId", fallbackMatch);
+              if (date) nextUrl.searchParams.set("date", date);
+              if (round) nextUrl.searchParams.set("round", round);
+              console.log(
+                "🚀 [waiting][AUTO] total=0 감지, 좌석 선택으로 이동"
+              );
+              navigate(nextUrl.pathname + nextUrl.search, { replace: true });
+            }
           } else {
             console.log(
               "ℹ️ [waiting][QUEUE] 아직 대기열 미진입(내 userId 미포함):",
@@ -341,16 +344,23 @@ export default function BookingWaitingPage() {
             const hallId = searchParams.get("hallId");
             const date = searchParams.get("date");
             const round = searchParams.get("round");
-            const nextUrl = new URL(window.location.origin + paths.booking.selectSeat);
+            const nextUrl = new URL(
+              window.location.origin + paths.booking.selectSeat
+            );
             nextUrl.searchParams.set("rtSec", rtSec);
             nextUrl.searchParams.set("nrClicks", nrClicks);
             if (hallId) nextUrl.searchParams.set("hallId", hallId);
             const fallbackMatch =
-              matchIdFromStore != null ? String(matchIdFromStore) : searchParams.get("matchId");
-            if (fallbackMatch) nextUrl.searchParams.set("matchId", fallbackMatch);
+              matchIdFromStore != null
+                ? String(matchIdFromStore)
+                : searchParams.get("matchId");
+            if (fallbackMatch)
+              nextUrl.searchParams.set("matchId", fallbackMatch);
             if (date) nextUrl.searchParams.set("date", date);
             if (round) nextUrl.searchParams.set("round", round);
-            console.log("🚀 [waiting][bridge][AUTO] total=1 감지, 좌석 선택으로 이동");
+            console.log(
+              "🚀 [waiting][bridge][AUTO] total=1 감지, 좌석 선택으로 이동"
+            );
             navigate(nextUrl.pathname + nextUrl.search, { replace: true });
           }
         }
@@ -419,7 +429,15 @@ export default function BookingWaitingPage() {
         }
       }
     };
-  }, [stage, roomId, hasDequeued, autoNavigated, matchIdFromStore, navigate, searchParams]);
+  }, [
+    stage,
+    roomId,
+    hasDequeued,
+    autoNavigated,
+    matchIdFromStore,
+    navigate,
+    searchParams,
+  ]);
   // 대기열 진입 시 큐 등록 API 호출 (matchId가 있을 때만)
   useEffect(() => {
     if (stage !== "queue") return;
