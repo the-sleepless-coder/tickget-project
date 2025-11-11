@@ -327,6 +327,7 @@ export default function RoomCard({
       // Match Store에 matchId 저장 (다른 경기 API에서 재사용)
       // 주의: matchId는 티켓팅 시스템에서 생성되는 별도의 ID입니다.
       // roomId와는 다른 개념이므로, matchId가 없으면 저장하지 않습니다.
+      // 새로운 matchId를 받으면 기존 matchId와 관계없이 업데이트합니다.
       try {
         const { useMatchStore } = await import("@features/booking-site/store");
         const raw = (response as { matchId?: unknown })?.matchId;
@@ -336,8 +337,18 @@ export default function RoomCard({
               ? Number(raw)
               : NaN;
           if (Number.isFinite(parsed)) {
+            const currentMatchId = useMatchStore.getState().matchId;
             useMatchStore.getState().setMatchId(parsed);
-            console.log("[booking-site] matchId 저장 완료:", parsed);
+            if (currentMatchId !== null && currentMatchId !== parsed) {
+              console.log(
+                "[booking-site] matchId 업데이트:",
+                currentMatchId,
+                "->",
+                parsed
+              );
+            } else {
+              console.log("[booking-site] matchId 저장 완료:", parsed);
+            }
           } else {
             console.warn("[booking-site] matchId 파싱 실패:", { matchId: raw });
           }
