@@ -20,6 +20,7 @@ export interface RoomResponse {
   hallName: string;
   thumbnailType: ThumbnailType;
   thumbnailValue: string;
+  totalSeat?: number; // 총 좌석 수
 }
 
 export interface RoomDetailResponse {
@@ -37,10 +38,12 @@ export interface RoomDetailResponse {
   roomType: RoomType;
   status: RoomStatus;
   startTime: string; // ISO string
+  hallId: number;
   hallSize: HallSize;
   hallName: string;
   thumbnailType: ThumbnailType;
   thumbnailValue: string;
+  totalSeat?: number; // 총 좌석 수
 }
 
 export interface CreateRoomRequest {
@@ -119,11 +122,96 @@ export type QueueStatus = "ENQUEUED" | "ALREADY_IN_QUEUE";
 
 export interface QueueEnqueueResponse {
   eventId: string;
-  matchId: string;
+  matchId: number; // Java Long 타입
   playerType: PlayerType;
   playerId: string;
   status: QueueStatus;
   positionAhead: number;
   positionBehind: number;
   totalNum: number;
+}
+
+// ----- Seating (Ticketing) -----
+export type SeatReservationStatus = "MY_RESERVED" | "TAKEN";
+
+export interface SectionSeatStatusItem {
+  seatId: string;
+  grade: string; // e.g., "R석", "S석"
+  status: SeatReservationStatus;
+}
+
+export interface SectionSeatsStatusResponse {
+  sectionId: string;
+  seats: SectionSeatStatusItem[];
+}
+
+// ----- Seat Hold (Ticketing) -----
+export interface SeatHoldSeat {
+  sectionId: number;
+  row: number;
+  col: number;
+  grade: string;
+}
+
+export interface SeatHoldRequest {
+  userId: number;
+  seats: SeatHoldSeat[];
+  totalSeats: number;
+}
+
+export interface SeatHoldItem {
+  sectionId: string;
+  seatId: string;
+  grade: string;
+}
+
+export interface SeatHoldResponse {
+  success: boolean;
+  heldSeats: SeatHoldItem[];
+  failedSeats: SeatHoldItem[];
+}
+
+export interface SeatHoldResult {
+  status: number; // 200 | 409 등
+  body: SeatHoldResponse;
+}
+
+// ----- Seat Confirm (Ticketing) -----
+export interface SeatConfirmRequest {
+  userId: number;
+  dateSelectTime: number; // float
+  dateMissCount: number; // int
+  seccodeSelectTime: number; // float
+  seccodeBackspaceCount: number; // int
+  seccodeTryCount: number; // int
+  seatSelectTime: number; // float
+  seatSelectTryCount: number; // int
+  seatSelectClickMissCount: number; // int
+}
+
+export interface SeatConfirmResponse {
+  success: boolean;
+  message: string;
+  userRank: number;
+  confirmedSeats: Array<{
+    seatId: string;
+    sectionId: string;
+  }>;
+  matchId: number; // Java Long 타입
+  userId: number; // Java Long 타입
+  status: string | null; // null=경기 진행중, CLOSED이면 전체 경기 종료
+}
+
+// ----- Seat Cancel (Ticketing) -----
+export interface SeatCancelResponse {
+  success: boolean;
+  message: string;
+  matchId: number;
+  userId: number;
+  cancelledSeatCount: number;
+}
+
+export interface SeatCancelResult {
+  status: number; // 200 | 404 | 409 | 500 등
+  body: SeatCancelResponse;
 }

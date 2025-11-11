@@ -1,10 +1,14 @@
 import RoomCard from "./_components/RoomCard";
 import { useEffect, useMemo, useState } from "react";
+import dayjs from "dayjs";
 import { Link } from "react-router-dom";
 import { paths } from "../../app/routes/paths";
 import CreateRoomModal from "../room/create-room/CreateRoomModal";
 import { getRooms } from "@features/booking-site/api";
 import type { RoomResponse } from "@features/booking-site/types";
+import { useAuthStore } from "@features/auth/store";
+import RoomSortControls from "./_components/RoomSortButton";
+import { sortRooms } from "./_components/RoomSortUtil";
 import Thumbnail01 from "../../shared/images/thumbnail/Thumbnail01.webp";
 import Thumbnail02 from "../../shared/images/thumbnail/Thumbnail02.webp";
 import Thumbnail03 from "../../shared/images/thumbnail/Thumbnail03.webp";
@@ -17,6 +21,8 @@ type SortKey = "start" | "latest" | "all";
 export default function HomePage() {
   const [activeSort, setActiveSort] = useState<SortKey>("start");
   const [openCreate, setOpenCreate] = useState(false);
+  const userId = useAuthStore((s) => s.userId);
+  const nickname = useAuthStore((s) => s.nickname);
 
   type UiRoom = {
     id: number;
@@ -27,11 +33,13 @@ export default function HomePage() {
     imageSrc?: string;
     participants?: { current: number; capacity: number };
     startTime?: string;
+    startAtMs?: number;
     ongoing?: boolean;
     createdAtMs?: number;
     difficulty?: string;
     maxUserCount?: number;
     botCount?: number;
+    totalSeat?: number;
   };
 
   const [rooms, setRooms] = useState<UiRoom[]>([]);
@@ -81,13 +89,18 @@ export default function HomePage() {
   const generateCapacityText = (
     difficulty?: string,
     maxUserCount?: number,
-    botCount?: number
+    botCount?: number,
+    totalSeat?: number
   ): string => {
     const difficultyLabel = difficulty
       ? convertDifficultyToKorean(difficulty)
       : "어려움";
-    const maxUserLabel =
-      maxUserCount !== undefined ? `최대 ${maxUserCount}명` : "최대 0명";
+    // totalSeat가 있으면 "총 좌석 수 --명"으로 표시, 없으면 기존 "최대 --명" 표시
+    const maxUserLabel = totalSeat
+      ? `총좌석 ${totalSeat.toLocaleString()}명`
+      : maxUserCount !== undefined
+        ? `총 좌석수 ${maxUserCount}명`
+        : "총 좌석수 1,000명";
     const botLabel = botCount !== undefined ? `봇 ${botCount}명` : "봇 0명";
     return `${difficultyLabel}  |  ${maxUserLabel}  |  ${botLabel}`;
   };
@@ -101,7 +114,11 @@ export default function HomePage() {
           (r: RoomResponse): UiRoom => {
             const size =
               (r.hallSize?.toLowerCase() as UiRoom["size"]) ?? undefined;
-            const createdAtMs = r.createdAt ? Date.parse(r.createdAt) : 0;
+            const createdAtMs = r.createdAt ? dayjs(r.createdAt).valueOf() : 0;
+            const startAtMs =
+              r.startTime && dayjs(r.startTime).isValid()
+                ? dayjs(r.startTime).valueOf()
+                : undefined;
             const startTime =
               r.startTime && r.startTime.length >= 16
                 ? r.startTime.substring(11, 16)
@@ -122,11 +139,13 @@ export default function HomePage() {
                 capacity: r.maxUserCount,
               },
               startTime,
+              startAtMs,
               ongoing: r.status === "PLAYING",
               createdAtMs,
               difficulty: r.difficulty,
               maxUserCount: r.maxUserCount,
               botCount: r.botCount,
+              totalSeat: r.totalSeat,
             };
           }
         );
@@ -143,12 +162,7 @@ export default function HomePage() {
   }, []);
 
   const displayedRooms = useMemo(() => {
-    if (activeSort === "latest") {
-      return [...rooms].sort(
-        (a, b) => (b.createdAtMs ?? 0) - (a.createdAtMs ?? 0)
-      );
-    }
-    return rooms;
+    return sortRooms(rooms, activeSort === "latest" ? "latest" : "start");
   }, [rooms, activeSort]);
   return (
     <div className="mx-auto max-w-7xl p-4 sm:p-6">
@@ -186,7 +200,13 @@ export default function HomePage() {
 
           <button
             type="button"
-            onClick={() => setOpenCreate(true)}
+            onClick={() => {
+              if (!userId || !nickname) {
+                alert("로그인이 필요합니다.");
+                return;
+              }
+              setOpenCreate(true);
+            }}
             className="rounded-full bg-purple-500 px-4 py-2 text-sm font-medium text-white hover:bg-purple-600 cursor-pointer"
           >
             + 방 만들기
@@ -194,32 +214,10 @@ export default function HomePage() {
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="flex gap-3 text-sm">
-            <button
-              type="button"
-              aria-pressed={activeSort === "start"}
-              onClick={() => setActiveSort("start")}
-              className={`rounded-full px-4 py-2 transition-colors cursor-pointer ${
-                activeSort === "start"
-                  ? "text-purple-600 bg-purple-50"
-                  : "text-gray-900 bg-gray-100"
-              }`}
-            >
-              시작순
-            </button>
-            <button
-              type="button"
-              aria-pressed={activeSort === "latest"}
-              onClick={() => setActiveSort("latest")}
-              className={`rounded-full px-4 py-2 transition-colors cursor-pointer ${
-                activeSort === "latest"
-                  ? "text-purple-600 bg-purple-50"
-                  : "text-gray-900 bg-gray-100"
-              }`}
-            >
-              최신순
-            </button>
-          </div>
+          <RoomSortControls
+            activeSort={activeSort === "latest" ? "latest" : "start"}
+            onChange={(k) => setActiveSort(k)}
+          />
         </div>
       </div>
 
@@ -238,7 +236,8 @@ export default function HomePage() {
             capacityText={generateCapacityText(
               r.difficulty,
               r.maxUserCount,
-              r.botCount
+              r.botCount,
+              r.totalSeat
             )}
             participants={r.participants}
             startTime={r.startTime}

@@ -4,7 +4,6 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { paths } from "../../../../app/routes/paths";
 import Viewport from "./_components/Viewport";
 import {
-  health as bookingHealth,
   requestCaptchaImage,
   enqueueTicketingQueue,
 } from "@features/booking-site/api";
@@ -32,15 +31,9 @@ export default function BookingWaitingPage() {
     return () => clearTimeout(timer);
   }, []);
 
-  // booking-site API 연결: 서버 상태/캡차 이미지 사전 확인
+  // booking-site API 연결: 캡차 이미지 사전 확인
   useEffect(() => {
     (async () => {
-      try {
-        const res = await bookingHealth();
-        console.log("[booking-site][health] 성공:", res);
-      } catch (error) {
-        console.error("[booking-site][health] 실패:", error);
-      }
       try {
         const captcha = await requestCaptchaImage();
         console.log("[booking-site][captcha.request] 성공:", captcha);
@@ -67,8 +60,20 @@ export default function BookingWaitingPage() {
         clearInterval(progressInterval);
         const rtSec = searchParams.get("rtSec") ?? "0";
         const nrClicks = searchParams.get("nrClicks") ?? "0";
-        const nextUrl = `${paths.booking.selectSeat}?rtSec=${encodeURIComponent(rtSec)}&nrClicks=${encodeURIComponent(nrClicks)}`;
-        navigate(nextUrl, { replace: true });
+        const hallId = searchParams.get("hallId");
+        const matchId = searchParams.get("matchId");
+        const date = searchParams.get("date");
+        const round = searchParams.get("round");
+        const nextUrl = new URL(
+          window.location.origin + paths.booking.selectSeat
+        );
+        nextUrl.searchParams.set("rtSec", rtSec);
+        nextUrl.searchParams.set("nrClicks", nrClicks);
+        if (hallId) nextUrl.searchParams.set("hallId", hallId);
+        if (matchId) nextUrl.searchParams.set("matchId", matchId);
+        if (date) nextUrl.searchParams.set("date", date);
+        if (round) nextUrl.searchParams.set("round", round);
+        navigate(nextUrl.pathname + nextUrl.search, { replace: true });
       }
     }, 350);
     return () => {
@@ -79,9 +84,11 @@ export default function BookingWaitingPage() {
   // 대기열 진입 시 큐 등록 API 호출 (matchId가 있을 때만)
   useEffect(() => {
     if (stage !== "queue") return;
+    // matchId 결정: store 우선, 없으면 URL 파라미터에서 가져오기
     const matchId =
-      searchParams.get("matchId") ??
-      (matchIdFromStore != null ? String(matchIdFromStore) : null);
+      matchIdFromStore != null
+        ? String(matchIdFromStore)
+        : (searchParams.get("matchId") ?? null);
     console.log("[booking-site][queue.enqueue] matchId 확인:", {
       fromQuery: searchParams.get("matchId"),
       fromStore: matchIdFromStore,

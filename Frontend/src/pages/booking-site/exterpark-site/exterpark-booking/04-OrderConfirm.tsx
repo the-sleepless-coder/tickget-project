@@ -1,12 +1,76 @@
-import { useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { useState, useMemo } from "react";
 import BookingLayout from "./_components/BookingLayout";
 import { paths } from "../../../../app/routes/paths";
+import dayjs from "dayjs";
+
+type SeatData = {
+  grade: string;
+  count: number;
+  price: number;
+};
 
 export default function OrderConfirmPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const goPrev = () => navigate(paths.booking.price);
-  const goNext = () => navigate(paths.booking.payment);
+  const goNext = () => {
+    const nextUrl = new URL(window.location.origin + paths.booking.payment);
+    // 선택 좌석 정보 전달
+    if (selectedSeats.length > 0) {
+      nextUrl.searchParams.set("seats", JSON.stringify(selectedSeats));
+    }
+    // 가격 정보 전달
+    nextUrl.searchParams.set("totalPrice", String(totalPrice));
+    nextUrl.searchParams.set("fee", String(fee));
+    nextUrl.searchParams.set("deliveryFee", String(deliveryFee));
+    nextUrl.searchParams.set("total", String(total));
+    // 날짜/시간 정보 전달
+    if (dateParam) nextUrl.searchParams.set("date", dateParam);
+    if (timeParam) nextUrl.searchParams.set("time", timeParam);
+    navigate(nextUrl.pathname + nextUrl.search);
+  };
+
+  // URL에서 선택 좌석 정보 가져오기
+  const seatsParam = searchParams.get("seats");
+  const selectedSeats: SeatData[] = useMemo(() => {
+    if (!seatsParam) {
+      return [{ grade: "SR석", count: 1, price: 143000 }]; // 기본값
+    }
+    try {
+      const parsed = JSON.parse(decodeURIComponent(seatsParam));
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+      return [{ grade: "SR석", count: 1, price: 143000 }]; // 기본값
+    } catch (e) {
+      console.error("좌석 정보 파싱 실패:", e);
+      return [{ grade: "SR석", count: 1, price: 143000 }]; // 기본값
+    }
+  }, [seatsParam]);
+
+  // 선택 좌석 요약 텍스트
+  const selectedSeatsSummary = useMemo(() => {
+    return selectedSeats.map((s) => `${s.grade} ${s.count}석`).join(", ");
+  }, [selectedSeats]);
+
+  // 가격 정보
+  const totalPrice = Number(searchParams.get("totalPrice")) || 143000;
+  const fee = Number(searchParams.get("fee")) || 2000;
+  const deliveryFee = 3700; // 배송료는 고정값
+  // 총 결제금액 = 티켓금액 + 수수료 + 배송료
+  const total = totalPrice + fee + deliveryFee;
+
+  // 날짜/시간 정보
+  const dateParam = searchParams.get("date");
+  const timeParam = searchParams.get("time");
+  const formattedDateTime = useMemo(() => {
+    if (!dateParam) return "2025.12.20 (토) 18:00"; // 기본값
+    const date = dayjs(dateParam);
+    const weekday = ["일", "월", "화", "수", "목", "금", "토"][date.day()];
+    const time = timeParam || "18:00";
+    return `${date.format("YYYY.MM.DD")} (${weekday}) ${time}`;
+  }, [dateParam, timeParam]);
 
   // 예매자 정보 (제어 컴포넌트)
   const [buyerName, setBuyerName] = useState<string>("홍길동");
@@ -101,27 +165,31 @@ export default function OrderConfirmPage() {
           <dl className="text-sm text-gray-700">
             <div className="flex py-1 border-b">
               <dt className="w-24 text-gray-500">일시</dt>
-              <dd className="flex-1">2025.12.20 (토) 18:00</dd>
+              <dd className="flex-1">{formattedDateTime}</dd>
             </div>
             <div className="flex py-1 border-b">
               <dt className="w-24 text-gray-500">선택좌석</dt>
-              <dd className="flex-1">SR석 1석</dd>
+              <dd className="flex-1">{selectedSeatsSummary}</dd>
             </div>
             <div className="flex py-1 border-b">
               <dt className="w-24 text-gray-500">티켓금액</dt>
-              <dd className="flex-1">143,000원</dd>
+              <dd className="flex-1">{totalPrice.toLocaleString()}원</dd>
             </div>
             <div className="flex py-1 border-b">
               <dt className="w-24 text-gray-500">수수료</dt>
-              <dd className="flex-1">2,000원</dd>
+              <dd className="flex-1">{fee.toLocaleString()}원</dd>
             </div>
             <div className="flex py-1 border-b">
               <dt className="w-24 text-gray-500">배송료</dt>
-              <dd className="flex-1">3,700원 | 배송</dd>
+              <dd className="flex-1">
+                {deliveryFee.toLocaleString()}원 | 배송
+              </dd>
             </div>
             <div className="flex py-1">
               <dt className="w-24 text-gray-500">총 결제금액</dt>
-              <dd className="flex-1 font-extrabold">148,700원</dd>
+              <dd className="flex-1 font-extrabold">
+                {total.toLocaleString()}원
+              </dd>
             </div>
           </dl>
 

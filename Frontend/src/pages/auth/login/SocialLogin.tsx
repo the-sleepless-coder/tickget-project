@@ -448,7 +448,7 @@ export default function SocialLogin() {
 
             {/* 소셜 로그인 버튼 */}
             <div className="space-y-3 mb-6">
-              {socialButtons.map((button) => (
+              {/* {socialButtons.map((button) => (
                 <Button
                   key={button.provider}
                   size="medium"
@@ -467,7 +467,7 @@ export default function SocialLogin() {
                   <div className="mr-3">{button.icon}</div>
                   <span className="text-sm">{button.text}</span>
                 </Button>
-              ))}
+              ))} */}
 
               {/* 테스트 계정 생성 버튼 */}
               <Button

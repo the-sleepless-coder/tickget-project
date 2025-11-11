@@ -1,4 +1,8 @@
 import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import { useMatchStore } from "@features/booking-site/store";
+import { useAuthStore } from "@features/auth/store";
+import { getSectionSeatsStatus } from "@features/booking-site/api";
 import Olympic_18 from "./seats-olympic-hall/S/Olympic_18";
 import Olympic_20 from "./seats-olympic-hall/S/Olympic_20";
 import Olympic_21 from "./seats-olympic-hall/S/Olympic_21";
@@ -12,16 +16,44 @@ import Olympic_9 from "./seats-olympic-hall/R/Olympic_9";
 import Olympic_11 from "./seats-olympic-hall/R/Olympic_11";
 import Olympic_12 from "./seats-olympic-hall/R/Olympic_12";
 
-export default function MediumVenue() {
+export interface MediumVenueRef {
+  backToOverview: () => void;
+}
+
+type MediumVenueSeat = {
+  id: string;
+  gradeLabel: string;
+  label: string;
+  price?: number;
+};
+
+export default function MediumVenue({
+  onBackToOverview,
+  selectedIds = [],
+  onToggleSeat,
+}: {
+  onBackToOverview?: React.MutableRefObject<MediumVenueRef | null>;
+  selectedIds?: string[];
+  onToggleSeat?: (seat: MediumVenueSeat) => void;
+} = {}) {
+  // 외부에서 전체 보기로 돌아가기 위한 함수 노출
+  useEffect(() => {
+    if (onBackToOverview) {
+      onBackToOverview.current = {
+        backToOverview: () => {
+          setShowDetailView(false);
+        },
+      };
+    }
+    return () => {
+      if (onBackToOverview) {
+        onBackToOverview.current = null;
+      }
+    };
+  }, [onBackToOverview]);
   const rootRef = useRef<HTMLDivElement>(null);
   const patternWrapperRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [tooltip, setTooltip] = useState<{
-    visible: boolean;
-    x: number;
-    y: number;
-    text: string;
-  }>({ visible: false, x: 0, y: 0, text: "" });
   const [showDetailView, setShowDetailView] = useState(false);
   const [detailViewColor, setDetailViewColor] = useState<string>("#FFCC10");
   type PatternComponentProps = {
@@ -44,6 +76,12 @@ export default function MediumVenue() {
     gap: number;
   } | null>(null);
   const [emptyRows, setEmptyRows] = useState<boolean[]>([]);
+  const [searchParams] = useSearchParams();
+  const matchIdFromStore = useMatchStore((s) => s.matchId);
+  const currentUserId = useAuthStore((s) => s.userId);
+  // TAKEN 좌석 정보 저장 (section-row-col 형식의 seatId를 Set으로 저장)
+  const [takenSeats, setTakenSeats] = useState<Set<string>>(new Set());
+
   useEffect(() => {
     // interactive tooltip/hover/click removed
 
@@ -78,6 +116,12 @@ export default function MediumVenue() {
         p.removeAttribute("stroke");
         p.removeAttribute("stroke-opacity");
         p.removeAttribute("stroke-width");
+
+        // 브라우저 기본 툴팁 설정 (전체 뷰)
+        if (idAttr && idAttr !== "0" && level) {
+          const gradeLabel = level === "STANDING" ? "스탠딩석" : `${level}석`;
+          p.setAttribute("title", `[${gradeLabel}] ${idAttr}구역`);
+        }
       });
     };
 
@@ -222,7 +266,7 @@ export default function MediumVenue() {
     }
 
     // Click delegation to open inline detail view for supported blocks
-    const handleClick = (e: MouseEvent) => {
+    const handleClick = async (e: MouseEvent) => {
       const target = e.target as Element | null;
       if (!target) return;
       const polygon = (target as Element).closest?.("polygon");
@@ -261,6 +305,59 @@ export default function MediumVenue() {
           "28",
         ].includes(id)
       ) {
+        // 섹션 ID로 API 호출
+        const sectionId = id;
+        if (sectionId) {
+          // matchId 결정: store 우선, 없으면 URL 파라미터에서 가져오기
+          const matchIdParam = searchParams.get("matchId");
+          const matchId =
+            matchIdFromStore ??
+            (matchIdParam && !Number.isNaN(Number(matchIdParam))
+              ? Number(matchIdParam)
+              : null);
+
+          // userId 확인
+          if (matchId && currentUserId) {
+            try {
+              console.log(
+                `[section-click] API 호출: matchId=${matchId}, sectionId=${sectionId}, userId=${currentUserId}`
+              );
+              const response = await getSectionSeatsStatus(
+                matchId,
+                sectionId,
+                currentUserId
+              );
+              console.log("[section-click] API 응답:", response);
+
+              // TAKEN 상태인 좌석들을 Set에 저장 (section-row-col 형식)
+              if (response.seats) {
+                const taken = new Set<string>();
+                response.seats.forEach((seat) => {
+                  if (seat.status === "TAKEN") {
+                    taken.add(seat.seatId);
+                  }
+                });
+                setTakenSeats((prev) => {
+                  const merged = new Set(prev);
+                  taken.forEach((id) => merged.add(id));
+                  return merged;
+                });
+                console.log(
+                  "[section-click] TAKEN 좌석 저장:",
+                  Array.from(taken)
+                );
+              }
+            } catch (error) {
+              console.error("[section-click] API 호출 실패:", error);
+            }
+          } else {
+            console.warn(
+              "[section-click] matchId 또는 userId가 없어 API 호출을 건너뜁니다.",
+              { matchId, currentUserId }
+            );
+          }
+        }
+
         const level =
           (polygon as Element).getAttribute("data-seat-level") || "";
         // match overview colors used in MediumVenue normalization
@@ -481,7 +578,7 @@ export default function MediumVenue() {
       observer.disconnect();
       root?.removeEventListener("click", handleClick);
     };
-  }, [showDetailView]);
+  }, [showDetailView, searchParams, matchIdFromStore, currentUserId]);
 
   const content = `
 <div class='wrapper'>
@@ -598,34 +695,7 @@ export default function MediumVenue() {
     patternScale = calculateScale(width + rowLabelWidth, height);
   }
 
-  // 상세 좌석 호버용 핸들러
-  const handleSeatMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!showDetailView || !containerRef.current) return;
-    const target = e.target as HTMLElement | null;
-    if (!target) {
-      if (tooltip.visible) setTooltip({ visible: false, x: 0, y: 0, text: "" });
-      return;
-    }
-    const row = target.getAttribute("row");
-    const seat = target.getAttribute("seat");
-    const active = target.getAttribute("active");
-    if (!row || !seat || active !== "1") {
-      if (tooltip.visible) setTooltip({ visible: false, x: 0, y: 0, text: "" });
-      return;
-    }
-    const rect = containerRef.current.getBoundingClientRect();
-    setTooltip({
-      visible: true,
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
-      text: `${row}행 ${seat}번`,
-    });
-  };
-
-  const handleSeatMouseLeave = () => {
-    if (!tooltip.visible) return;
-    setTooltip({ visible: false, x: 0, y: 0, text: "" });
-  };
+  // 상세 좌석 호버용 핸들러 제거 (브라우저 기본 툴팁 사용)
 
   // 좌석 셀에 데이터 속성 부여 (row/seat/section/grade/active)
   useEffect(() => {
@@ -646,7 +716,8 @@ export default function MediumVenue() {
         seatNumberInRow = 0; // 새 행 시작: 좌석 번호 초기화
       }
 
-      el.setAttribute("row", String(rowIndex + 1));
+      const row = String(rowIndex + 1);
+      el.setAttribute("row", row);
       el.setAttribute("col", String(colIndex + 1)); // 디버깅용 절대 열 번호
       el.setAttribute("section", selectedMeta.id);
       el.setAttribute("grade", selectedMeta.level);
@@ -656,14 +727,88 @@ export default function MediumVenue() {
       if (isTransparent) {
         el.setAttribute("active", "0");
         el.removeAttribute("seat");
+        el.removeAttribute("title");
         // 고유 번호 계산: (row - 1) * totalCols + col
         const seatNumber =
           (rowIndex + 1 - 1) * selectedMeta.columns + (colIndex + 1);
         inactiveSeatNumbers.push(seatNumber);
       } else {
         seatNumberInRow += 1;
+        const seat = String(seatNumberInRow);
         el.setAttribute("active", "1");
-        el.setAttribute("seat", String(seatNumberInRow));
+        el.setAttribute("seat", seat);
+
+        // 브라우저 기본 툴팁 설정
+        const gradeLabel =
+          selectedMeta.level === "STANDING"
+            ? "스탠딩석"
+            : `${selectedMeta.level}석`;
+        el.setAttribute(
+          "title",
+          `[${gradeLabel}] ${selectedMeta.id}구역-${row}열-${seat}`
+        );
+
+        // 좌석 ID 생성 (section-row-seat 형식)
+        const seatId = `${selectedMeta.id}-${row}-${seat}`;
+        el.setAttribute("seatid", seatId);
+
+        // TAKEN 좌석 확인 (API 응답은 section-row-col 형식이므로 col로 매칭)
+        const col = String(colIndex + 1);
+        const takenSeatId = `${selectedMeta.id}-${row}-${col}`;
+        const isTaken = takenSeats.has(takenSeatId);
+
+        // 선택된 좌석인지 확인하고 색상 업데이트
+        const isSelected = selectedIds.includes(seatId);
+        if (isTaken) {
+          // TAKEN 좌석: 회색 처리 및 클릭 불가
+          el.style.backgroundColor = "#9ca3af"; // 회색
+          el.style.cursor = "not-allowed";
+          el.style.opacity = "0.6";
+          el.setAttribute("data-taken", "true");
+        } else if (isSelected) {
+          el.style.backgroundColor = "#4a4a4a"; // 선택된 좌석은 어두운 회색
+          el.style.cursor = "pointer";
+          el.style.opacity = "1";
+          el.removeAttribute("data-taken");
+        } else {
+          el.style.backgroundColor = detailViewColor; // 원래 색상으로 복원
+          el.style.cursor = "pointer";
+          el.style.opacity = "1";
+          el.removeAttribute("data-taken");
+        }
+
+        // 기존 클릭 핸들러 제거 후 새로 추가 (중복 방지)
+        const existingClickHandler = (
+          el as HTMLElement & { __clickHandler?: () => void }
+        ).__clickHandler;
+        if (existingClickHandler) {
+          el.removeEventListener("click", existingClickHandler);
+        }
+
+        const clickHandler = () => {
+          // TAKEN 좌석은 클릭 불가
+          if (isTaken) {
+            console.log(
+              "[seat-click] TAKEN 좌석은 선택할 수 없습니다:",
+              takenSeatId
+            );
+            return;
+          }
+          if (onToggleSeat) {
+            const gradeLabelForSeat =
+              selectedMeta.level === "STANDING"
+                ? "스탠딩석"
+                : `${selectedMeta.level}석`;
+            onToggleSeat({
+              id: seatId,
+              gradeLabel: gradeLabelForSeat,
+              label: `${selectedMeta.id}구역-${row}열-${seat}`,
+            });
+          }
+        };
+        (el as HTMLElement & { __clickHandler?: () => void }).__clickHandler =
+          clickHandler;
+        el.addEventListener("click", clickHandler);
       }
     });
 
@@ -728,7 +873,16 @@ export default function MediumVenue() {
       "nonFlippedSectionsWithSamePattern:",
       nonFlippedSectionsWithSamePattern.join(", ")
     );
-  }, [showDetailView, SelectedPattern, selectedMeta, isFlipped]);
+  }, [
+    showDetailView,
+    SelectedPattern,
+    selectedMeta,
+    isFlipped,
+    selectedIds,
+    detailViewColor,
+    onToggleSeat,
+    takenSeats,
+  ]);
 
   // Analyze grid after render to determine fully empty rows
   useEffect(() => {
@@ -747,25 +901,19 @@ export default function MediumVenue() {
       }
     });
     setEmptyRows(nextEmptyRows);
-  }, [showDetailView, selectedMeta]);
+  }, [
+    showDetailView,
+    selectedMeta,
+    selectedIds,
+    detailViewColor,
+    onToggleSeat,
+    takenSeats,
+  ]);
 
   return (
     <div className="relative w-full h-full" ref={containerRef}>
       {showDetailView ? (
         <div className="relative w-full h-full">
-          {selectedMeta && (
-            <div className="absolute left-1/2 -translate-x-1/2 top-2 z-10 px-3 py-1 rounded-md bg-black/70 text-white text-xs shadow">
-              {selectedMeta.level} • {selectedMeta.id}
-            </div>
-          )}
-          <div className="absolute top-2 right-2 z-10">
-            <button
-              onClick={() => setShowDetailView(false)}
-              className="bg-purple-500 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-purple-600 transition-colors shadow-md"
-            >
-              전체 보기
-            </button>
-          </div>
           <div className="w-full h-full flex justify-center items-center bg-neutral-100 overflow-hidden">
             <div
               className="flex justify-center items-center"
@@ -821,11 +969,7 @@ export default function MediumVenue() {
                     </div>
                   )}
                   <div>
-                    <div
-                      ref={patternWrapperRef}
-                      onMouseMove={handleSeatMouseMove}
-                      onMouseLeave={handleSeatMouseLeave}
-                    >
+                    <div ref={patternWrapperRef}>
                       {SelectedPattern && (
                         <SelectedPattern
                           activeColor={detailViewColor}
@@ -878,19 +1022,7 @@ export default function MediumVenue() {
         </div>
       )}
 
-      {/* Tooltip */}
-      {tooltip.visible && (
-        <div
-          className="fixed pointer-events-none z-[9999] px-2 py-1.5 bg-black/75 text-white text-xs rounded-md shadow-lg"
-          style={{
-            left: `${tooltip.x}px`,
-            top: `${tooltip.y}px`,
-            transform: `translate(-50%, ${showDetailView ? "-90%" : "-140%"})`,
-          }}
-        >
-          {tooltip.text}
-        </div>
-      )}
+      {/* 커스텀 툴팁 제거 (브라우저 기본 툴팁 사용) */}
     </div>
   );
 }

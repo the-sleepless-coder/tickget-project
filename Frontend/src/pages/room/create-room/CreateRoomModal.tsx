@@ -19,7 +19,9 @@ import CreateRoomStep2 from "./CreateRoomStep2";
 import ThumbnailSelectModal from "./CreateRoomThumbnailSelect";
 import { Snackbar, Alert } from "@mui/material";
 import { useAuthStore } from "@features/auth/store";
-import { createRoom } from "@features/room/api";
+import { createRoom, processSeatmapTsx } from "@features/room/api";
+import { getRoomDetail } from "@features/room/api";
+import { useRoomStore } from "@features/room/store";
 import type { CreateRoomRequest } from "@features/room/types";
 
 export default function CreateRoomModal({
@@ -56,6 +58,12 @@ export default function CreateRoomModal({
   const [canFinalize, setCanFinalize] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
+  const [layoutFile, setLayoutFile] = useState<File | null>(null);
+  // AI TSX 생성용 상태
+  const [aiCapacity, setAICapacity] = useState<string>("");
+  const [aiTsxUrl, setAITsxUrl] = useState<string | null>(null);
+  // const [aiMetaUrl, setAIMetaUrl] = useState<string | null>(null);
+  const [aiHallId, setAIHallId] = useState<number | null>(null);
   type SizeOption = "소형" | "중형" | "대형";
   const diffOptions = useMemo(() => ["초보", "평균", "뛰어남"] as const, []);
   const botOptions = useMemo(() => [100, 500, 1000, 2000, 5000] as const, []);
@@ -137,6 +145,7 @@ export default function CreateRoomModal({
         URL.revokeObjectURL(layoutUrl);
         setLayoutUrl(null);
       }
+      setLayoutFile(null);
       return;
     }
 
@@ -144,6 +153,7 @@ export default function CreateRoomModal({
     if (layoutUrl && layoutUrl.startsWith("blob:"))
       URL.revokeObjectURL(layoutUrl);
     setLayoutUrl(nextUrl);
+    setLayoutFile(file);
   };
 
   // 로컬 스토리지에 설정 저장
@@ -221,6 +231,10 @@ export default function CreateRoomModal({
     setIsGenerating(false);
     setCanFinalize(false);
     setVenueSelected(false);
+    setAICapacity("");
+    setAITsxUrl(null);
+    // setAIMetaUrl(null);
+    setAIHallId(null);
     // clear previous uploads when reopening
     if (thumbnailUrl && thumbnailUrl.startsWith("blob:")) {
       URL.revokeObjectURL(thumbnailUrl);
@@ -231,6 +245,7 @@ export default function CreateRoomModal({
       URL.revokeObjectURL(layoutUrl);
     }
     setLayoutUrl(null);
+    setLayoutFile(null);
     setIsCreating(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -263,16 +278,20 @@ export default function CreateRoomModal({
       return;
     }
     if (step2Mode === "ai") {
-      const hasImage = Boolean(layoutUrl);
-      const okAi =
-        hasImage &&
-        Boolean(venueSelected) &&
-        Boolean(difficulty) &&
-        Boolean(botCount && botCount.trim().length > 0);
-      setCanFinalize(okAi);
+      // TSX 파일이 생성되어야 방만들기 버튼 활성화
+      setCanFinalize(Boolean(aiTsxUrl));
       return;
     }
-  }, [step, step2Mode, venue, venueSelected, difficulty, botCount, layoutUrl]);
+  }, [
+    step,
+    step2Mode,
+    venue,
+    venueSelected,
+    difficulty,
+    botCount,
+    layoutUrl,
+    aiTsxUrl,
+  ]);
 
   if (!open) return null;
 
@@ -362,6 +381,7 @@ export default function CreateRoomModal({
               isAIMode={step === 2 && step2Mode === "ai"}
               isPresetMode={step === 2 && step2Mode === "preset"}
               showLoader={isGenerating}
+              tsxUrl={aiTsxUrl}
             />
 
             {step === 1 ? (
@@ -395,17 +415,53 @@ export default function CreateRoomModal({
                   setVenue(v);
                   setVenueSelected(Boolean(v));
                 }}
-                isImageUploaded={Boolean(layoutUrl)}
-                onCreate={() => {
-                  setIsGenerating(true);
-                  setCanFinalize(false);
-                  setTimeout(() => {
+                isImageUploaded={Boolean(thumbnailFile || layoutFile)}
+                onCreate={async () => {
+                  const fileToSend = thumbnailFile ?? layoutFile;
+                  if (!fileToSend) {
+                    alert("이미지를 업로드해주세요.");
+                    return;
+                  }
+                  if (!aiCapacity) {
+                    alert("최대 수용 인원을 선택해주세요.");
+                    return;
+                  }
+                  try {
+                    console.log("[CreateRoom] TSX 요청 시작", {
+                      file: {
+                        name: fileToSend.name,
+                        size: fileToSend.size,
+                        type: fileToSend.type,
+                      },
+                      capacity: aiCapacity,
+                    });
+                    setIsGenerating(true);
+                    setCanFinalize(false);
+                    const resp = await processSeatmapTsx(
+                      fileToSend,
+                      parseInt(aiCapacity, 10)
+                    );
+                    if (resp.ok) {
+                      console.log("[CreateRoom] TSX 응답 성공", resp);
+                      setAITsxUrl(resp.minio.tsx.url);
+                      // setAIMetaUrl(resp.minio.meta.url);
+                      setAIHallId(resp.hallId);
+                    } else {
+                      console.warn("[CreateRoom] TSX 응답 실패", resp);
+                      alert(resp.detail || "TSX 생성에 실패했습니다.");
+                    }
+                  } catch (e) {
+                    console.error("[CreateRoom] TSX 요청 오류", e);
+                    alert("TSX 생성 중 오류가 발생했습니다.");
+                  } finally {
                     setIsGenerating(false);
-                    setCanFinalize(true);
-                  }, 5000);
+                  }
                 }}
                 isGenerating={isGenerating}
                 isVenueSelected={venueSelected}
+                capacityOptions={[100, 500, 1000, 3000, 5000] as const}
+                capacity={aiCapacity}
+                setCapacity={setAICapacity}
               />
             )}
           </div>
@@ -487,25 +543,39 @@ export default function CreateRoomModal({
 
                   try {
                     // hallId 매핑
-                    const hallIdMap: Record<string, number> = {
-                      샤롯데씨어터: 2,
-                      "올림픽공원 올림픽홀": 3,
-                      "인스파이어 아레나": 4,
-                    };
-                    const hallId = hallIdMap[venue];
-                    if (!hallId) {
-                      throw new Error("알 수 없는 공연장입니다.");
-                    }
+                    let hallId: number;
+                    let totalSeat: number;
+                    let hallType: "PRESET" | "AI_GENERATED" = "PRESET";
 
-                    // totalSeat 매핑
-                    const totalSeatMap: Record<string, number> = {
-                      샤롯데씨어터: 1236,
-                      "올림픽공원 올림픽홀": 4256,
-                      "인스파이어 아레나": 16424,
-                    };
-                    const totalSeat = totalSeatMap[venue];
-                    if (!totalSeat) {
-                      throw new Error("알 수 없는 공연장입니다.");
+                    if (step2Mode === "ai") {
+                      if (!aiHallId) {
+                        throw new Error("AI 공연장 TSX가 생성되지 않았습니다.");
+                      }
+                      if (!aiCapacity) {
+                        throw new Error("최대 수용 인원을 선택해주세요.");
+                      }
+                      hallId = aiHallId;
+                      totalSeat = parseInt(aiCapacity, 10);
+                      hallType = "AI_GENERATED";
+                    } else {
+                      const hallIdMap: Record<string, number> = {
+                        샤롯데씨어터: 2,
+                        "올림픽공원 올림픽홀": 3,
+                        "인스파이어 아레나": 4,
+                      };
+                      const totalSeatMap: Record<string, number> = {
+                        샤롯데씨어터: 1236,
+                        "올림픽공원 올림픽홀": 4256,
+                        "인스파이어 아레나": 16424,
+                      };
+                      const mappedHallId = hallIdMap[venue];
+                      const mappedSeat = totalSeatMap[venue];
+                      if (!mappedHallId || !mappedSeat) {
+                        throw new Error("알 수 없는 공연장입니다.");
+                      }
+                      hallId = mappedHallId;
+                      totalSeat = mappedSeat;
+                      hallType = "PRESET";
                     }
 
                     // difficulty 매핑
@@ -602,7 +672,7 @@ export default function CreateRoomModal({
                       matchName: title.trim(),
                       roomType,
                       hallId,
-                      hallType: "PRESET",
+                      hallType,
                       difficulty: difficultyValue,
                       maxUserCount,
                       totalSeat,
@@ -658,6 +728,27 @@ export default function CreateRoomModal({
 
                     // 성공 시 방으로 이동 (응답 데이터와 요청 데이터를 location state로 전달)
                     if (response.roomId) {
+                      // 방 상세 정보를 가져와서 room store에 저장
+                      try {
+                        const roomDetail = await getRoomDetail(response.roomId);
+                        useRoomStore.getState().setRoomInfo({
+                          roomId: roomDetail.roomId,
+                          roomName: roomDetail.roomName,
+                          thumbnailValue: roomDetail.thumbnailValue,
+                          thumbnailType: roomDetail.thumbnailType,
+                          hallId: roomDetail.hallId,
+                          hallName: roomDetail.hallName,
+                          startTime: roomDetail.startTime,
+                          captchaPassed: false, // 방 생성 시 캡챠 false로 초기화
+                        });
+                      } catch (error) {
+                        console.error(
+                          "[CreateRoom] 방 상세 정보 가져오기 실패:",
+                          error
+                        );
+                        // 실패해도 계속 진행 (ExterparkRoom에서 다시 시도)
+                      }
+
                       const roomPath = paths.iTicketRoom(response.roomId);
                       console.log(`📍 방으로 이동: ${roomPath}`);
                       onClose();
