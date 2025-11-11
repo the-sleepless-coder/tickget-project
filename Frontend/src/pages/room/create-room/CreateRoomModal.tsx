@@ -726,6 +726,49 @@ export default function CreateRoomModal({
                     );
                     console.log("🆔 생성된 방 ID:", response.roomId);
 
+                    // Match Store에 matchId 저장 (응답에 matchId가 있는 경우)
+                    // 주의: matchId는 티켓팅 시스템에서 생성되는 별도의 ID입니다.
+                    try {
+                      const { useMatchStore } = await import(
+                        "@features/booking-site/store"
+                      );
+                      const raw = (response as { matchId?: unknown })?.matchId;
+                      if (raw != null) {
+                        const parsed =
+                          typeof raw === "string" || typeof raw === "number"
+                            ? Number(raw)
+                            : NaN;
+                        if (Number.isFinite(parsed)) {
+                          const currentMatchId =
+                            useMatchStore.getState().matchId;
+                          useMatchStore.getState().setMatchId(parsed);
+                          if (currentMatchId !== parsed) {
+                            console.log(
+                              "[CreateRoom] matchId 업데이트:",
+                              currentMatchId,
+                              "->",
+                              parsed
+                            );
+                          } else {
+                            console.log(
+                              "[CreateRoom] matchId 저장 완료:",
+                              parsed
+                            );
+                          }
+                        } else {
+                          console.warn("[CreateRoom] matchId 파싱 실패:", {
+                            matchId: raw,
+                          });
+                        }
+                      } else {
+                        console.warn(
+                          "[CreateRoom] 응답에 matchId가 없습니다. 티켓팅 API는 matchId가 필요할 수 있습니다."
+                        );
+                      }
+                    } catch (e) {
+                      console.error("[CreateRoom] matchId 저장 중 오류:", e);
+                    }
+
                     // 성공 시 방으로 이동 (응답 데이터와 요청 데이터를 location state로 전달)
                     if (response.roomId) {
                       // 방 상세 정보를 가져와서 room store에 저장
