@@ -121,10 +121,10 @@ public class RoomNotificationScheduler {
             for (RoomMember member : allMembers) {
                 Long userId = member.getUserId();
 
-                // 이 서버에 세션이 있는지 확인 (로컬 검증)
-                if (!sessionManager.hasSession(userId)) {
-                    continue;  // 다른 서버에 연결된 유저는 스킵
-                }
+//                // 이 서버에 세션이 있는지 확인 (로컬 검증)
+//                if (!sessionManager.hasSession(userId)) {
+//                    continue;  // 다른 서버에 연결된 유저는 스킵
+//                }
 
                 localUserCount++;
 
