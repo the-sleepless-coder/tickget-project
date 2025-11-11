@@ -31,14 +31,28 @@ func (ldt *LocalDateTime) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("failed to load Asia/Seoul timezone: %w", err)
 	}
 
-	// LocalDateTime 형식 파싱: "2025-11-11T02:43:00"
-	t, err := time.ParseInLocation("2006-01-02T15:04:05", str, location)
-	if err != nil {
-		return fmt.Errorf("failed to parse datetime %s: %w", str, err)
+	// 여러 LocalDateTime 형식 시도
+	formats := []string{
+		"2006-01-02T15:04:05.999999999", // ISO 형식 + 나노초
+		"2006-01-02T15:04:05.999999",    // ISO 형식 + 마이크로초
+		"2006-01-02T15:04:05.999",       // ISO 형식 + 밀리초
+		"2006-01-02T15:04:05",           // ISO 형식
+		"2006-01-02 15:04:05.999999999", // 공백 구분 + 나노초
+		"2006-01-02 15:04:05.999999",    // 공백 구분 + 마이크로초
+		"2006-01-02 15:04:05.999",       // 공백 구분 + 밀리초
+		"2006-01-02 15:04:05",           // 공백 구분
 	}
 
-	ldt.Time = t
-	return nil
+	var t time.Time
+	for _, format := range formats {
+		t, err = time.ParseInLocation(format, str, location)
+		if err == nil {
+			ldt.Time = t
+			return nil
+		}
+	}
+
+	return fmt.Errorf("failed to parse datetime %s with any known format: %w", str, err)
 }
 
 // MarshalJSON LocalDateTime 형식으로 직렬화
