@@ -54,6 +54,13 @@ const DIFFICULTY_TO_LABEL: Record<string, string> = {
   HARD: "어려움",
 };
 
+type QueueStatus = {
+  ahead: number;
+  behind: number;
+  total: number;
+  lastUpdated: number;
+};
+
 // hallName을 한글로 변환하는 함수
 const convertHallNameToKorean = (hallName: string): string => {
   const hallNameMap: Record<string, string> = {
@@ -131,10 +138,12 @@ export default function ITicketPage() {
   const [isRoomModalOpen, setIsRoomModalOpen] = useState<boolean>(false);
   const [isExiting, setIsExiting] = useState<boolean>(false);
   const subscriptionRef = useRef<Subscription | null>(null);
+  const bridgeRef = useRef<BroadcastChannel | null>(null);
   const wsClient = useWebSocketStore((state) => state.client);
   const currentUserNickname = useAuthStore((state) => state.nickname);
   const currentUserId = useAuthStore((state) => state.userId);
   const matchIdFromStore = useMatchStore((s) => s.matchId);
+  const [, setMyQueueStatus] = useState<QueueStatus | null>(null);
 
   // WebSocket 이벤트 핸들러
   const handleRoomEvent = useCallback(
@@ -161,6 +170,123 @@ export default function ITicketPage() {
       const payload = event.payload;
 
       switch (eventType) {
+        case "USER_DEQUEUED": {
+          try {
+            const myUserId = useAuthStore.getState().userId;
+            const p = payload as
+              | {
+                  userId?: number;
+                  matchId?: string | number;
+                  timestamp?: number;
+                }
+              | undefined;
+
+            if (!p || p.userId == null) {
+              console.warn("⚠️ [DEQUEUE] payload.userId 가 없습니다:", event);
+              break;
+            }
+
+            if (myUserId == null) {
+              console.warn(
+                "⚠️ [DEQUEUE] 사용자 ID를 확인할 수 없어 처리할 수 없습니다."
+              );
+              break;
+            }
+
+            if (p.userId === myUserId) {
+              // 본인 성공
+              if (p.matchId == null) {
+                console.log("✅ [DEQUEUE] 본인 티켓팅 성공 (matchId 없음)", {
+                  myUserId,
+                  timestamp: p.timestamp ?? event.timestamp ?? Date.now(),
+                });
+              } else {
+                // matchId는 store에 보관 (이후 단계에서 사용)
+                const numericMatchId =
+                  typeof p.matchId === "string" ? Number(p.matchId) : p.matchId;
+                if (!Number.isNaN(numericMatchId)) {
+                  useMatchStore.getState().setMatchId(numericMatchId as number);
+                }
+                console.log("✅ [DEQUEUE] 본인 티켓팅 성공!", {
+                  myUserId,
+                  matchId: p.matchId,
+                  timestamp: p.timestamp ?? event.timestamp ?? Date.now(),
+                  message: event.message,
+                });
+              }
+            } else {
+              // 타인 성공
+              console.log("ℹ️ [DEQUEUE] 다른 유저 티켓팅 성공:", {
+                dequeuedUserId: p.userId,
+                myUserId,
+                timestamp: p.timestamp ?? event.timestamp ?? Date.now(),
+              });
+            }
+          } catch (e) {
+            console.error("❌ [DEQUEUE] 처리 실패:", e, event);
+          }
+          break;
+        }
+
+        case "QUEUE_STATUS_UPDATE": {
+          try {
+            const myUserId = useAuthStore.getState().userId;
+            const queueStatuses = (
+              payload as { queueStatuses?: Record<string, unknown> }
+            )?.queueStatuses;
+
+            if (!queueStatuses) {
+              console.warn(
+                "⚠️ [QUEUE] payload.queueStatuses 가 없습니다:",
+                event
+              );
+              break;
+            }
+
+            if (myUserId == null) {
+              console.warn(
+                "⚠️ [QUEUE] 사용자 ID를 확인할 수 없어 대기열 상태를 처리할 수 없습니다."
+              );
+              break;
+            }
+
+            const key = String(myUserId);
+            // 키가 문자열로 올 수 있으니 문자열 우선 조회, 보조로 숫자 키도 조회 시도
+            const raw =
+              (queueStatuses as Record<string, Partial<QueueStatus>>)[key] ??
+              (
+                queueStatuses as unknown as Record<number, Partial<QueueStatus>>
+              )[myUserId as number];
+
+            if (raw) {
+              const next: QueueStatus = {
+                ahead: Number(raw.ahead ?? 0),
+                behind: Number(raw.behind ?? 0),
+                total: Number(raw.total ?? 0),
+                lastUpdated: Number(raw.lastUpdated ?? 0),
+              };
+
+              setMyQueueStatus(next);
+              console.log("✅ [QUEUE] 내 대기열 상태 업데이트 성공:", {
+                myUserId,
+                ...next,
+                timestamp: event.timestamp ?? Date.now(),
+              });
+            } else {
+              console.log(
+                "ℹ️ [QUEUE] 아직 대기열에 진입하지 않음 (내 userId 미포함)",
+                {
+                  myUserId,
+                  keys: Object.keys(queueStatuses),
+                }
+              );
+            }
+          } catch (e) {
+            console.error("❌ [QUEUE] 대기열 상태 처리 실패:", e, event);
+          }
+          break;
+        }
+
         case "USER_JOINED":
         case "USER_ENTERED": {
           const userId = payload?.userId || event.userId;
@@ -309,6 +435,20 @@ export default function ITicketPage() {
     let retryCount = 0;
     const maxRetries = 20; // 최대 10초 대기 (500ms * 20)
 
+    // Bridge 채널 준비 (교차 창 전달용)
+    const bridgeChannelName = `room-${targetRoomId}-events`;
+    try {
+      if ("BroadcastChannel" in window) {
+        bridgeRef.current?.close();
+        bridgeRef.current = new BroadcastChannel(bridgeChannelName);
+        console.log("🔗 [bridge] 채널 준비:", bridgeChannelName);
+      } else {
+        console.warn("⚠️ [bridge] BroadcastChannel 미지원 - 브릿지 비활성");
+      }
+    } catch (e) {
+      console.warn("⚠️ [bridge] 채널 생성 실패:", e);
+    }
+
     console.log("🚀 [구독] 구독 프로세스 시작:", {
       targetRoomId,
       destination,
@@ -341,6 +481,13 @@ export default function ITicketPage() {
                 `🔔 [메시지 수신] 이벤트 타입: ${data.eventType}`,
                 data
               );
+              // Bridge로 교차 창에 전달
+              try {
+                bridgeRef.current?.postMessage(data);
+                // console.debug("📡 [bridge] 이벤트 전달:", data.eventType);
+              } catch (e) {
+                console.warn("⚠️ [bridge] 이벤트 전달 실패:", e);
+              }
               handleRoomEvent(data);
             }
             // roomMembers 배열이 있으면 무조건 업데이트 (기존 형식 지원)
@@ -425,6 +572,17 @@ export default function ITicketPage() {
         });
         subscriptionRef.current.unsubscribe();
         subscriptionRef.current = null;
+      }
+      if (bridgeRef.current) {
+        try {
+          bridgeRef.current.close();
+          console.log("🔌 [bridge] 채널 종료:", bridgeChannelName);
+        } catch (err) {
+          if (import.meta.env.DEV) {
+            console.warn("[bridge] close 실패:", err);
+          }
+        }
+        bridgeRef.current = null;
       }
     };
   }, [
