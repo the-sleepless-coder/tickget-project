@@ -50,8 +50,8 @@ func (c *HTTPClient) JoinQueue(ctx context.Context, matchId int64, req *DaySelec
 func (c *HTTPClient) ValidateCaptcha(ctx context.Context, req *ValidateCaptchaRequest) error {
 	endpoint := "/ticketing/captcha/validate/bot"
 
-	// 응답 바디가 없으므로 nil 전달
-	if err := c.post(ctx, endpoint, req, nil); err != nil {
+	// GET 요청이지만 body에 userId를 담아서 전송
+	if err := c.getWithBody(ctx, endpoint, req); err != nil {
 		return err
 	}
 	return nil
@@ -96,6 +96,25 @@ func (c *HTTPClient) get(ctx context.Context, endpoint string, respBody interfac
 		return fmt.Errorf("failed to create request: %w", err)
 	}
 	return c.doRequest(httpReq, respBody)
+}
+
+// GET 요청을 body와 함께 보내는 메서드
+func (c *HTTPClient) getWithBody(ctx context.Context, endpoint string, reqBody interface{}) error {
+	url := c.baseURL + endpoint
+
+	// 요청 본문을 JSON으로 변환
+	jsonData, err := json.Marshal(reqBody)
+	if err != nil {
+		logger.Error("JSON 마샬링 실패", zap.Error(err))
+		return fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		logger.Error("HTTP 요청 생성 실패", zap.Error(err))
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+	return c.doRequest(httpReq, nil)
 }
 
 // POST 요청을 보내는 공통 메서드
