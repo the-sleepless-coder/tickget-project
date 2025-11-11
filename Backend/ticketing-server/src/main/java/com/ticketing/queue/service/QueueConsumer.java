@@ -99,6 +99,7 @@ public class QueueConsumer {
                 try {
                     // 사용자일 경우 보내는 대기열을 빠져나갔다는 Kafka 이벤트 발행
                     if(userIdLong>0){
+                        log.info("유저{}가 대기열을 빠져나감",userIdLong);
                         kafkaTemplate.send(
                                 KafkaTopic.USER_DEQUEUED.getTopicName(),
                                 userIdString, // key: userId → 파티션 분산/순서 보장 용도
