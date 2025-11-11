@@ -14,6 +14,7 @@ import (
 
 // BotDequeuedEvent Kafka에서 수신하는 봇 대기열 이탈 이벤트
 type BotDequeuedEvent struct {
+	RoomID  int64 `json:"roomId"`
 	MatchID int64 `json:"matchId"`
 	UserID  int64 `json:"userId"`
 	Ts      int64 `json:"ts"`

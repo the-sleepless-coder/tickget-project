@@ -181,6 +181,7 @@ public class QueueService {
             String matchKey = "match:%s:room:%s".formatted(MATCH.getMatchId(), MATCH.getRoomId());
 
             redis.opsForValue().set(roomKey,"1");
+            redis.opsForValue().set(matchKey,"1");
             redis.expire(roomKey, Duration.ofMinutes(MATCH_EXPIRE_TIME));
             redis.expire(matchKey, Duration.ofMinutes(MATCH_EXPIRE_TIME));
 
