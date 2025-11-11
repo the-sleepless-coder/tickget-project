@@ -102,6 +102,7 @@ public class RoomNotificationScheduler {
             Long matchId = roomCacheRepository.getMatchIdByRoomId(roomId);
 
             if (matchId == null) {
+                stopScheduling(roomId);
                 log.debug("방 {}의 매치 ID를 찾을 수 없음 (매치 생성 전일 수 있음)", roomId);
                 return;
             }
