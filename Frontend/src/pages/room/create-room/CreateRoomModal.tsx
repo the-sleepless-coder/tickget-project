@@ -64,6 +64,7 @@ export default function CreateRoomModal({
   const [aiTsxUrl, setAITsxUrl] = useState<string | null>(null);
   // const [aiMetaUrl, setAIMetaUrl] = useState<string | null>(null);
   const [aiHallId, setAIHallId] = useState<number | null>(null);
+  const [hasGenerated, setHasGenerated] = useState(false); // 생성 완료 여부
   type SizeOption = "소형" | "중형" | "대형";
   const diffOptions = useMemo(() => ["초보", "평균", "뛰어남"] as const, []);
   const botOptions = useMemo(() => [100, 500, 1000, 2000, 5000] as const, []);
@@ -382,6 +383,16 @@ export default function CreateRoomModal({
               isPresetMode={step === 2 && step2Mode === "preset"}
               showLoader={isGenerating}
               tsxUrl={aiTsxUrl}
+              hasGenerated={hasGenerated}
+              onReset={() => {
+                // 생성 초기화: TSX URL 제거, 생성 완료 상태 해제
+                setAITsxUrl(null);
+                setHasGenerated(false);
+                setLayoutFile(null);
+                setLayoutUrl(null);
+                setThumbnailFile(null);
+                setThumbnailUrl(null);
+              }}
             />
 
             {step === 1 ? (
@@ -416,6 +427,16 @@ export default function CreateRoomModal({
                   setVenueSelected(Boolean(v));
                 }}
                 isImageUploaded={Boolean(thumbnailFile || layoutFile)}
+                hasGenerated={hasGenerated}
+                onReset={() => {
+                  // 생성 초기화
+                  setAITsxUrl(null);
+                  setHasGenerated(false);
+                  setLayoutFile(null);
+                  setLayoutUrl(null);
+                  setThumbnailFile(null);
+                  setThumbnailUrl(null);
+                }}
                 onCreate={async () => {
                   const fileToSend = thumbnailFile ?? layoutFile;
                   if (!fileToSend) {
@@ -446,6 +467,7 @@ export default function CreateRoomModal({
                       setAITsxUrl(resp.minio.tsx.url);
                       // setAIMetaUrl(resp.minio.meta.url);
                       setAIHallId(resp.hallId);
+                      setHasGenerated(true); // 생성 완료 상태로 변경
                     } else {
                       console.warn("[CreateRoom] TSX 응답 실패", resp);
                       alert(resp.detail || "TSX 생성에 실패했습니다.");

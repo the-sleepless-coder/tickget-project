@@ -25,6 +25,8 @@ export default function Step2AdvancedForm({
   capacityOptions,
   capacity,
   setCapacity,
+  hasGenerated,
+  onReset,
 }: {
   step2Mode: "preset" | "ai";
   setStep2Mode: (m: "preset" | "ai") => void;
@@ -45,6 +47,8 @@ export default function Step2AdvancedForm({
   capacityOptions: readonly number[];
   capacity: string;
   setCapacity: (v: string) => void;
+  hasGenerated?: boolean;
+  onReset?: () => void;
 }) {
   // 검색 UI 주석 처리 기간 동안 사용되지 않는 콜백 참조 유지
   void onSelectVenue;
@@ -83,9 +87,12 @@ export default function Step2AdvancedForm({
   // }, [isOpen]);
 
   // AI 모드: 썸네일 업로드 + 수용 인원 선택 시 생성 가능
+  // 생성 완료 후에는 "생성" 버튼으로 변경 (초기화용)
   const canCreate =
     step2Mode === "ai"
-      ? Boolean(isImageUploaded) && Boolean(capacity) && !isGenerating
+      ? hasGenerated
+        ? true // 생성 완료 후에는 항상 활성화 (초기화 버튼)
+        : Boolean(isImageUploaded) && Boolean(capacity) && !isGenerating
       : Boolean(isVenueSelected) && isImageUploaded && !isGenerating;
   return (
     <div className="space-y-6">
@@ -168,14 +175,14 @@ export default function Step2AdvancedForm({
             <button
               type="button"
               disabled={!canCreate}
-              onClick={onCreate}
+              onClick={hasGenerated ? onReset : onCreate}
               className={`px-2 py-2 rounded-md text-sm font-semibold whitespace-nowrap ${
                 canCreate
                   ? "bg-purple-600 text-white hover:bg-purple-700"
                   : "bg-gray-200 text-gray-500 cursor-not-allowed"
               }`}
             >
-              생성하기
+              {hasGenerated ? "생성" : "생성하기"}
             </button>
           </div>
         </div>

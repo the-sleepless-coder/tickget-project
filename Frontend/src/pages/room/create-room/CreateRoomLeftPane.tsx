@@ -19,6 +19,8 @@ export default function LeftPane({
   isPresetMode,
   showLoader,
   tsxUrl,
+  hasGenerated,
+  onReset,
 }: {
   step: 1 | 2;
   thumbnailUrl: string | null;
@@ -33,6 +35,8 @@ export default function LeftPane({
   isPresetMode?: boolean;
   showLoader?: boolean;
   tsxUrl?: string | null;
+  hasGenerated?: boolean;
+  onReset?: () => void;
 }) {
   const [toastOpen, setToastOpen] = useState(false);
   const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5MB
@@ -131,8 +135,8 @@ export default function LeftPane({
   return (
     <div className="mb-6 flex flex-col">
       <label
-        htmlFor={isPresetMode ? undefined : "room-layout"}
-        className={`block w-[230px] ${isPresetMode ? "cursor-default" : "cursor-pointer"}`}
+        htmlFor={isPresetMode || hasGenerated ? undefined : "room-layout"}
+        className={`block w-[230px] ${isPresetMode || hasGenerated ? "cursor-default" : "cursor-pointer"}`}
       >
         <div className="relative grid place-items-center rounded-md bg-gray-200 w-[230px] h-[307px] md:w-[230px] md:h-[307px] overflow-hidden">
           {(() => {
@@ -148,7 +152,18 @@ export default function LeftPane({
               ? defaultSrc
               : layoutUrl || (isAIMode ? null : defaultSrc);
             if (isAIMode && tsxUrl) {
-              return <TsxPreview src={tsxUrl} className="w-full h-full" />;
+              return (
+                <div className="w-full h-full flex items-center justify-center overflow-hidden">
+                  <TsxPreview
+                    src={tsxUrl}
+                    className="w-full h-full"
+                    style={{
+                      transform: "scale(0.8)",
+                      transformOrigin: "center",
+                    }}
+                  />
+                </div>
+              );
             }
             return src ? (
               <img
@@ -174,13 +189,14 @@ export default function LeftPane({
           ) : null}
         </div>
       </label>
-      {!isPresetMode && (
+      {!isPresetMode && !hasGenerated && (
         <input
           id="room-layout"
           type="file"
           accept=".jpg,.jpeg,.png,image/jpeg,image/png"
           className="hidden"
           onChange={handleLayoutChangeWithSizeCheck}
+          disabled={hasGenerated}
         />
       )}
       <Snackbar
