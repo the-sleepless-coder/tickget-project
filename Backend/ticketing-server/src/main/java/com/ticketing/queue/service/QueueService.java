@@ -178,10 +178,10 @@ public class QueueService {
             // DB에서 해당 matchId에 대한 roomId 조회
             Match MATCH = matchRepository.findById(matchId).orElseThrow();
             String roomKey = "room:%s:match:%s".formatted(MATCH.getRoomId(), MATCH.getMatchId());
-            String matchKey = "match:%s:room:%s".formatted(MATCH.getMatchId(), MATCH.getRoomId());
+            String matchKey = "match:%s:room".formatted(MATCH.getMatchId());
 
             redis.opsForValue().set(roomKey,"1");
-            redis.opsForValue().set(matchKey,"1");
+            redis.opsForValue().set(matchKey, String.valueOf(MATCH.getRoomId()));
             redis.expire(roomKey, Duration.ofMinutes(MATCH_EXPIRE_TIME));
             redis.expire(matchKey, Duration.ofMinutes(MATCH_EXPIRE_TIME));
 
