@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import ConfirmationNumberOutlinedIcon from "@mui/icons-material/ConfirmationNumberOutlined";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { paths } from "../../../../app/routes/paths";
@@ -8,6 +8,10 @@ import {
   enqueueTicketingQueue,
 } from "@features/booking-site/api";
 import { useMatchStore } from "@features/booking-site/store";
+import { useRoomStore } from "@features/room/store";
+import { useAuthStore } from "@features/auth/store";
+import { useWebSocketStore } from "../../../../shared/lib/websocket-store";
+import { subscribe, type Subscription } from "../../../../shared/lib/websocket";
 
 export default function BookingWaitingPage() {
   const navigate = useNavigate();
@@ -16,8 +20,12 @@ export default function BookingWaitingPage() {
     "loading"
   );
   const matchIdFromStore = useMatchStore((s) => s.matchId);
-  const [rank, setRank] = useState<number>(60);
-  const totalQueue = 73;
+  const [rank, setRank] = useState<number>(0);
+  const [totalQueue, setTotalQueue] = useState<number>(0);
+  const [hasLiveQueue, setHasLiveQueue] = useState<boolean>(false);
+  const wsClient = useWebSocketStore((s) => s.client);
+  const roomId = useRoomStore((s) => s.roomInfo.roomId);
+  const subscriptionRef = useRef<Subscription | null>(null);
   const PROGRESS_STEPS = useMemo(
     () => [80, 70, 60, 50, 40, 30, 20, 10] as const,
     []
@@ -44,10 +52,10 @@ export default function BookingWaitingPage() {
   }, []);
 
   useEffect(() => {
-    if (stage !== "queue") return;
+    if (stage !== "queue" || hasLiveQueue) return;
     setRank(START_RANK);
     setProgress(PROGRESS_STEPS[0]);
-    // 예시: 진행도 80→70→...→10으로 감소
+    // 예시: 진행도 80→70→...→10으로 감소 (실데이터 수신 전까지만)
     let stepIndex = 0;
     const progressInterval = setInterval(() => {
       stepIndex += 1;
@@ -79,7 +87,129 @@ export default function BookingWaitingPage() {
     return () => {
       clearInterval(progressInterval);
     };
-  }, [stage, PROGRESS_STEPS, navigate, searchParams]);
+  }, [stage, PROGRESS_STEPS, navigate, searchParams, hasLiveQueue]);
+
+  // WebSocket 구독: /topic/rooms/{roomId} 에서 QUEUE_STATUS_UPDATE 수신
+  useEffect(() => {
+    if (stage !== "queue") return;
+    if (!roomId) {
+      console.warn("[waiting][ws] roomId가 없어 구독을 건너뜁니다.");
+      return;
+    }
+    if (!wsClient) {
+      console.warn(
+        "[waiting][ws] WebSocket 클라이언트가 없어 구독을 건너뜁니다."
+      );
+      return;
+    }
+
+    const destination = `/topic/rooms/${roomId}`;
+    let retries = 0;
+    const maxRetries = 20;
+
+    type QueueEntry = {
+      ahead?: number;
+      behind?: number;
+      total?: number;
+      lastUpdated?: number;
+    };
+    type QueuePayload = { queueStatuses?: Record<string, QueueEntry> };
+
+    const handleMessage = (msg: {
+      body: string;
+      headers: Record<string, string>;
+    }) => {
+      try {
+        const data = JSON.parse(msg.body) as {
+          eventType?: string;
+          payload?: QueuePayload;
+          timestamp?: number;
+        };
+        if (data?.eventType === "QUEUE_STATUS_UPDATE") {
+          const myUserId = useAuthStore.getState().userId;
+          const statuses = data.payload?.queueStatuses;
+          if (!statuses) {
+            console.warn("[waiting][QUEUE] payload.queueStatuses 없음:", data);
+            return;
+          }
+          if (myUserId == null) {
+            console.warn("[waiting][QUEUE] 사용자 ID 없음, 처리 불가");
+            return;
+          }
+          const key = String(myUserId);
+          const raw =
+            statuses[key] ??
+            // 숫자 키로도 시도 (서버 직렬화 차이 대비)
+            (statuses as unknown as Record<number, QueueEntry>)[
+              myUserId as number
+            ];
+          if (raw) {
+            const total = Number(raw.total ?? 0);
+            const behind = Number(raw.behind ?? 0);
+            setRank(total); // 나의 대기순서
+            setTotalQueue(total + behind); // 현재 대기인원
+            setHasLiveQueue(true);
+            console.log("✅ [waiting][QUEUE] 대기열 갱신 성공:", {
+              myUserId,
+              total,
+              behind,
+              now: Date.now(),
+              wsDestination: destination,
+            });
+          } else {
+            console.log(
+              "ℹ️ [waiting][QUEUE] 아직 대기열 미진입(내 userId 미포함):",
+              {
+                myUserId,
+                keys: Object.keys(statuses),
+              }
+            );
+          }
+        }
+      } catch (e) {
+        console.error("❌ [waiting][QUEUE] 메시지 파싱 실패:", e);
+      }
+    };
+
+    const trySubscribe = () => {
+      if (wsClient.connected) {
+        const sub = subscribe(wsClient, destination, (message) => {
+          handleMessage(
+            message as unknown as {
+              body: string;
+              headers: Record<string, string>;
+            }
+          );
+        });
+        if (sub) {
+          subscriptionRef.current = sub;
+          console.log(`✅ [waiting][ws] 구독 성공: ${destination}`);
+        } else {
+          console.error(
+            `❌ [waiting][ws] 구독 실패: ${destination} (subscription=null)`
+          );
+        }
+        return;
+      }
+      retries += 1;
+      if (retries <= maxRetries) {
+        console.log(`[waiting][ws] 연결 대기 중... (${retries}/${maxRetries})`);
+        setTimeout(trySubscribe, 500);
+      } else {
+        console.error(`[waiting][ws] 연결 실패: 시간 초과 (${destination})`);
+      }
+    };
+
+    trySubscribe();
+
+    return () => {
+      if (subscriptionRef?.current) {
+        console.log(`🔌 [waiting][ws] 구독 해제: ${destination}`);
+        subscriptionRef.current.unsubscribe();
+        subscriptionRef.current = null;
+      }
+    };
+  }, [stage, roomId, wsClient, subscriptionRef]);
 
   // 대기열 진입 시 큐 등록 API 호출 (matchId가 있을 때만)
   useEffect(() => {
