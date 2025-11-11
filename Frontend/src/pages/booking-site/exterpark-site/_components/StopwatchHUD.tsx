@@ -24,14 +24,30 @@ export default function StopwatchHUD({
   live,
   onlyReserve = false,
   onlyCaptcha = false,
+  draggable = false,
 }: {
   live?: LiveOverrides;
   onlyReserve?: boolean;
   onlyCaptcha?: boolean;
+  draggable?: boolean;
 }) {
   const [tick, setTick] = useState(0);
   const intervalRef = useRef<number | null>(null);
   const [collapsed, setCollapsed] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const initialPos = (() => {
+    // 초기 위치: 우측 상단 근처
+    const defaultX =
+      typeof window !== "undefined" ? Math.max(window.innerWidth - 300, 8) : 8;
+    return { x: defaultX, y: 8 };
+  })();
+  const positionRef = useRef<{ x: number; y: number }>(initialPos);
+  const [position, setPosition] = useState<{ x: number; y: number }>(() => {
+    const defaultX =
+      typeof window !== "undefined" ? Math.max(window.innerWidth - 300, 8) : 8;
+    return { x: defaultX, y: 8 };
+  });
+  const dragOffsetRef = useRef<{ dx: number; dy: number }>({ dx: 0, dy: 0 });
 
   useEffect(() => {
     intervalRef.current = window.setInterval(() => setTick((v) => v + 1), 250);
@@ -40,6 +56,30 @@ export default function StopwatchHUD({
         window.clearInterval(intervalRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (!draggable) return;
+    if (!isDragging) return;
+    const onMove = (e: MouseEvent) => {
+      const nx = e.clientX - dragOffsetRef.current.dx;
+      const ny = e.clientY - dragOffsetRef.current.dy;
+      const clampedX = Math.max(0, Math.min(nx, window.innerWidth - 260));
+      const clampedY = Math.max(0, Math.min(ny, window.innerHeight - 100));
+      positionRef.current = { x: clampedX, y: clampedY };
+      setPosition(positionRef.current);
+    };
+    const onUp = () => {
+      setIsDragging(false);
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, [draggable, isDragging]);
 
   const readNum = (key: string, def = 0): number => {
     const v = sessionStorage.getItem(key);
@@ -124,9 +164,24 @@ export default function StopwatchHUD({
   ]);
 
   return (
-    <div className="fixed top-2 right-2 z-50">
+    <div
+      className={`fixed ${draggable ? "z-[9999]" : "top-2 right-2 z-50"}`}
+      style={draggable ? { top: position.y, left: position.x } : undefined}
+    >
       <div className="rounded-xl border border-gray-200 shadow bg-white/95 backdrop-blur px-3 py-2 min-w-[260px]">
-        <div className="flex items-center justify-between">
+        <div
+          className={`flex items-center justify-between ${
+            draggable ? "cursor-move select-none" : ""
+          }`}
+          onMouseDown={(e) => {
+            if (!draggable) return;
+            setIsDragging(true);
+            dragOffsetRef.current = {
+              dx: e.clientX - positionRef.current.x,
+              dy: e.clientY - positionRef.current.y,
+            };
+          }}
+        >
           <div className="font-bold text-sm text-gray-800">Stopwatch (DEV)</div>
           <button
             type="button"
