@@ -177,10 +177,12 @@ public class QueueService {
             // 2) roomId에 대한 matchId를 Redis 키로 설정
             // DB에서 해당 matchId에 대한 roomId 조회
             Match MATCH = matchRepository.findById(matchId).orElseThrow();
-            String key = "room:%s:match:%s".formatted(MATCH.getRoomId(), MATCH.getMatchId());
+            String roomKey = "room:%s:match:%s".formatted(MATCH.getRoomId(), MATCH.getMatchId());
+            String matchKey = "match:%s:room:%s".formatted(MATCH.getMatchId(), MATCH.getRoomId());
 
-            redis.opsForValue().set(key,"1");
-            redis.expire(key, Duration.ofMinutes(MATCH_EXPIRE_TIME));
+            redis.opsForValue().set(roomKey,"1");
+            redis.expire(roomKey, Duration.ofMinutes(MATCH_EXPIRE_TIME));
+            redis.expire(matchKey, Duration.ofMinutes(MATCH_EXPIRE_TIME));
 
             // 3) 스케줄링을 통한, 시작 시간 N초 전 Thread 실행
             // Transactional로 DB, Playing Status, 매치 참여 인원 Redis 키 설정.
