@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import ConfirmationNumberOutlinedIcon from "@mui/icons-material/ConfirmationNumberOutlined";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { paths } from "../../../../app/routes/paths";
@@ -22,18 +22,11 @@ export default function BookingWaitingPage() {
   const matchIdFromStore = useMatchStore((s) => s.matchId);
   const [rank, setRank] = useState<number>(0);
   const [totalQueue, setTotalQueue] = useState<number>(0);
-  const [hasLiveQueue, setHasLiveQueue] = useState<boolean>(false);
   const [hasDequeued, setHasDequeued] = useState<boolean>(false);
   const wsClient = useWebSocketStore((s) => s.client);
   const roomId = useRoomStore((s) => s.roomInfo.roomId);
   const subscriptionRef = useRef<Subscription | null>(null);
-  const PROGRESS_STEPS = useMemo(
-    () => [80, 70, 60, 50, 40, 30, 20, 10] as const,
-    []
-  );
-  const [progress, setProgress] = useState<number>(PROGRESS_STEPS[0]);
-  const START_RANK = 11080;
-  const END_RANK = 955;
+  // 실데이터 수신 기반으로만 표시 (시뮬레이션 제거)
 
   useEffect(() => {
     const timer = setTimeout(() => setStage("queue"), 1200);
@@ -52,43 +45,7 @@ export default function BookingWaitingPage() {
     })();
   }, []);
 
-  useEffect(() => {
-    if (stage !== "queue" || hasLiveQueue) return;
-    setRank(START_RANK);
-    setProgress(PROGRESS_STEPS[0]);
-    // 예시: 진행도 80→70→...→10으로 감소 (실데이터 수신 전까지만)
-    let stepIndex = 0;
-    const progressInterval = setInterval(() => {
-      stepIndex += 1;
-      if (stepIndex < PROGRESS_STEPS.length) {
-        setProgress(PROGRESS_STEPS[stepIndex]);
-        const t = stepIndex / (PROGRESS_STEPS.length - 1);
-        const nextRank = Math.round(START_RANK - (START_RANK - END_RANK) * t);
-        setRank(nextRank);
-      } else {
-        clearInterval(progressInterval);
-        const rtSec = searchParams.get("rtSec") ?? "0";
-        const nrClicks = searchParams.get("nrClicks") ?? "0";
-        const hallId = searchParams.get("hallId");
-        const matchId = searchParams.get("matchId");
-        const date = searchParams.get("date");
-        const round = searchParams.get("round");
-        const nextUrl = new URL(
-          window.location.origin + paths.booking.selectSeat
-        );
-        nextUrl.searchParams.set("rtSec", rtSec);
-        nextUrl.searchParams.set("nrClicks", nrClicks);
-        if (hallId) nextUrl.searchParams.set("hallId", hallId);
-        if (matchId) nextUrl.searchParams.set("matchId", matchId);
-        if (date) nextUrl.searchParams.set("date", date);
-        if (round) nextUrl.searchParams.set("round", round);
-        navigate(nextUrl.pathname + nextUrl.search, { replace: true });
-      }
-    }, 350);
-    return () => {
-      clearInterval(progressInterval);
-    };
-  }, [stage, PROGRESS_STEPS, navigate, searchParams, hasLiveQueue]);
+  // 시뮬레이션 제거: 실제 수신 이벤트만 반영
 
   // WebSocket 구독: /topic/rooms/{roomId} 에서 QUEUE_STATUS_UPDATE 수신
   useEffect(() => {
@@ -156,7 +113,6 @@ export default function BookingWaitingPage() {
             const behind = Number(raw.behind ?? 0);
             setRank(total); // 나의 대기순서
             setTotalQueue(total + behind); // 현재 대기인원
-            setHasLiveQueue(true);
             console.log("✅ [waiting][QUEUE] 대기열 갱신 성공:", {
               myUserId,
               total,
@@ -344,7 +300,6 @@ export default function BookingWaitingPage() {
           const behind = Number(raw.behind ?? 0);
           setRank(total);
           setTotalQueue(total + behind);
-          setHasLiveQueue(true);
           console.log("✅ [waiting][bridge] 대기열 갱신 성공:", {
             myUserId,
             total,
@@ -479,9 +434,13 @@ export default function BookingWaitingPage() {
 
   // queue stage
   if (stage === "queue") {
-    const percent = progress; // 남은 비율(%)
+    // 실데이터 기반 진행도(대략): rank/totalQueue 비율을 사용
+    const percent =
+      totalQueue > 0
+        ? Math.max(0, Math.min(100, Math.round((rank / totalQueue) * 100)))
+        : 100;
     const widthPercent = Math.max(0, Math.min(100, 100 - percent)); // 좌→우로 증가
-    const isImminent = percent <= 20; // 진행도가 많이 줄어들면(20% 이하) 임박 상태
+    const isImminent = percent <= 20; // 20% 이하이면 임박
 
     return (
       <Viewport>
