@@ -35,11 +35,18 @@ public class RoomResponse {
 
     private HallSize hallSize;
     private String hallName;
+    private int totalSeat;
 
     private ThumbnailType thumbnailType;
     private String thumbnailValue;
 
     public static RoomResponse of (Room room, RoomInfo roomInfo ){
+        // startTime은 null일 수 있음
+        LocalDateTime startTime = null;
+        if (roomInfo.getStartTime() != null) {
+            startTime = TimeConverter.toLocalDateTime(roomInfo.getStartTime());
+        }
+
         return RoomResponse.builder()
                 .roomId(room.getId())
                 .roomName(roomInfo.getTitle())
@@ -50,9 +57,10 @@ public class RoomResponse {
                 .roomType(room.getRoomType())
                 .status(room.getStatus())
                 .createdAt(TimeConverter.toLocalDateTime(roomInfo.getCreatedAt()))
-                .startTime(TimeConverter.toLocalDateTime(roomInfo.getStartTime()))
+                .startTime(startTime)
                 .hallSize(room.getHallSize())
                 .hallName(room.getHallName())
+                .totalSeat(room.getTotalSeat())
                 .thumbnailType(room.getThumbnailType())
                 .thumbnailValue(room.getThumbnailValue())
                 .build();

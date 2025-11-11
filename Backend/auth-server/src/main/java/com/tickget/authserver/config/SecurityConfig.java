@@ -37,7 +37,7 @@ public class SecurityConfig {
     private final OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    @Value("${app.oauth2.frontend-url:http://localhost:3000}")
+    @Value("${app.oauth2.frontend-url:http://localhost:5173}")
     private String frontendUrl;
 
     /**
@@ -49,7 +49,7 @@ public class SecurityConfig {
     @org.springframework.core.annotation.Order(1)
     public SecurityFilterChain publicSecurityFilterChain(HttpSecurity http) throws Exception {
         log.info("🔧 Configuring PUBLIC SecurityFilterChain (Order 1)");
-        log.info("   Paths: /health, /actuator/**, /swagger-ui/**, /validate, /refresh, /test/**, /error");
+        log.info("   Paths: /health, /actuator/**, /swagger-ui/**, /validate, /refresh, /test/**, /rooms, /error");
 
         http
                 .securityMatcher(
@@ -61,6 +61,7 @@ public class SecurityConfig {
                         "/validate",
                         "/refresh",
                         "/test/**",  // 테스트 유저 생성 API
+                        "/rooms",
                         "/error"
                 )
                 .csrf(AbstractHttpConfigurer::disable)
@@ -135,6 +136,9 @@ public class SecurityConfig {
         configuration.setAllowedOriginPatterns(Arrays.asList(
                 frontendUrl,
                 "http://localhost:*",
+                "http://localhost:5173",
+                "https://localhost:*",
+                "https://localhost:5173",
                 "http://127.0.0.1:*",
                 "https://tickget.kr",
                 "https://*.tickget.kr"

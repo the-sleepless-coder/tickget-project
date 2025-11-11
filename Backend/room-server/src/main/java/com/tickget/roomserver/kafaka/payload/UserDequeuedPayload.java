@@ -11,6 +11,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class UserDequeuedPayload {
     private Long userId;
-    private String matchId;
+    private Long matchId;
     private Long timestamp;
 }

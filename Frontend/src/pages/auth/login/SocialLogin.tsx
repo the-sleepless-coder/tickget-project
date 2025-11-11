@@ -1,16 +1,16 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useLocation, useNavigate, Link } from "react-router";
 import Button from "@mui/material/Button";
 import Snackbar from "@mui/material/Snackbar";
 import Alert from "@mui/material/Alert";
+import Dialog from "@mui/material/Dialog";
+import DialogTitle from "@mui/material/DialogTitle";
+import DialogContent from "@mui/material/DialogContent";
 import googleIcon from "@shared/images/icons/google.png";
-import { testAccountLogin } from "@features/auth/api";
+import { testAccountLogin, adminAccountLoginByName } from "@features/auth/api";
 import { useAuthStore } from "@features/auth/store";
 
-const BASE_URL = `${import.meta.env.VITE_API_ORIGIN ?? ""}${
-  import.meta.env.VITE_API_PREFIX ??
-  (import.meta.env.DEV ? "/api/v1/dev" : "/api/v1")
-}/auth`;
+const BASE_URL = `${import.meta.env.VITE_API_ORIGIN ?? ""}/api/v1/dev/auth`;
 
 export default function SocialLogin() {
   const navigate = useNavigate();
@@ -21,11 +21,69 @@ export default function SocialLogin() {
     message: string;
     severity: "success" | "error" | "warning" | "info";
   }>({ open: false, message: "", severity: "info" });
+  const [adminModalOpen, setAdminModalOpen] = useState(false);
 
   const openSnackbar = (
     message: string,
     severity: "success" | "error" | "warning" | "info" = "info"
   ) => setSnackbar({ open: true, message, severity });
+
+  const oauthHandledRef = useRef(false);
+
+  const trySetAuthFromMessage = (data: unknown) => {
+    try {
+      const record =
+        data && typeof data === "object"
+          ? (data as Record<string, unknown>)
+          : null;
+      const href = typeof record?.href === "string" ? record.href : null;
+      const url = typeof href === "string" ? new URL(href) : null;
+      const params = url ? url.searchParams : null;
+      if (!params) return;
+
+      const accessToken =
+        params.get("accessToken") || params.get("token") || null;
+      if (!accessToken) return;
+
+      const refreshToken = params.get("refreshToken");
+      const userIdParam = params.get("userId");
+      const userId =
+        userIdParam !== null && !Number.isNaN(Number(userIdParam))
+          ? Number(userIdParam)
+          : 0;
+      const email = params.get("email") ?? "";
+      const nickname = params.get("nickname") ?? "";
+      const name = params.get("name") ?? "";
+      const needsProfileParam = params.get("needsProfile");
+      const needsProfile = needsProfileParam === "true";
+
+      setAuth({
+        accessToken,
+        refreshToken,
+        userId,
+        email,
+        nickname,
+        name,
+        message: "OAuth login",
+      });
+
+      // 분기: needsProfile=true면 추가정보 입력으로 이동, 아니면 성공 처리
+      oauthHandledRef.current = true;
+      if (needsProfile) {
+        openSnackbar("구글 인증이 완료되었습니다.", "success");
+        // 추가정보 페이지로 이동
+        navigate("/auth/signup", { replace: true });
+      } else {
+        openSnackbar("로그인에 성공했습니다.", "success");
+        const from =
+          (location.state as { from?: { pathname?: string } })?.from
+            ?.pathname || "/";
+        navigate(from, { replace: true });
+      }
+    } catch {
+      // ignore parse errors
+    }
+  };
 
   const handleSocialLogin = async (provider: "google") => {
     setIsLoading(provider);
@@ -57,11 +115,14 @@ export default function SocialLogin() {
       // OAuth 창에서 `/oauth-callback.html` 페이지로 이동하면 인증 결과를 확인
       const onMessage = (event: MessageEvent) => {
         if (event.data.type === "oauth-callback") {
+          trySetAuthFromMessage(event.data);
           window.removeEventListener("message", onMessage);
           // 콜백을 받았으므로 팝업 닫힘 감시 종료
           if (popupCheckIntervalId !== null)
             window.clearInterval(popupCheckIntervalId);
-          checkAuthStatus(false);
+          if (!oauthHandledRef.current) {
+            checkAuthStatus(false);
+          }
         }
       };
 
@@ -112,11 +173,14 @@ export default function SocialLogin() {
       // OAuth 창에서 `/oauth-callback.html` 페이지로 이동하면 인증 결과를 확인
       const onMessage = (event: MessageEvent) => {
         if (event.data.type === "oauth-callback") {
+          trySetAuthFromMessage(event.data);
           window.removeEventListener("message", onMessage);
           // 콜백을 받았으므로 팝업 닫힘 감시 종료
           if (popupCheckIntervalId !== null)
             window.clearInterval(popupCheckIntervalId);
-          checkAuthStatus(true);
+          if (!oauthHandledRef.current) {
+            checkAuthStatus(true);
+          }
         }
       };
 
@@ -196,6 +260,47 @@ export default function SocialLogin() {
     }
   };
 
+  const handleAdminButtonClick = () => {
+    setAdminModalOpen(true);
+  };
+
+  const handleAdminAccountSelect = async (name: string) => {
+    setIsLoading(`admin-${name}`);
+    setAdminModalOpen(false);
+    try {
+      const data = await adminAccountLoginByName(name);
+      console.log(`${name} 관리자 계정 API 응답 데이터:`, data);
+      setAuth(data);
+      const storeState = useAuthStore.getState();
+      console.log("저장된 Store 상태:", {
+        accessToken: storeState.accessToken
+          ? `${storeState.accessToken.substring(0, 20)}...`
+          : null,
+        nickname: storeState.nickname,
+        email: storeState.email,
+        userId: storeState.userId,
+      });
+      openSnackbar(`${name} 관리자 계정으로 로그인되었습니다!`, "success");
+      const from =
+        (location.state as { from?: { pathname?: string } })?.from?.pathname ||
+        "/";
+      setTimeout(() => {
+        navigate(from, { replace: true });
+      }, 1500);
+    } catch (error) {
+      console.error(`${name} 관리자 계정 생성 오류:`, error);
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "관리자 계정 생성 중 오류가 발생했습니다.";
+      openSnackbar(errorMessage, "error");
+    } finally {
+      setIsLoading(null);
+    }
+  };
+
+  const adminNames = ["승수", "유나", "채준", "재석", "휘", "종환", "재원"];
+
   const socialButtons = [
     {
       provider: "google" as const,
@@ -212,6 +317,91 @@ export default function SocialLogin() {
       className="fixed inset-0 flex flex-col"
       style={{ backgroundColor: "#E9EBF4" }}
     >
+      {/* 관리자 계정 선택 버튼 */}
+      <div className="fixed top-1.5 right-1.5 z-50" style={{ zIndex: 9999 }}>
+        <Button
+          size="small"
+          sx={{
+            textTransform: "none",
+            borderRadius: "8px",
+            padding: "8px 16px",
+            fontSize: "0.875rem",
+            fontWeight: 600,
+            backgroundColor: "transparent",
+            color: "#FFFFFF",
+            border: "1px solid transparent",
+            "&:hover:not(:disabled)": {
+              backgroundColor: "#ef4444",
+              color: "#ffffff",
+              border: "1px solid #ef4444",
+            },
+            "&:disabled": {
+              backgroundColor: "transparent",
+              color: "#FFFFFF",
+              border: "1px solid transparent",
+              opacity: 0.5,
+            },
+          }}
+          onClick={handleAdminButtonClick}
+          disabled={isLoading !== null}
+        >
+          관리자 계정
+        </Button>
+      </div>
+
+      {/* 관리자 계정 선택 모달 */}
+      <Dialog
+        open={adminModalOpen}
+        onClose={() => setAdminModalOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: "16px",
+            padding: "24px",
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            textAlign: "center",
+            fontSize: "1.5rem",
+            fontWeight: 700,
+            paddingBottom: "16px",
+          }}
+        >
+          관리자 계정 선택
+        </DialogTitle>
+        <DialogContent>
+          <div className="grid grid-cols-2 gap-3">
+            {adminNames.map((name) => (
+              <Button
+                key={name}
+                variant="outlined"
+                fullWidth
+                onClick={() => handleAdminAccountSelect(name)}
+                disabled={isLoading !== null}
+                sx={{
+                  padding: "16px",
+                  fontSize: "1rem",
+                  fontWeight: 600,
+                  borderRadius: "8px",
+                  borderColor: "#e5e7eb",
+                  color: "#374151",
+                  "&:hover": {
+                    borderColor: "#ef4444",
+                    backgroundColor: "#fef2f2",
+                    color: "#ef4444",
+                  },
+                }}
+              >
+                {name}
+              </Button>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* 헤더 */}
       <header className="border-b border-neutral-200 bg-white">
         <div className="w-full px-5 py-3">
@@ -258,7 +448,7 @@ export default function SocialLogin() {
 
             {/* 소셜 로그인 버튼 */}
             <div className="space-y-3 mb-6">
-              {socialButtons.map((button) => (
+              {/* {socialButtons.map((button) => (
                 <Button
                   key={button.provider}
                   size="medium"
@@ -277,7 +467,7 @@ export default function SocialLogin() {
                   <div className="mr-3">{button.icon}</div>
                   <span className="text-sm">{button.text}</span>
                 </Button>
-              ))}
+              ))} */}
 
               {/* 테스트 계정 생성 버튼 */}
               <Button

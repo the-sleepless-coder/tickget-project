@@ -1,25 +1,22 @@
 import { useState, useRef, useEffect } from "react";
 import ProfileBanner from "./_components/ProfileBanner";
 import ProfileInfoModal from "./_components/ProfileInfoModal";
-import TabNavigation from "../../shared/ui/common/TabNavigation";
-import SearchBar from "../../shared/ui/common/SearchBar";
-import MatchHistoryCard from "./_components/MatchHistoryCard";
-import PersonalStats from "./_components/PersonalStats";
+// import TabNavigation from "../../shared/ui/common/TabNavigation";
+// import SearchBar from "../../shared/ui/common/SearchBar";
+// import MatchHistoryCard from "./_components/MatchHistoryCard";
+// import PersonalStats from "./_components/PersonalStats";
 import UserStats from "./_components/UserStats";
-import { mockMatchHistory, type MatchHistory, type UserRank } from "./mockData";
+import { mockMatchHistory, type UserRank } from "./mockData";
 import { useAuthStore } from "@features/auth/store";
 import UnderConstruction from "../../shared/ui/common/Under_construction";
 
 export default function MyPageIndex() {
   const [activePrimaryTab, setActivePrimaryTab] = useState("stats");
-  const [activeSecondaryTab, setActiveSecondaryTab] = useState("all");
+  // const [activeSecondaryTab, setActiveSecondaryTab] = useState("all");
   const [expandedCardIndex, setExpandedCardIndex] = useState<number | null>(
     null
   );
-  const [currentPage, setCurrentPage] = useState(1);
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const itemsPerPage = 5;
-  const [searchQuery, setSearchQuery] = useState("");
   const [selectedUser, setSelectedUser] = useState<UserRank | null>(null);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isProfileInfoModalOpen, setIsProfileInfoModalOpen] = useState(false);
@@ -29,7 +26,7 @@ export default function MyPageIndex() {
   const storeEmail = useAuthStore((state) => state.email);
 
   const [nickname, setNickname] = useState(storeNickname || "닉네임");
-  const [birthDate, setBirthDate] = useState("99.01.28");
+  const [birthDate] = useState("90.01.01");
   const [email, setEmail] = useState(storeEmail || "tickget.gmail.com");
   const [profileImage, setProfileImage] = useState<string | undefined>(
     undefined
@@ -43,56 +40,7 @@ export default function MyPageIndex() {
     undefined
   );
 
-  // 참가인원에서 숫자를 추출하는 함수
-  const getParticipantCount = (participants: string): number => {
-    const match = participants.match(/\d+/);
-    return match ? parseInt(match[0], 10) : 0;
-  };
-
-  // 모든 유저 목록 추출 (나를 제외, 닉네임 기준 고유)
-  const allUsers = mockMatchHistory
-    .flatMap((match) => match.users || [])
-    .filter((user) => user.id !== 0)
-    .reduce((acc, user) => {
-      if (!acc.find((u) => u.nickname === user.nickname)) {
-        acc.push(user);
-      }
-      return acc;
-    }, [] as UserRank[]);
-
-  // 검색어에 맞는 유저 필터링
-  const filteredUsers = searchQuery.trim()
-    ? allUsers.filter((user) =>
-        user.nickname.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : [];
-
-  // 필터링 + 최신순 정렬 로직
-  const filteredMatchHistory = mockMatchHistory
-    .filter((match: MatchHistory) => {
-      const count = getParticipantCount(match.participants);
-
-      if (activeSecondaryTab === "all") {
-        return true;
-      } else if (activeSecondaryTab === "solo") {
-        return count === 1;
-      } else if (activeSecondaryTab === "match") {
-        return count >= 2;
-      }
-      return true;
-    })
-    .sort((a: MatchHistory, b: MatchHistory) => {
-      // 날짜와 시간 기준으로 최신순 정렬
-      const dateA = new Date(`${a.date}T${a.time}`);
-      const dateB = new Date(`${b.date}T${b.time}`);
-      return dateB.getTime() - dateA.getTime();
-    });
-
-  // 페이지네이션 계산
-  const totalPages = Math.ceil(filteredMatchHistory.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const visibleItems = filteredMatchHistory.slice(startIndex, endIndex);
+  // (사용 중지된 검색/필터 기능로직 제거)
 
   // 카드가 확장될 때 해당 카드로 스크롤
   useEffect(() => {
@@ -109,9 +57,8 @@ export default function MyPageIndex() {
 
   // 필터가 변경되면 페이지 초기화
   useEffect(() => {
-    setCurrentPage(1);
     setExpandedCardIndex(null);
-  }, [activeSecondaryTab, activePrimaryTab]);
+  }, [activePrimaryTab]);
 
   // store의 닉네임과 이메일이 변경되면 업데이트
   useEffect(() => {
@@ -133,7 +80,6 @@ export default function MyPageIndex() {
                 onClick={() => {
                   setActivePrimaryTab("stats");
                   setSelectedUser(null);
-                  setSearchQuery("");
                 }}
                 className="text-sm text-blue-600 hover:text-blue-700 font-medium"
               >
@@ -275,7 +221,6 @@ export default function MyPageIndex() {
                   <button
                     onClick={() => {
                       setSelectedUser(null);
-                      setSearchQuery("");
                     }}
                     className="rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50"
                   >
@@ -379,7 +324,6 @@ export default function MyPageIndex() {
                   <button
                     onClick={() => {
                       setSelectedUser(null);
-                      setSearchQuery("");
                     }}
                     className="rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50"
                   >

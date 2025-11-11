@@ -10,8 +10,9 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class QueueStatus {
-    private Integer ahead;       // 내 앞에 있는 플레이어 수
-    private Integer behind;      // 내 뒤에 있는 플레이어 수
-    private Integer rawRank;     // 최초 진입 시 순위
-    private Integer joinOffset;  // 누적 빠진 사람 수
+    private Long ahead;          // 앞에 있는 사람 수
+    private Long behind;         // 뒤에 있는 사람 수
+    private Long total;          // 전체 대기 인원
+    private Long lastUpdated;    // 마지막 업데이트 시각
+
 }

@@ -44,11 +44,11 @@ func NewMinioClient(endpoint, accessKey, secretKey, bucketName string, useSSL bo
 }
 
 // 공연장 좌석 정보를 조회
-func (mc *MinioClient) GetHallLayout(ctx context.Context, hallID string) (*models.HallLayout, error) {
-	prefix := fmt.Sprintf("halls/%s/", hallID)
+func (mc *MinioClient) GetHallLayout(ctx context.Context, hallID int64) (*models.HallLayout, error) {
+	prefix := fmt.Sprintf("halls/%d/", hallID)
 
 	mc.logger.Debug("공연장 좌석 정보 조회 시작",
-		zap.String("hall_id", hallID),
+		zap.Int64("hall_id", hallID),
 		zap.String("prefix", prefix),
 	)
 
@@ -70,11 +70,11 @@ func (mc *MinioClient) GetHallLayout(ctx context.Context, hallID string) (*model
 	}
 
 	if targetObjectName == "" {
-		return nil, fmt.Errorf("공연장 정보를 찾을 수 없습니다 (hall_id: %s): json 파일 없음", hallID)
+		return nil, fmt.Errorf("공연장 정보를 찾을 수 없습니다 (hall_id: %d): json 파일 없음", hallID)
 	}
 
 	mc.logger.Debug("공연장 파일 찾음",
-		zap.String("hall_id", hallID),
+		zap.Int64("hall_id", hallID),
 		zap.String("object_name", targetObjectName),
 	)
 
@@ -88,11 +88,11 @@ func (mc *MinioClient) GetHallLayout(ctx context.Context, hallID string) (*model
 	// stat으로 한 번 더 확인하고 싶다면
 	stat, err := object.Stat()
 	if err != nil {
-		return nil, fmt.Errorf("공연장 정보를 찾을 수 없습니다 (hall_id: %s): %w", hallID, err)
+		return nil, fmt.Errorf("공연장 정보를 찾을 수 없습니다 (hall_id: %d): %w", hallID, err)
 	}
 
 	mc.logger.Debug("공연장 파일 stat 확인",
-		zap.String("hall_id", hallID),
+		zap.Int64("hall_id", hallID),
 		zap.Int64("size", stat.Size),
 	)
 
@@ -108,7 +108,7 @@ func (mc *MinioClient) GetHallLayout(ctx context.Context, hallID string) (*model
 	}
 
 	mc.logger.Info("공연장 좌석 정보 로드 완료",
-		zap.String("hall_id", hallID),
+		zap.Int64("hall_id", hallID),
 		zap.Int("sections", len(layout.Sections)),
 	)
 

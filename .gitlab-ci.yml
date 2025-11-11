@@ -1,0 +1,253 @@
+# TickGet CI/CD Pipeline
+# 변경된 서비스만 감지하여 빌드하고, ArgoCD를 통해 자동 배포합니다.
+
+stages:
+  - build
+
+variables:
+  # Docker 설정
+  DOCKER_DRIVER: overlay2
+  DOCKER_BUILDKIT: 1
+  DOCKER_CLI_EXPERIMENTAL: enabled
+
+  # Kubernetes 매니페스트 리포지토리
+  K8S_MANIFEST_REPO: "https://oauth2:${GITLAB_ACCESS_TOKEN}@lab.ssafy.com/h2sorginal/tickget-k8s-manifests.git"
+
+# 공통 before_script: Docker Buildx 설정
+.docker_buildx_setup: &docker_buildx_setup
+  - apk add --no-cache git
+  - docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
+  - docker buildx create --use --name multiarch-builder --driver docker-container || true
+  - docker buildx inspect --bootstrap
+
+# 공통 함수: 매니페스트 업데이트
+.update_manifest: &update_manifest
+  - |
+    # 환경 결정 (dev 브랜치 → dev, master 브랜치 → prod)
+    if [ "$CI_COMMIT_BRANCH" = "dev" ]; then
+      ENVIRONMENT="dev"
+      IMAGE_TAG="dev-${CI_COMMIT_SHORT_SHA}"
+    elif [ "$CI_COMMIT_BRANCH" = "master" ]; then
+      ENVIRONMENT="prod"
+      IMAGE_TAG="prod-${CI_COMMIT_SHORT_SHA}"
+    else
+      echo "Unknown branch: $CI_COMMIT_BRANCH"
+      exit 1
+    fi
+
+    echo "Updating manifest for $SERVICE_NAME in $ENVIRONMENT environment with tag $IMAGE_TAG"
+
+    # Git 설정
+    git config --global user.email "gitlab-ci@tickget.kr"
+    git config --global user.name "GitLab CI"
+
+    # 매니페스트 리포지토리 클론
+    git clone --depth 1 --branch $CI_COMMIT_BRANCH $K8S_MANIFEST_REPO k8s-manifests
+    cd k8s-manifests
+
+    # Kustomization 파일 경로
+    KUSTOMIZATION_FILE="apps/${SERVICE_NAME}/overlays/${ENVIRONMENT}/kustomization.yaml"
+
+    if [ ! -f "$KUSTOMIZATION_FILE" ]; then
+      echo "Kustomization file not found: $KUSTOMIZATION_FILE"
+      exit 1
+    fi
+
+    # 이미지 태그 업데이트 (yq 사용 - GitLab Runner에 yq 설치 필요)
+    # yq가 없으면 sed 사용
+    if command -v yq &> /dev/null; then
+      yq eval ".images[0].newTag = \"$IMAGE_TAG\"" -i $KUSTOMIZATION_FILE
+    else
+      sed -i "s/newTag:.*/newTag: $IMAGE_TAG/" $KUSTOMIZATION_FILE
+    fi
+
+    # 변경사항 커밋 및 푸시
+    git add $KUSTOMIZATION_FILE
+    git commit -m "[CI] Update $SERVICE_NAME image tag to $IMAGE_TAG (commit: ${CI_COMMIT_SHORT_SHA})" || echo "No changes to commit"
+    git push origin $CI_COMMIT_BRANCH
+
+###########################################
+# Frontend Build
+###########################################
+
+build:frontend:
+  stage: build
+  image: docker:24-dind
+  services:
+    - docker:24-dind
+  only:
+    refs:
+      - dev
+      - master
+    changes:
+      - Frontend/**/*
+  before_script:
+    - *docker_buildx_setup
+  script:
+    - export SERVICE_NAME="frontend"
+    - cd Frontend
+    - |
+      if [ "$CI_COMMIT_BRANCH" = "dev" ]; then
+        IMAGE_TAG="dev-${CI_COMMIT_SHORT_SHA}"
+      else
+        IMAGE_TAG="prod-${CI_COMMIT_SHORT_SHA}"
+      fi
+    - echo "Building Frontend with tag $IMAGE_TAG"
+    - docker buildx build --platform linux/arm64 -t kkaebu/tickget-frontend:$IMAGE_TAG --push .
+    - *update_manifest
+  tags:
+    - docker
+
+###########################################
+# Backend Services Build
+###########################################
+
+build:auth-server:
+  stage: build
+  image: docker:24-dind
+  services:
+    - docker:24-dind
+  only:
+    refs:
+      - dev
+      - master
+    changes:
+      - Backend/auth-server/**/*
+  before_script:
+    - *docker_buildx_setup
+  script:
+    - export SERVICE_NAME="auth-server"
+    - cd Backend/auth-server
+    - |
+      if [ "$CI_COMMIT_BRANCH" = "dev" ]; then
+        IMAGE_TAG="dev-${CI_COMMIT_SHORT_SHA}"
+      else
+        IMAGE_TAG="prod-${CI_COMMIT_SHORT_SHA}"
+      fi
+    - echo "Building auth-server with tag $IMAGE_TAG"
+    - docker buildx build --platform linux/arm64 -t kkaebu/auth-server:$IMAGE_TAG --push .
+    - *update_manifest
+  tags:
+    - docker
+
+build:room-server:
+  stage: build
+  image: docker:24-dind
+  services:
+    - docker:24-dind
+  only:
+    refs:
+      - dev
+      - master
+    changes:
+      - Backend/room-server/**/*
+  before_script:
+    - *docker_buildx_setup
+  script:
+    - export SERVICE_NAME="room-server"
+    - cd Backend/room-server
+    - |
+      if [ "$CI_COMMIT_BRANCH" = "dev" ]; then
+        IMAGE_TAG="dev-${CI_COMMIT_SHORT_SHA}"
+      else
+        IMAGE_TAG="prod-${CI_COMMIT_SHORT_SHA}"
+      fi
+    - echo "Building room-server with tag $IMAGE_TAG"
+    - docker buildx build --platform linux/arm64 -t kkaebu/room-server:$IMAGE_TAG --push .
+    - *update_manifest
+  tags:
+    - docker
+
+build:ticketing-server:
+  stage: build
+  image: docker:24-dind
+  services:
+    - docker:24-dind
+  only:
+    refs:
+      - dev
+      - master
+    changes:
+      - Backend/ticketing-server/**/*
+  before_script:
+    - *docker_buildx_setup
+  script:
+    - export SERVICE_NAME="ticketing-server"
+    - cd Backend/ticketing-server
+    - |
+      if [ "$CI_COMMIT_BRANCH" = "dev" ]; then
+        IMAGE_TAG="dev-${CI_COMMIT_SHORT_SHA}"
+      else
+        IMAGE_TAG="prod-${CI_COMMIT_SHORT_SHA}"
+      fi
+    - echo "Building ticketing-server with tag $IMAGE_TAG"
+    - docker buildx build --platform linux/arm64 -t kkaebu/ticketing-server:$IMAGE_TAG --push .
+    - *update_manifest
+  tags:
+    - docker
+
+build:bot-server:
+  stage: build
+  image: docker:24-dind
+  services:
+    - docker:24-dind
+  only:
+    refs:
+      - dev
+    changes:
+      - Backend/bot-server/**/*
+  before_script:
+    - *docker_buildx_setup
+  script:
+    - export SERVICE_NAME="bot-server"
+    - cd Backend/bot-server
+    - IMAGE_TAG="dev-${CI_COMMIT_SHORT_SHA}"
+    - echo "Building bot-server with tag $IMAGE_TAG"
+    - docker buildx build --platform linux/arm64 -t kkaebu/bot-server:$IMAGE_TAG --push .
+    - *update_manifest
+  tags:
+    - docker
+
+build:captcha-server:
+  stage: build
+  image: docker:24-dind
+  services:
+    - docker:24-dind
+  only:
+    refs:
+      - dev
+    changes:
+      - Backend/catpcha-server/**/*
+  before_script:
+    - *docker_buildx_setup
+  script:
+    - export SERVICE_NAME="captcha-server"
+    - cd Backend/catpcha-server
+    - IMAGE_TAG="dev-${CI_COMMIT_SHORT_SHA}"
+    - echo "Building captcha-server with tag $IMAGE_TAG"
+    - docker buildx build --platform linux/arm64 -t kkaebu/captcha-server:$IMAGE_TAG --push .
+    - *update_manifest
+  tags:
+    - docker
+
+build:seatmap-server:
+  stage: build
+  image: docker:24-dind
+  services:
+    - docker:24-dind
+  only:
+    refs:
+      - dev
+    changes:
+      - AI/seatmap_to_html/**/*
+  before_script:
+    - *docker_buildx_setup
+  script:
+    - export SERVICE_NAME="seatmap-server"
+    - cd AI/seatmap_to_html
+    - IMAGE_TAG="dev-${CI_COMMIT_SHORT_SHA}"
+    - echo "Building seatmap-server with tag $IMAGE_TAG"
+    - docker buildx build --platform linux/arm64 -t kkaebu/seatmap-server:$IMAGE_TAG --push .
+    - *update_manifest
+  tags:
+    - docker

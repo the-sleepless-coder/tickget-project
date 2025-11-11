@@ -26,6 +26,7 @@ spring:
     # MongoDB
     mongodb:
       uri: ${MONGO_URI:mongodb://localhost:27017/ticketing_logs}
+      database: ${MONGO_DATABASE:ticketing_logs}
       auto-index-creation: ${MONGO_AUTO_INDEX:true}
 
   jpa:
@@ -33,7 +34,7 @@ spring:
       ddl-auto: ${JPA_DDL_AUTO:update}
     properties:
       hibernate:
-        show_sql: ${HIBERNATE_SHOW_SQL:true}
+        show_sql: ${HIBERNATE_SHOW_SQL:false}
         format_sql: ${HIBERNATE_FORMAT_SQL:true}
         dialect: ${HIBERNATE_DIALECT:org.hibernate.dialect.MySQLDialect}
     open-in-view: ${SPRING_OPEN_IN_VIEW:false}
@@ -66,9 +67,9 @@ spring:
 
 logging:
   level:
-    org.hibernate.SQL: ${LOG_SQL_LEVEL:debug}
+    org.hibernate.SQL: ${LOG_SQL_LEVEL:info}
     com.ticketing: ${LOG_APP_LEVEL:info}
-    org.springframework.data.mongodb.core.MongoTemplate: ${LOG_MONGO_LEVEL:debug}
+    org.springframework.data.mongodb.core.MongoTemplate: ${LOG_MONGO_LEVEL:info}
     org.springframework.kafka: ${LOG_KAFKA_LEVEL:info}
 
 app:
@@ -99,6 +100,9 @@ management:
 captcha:
   address: ${CAPTCHA_ADDRESS:http://localhost:8080/api/v1.0/captcha/}
   timeout: ${CAPTCHA_TIMEOUT:5000}
+
+bot-server:
+  url: ${BOT_SERVICE_URL:http://localhost:8082}
 
 room-server:
   url: ${ROOM_SERVICE_URL:http://localhost:8083}

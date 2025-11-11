@@ -2,10 +2,7 @@ import { createHttpClient } from "@shared/lib/http";
 import type { TestAccountLoginResponse } from "./types";
 
 // 로그인 서버: /auth 세그먼트 사용
-const AUTH_BASE_URL = `${import.meta.env.VITE_API_ORIGIN ?? ""}${
-  import.meta.env.VITE_API_PREFIX ??
-  (import.meta.env.DEV ? "/api/v1/dev" : "/api/v1")
-}/auth`;
+const AUTH_BASE_URL = `${import.meta.env.VITE_API_ORIGIN ?? ""}/api/v1/dev/auth`;
 
 const authApi = createHttpClient(AUTH_BASE_URL);
 
@@ -17,6 +14,36 @@ export const testAccountLogin = async (): Promise<TestAccountLoginResponse> => {
     return result;
   } catch (error) {
     console.error("testAccountLogin error:", error);
+    throw error;
+  }
+};
+
+export const adminAccountLogin =
+  async (): Promise<TestAccountLoginResponse> => {
+    console.log("Request URL:", `${AUTH_BASE_URL}/test/admin/login`);
+    try {
+      const result =
+        await authApi.postJson<TestAccountLoginResponse>("/test/admin/login");
+      return result;
+    } catch (error) {
+      console.error("adminAccountLogin error:", error);
+      throw error;
+    }
+  };
+
+export const adminAccountLoginByName = async (
+  nickname: string
+): Promise<TestAccountLoginResponse> => {
+  console.log("Request URL:", `${AUTH_BASE_URL}/test/admin/login`);
+  console.log("Request Body:", { nickname });
+  try {
+    const result = await authApi.postJson<TestAccountLoginResponse>(
+      "/test/admin/login",
+      { nickname }
+    );
+    return result;
+  } catch (error) {
+    console.error(`adminAccountLoginByName(${nickname}) error:`, error);
     throw error;
   }
 };

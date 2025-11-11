@@ -1,13 +1,15 @@
 package com.tickget.roomserver.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.tickget.roomserver.domain.repository.RoomCacheRepository;
 import com.tickget.roomserver.dto.cache.QueueStatus;
+import com.tickget.roomserver.dto.cache.RoomMember;
 import com.tickget.roomserver.kafaka.RoomEventMessage;
 import com.tickget.roomserver.session.WebSocketSessionManager;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
-import org.springframework.web.socket.WebSocketSession;
 
 import jakarta.annotation.PreDestroy;
 import java.util.HashMap;
@@ -19,8 +21,18 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * Redis 기반 대기열 상태 알림 스케줄러
+ *
+ * 동작 방식:
+ * 1. Redis에서 방의 전체 멤버 조회 (모든 서버의 유저 포함)
+ * 2. 이 서버에 연결된 유저만 필터링 (hasSession 체크)
+ * 3. 해당 유저들의 QueueStatus를 Redis에서 조회
+ * 4. 브로드캐스트
+ */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class RoomNotificationScheduler {
 
     private final WebSocketSessionManager sessionManager;
@@ -32,16 +44,6 @@ public class RoomNotificationScheduler {
 
     // 스케줄러 실행을 위한 ExecutorService
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(10);
-
-    public RoomNotificationScheduler(
-            WebSocketSessionManager sessionManager,
-            RoomCacheRepository roomCacheRepository,
-            SimpMessagingTemplate messagingTemplate
-    ) {
-        this.sessionManager = sessionManager;
-        this.roomCacheRepository = roomCacheRepository;
-        this.messagingTemplate = messagingTemplate;
-    }
 
     /**
      * 방의 대기열 상태 알림 스케줄링 시작
@@ -84,57 +86,59 @@ public class RoomNotificationScheduler {
     }
 
     /**
-     * 실제 대기열 상태 알림 전송 로직
+     * Redis 기반 대기열 상태 알림 전송 로직
+     *
+     * [핵심 로직]
+     * 1. Redis에서 방의 전체 멤버 조회 (MSA의 모든 서버 유저 포함)
+     * 2. 이 서버에 연결된 유저만 필터링
+     * 3. 필터링된 유저들의 QueueStatus 조회
+     * 4. 브로드캐스트
+     *
      * @param roomId 방 ID
      */
     private void notifyQueueStatus(Long roomId) {
         try {
-            // 1. 이 서버에 연결된 해당 방의 세션들 조회
-            List<WebSocketSession> sessions = sessionManager.getSessionsByRoom(roomId);
-
-            if (sessions.isEmpty()) {
-                log.debug("방 {}에 연결된 세션이 없음", roomId);
-                return;
-            }
-
-            // 2. 방의 매치 ID 조회
-            String matchId = roomCacheRepository.getMatchIdByRoomId(roomId);
+            // 1. 방의 매치 ID 조회
+            Long matchId = roomCacheRepository.getMatchIdByRoomId(roomId);
 
             if (matchId == null) {
                 log.debug("방 {}의 매치 ID를 찾을 수 없음 (매치 생성 전일 수 있음)", roomId);
                 return;
             }
 
-            // 3. 이 서버에 연결된 모든 유저의 대기열 상태를 Map에 수집
+            // 2. Redis에서 방의 전체 멤버 조회 (모든 서버의 유저)
+            List<RoomMember> allMembers = roomCacheRepository.getRoomMembers(roomId);
+
+            if (allMembers.isEmpty()) {
+                log.debug("방 {}에 멤버가 없음", roomId);
+                return;
+            }
+
+            // 3. 이 서버에 연결된 유저만 필터링하여 QueueStatus 수집
             Map<Long, QueueStatus> queueStatusMap = new HashMap<>();
-            int collectedCount = 0;
+            int localUserCount = 0;
 
-            for (WebSocketSession session : sessions) {
+            for (RoomMember member : allMembers) {
+                Long userId = member.getUserId();
+
+                // 이 서버에 세션이 있는지 확인 (로컬 검증)
+                if (!sessionManager.hasSession(userId)) {
+                    continue;  // 다른 서버에 연결된 유저는 스킵
+                }
+
+                localUserCount++;
+
                 try {
-                    // 세션이 열려있는지 확인
-                    if (!session.isOpen()) {
-                        continue;
-                    }
-
-                    // 세션 ID로 유저 ID 조회
-                    Long userId = sessionManager.getUserId(session.getId());
-
-                    if (userId == null) {
-                        log.warn("세션 {}의 유저 ID를 찾을 수 없음", session.getId());
-                        continue;
-                    }
-
                     // Redis에서 해당 유저의 대기열 상태 조회
                     QueueStatus queueStatus = roomCacheRepository.getQueueStatus(matchId, userId);
 
                     if (queueStatus != null) {
                         queueStatusMap.put(userId, queueStatus);
-                        collectedCount++;
                     }
 
                 } catch (Exception e) {
-                    log.error("유저별 대기열 상태 수집 중 오류: roomId={}, sessionId={}, error={}",
-                            roomId, session.getId(), e.getMessage());
+                    log.error("유저별 대기열 상태 수집 중 오류: roomId={}, userId={}, error={}",
+                            roomId, userId, e.getMessage());
                 }
             }
 
@@ -148,11 +152,16 @@ public class RoomNotificationScheduler {
                 );
 
                 messagingTemplate.convertAndSend(destination, message);
-                log.debug("방 {} 대기열 상태 브로드캐스트 완료: 유저 수={}", roomId, collectedCount);
+
+                log.debug("방 {} 대기열 상태 브로드캐스트 완료: 전체 멤버={}, 이 서버 연결 유저={}, 전송된 상태={}",
+                        roomId, allMembers.size(), localUserCount, queueStatusMap.size());
             } else {
-                log.debug("방 {}에 전송할 대기열 상태 없음", roomId);
+                log.debug("방 {}에 전송할 대기열 상태 없음 (이 서버 연결 유저: {})",
+                        roomId, localUserCount);
             }
 
+        } catch (JsonProcessingException e) {
+            log.error("방 {} 대기열 상태 알림 처리 중 JSON 파싱 오류: error={}", roomId, e.getMessage(), e);
         } catch (Exception e) {
             log.error("방 {} 대기열 상태 알림 처리 중 오류: error={}", roomId, e.getMessage(), e);
         }

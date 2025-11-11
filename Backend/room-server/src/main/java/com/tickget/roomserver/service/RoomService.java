@@ -20,6 +20,7 @@ import com.tickget.roomserver.dto.request.NotifyRoomLeftRequest;
 import com.tickget.roomserver.dto.response.CreateRoomResponse;
 import com.tickget.roomserver.dto.response.ExitRoomResponse;
 import com.tickget.roomserver.dto.response.JoinRoomResponse;
+import com.tickget.roomserver.dto.response.MatchResponse;
 import com.tickget.roomserver.dto.response.RoomDetailResponse;
 import com.tickget.roomserver.dto.response.RoomResponse;
 import com.tickget.roomserver.event.HostChangedEvent;
@@ -91,12 +92,17 @@ public class RoomService {
             }
 
             // 매치 생성 요청
-            ticketingServiceClient.createMatch(CreateMatchRequest.of(request, room.getId()));
+            MatchResponse matchResponse = ticketingServiceClient.createMatch(CreateMatchRequest.of(request, room.getId()));
+
+            // 매치의 startTime을 Redis에 업데이트
+            if (matchResponse != null && matchResponse.getStartTime() != null) {
+                roomCacheRepository.updateStartTime(room.getId(), matchResponse.getStartTime());
+            }
 
             log.info("사용자 {}(id:{})이(가) 방 {}을 생성 후 입장",
                     request.getUsername(), request.getUserId(), room.getId());
 
-            return CreateRoomResponse.from(room);
+            return CreateRoomResponse.of(room, matchResponse.getMatchId());
 
         } catch (CreateMatchFailedException | CreateMatchDeclinedException e) {
             log.error("방 생성 중 매치 생성 실패 - roomId: {}, userId: {}, error: {}",
@@ -175,15 +181,16 @@ public class RoomService {
         }
 
         List<RoomMember> roomMembers = roomCacheRepository.getRoomMembers(roomId);
+        Long matchId = roomCacheRepository.getMatchIdByRoomId(roomId);
 
-        log.info("사용자  {}(id:{})(이)가 방 {}에 입장 성공 - 현재 인원: {}",userName, userId, roomId, currentUserCount);
+        log.info("사용자  {}(id:{})(이)가 방 {}(매치 {} 대기 중)에 입장 성공 - 현재 인원: {}",userName, userId, roomId,matchId, currentUserCount);
 
-        UserJoinedRoomEvent event = UserJoinedRoomEvent.of(userId, roomId, currentUserCount);
+        UserJoinedRoomEvent event = UserJoinedRoomEvent.of(userId,userName, roomId, currentUserCount);
         roomEventProducer.publishUserJoinedEvent(event);
 
 
 
-        return JoinRoomResponse.of(room, currentUserCount, roomMembers);
+        return JoinRoomResponse.of(room, currentUserCount, roomMembers,matchId);
 
     }
 

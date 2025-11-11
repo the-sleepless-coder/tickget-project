@@ -3,7 +3,7 @@ package com.ticketing;
 // Topic에 대한 ENUM 클래스 생성
 // 컴파일 타임에서의 에러 방지.
 public enum KafkaTopic {
-    ROOM_PLAYING_STARTED_EVENTS("room-playing-started-events"),
+    ROOM_PLAYING_STATUS_EVENTS("room-playing-status-publish"),
 
     USER_DEQUEUED("user-dequeued-publish"),
     BOT_DEQUEUED("bot-dequeued-publish"),

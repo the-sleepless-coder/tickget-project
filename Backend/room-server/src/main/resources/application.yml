@@ -23,14 +23,14 @@ spring:
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
     consumer:
       bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
-      group-id: ${SPRING_KAFKA_GROUP_ID:room-server-${server.port}}
-      auto-offset-reset: ${SPRING_KAFKA_AUTO_OFFSET_RESET:earliest}
+      group-id: ${SPRING_KAFKA_GROUP_ID:room-server-${POD_NAME:local-${server.port}}}
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
       properties:
         spring.json.trusted.packages: ${SPRING_KAFKA_TRUSTED_PACKAGES:com.tickget.roomserver.event,com.tickget.roomserver.kafaka}
+        spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/ticketing_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul}
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/ticketing_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&connectionTimeZone=Asia/Seoul}
     username: ${SPRING_DATASOURCE_USERNAME:root}
     password: ${SPRING_DATASOURCE_PASSWORD:jsonsvalue!}
     driver-class-name: ${SPRING_DATASOURCE_DRIVER:com.mysql.cj.jdbc.Driver}

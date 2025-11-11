@@ -1,7 +1,5 @@
 const API_ORIGIN = import.meta.env.VITE_API_ORIGIN ?? "";
-const API_PREFIX =
-  import.meta.env.VITE_API_PREFIX ??
-  (import.meta.env.DEV ? "/api/v1/dev" : "/api/v1");
+const API_PREFIX = "/api/v1/dev";
 
 // 서비스별 기본 베이스 경로 (환경변수로 직접 지정되면 그 값을 우선 사용)
 const DERIVED_ROOM_SERVER_BASE = `${API_ORIGIN}${API_PREFIX}/rms`;
