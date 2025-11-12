@@ -117,32 +117,8 @@ export default function BookingWaitingPage() {
               wsDestination: destination,
             });
 
-            // WS의 QUEUE 업데이트: total=0이면 좌석 선택으로 이동
-            if (total === 0 && !navigatedRef.current) {
-              navigatedRef.current = true;
-              const rtSec = searchParams.get("rtSec") ?? "0";
-              const nrClicks = searchParams.get("nrClicks") ?? "0";
-              const hallId = searchParams.get("hallId");
-              const date = searchParams.get("date");
-              const round = searchParams.get("round");
-              const nextUrl = new URL(
-                window.location.origin + paths.booking.selectSeat
-              );
-              nextUrl.searchParams.set("rtSec", rtSec);
-              nextUrl.searchParams.set("nrClicks", nrClicks);
-              const tStart = searchParams.get("tStart");
-              if (tStart) nextUrl.searchParams.set("tStart", tStart);
-              if (hallId) nextUrl.searchParams.set("hallId", hallId);
-              const fallbackMatch =
-                matchIdFromStore != null
-                  ? String(matchIdFromStore)
-                  : searchParams.get("matchId");
-              if (fallbackMatch)
-                nextUrl.searchParams.set("matchId", fallbackMatch);
-              if (date) nextUrl.searchParams.set("date", date);
-              if (round) nextUrl.searchParams.set("round", round);
-              navigate(nextUrl.pathname + nextUrl.search, { replace: true });
-            } else if (total > 0) {
+            // WS의 QUEUE 업데이트: total=0이면 로딩 유지, total>0이면 대기열 표시
+            if (total > 0) {
               setStage("queue");
             } else {
               setStage("loading");
