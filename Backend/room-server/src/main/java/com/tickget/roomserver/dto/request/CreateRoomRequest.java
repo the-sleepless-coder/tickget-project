@@ -23,6 +23,8 @@ public class CreateRoomRequest {
     private Long hallId;
     private HallType hallType;
     private Difficulty difficulty;
+    
+    private Boolean isAiGenerated;
 
     private int maxUserCount;
     private int botCount;
