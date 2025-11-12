@@ -724,33 +724,44 @@ export default function ITicketPage() {
   }, [calculateSecondsLeft]);
 
   // 예매하기 버튼이 활성화되는 순간의 타임스탬프 기록
+  // 모든 사용자(생성한 사람, 입장한 사람 모두) 동일하게 버튼 활성화 시점부터 측정
+  const prevSecondsLeftRef = useRef<number | null>(null);
   useEffect(() => {
-    if (secondsLeft === 0 && reserveAppearedAt === null) {
+    // 초기 마운트 시 prevSecondsLeftRef가 null이면 현재 값을 저장하고 다음 업데이트부터 감지
+    if (prevSecondsLeftRef.current === null) {
+      prevSecondsLeftRef.current = secondsLeft;
+      // 초기 마운트 시 이미 버튼이 활성화되어 있는 경우
+      if (secondsLeft === 0 && reserveAppearedAt === null) {
+        const appearedTs = Date.now();
+        setReserveAppearedAt(appearedTs);
+        setNonReserveClickCount(0);
+        setIsTrackingClicks(true);
+        console.log("[ReserveTiming] Button already active on mount", {
+          appearedAt: new Date(appearedTs).toISOString(),
+          isJoinedUser: !!joinResponse,
+        });
+      }
+      return;
+    }
+
+    // secondsLeft가 0이 되었고 이전에는 0이 아니었던 경우 (버튼이 방금 활성화된 경우)
+    if (
+      secondsLeft === 0 &&
+      prevSecondsLeftRef.current > 0 &&
+      reserveAppearedAt === null
+    ) {
       const appearedTs = Date.now();
       setReserveAppearedAt(appearedTs);
       setNonReserveClickCount(0);
       setIsTrackingClicks(true);
-      // Log: the moment the reserve button becomes available
       console.log("[ReserveTiming] Button appeared", {
         appearedAt: new Date(appearedTs).toISOString(),
+        isJoinedUser: !!joinResponse,
       });
     }
-  }, [secondsLeft, reserveAppearedAt]);
 
-  // 초기 마운트 시 이미 버튼이 활성화된 경우 처리
-  useEffect(() => {
-    const initialSecondsLeft = calculateSecondsLeft();
-    if (initialSecondsLeft === 0 && reserveAppearedAt === null) {
-      const appearedTs = Date.now();
-      setReserveAppearedAt(appearedTs);
-      setNonReserveClickCount(0);
-      setIsTrackingClicks(true);
-      console.log("[ReserveTiming] Button already active on mount", {
-        appearedAt: new Date(appearedTs).toISOString(),
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // 초기 마운트 시에만 실행
+    prevSecondsLeftRef.current = secondsLeft;
+  }, [secondsLeft, reserveAppearedAt, joinResponse]);
 
   useEffect(() => {
     if (!isTrackingClicks) return;
