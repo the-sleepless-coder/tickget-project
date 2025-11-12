@@ -1,6 +1,7 @@
 package com.tickget.roomserver.domain.entity;
 
 import com.tickget.roomserver.domain.enums.HallSize;
+import com.tickget.roomserver.domain.enums.HallType;
 import com.tickget.roomserver.domain.enums.RoomStatus;
 import com.tickget.roomserver.domain.enums.RoomType;
 import com.tickget.roomserver.domain.enums.ThumbnailType;
