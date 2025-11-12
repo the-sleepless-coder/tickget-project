@@ -63,7 +63,8 @@ public class SeatReservationService {
         }
 
         // 3-1. 프론트에서 받은 totalSeats를 DB에 저장
-        if (!match.getMaxUser().equals(req.getTotalSeats())) {
+        // *bot인 경우 확인 로직 skip
+        if (req.getUserId() > 0 && !match.getMaxUser().equals(req.getTotalSeats())) {
             log.info("totalSeats 업데이트: matchId={}, 기존값={}, 새로운값={}",
                     matchId, match.getMaxUser(), req.getTotalSeats());
             match.setMaxUser(req.getTotalSeats());
