@@ -1,18 +1,17 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import ProfileBanner from "./_components/ProfileBanner";
 import ProfileInfoModal from "./_components/ProfileInfoModal";
-// import TabNavigation from "../../shared/ui/common/TabNavigation";
-// import SearchBar from "../../shared/ui/common/SearchBar";
-// import MatchHistoryCard from "./_components/MatchHistoryCard";
-// import PersonalStats from "./_components/PersonalStats";
+import TabNavigation from "../../shared/ui/common/TabNavigation";
+import SearchBar from "../../shared/ui/common/SearchBar";
+import MatchHistoryCard from "./_components/MatchHistoryCard";
+import PersonalStats from "./_components/PersonalStats";
 import UserStats from "./_components/UserStats";
-import { mockMatchHistory, type UserRank } from "./mockData";
+import { mockMatchHistory, type UserRank, type MatchHistory } from "./mockData";
 import { useAuthStore } from "@features/auth/store";
-import UnderConstruction from "../../shared/ui/common/Under_construction";
 
 export default function MyPageIndex() {
   const [activePrimaryTab, setActivePrimaryTab] = useState("stats");
-  // const [activeSecondaryTab, setActiveSecondaryTab] = useState("all");
+  const [activeSecondaryTab, setActiveSecondaryTab] = useState("all");
   const [expandedCardIndex, setExpandedCardIndex] = useState<number | null>(
     null
   );
@@ -20,6 +19,9 @@ export default function MyPageIndex() {
   const [selectedUser, setSelectedUser] = useState<UserRank | null>(null);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isProfileInfoModalOpen, setIsProfileInfoModalOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   // store에서 닉네임과 이메일 가져오기
   const storeNickname = useAuthStore((state) => state.nickname);
@@ -40,7 +42,43 @@ export default function MyPageIndex() {
     undefined
   );
 
-  // (사용 중지된 검색/필터 기능로직 제거)
+  // 검색 및 필터링 로직
+  const allUsers = useMemo(() => {
+    const userSet = new Set<UserRank>();
+    mockMatchHistory.forEach((match) => {
+      if (match.users) {
+        match.users.forEach((user) => userSet.add(user));
+      }
+    });
+    return Array.from(userSet);
+  }, []);
+
+  const filteredUsers = useMemo(() => {
+    if (!searchQuery.trim()) return [];
+    const query = searchQuery.toLowerCase();
+    return allUsers.filter((user) =>
+      user.nickname.toLowerCase().includes(query)
+    );
+  }, [searchQuery, allUsers]);
+
+  // 경기 기록 필터링
+  const filteredMatchHistory = useMemo(() => {
+    let filtered = mockMatchHistory;
+    if (activeSecondaryTab === "solo") {
+      filtered = filtered.filter((m) => m.participants.includes("1명"));
+    } else if (activeSecondaryTab === "match") {
+      filtered = filtered.filter((m) => !m.participants.includes("1명"));
+    }
+    return filtered;
+  }, [activeSecondaryTab]);
+
+  // 페이지네이션
+  const totalPages = Math.ceil(filteredMatchHistory.length / itemsPerPage);
+  const visibleItems = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    const end = start + itemsPerPage;
+    return filteredMatchHistory.slice(start, end);
+  }, [filteredMatchHistory, currentPage, itemsPerPage]);
 
   // 카드가 확장될 때 해당 카드로 스크롤
   useEffect(() => {
@@ -148,8 +186,7 @@ export default function MyPageIndex() {
         <div className="-mt-40 rounded-t-3xl bg-white pb-8 pt-8">
           {/* Primary Tabs and Search */}
           <div className="mb-4 flex items-center justify-between gap-4 px-6">
-            {/* 탭 버튼 주석 처리 */}
-            {/* <TabNavigation
+            <TabNavigation
               tabs={[
                 { id: "stats", label: "개인 통계" },
                 { id: "match-history", label: "경기 기록" },
@@ -157,10 +194,9 @@ export default function MyPageIndex() {
               activeTab={activePrimaryTab}
               onTabChange={setActivePrimaryTab}
               variant="primary"
-            /> */}
+            />
 
-            {/* 타 유저 검색 기능 주석 처리 */}
-            {/* <div className="relative w-64">
+            <div className="relative w-64">
               <SearchBar
                 placeholder="타 유저 검색"
                 className="w-full"
@@ -191,11 +227,11 @@ export default function MyPageIndex() {
                   검색 결과가 없습니다.
                 </div>
               )}
-            </div> */}
+            </div>
           </div>
 
           {/* Secondary Filter Tabs - 경기 기록일 때만 표시 */}
-          {/* {activePrimaryTab === "match-history" && (
+          {activePrimaryTab === "match-history" && (
             <div className="mb-6 px-6">
               <TabNavigation
                 tabs={[
@@ -208,7 +244,7 @@ export default function MyPageIndex() {
                 variant="secondary"
               />
             </div>
-          )} */}
+          )}
 
           {/* Content Area */}
           <div className="space-y-4 px-6 pb-6">
@@ -235,8 +271,7 @@ export default function MyPageIndex() {
               </>
             ) : activePrimaryTab === "match-history" ? (
               <>
-                {/* 경기 기록 탭 내용 주석 처리 */}
-                {/* {visibleItems.map((match: MatchHistory, index: number) => (
+                {visibleItems.map((match: MatchHistory, index: number) => (
                   <div
                     key={match.id}
                     ref={(el) => {
@@ -311,8 +346,7 @@ export default function MyPageIndex() {
                       다음
                     </button>
                   </div>
-                )} */}
-                <UnderConstruction />
+                )}
               </>
             ) : selectedUser ? (
               // 타 유저 통계 탭
@@ -339,8 +373,7 @@ export default function MyPageIndex() {
             ) : (
               // 개인 통계 탭
               <>
-                {/* <PersonalStats matchHistory={mockMatchHistory} /> */}
-                <UnderConstruction />
+                <PersonalStats matchHistory={mockMatchHistory} />
               </>
             )}
           </div>
