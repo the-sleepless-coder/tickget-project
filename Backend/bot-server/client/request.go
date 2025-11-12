@@ -28,8 +28,9 @@ type SeatInfo struct {
 
 // 좌석 선택 요청
 type SeatSelectRequest struct {
-	UserId int64      `json:"userId"`
-	Seats  []SeatInfo `json:"seats"` // seatIds → seats, string → SeatInfo
+	UserId     int64      `json:"userId"`
+	Seats      []SeatInfo `json:"seats"`      // seatIds → seats, string → SeatInfo
+	TotalSeats int        `json:"totalSeats"` // 봇은 0으로 고정
 }
 
 // 좌석 확정 요청

@@ -199,8 +199,9 @@ func (b *Bot) selectSeat(ctx context.Context) error {
 
 		// 실제 API 호출로 좌석 선점 시도
 		req := &client.SeatSelectRequest{
-			UserId: b.UserID,
-			Seats:  []client.SeatInfo{seatInfo},
+			UserId:     b.UserID,
+			Seats:      []client.SeatInfo{seatInfo},
+			TotalSeats: 0, // 봇은 totalSeats 검증 제외
 		}
 
 		resp, err := b.httpClient.HoldSeats(ctx, b.MatchID, req)
