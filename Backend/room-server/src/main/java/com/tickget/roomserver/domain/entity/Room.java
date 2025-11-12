@@ -77,7 +77,7 @@ public class Room extends BaseTimeEntity{
                 .hallId(createRoomRequest.getHallId())
                 .hallSize(hall.getSize())
                 .hallName(hall.getName())
-                .isAIGenerated(false)
+                .isAIGenerated(createRoomRequest.getHallType() == HallType.AI_GENERATED)
                 .botCount(createRoomRequest.getBotCount())
                 .totalSeat(createRoomRequest.getTotalSeat())
                 .status(RoomStatus.WAITING)
