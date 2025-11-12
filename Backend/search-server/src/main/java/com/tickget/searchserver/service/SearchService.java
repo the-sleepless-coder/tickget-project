@@ -31,9 +31,8 @@ public class SearchService {
      * @return 검색 결과
      */
     public com.tickget.searchserver.dto.SearchResponse searchConcertHalls(String keyword, Integer size) {
-        if (size == null || size <= 0) {
-            size = 20;
-        }
+        // 람다에서 사용하기 위해 final 변수로 설정
+        final int finalSize = (size == null || size <= 0) ? 20 : size;
 
         try {
             // name.ngram 필드로 자동완성 검색 쿼리
@@ -47,7 +46,7 @@ public class SearchService {
             SearchResponse<ConcertHall> response = elasticsearchClient.search(s -> s
                             .index(INDEX_NAME)
                             .query(matchQuery)
-                            .size(size)
+                            .size(finalSize)
                             .source(src -> src.filter(f -> f
                                     .includes("name", "total_seat")
                             )),
