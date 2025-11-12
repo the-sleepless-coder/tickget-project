@@ -41,7 +41,8 @@ public class SeatReservationService {
         }
 
         // 1-1. totalSeats 필수 검증
-        if (req.getTotalSeats() == null || req.getTotalSeats() <= 0) {
+        // *bot인 경우 확인 로직 skip
+        if (req.getUserId() > 0 && (req.getTotalSeats() == null || req.getTotalSeats() <= 0)) {
             throw new IllegalArgumentException("Total seats must be provided and greater than 0");
         }
 
@@ -63,7 +64,8 @@ public class SeatReservationService {
         }
 
         // 3-1. 프론트에서 받은 totalSeats를 DB에 저장
-        if (!match.getMaxUser().equals(req.getTotalSeats())) {
+        // *bot인 경우 확인 로직 skip
+        if (req.getUserId() > 0 && !match.getMaxUser().equals(req.getTotalSeats())) {
             log.info("totalSeats 업데이트: matchId={}, 기존값={}, 새로운값={}",
                     matchId, match.getMaxUser(), req.getTotalSeats());
             match.setMaxUser(req.getTotalSeats());
