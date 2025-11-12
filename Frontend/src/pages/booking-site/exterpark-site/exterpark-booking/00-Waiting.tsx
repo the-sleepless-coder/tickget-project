@@ -135,6 +135,8 @@ export default function BookingWaitingPage() {
               );
               nextUrl.searchParams.set("rtSec", rtSec);
               nextUrl.searchParams.set("nrClicks", nrClicks);
+              const tStart = searchParams.get("tStart");
+              if (tStart) nextUrl.searchParams.set("tStart", tStart);
               if (hallId) nextUrl.searchParams.set("hallId", hallId);
               const fallbackMatch =
                 matchIdFromStore != null
@@ -203,6 +205,8 @@ export default function BookingWaitingPage() {
             );
             nextUrl.searchParams.set("rtSec", rtSec);
             nextUrl.searchParams.set("nrClicks", nrClicks);
+            const tStart = searchParams.get("tStart");
+            if (tStart) nextUrl.searchParams.set("tStart", tStart);
             if (hallId) nextUrl.searchParams.set("hallId", hallId);
             if (p.matchId != null)
               nextUrl.searchParams.set("matchId", String(p.matchId));
@@ -349,6 +353,8 @@ export default function BookingWaitingPage() {
             );
             nextUrl.searchParams.set("rtSec", rtSec);
             nextUrl.searchParams.set("nrClicks", nrClicks);
+            const tStart = searchParams.get("tStart");
+            if (tStart) nextUrl.searchParams.set("tStart", tStart);
             if (hallId) nextUrl.searchParams.set("hallId", hallId);
             const fallbackMatch =
               matchIdFromStore != null
@@ -395,6 +401,8 @@ export default function BookingWaitingPage() {
           );
           nextUrl.searchParams.set("rtSec", rtSec);
           nextUrl.searchParams.set("nrClicks", nrClicks);
+          const tStart = searchParams.get("tStart");
+          if (tStart) nextUrl.searchParams.set("tStart", tStart);
           if (hallId) nextUrl.searchParams.set("hallId", hallId);
           if (p.matchId != null)
             nextUrl.searchParams.set("matchId", String(p.matchId));

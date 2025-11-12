@@ -5,6 +5,8 @@ import { useNavigate } from "react-router-dom";
 // moved usages into child components
 import dayjs, { Dayjs } from "dayjs";
 import "dayjs/locale/ko";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
 import InfoOutlined from "@mui/icons-material/InfoOutlined";
 import Thumbnail01 from "../../../shared/images/thumbnail/Thumbnail01.webp";
 import Thumbnail02 from "../../../shared/images/thumbnail/Thumbnail02.webp";
@@ -33,12 +35,15 @@ export default function CreateRoomModal({
 }) {
   const navigate = useNavigate();
   dayjs.locale("ko");
+  dayjs.extend(utc);
+  dayjs.extend(timezone);
+  dayjs.tz.setDefault("Asia/Seoul");
   const userId = useAuthStore((state) => state.userId);
   const username = useAuthStore((state) => state.nickname);
   const [step, setStep] = useState<1 | 2>(1);
   const [startTime, setStartTime] = useState<Dayjs | null>(dayjs());
   const [title, setTitle] = useState("");
-  const [matchType, setMatchType] = useState<"solo" | "versus">("solo");
+  const [matchType, setMatchType] = useState<"solo" | "versus">("versus");
   const [size, setSize] = useState<"소형" | "중형" | "대형">("소형");
   const [difficulty, setDifficulty] = useState<"초보" | "평균" | "뛰어남">(
     "초보"
@@ -165,7 +170,6 @@ export default function CreateRoomModal({
     const settings = {
       title,
       participantCount,
-      startTime: startTime?.toISOString() || null,
       platform,
       matchType,
       size,
@@ -188,7 +192,6 @@ export default function CreateRoomModal({
       const settings = JSON.parse(saved);
       setTitle(settings.title || "");
       setParticipantCount(settings.participantCount || "");
-      setStartTime(settings.startTime ? dayjs(settings.startTime) : dayjs());
       setPlatform(settings.platform || "익스터파크");
       setMatchType(settings.matchType === "versus" ? "versus" : "solo");
       setSize(settings.size || "소형");
@@ -223,7 +226,7 @@ export default function CreateRoomModal({
     setParticipantCount("");
     setStartTime(dayjs());
     setPlatform("익스터파크");
-    setMatchType("solo");
+    setMatchType("versus");
     setSize("소형");
     setVenue("");
     setDifficulty("초보");
@@ -622,7 +625,9 @@ export default function CreateRoomModal({
                       matchType === "solo" ? 1 : parseInt(participantCount, 10);
 
                     // reservationDay (yyyy-MM-dd) - 오늘 날짜 기준
-                    const reservationDay = dayjs().format("YYYY-MM-DD");
+                    const reservationDay = dayjs()
+                      .tz("Asia/Seoul")
+                      .format("YYYY-MM-DD");
 
                     // gameStartTime - 오늘 날짜 + 사용자가 선택한 시간
                     if (!startTime) {
@@ -632,7 +637,7 @@ export default function CreateRoomModal({
                     const selectedMinute = startTime.minute();
                     const selectedSecond = startTime.second();
                     const selectedTime = `${String(selectedHour).padStart(2, "0")}:${String(selectedMinute).padStart(2, "0")}:${String(selectedSecond).padStart(2, "0")}`;
-                    const gameStartTime = `${dayjs().format("YYYY-MM-DD")}T${selectedTime}`;
+                    const gameStartTime = `${dayjs().tz("Asia/Seoul").format("YYYY-MM-DD")}T${selectedTime}`;
 
                     console.log("⏰ 시간 정보:", {
                       startTime: startTime?.format("YYYY-MM-DD HH:mm:ss"),
