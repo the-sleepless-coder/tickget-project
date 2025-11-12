@@ -1,5 +1,5 @@
 import RoomCard from "./_components/RoomCard";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import dayjs from "dayjs";
 import { Link } from "react-router-dom";
 import { paths } from "../../app/routes/paths";
@@ -9,6 +9,7 @@ import type { RoomResponse } from "@features/booking-site/types";
 import { useAuthStore } from "@features/auth/store";
 import RoomSortControls from "./_components/RoomSortButton";
 import { sortRooms } from "./_components/RoomSortUtil";
+import RefreshIcon from "@mui/icons-material/Refresh";
 import Thumbnail01 from "../../shared/images/thumbnail/Thumbnail01.webp";
 import Thumbnail02 from "../../shared/images/thumbnail/Thumbnail02.webp";
 import Thumbnail03 from "../../shared/images/thumbnail/Thumbnail03.webp";
@@ -43,6 +44,7 @@ export default function HomePage() {
   };
 
   const [rooms, setRooms] = useState<UiRoom[]>([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // hallName을 한글로 변환하는 함수
   const convertHallNameToKorean = (hallName: string): string => {
@@ -105,64 +107,75 @@ export default function HomePage() {
     return `${difficultyLabel}  |  ${maxUserLabel}  |  ${botLabel}`;
   };
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const slice = await getRooms({ page: 0, size: 6 });
-        const mapped: UiRoom[] = (slice.content ?? []).map(
-          (r: RoomResponse): UiRoom => {
-            const size =
-              (r.hallSize?.toLowerCase() as UiRoom["size"]) ?? undefined;
-            const createdAtMs = r.createdAt ? dayjs(r.createdAt).valueOf() : 0;
-            const startAtMs =
-              r.startTime && dayjs(r.startTime).isValid()
-                ? dayjs(r.startTime).valueOf()
-                : undefined;
-            const startTime =
-              r.startTime && r.startTime.length >= 16
-                ? r.startTime.substring(11, 16)
-                : undefined;
-            const thumbnailImageSrc = getThumbnailImagePath(
-              r.thumbnailType,
-              r.thumbnailValue
-            );
-            return {
-              id: r.roomId,
-              title: r.roomName,
-              variant: "blue",
-              size,
-              venueName: convertHallNameToKorean(r.hallName),
-              imageSrc: thumbnailImageSrc,
-              participants: {
-                current: r.currentUserCount,
-                capacity: r.maxUserCount,
-              },
-              startTime,
-              startAtMs,
-              ongoing: r.status === "PLAYING",
-              createdAtMs,
-              difficulty: r.difficulty,
-              maxUserCount: r.maxUserCount,
-              botCount: r.botCount,
-              totalSeat: r.totalSeat,
-            };
-          }
-        );
-        // 기본 최신순 정렬
-        mapped.sort((a, b) => (b.createdAtMs ?? 0) - (a.createdAtMs ?? 0));
-        if (!cancelled) setRooms(mapped);
-      } catch (e) {
-        console.error("추천 방 목록 불러오기 실패:", e);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
+  // 방 목록 불러오기 함수
+  const fetchRooms = useCallback(async () => {
+    try {
+      const slice = await getRooms({ page: 0, size: 6 });
+      const mapped: UiRoom[] = (slice.content ?? []).map(
+        (r: RoomResponse): UiRoom => {
+          const size =
+            (r.hallSize?.toLowerCase() as UiRoom["size"]) ?? undefined;
+          const createdAtMs = r.createdAt ? dayjs(r.createdAt).valueOf() : 0;
+          const startAtMs =
+            r.startTime && dayjs(r.startTime).isValid()
+              ? dayjs(r.startTime).valueOf()
+              : undefined;
+          const startTime =
+            r.startTime && r.startTime.length >= 16
+              ? r.startTime.substring(11, 16)
+              : undefined;
+          const thumbnailImageSrc = getThumbnailImagePath(
+            r.thumbnailType,
+            r.thumbnailValue
+          );
+          return {
+            id: r.roomId,
+            title: r.roomName,
+            variant: "blue",
+            size,
+            venueName: convertHallNameToKorean(r.hallName),
+            imageSrc: thumbnailImageSrc,
+            participants: {
+              current: r.currentUserCount,
+              capacity: r.maxUserCount,
+            },
+            startTime,
+            startAtMs,
+            ongoing: r.status === "PLAYING",
+            createdAtMs,
+            difficulty: r.difficulty,
+            maxUserCount: r.maxUserCount,
+            botCount: r.botCount,
+            totalSeat: r.totalSeat,
+          };
+        }
+      );
+      // 상태 업데이트 (정렬은 displayedRooms에서 처리)
+      setRooms(mapped);
+    } catch (e) {
+      console.error("추천 방 목록 불러오기 실패:", e);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    fetchRooms();
+  }, [fetchRooms]);
+
+  // 새로고침 핸들러
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    await fetchRooms();
+    setIsRefreshing(false);
+  }, [fetchRooms]);
+
   const displayedRooms = useMemo(() => {
-    return sortRooms(rooms, activeSort === "latest" ? "latest" : "start");
+    // 진행 중인 방은 추천 방 목록에서 제외
+    const filteredRooms = rooms.filter((r) => !r.ongoing);
+    return sortRooms(
+      filteredRooms,
+      activeSort === "latest" ? "latest" : "start"
+    );
   }, [rooms, activeSort]);
   return (
     <div className="mx-auto max-w-7xl p-4 sm:p-6">
@@ -218,6 +231,22 @@ export default function HomePage() {
             activeSort={activeSort === "latest" ? "latest" : "start"}
             onChange={(k) => setActiveSort(k)}
           />
+          <button
+            type="button"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="group flex items-center justify-center rounded-full p-2 text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            aria-label="새로고침"
+          >
+            <RefreshIcon
+              className={
+                isRefreshing
+                  ? "animate-spin"
+                  : "group-hover:animate-spin transition-transform"
+              }
+              sx={{ fontSize: 20 }}
+            />
+          </button>
         </div>
       </div>
 
@@ -241,6 +270,7 @@ export default function HomePage() {
             )}
             participants={r.participants}
             startTime={r.startTime}
+            ongoing={r.ongoing}
             roomId={r.id}
           />
         ))}

@@ -23,16 +23,12 @@ export default function BookingWaitingPage() {
   const [rank, setRank] = useState<number>(0);
   const [totalQueue, setTotalQueue] = useState<number>(0);
   const [hasDequeued, setHasDequeued] = useState<boolean>(false);
-  const [autoNavigated, setAutoNavigated] = useState<boolean>(false);
   const wsClient = useWebSocketStore((s) => s.client);
   const roomId = useRoomStore((s) => s.roomInfo.roomId);
   const subscriptionRef = useRef<Subscription | null>(null);
+  const enqueuedRef = useRef<boolean>(false);
+  const navigatedRef = useRef<boolean>(false);
   // 실데이터 수신 기반으로만 표시 (시뮬레이션 제거)
-
-  useEffect(() => {
-    const timer = setTimeout(() => setStage("queue"), 1200);
-    return () => clearTimeout(timer);
-  }, []);
 
   // booking-site API 연결: 캡차 이미지 사전 확인
   useEffect(() => {
@@ -50,7 +46,6 @@ export default function BookingWaitingPage() {
 
   // WebSocket 구독: /topic/rooms/{roomId} 에서 QUEUE_STATUS_UPDATE 수신
   useEffect(() => {
-    if (stage !== "queue") return;
     if (!roomId) {
       console.warn("[waiting][ws] roomId가 없어 구독을 건너뜁니다.");
       return;
@@ -122,32 +117,11 @@ export default function BookingWaitingPage() {
               wsDestination: destination,
             });
 
-            // 임시 정책: total === 1 이면 좌석 선택 페이지로 이동
-            if (total === 1 && !hasDequeued && !autoNavigated) {
-              setAutoNavigated(true);
-              const rtSec = searchParams.get("rtSec") ?? "0";
-              const nrClicks = searchParams.get("nrClicks") ?? "0";
-              const hallId = searchParams.get("hallId");
-              const date = searchParams.get("date");
-              const round = searchParams.get("round");
-              const nextUrl = new URL(
-                window.location.origin + paths.booking.selectSeat
-              );
-              nextUrl.searchParams.set("rtSec", rtSec);
-              nextUrl.searchParams.set("nrClicks", nrClicks);
-              if (hallId) nextUrl.searchParams.set("hallId", hallId);
-              const fallbackMatch =
-                matchIdFromStore != null
-                  ? String(matchIdFromStore)
-                  : searchParams.get("matchId");
-              if (fallbackMatch)
-                nextUrl.searchParams.set("matchId", fallbackMatch);
-              if (date) nextUrl.searchParams.set("date", date);
-              if (round) nextUrl.searchParams.set("round", round);
-              console.log(
-                "🚀 [waiting][AUTO] total=0 감지, 좌석 선택으로 이동"
-              );
-              navigate(nextUrl.pathname + nextUrl.search, { replace: true });
+            // WS의 QUEUE 업데이트: total=0이면 로딩 유지, total>0이면 대기열 표시
+            if (total > 0) {
+              setStage("queue");
+            } else {
+              setStage("loading");
             }
           } else {
             console.log(
@@ -203,6 +177,8 @@ export default function BookingWaitingPage() {
             );
             nextUrl.searchParams.set("rtSec", rtSec);
             nextUrl.searchParams.set("nrClicks", nrClicks);
+            const tStart = searchParams.get("tStart");
+            if (tStart) nextUrl.searchParams.set("tStart", tStart);
             if (hallId) nextUrl.searchParams.set("hallId", hallId);
             if (p.matchId != null)
               nextUrl.searchParams.set("matchId", String(p.matchId));
@@ -275,7 +251,6 @@ export default function BookingWaitingPage() {
     wsClient,
     subscriptionRef,
     hasDequeued,
-    autoNavigated,
     matchIdFromStore,
     navigate,
     searchParams,
@@ -283,7 +258,6 @@ export default function BookingWaitingPage() {
 
   // Bridge 수신: 방 창에서 전달한 이벤트를 수신하여 동일하게 처리
   useEffect(() => {
-    if (stage !== "queue") return;
     if (!roomId) return;
     if (!("BroadcastChannel" in window)) return;
 
@@ -336,9 +310,9 @@ export default function BookingWaitingPage() {
             behind,
           });
 
-          // 임시 정책: total === 0 이면 좌석 선택 페이지로 이동
-          if (total === 0 && !hasDequeued && !autoNavigated) {
-            setAutoNavigated(true);
+          // 이벤트(Bridge)에서는 total=0이면 좌석 선택으로 이동
+          if (total === 0 && !navigatedRef.current) {
+            navigatedRef.current = true;
             const rtSec = searchParams.get("rtSec") ?? "0";
             const nrClicks = searchParams.get("nrClicks") ?? "0";
             const hallId = searchParams.get("hallId");
@@ -349,6 +323,8 @@ export default function BookingWaitingPage() {
             );
             nextUrl.searchParams.set("rtSec", rtSec);
             nextUrl.searchParams.set("nrClicks", nrClicks);
+            const tStart = searchParams.get("tStart");
+            if (tStart) nextUrl.searchParams.set("tStart", tStart);
             if (hallId) nextUrl.searchParams.set("hallId", hallId);
             const fallbackMatch =
               matchIdFromStore != null
@@ -358,10 +334,11 @@ export default function BookingWaitingPage() {
               nextUrl.searchParams.set("matchId", fallbackMatch);
             if (date) nextUrl.searchParams.set("date", date);
             if (round) nextUrl.searchParams.set("round", round);
-            console.log(
-              "🚀 [waiting][bridge][AUTO] total=1 감지, 좌석 선택으로 이동"
-            );
             navigate(nextUrl.pathname + nextUrl.search, { replace: true });
+          } else if (total > 0) {
+            setStage("queue");
+          } else {
+            setStage("loading");
           }
         }
       } else if (evtType === "USER_DEQUEUED") {
@@ -395,6 +372,8 @@ export default function BookingWaitingPage() {
           );
           nextUrl.searchParams.set("rtSec", rtSec);
           nextUrl.searchParams.set("nrClicks", nrClicks);
+          const tStart = searchParams.get("tStart");
+          if (tStart) nextUrl.searchParams.set("tStart", tStart);
           if (hallId) nextUrl.searchParams.set("hallId", hallId);
           if (p.matchId != null)
             nextUrl.searchParams.set("matchId", String(p.matchId));
@@ -429,18 +408,9 @@ export default function BookingWaitingPage() {
         }
       }
     };
-  }, [
-    stage,
-    roomId,
-    hasDequeued,
-    autoNavigated,
-    matchIdFromStore,
-    navigate,
-    searchParams,
-  ]);
+  }, [stage, roomId, hasDequeued, matchIdFromStore, navigate, searchParams]);
   // 대기열 진입 시 큐 등록 API 호출 (matchId가 있을 때만)
   useEffect(() => {
-    if (stage !== "queue") return;
     // matchId 결정: store 우선, 없으면 URL 파라미터에서 가져오기
     const matchId =
       matchIdFromStore != null
@@ -462,6 +432,10 @@ export default function BookingWaitingPage() {
     }
     (async () => {
       try {
+        if (enqueuedRef.current) {
+          return;
+        }
+        enqueuedRef.current = true;
         console.log("[booking-site][queue.enqueue] 요청 시작:", {
           matchId,
           clickMiss,

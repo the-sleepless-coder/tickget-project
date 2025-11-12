@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   formatSecondsHuman,
   ReserveMetricKeys,
@@ -20,7 +26,7 @@ type LiveOverrides = {
   totalLiveSec?: number;
 };
 
-export default function StopwatchHUD({
+export default function Timer({
   live,
   onlyReserve = false,
   onlyCaptcha = false,
@@ -113,30 +119,29 @@ export default function StopwatchHUD({
       live?.seatLiveSec ??
       (() => {
         const v = sessionStorage.getItem("reserve.capToCompleteSec");
-        if (v == null) return 0;
-        const n = Number(v);
-        return isNaN(n) ? 0 : n;
+        if (v != null) {
+          const n = Number(v);
+          return isNaN(n) ? 0 : n;
+        }
+        // Live fallback: captcha 종료 시점이 있으면 현재까지의 경과 시간을 좌석선정 시간으로 표기
+        const capEndRaw = sessionStorage.getItem(
+          ReserveMetricKeys.captchaEndAtMs
+        );
+        const capEnd = capEndRaw ? Number(capEndRaw) : undefined;
+        if (capEnd && !Number.isNaN(capEnd)) {
+          const diff = (Date.now() - capEnd) / 1000;
+          return diff > 0 ? Number(diff.toFixed(2)) : 0;
+        }
+        return 0;
       })();
     const seatClickMiss =
       live?.seatClickMissLive ?? readNum("reserve.seatClickMiss", 0);
     const seatTakenCount =
       live?.seatTakenCountLive ?? readNum("reserve.seatTakenCount", 0);
-    // 9
+    // 9 - 총 소요 시간: GameResult와 동일한 계산식 사용 (reaction + captcha + seat)
     const totalSec =
       live?.totalLiveSec ??
-      (() => {
-        const v = sessionStorage.getItem("reserve.totalSec");
-        if (v == null) {
-          const start = sessionStorage.getItem("reserve.totalStartAtMs");
-          if (start) {
-            const diff = (Date.now() - Number(start)) / 1000;
-            return diff > 0 ? Number(diff.toFixed(2)) : 0;
-          }
-          return 0;
-        }
-        const n = Number(v);
-        return isNaN(n) ? 0 : n;
-      })();
+      Number((reactionSec + captchaSec + seatSec).toFixed(2));
 
     return {
       reactionSec,
@@ -182,12 +187,12 @@ export default function StopwatchHUD({
             };
           }}
         >
-          <div className="font-bold text-sm text-gray-800">Stopwatch (DEV)</div>
+          <div className="font-bold text-sm text-gray-800">타이머</div>
           <button
             type="button"
             onClick={() => setCollapsed((v) => !v)}
             className="text-xs text-gray-500 hover:text-gray-700"
-            aria-label="toggle-stopwatch"
+            aria-label="toggle-timer"
           >
             {collapsed ? "펼치기" : "접기"}
           </button>
@@ -200,7 +205,7 @@ export default function StopwatchHUD({
                 value={
                   values.reactionSec > 0
                     ? formatSecondsHuman(values.reactionSec)
-                    : "—"
+                    : "측정 전"
                 }
               />
               <Row label="클릭 실수" value={`${values.nrClicks}회`} />
@@ -213,7 +218,7 @@ export default function StopwatchHUD({
                     value={
                       values.captchaSec > 0
                         ? formatSecondsHuman(values.captchaSec)
-                        : "—"
+                        : "측정 전"
                     }
                   />
                   <Row label="백스페이스" value={`${values.capBackspaces}회`} />
@@ -225,7 +230,7 @@ export default function StopwatchHUD({
                     value={
                       values.seatSec > 0
                         ? formatSecondsHuman(values.seatSec)
-                        : "—"
+                        : "측정 전"
                     }
                   />
                   <Row label="클릭 실수" value={`${values.seatClickMiss}회`} />
@@ -237,7 +242,7 @@ export default function StopwatchHUD({
                     value={
                       values.totalSec > 0
                         ? formatSecondsHuman(values.totalSec)
-                        : "—"
+                        : "측정 전"
                     }
                   />
                 </Section>
@@ -250,7 +255,7 @@ export default function StopwatchHUD({
                   value={
                     values.captchaSec > 0
                       ? formatSecondsHuman(values.captchaSec)
-                      : "—"
+                      : "측정 전"
                   }
                 />
                 <Row label="백스페이스" value={`${values.capBackspaces}회`} />
@@ -264,13 +269,7 @@ export default function StopwatchHUD({
   );
 }
 
-function Section({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
+function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="rounded border border-gray-100">
       <div className="px-2 py-1 font-semibold text-[#2f56a5] bg-[#eef2ff]">

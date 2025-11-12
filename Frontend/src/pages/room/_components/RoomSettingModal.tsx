@@ -121,7 +121,6 @@ export default function CreateRoomModal({
     const settings = {
       title,
       participantCount,
-      startTime: startTime?.toISOString() || null,
       platform,
       matchType,
       size,
@@ -144,7 +143,6 @@ export default function CreateRoomModal({
       const settings = JSON.parse(saved);
       setTitle(settings.title || "");
       setParticipantCount(settings.participantCount || "");
-      setStartTime(settings.startTime ? dayjs(settings.startTime) : dayjs());
       setPlatform(settings.platform || "익스터파크");
       setMatchType(settings.matchType === "versus" ? "versus" : "solo");
       setSize(settings.size || "소형");

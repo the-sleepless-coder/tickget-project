@@ -140,7 +140,7 @@ export default function GameResultPage() {
         {/* 성과 요약 */}
         <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="rounded-lg bg-[#6e8ee3] text-white text-center py-4 text-3xl font-extrabold">
-            {userRank ? `${userRank}등` : "등수 계산 중..."}
+            {userRank ? `${userRank}등` : "등수 측정중"}
           </div>
           <div className="rounded-lg bg-[#6e8ee3] text-white text-center py-4 text-3xl font-extrabold">
             {fmt(totalSec)}

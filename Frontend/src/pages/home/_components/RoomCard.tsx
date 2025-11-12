@@ -287,9 +287,10 @@ export default function RoomCard({
   }, [participants]);
 
   // 꽉 찬 방 여부 및 오버레이 라벨 결정
+  // 진행 중과 최대 인원 둘 다 해당되는 경우, 진행 중이 우선 표시됨
   const isFull =
     !!participants && participants.current >= participants.capacity;
-  const overlayLabel = ongoing ? "경기 진행중" : isFull ? "최대 인원" : null;
+  const overlayLabel = ongoing ? "진행 중" : isFull ? "최대 인원" : null;
   const isDisabled = ongoing || isFull || isJoining;
 
   // 방 입장 핸들러
