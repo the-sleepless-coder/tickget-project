@@ -724,23 +724,12 @@ export default function ITicketPage() {
   }, [calculateSecondsLeft]);
 
   // 예매하기 버튼이 활성화되는 순간의 타임스탬프 기록
-  // 모든 사용자(생성한 사람, 입장한 사람 모두) 동일하게 버튼 활성화 시점부터 측정
+  // 모든 사용자(생성한 사람, 입장한 사람 모두) 동일하게 버튼 활성화 시점(secondsLeft가 1→0으로 변하는 순간)부터 측정
   const prevSecondsLeftRef = useRef<number | null>(null);
   useEffect(() => {
-    // 초기 마운트 시 prevSecondsLeftRef가 null이면 현재 값을 저장하고 다음 업데이트부터 감지
+    // 초기 마운트 시 prevSecondsLeftRef 초기화
     if (prevSecondsLeftRef.current === null) {
       prevSecondsLeftRef.current = secondsLeft;
-      // 초기 마운트 시 이미 버튼이 활성화되어 있는 경우
-      if (secondsLeft === 0 && reserveAppearedAt === null) {
-        const appearedTs = Date.now();
-        setReserveAppearedAt(appearedTs);
-        setNonReserveClickCount(0);
-        setIsTrackingClicks(true);
-        console.log("[ReserveTiming] Button already active on mount", {
-          appearedAt: new Date(appearedTs).toISOString(),
-          isJoinedUser: !!joinResponse,
-        });
-      }
       return;
     }
 
@@ -754,7 +743,7 @@ export default function ITicketPage() {
       setReserveAppearedAt(appearedTs);
       setNonReserveClickCount(0);
       setIsTrackingClicks(true);
-      console.log("[ReserveTiming] Button appeared", {
+      console.log("[ReserveTiming] Button appeared (secondsLeft 1→0)", {
         appearedAt: new Date(appearedTs).toISOString(),
         isJoinedUser: !!joinResponse,
       });
