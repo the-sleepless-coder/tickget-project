@@ -50,8 +50,8 @@ func (c *HTTPClient) JoinQueue(ctx context.Context, matchId int64, req *DaySelec
 func (c *HTTPClient) ValidateCaptcha(ctx context.Context, req *ValidateCaptchaRequest) error {
 	endpoint := "/ticketing/captcha/validate/bot"
 
-	// GET 요청이지만 body에 userId를 담아서 전송
-	if err := c.getWithBody(ctx, endpoint, req); err != nil {
+	// GET 요청에 userId를 헤더에 담아서 전송
+	if err := c.getWithHeader(ctx, endpoint, req.UserId); err != nil {
 		return err
 	}
 	return nil
@@ -98,22 +98,19 @@ func (c *HTTPClient) get(ctx context.Context, endpoint string, respBody interfac
 	return c.doRequest(httpReq, respBody)
 }
 
-// GET 요청을 body와 함께 보내는 메서드
-func (c *HTTPClient) getWithBody(ctx context.Context, endpoint string, reqBody interface{}) error {
+// GET 요청을 보내는 메서드 (헤더에 userId 추가)
+func (c *HTTPClient) getWithHeader(ctx context.Context, endpoint string, userId int64) error {
 	url := c.baseURL + endpoint
 
-	// 요청 본문을 JSON으로 변환
-	jsonData, err := json.Marshal(reqBody)
-	if err != nil {
-		logger.Error("JSON 마샬링 실패", zap.Error(err))
-		return fmt.Errorf("failed to marshal request: %w", err)
-	}
-
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, url, bytes.NewBuffer(jsonData))
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		logger.Error("HTTP 요청 생성 실패", zap.Error(err))
 		return fmt.Errorf("failed to create request: %w", err)
 	}
+
+	// userId를 헤더에 추가
+	httpReq.Header.Set("X-User-Id", fmt.Sprintf("%d", userId))
+
 	return c.doRequest(httpReq, nil)
 }
 
