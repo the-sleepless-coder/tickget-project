@@ -162,7 +162,7 @@ export default function RoomsPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [availableOnly]);
   const normalizedQuery = query.trim().toLowerCase();
   const filteredRooms = rooms
     .filter((r) =>
@@ -170,6 +170,7 @@ export default function RoomsPage() {
     )
     .filter((r) => {
       if (!availableOnly) return true;
+      // 진행 중이거나 최대 인원인 방은 제외
       const isFull = r.participants
         ? r.participants.current >= r.participants.capacity
         : false;
@@ -199,7 +200,7 @@ export default function RoomsPage() {
       </div>
 
       {/* Heading + Controls */}
-      <div className="mt-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+      <div className="mt-6 flex flex-row items-center justify-between gap-3">
         <div className="flex items-center gap-2 whitespace-nowrap overflow-x-auto md:overflow-visible">
           <h1 className="text-xl font-semibold text-gray-900">전체 방 목록</h1>
           <div className="hidden md:block">
@@ -263,7 +264,7 @@ export default function RoomsPage() {
             입장 가능
           </button>
         </div>
-        <div className="flex items-center gap-2 text-sm self-end md:self-auto">
+        <div className="flex items-center gap-2 text-sm shrink-0">
           <RoomSortControls
             activeSort={activeSort === "latest" ? "latest" : "start"}
             onChange={(k) => setActiveSort(k)}
