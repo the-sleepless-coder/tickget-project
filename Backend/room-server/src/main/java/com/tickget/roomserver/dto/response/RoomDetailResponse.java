@@ -2,6 +2,7 @@ package com.tickget.roomserver.dto.response;
 
 import com.tickget.roomserver.domain.entity.Room;
 import com.tickget.roomserver.domain.enums.HallSize;
+import com.tickget.roomserver.domain.enums.HallType;
 import com.tickget.roomserver.domain.enums.RoomStatus;
 import com.tickget.roomserver.domain.enums.RoomType;
 import com.tickget.roomserver.domain.enums.ThumbnailType;
@@ -27,6 +28,7 @@ public class RoomDetailResponse {
     private int botCount;
     private int maxUserCount;
     private int currentUserCount;
+    private int totalSeat;
     private Long hostId;
     private List<RoomMember> roomMembers;
 
@@ -35,7 +37,9 @@ public class RoomDetailResponse {
     private RoomStatus status;
     private LocalDateTime startTime;
 
+    private Long hallId;
     private HallSize hallSize;
+    private HallType hallType;
     private String hallName;
 
     private ThumbnailType thumbnailType;
@@ -43,9 +47,16 @@ public class RoomDetailResponse {
 
 
     public static RoomDetailResponse of(Room room, RoomInfo roomInfo, List<RoomMember> roomMembers) {
+        // startTime은 null일 수 있음
+        LocalDateTime startTime = null;
+        if (roomInfo.getStartTime() != null) {
+            startTime = TimeConverter.toLocalDateTime(roomInfo.getStartTime());
+        }
+
         return RoomDetailResponse.builder()
                 .roomId(room.getId())
                 .roomName(roomInfo.getTitle())
+                .totalSeat(room.getTotalSeat())
                 .botCount(room.getBotCount())
                 .maxUserCount(roomInfo.getMaxUserCount())
                 .currentUserCount(roomMembers.size())
@@ -54,8 +65,10 @@ public class RoomDetailResponse {
                 .difficulty(roomInfo.getDifficulty())
                 .roomType(room.getRoomType())
                 .status(room.getStatus())
-                .startTime(TimeConverter.toLocalDateTime(roomInfo.getStartTime()))
+                .startTime(startTime)
+                .hallId(room.getHallId())
                 .hallSize(room.getHallSize())
+                .hallType(room.isAIGenerated() ? HallType.AI_GENERATED : HallType.PRESET)
                 .hallName(room.getHallName())
                 .thumbnailType(room.getThumbnailType())
                 .thumbnailValue(room.getThumbnailValue())

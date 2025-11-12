@@ -16,6 +16,7 @@ public class RoomInfoUpdate {
 
     static public RoomInfoUpdate from(MatchSettingUpdateRequest event){
         return RoomInfoUpdate.builder()
+                .roomId(event.getRoomId())
                 .matchId(event.getMatchId())
                 .matchName(event.getMatchName())
                 .difficulty(event.getDifficulty())

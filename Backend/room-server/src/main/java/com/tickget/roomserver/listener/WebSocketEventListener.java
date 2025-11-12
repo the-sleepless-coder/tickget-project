@@ -11,6 +11,7 @@ import com.tickget.roomserver.util.ServerIdProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
+import org.springframework.messaging.Message;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.messaging.SessionConnectedEvent;
@@ -36,8 +37,20 @@ public class WebSocketEventListener {
         StompHeaderAccessor headers = StompHeaderAccessor.wrap(event.getMessage());
         String sessionId = headers.getSessionId();
 
-        //TODO: JWT에서 유저 ID 추출
-        Long userId = generateTempUserId(sessionId);
+        // simpConnectMessage에서 세션 속성 가져오기 (여기가 핵심!)
+        Message<?> connectMessage = (Message<?>) headers.getHeader("simpConnectMessage");
+        if (connectMessage == null) {
+            log.error("simpConnectMessage가 null - sessionId: {}", sessionId);
+            return;
+        }
+
+        StompHeaderAccessor connectHeaders = StompHeaderAccessor.wrap(connectMessage);
+        Long userId = (Long) connectHeaders.getSessionAttributes().get("userId");
+
+        if (userId == null) {
+            log.error("세션 속성에 userId가 없음 - sessionId: {}", sessionId);
+            return;
+        }
 
         String serverId = serverIdProvider.getServerId();
 
@@ -119,10 +132,6 @@ public class WebSocketEventListener {
         }
 
         log.debug("세션 정리 완료: sessionId={}, userId={}", sessionId, userId);
-    }
-
-    private Long generateTempUserId(String sessionId) {
-        return (long) Math.abs(sessionId.hashCode());
     }
 
 

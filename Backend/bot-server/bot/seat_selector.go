@@ -42,6 +42,7 @@ func (ss *SeatSelector) GetAvailableSeats() []Seat {
 				availableSeats = append(availableSeats, Seat{
 					SectionID:  section.SectionID,
 					SeatNumber: seatNum,
+					Grade:      section.Grade, // 섹션의 Grade 정보 추가
 				})
 			}
 		}

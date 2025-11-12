@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/ticketing")
+@RequestMapping("/ticketing")
 public class SeatController {
 
     private final SeatReservationService seatReservationService;
@@ -62,6 +62,7 @@ public class SeatController {
     private SeatReservationResponse buildErrorResponse(String message) {
         return SeatReservationResponse.builder()
                 .success(false)
+                .message(message)
                 .build();
     }
 }

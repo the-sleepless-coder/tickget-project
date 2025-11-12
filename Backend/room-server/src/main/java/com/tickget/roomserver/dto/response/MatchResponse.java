@@ -7,7 +7,7 @@ import lombok.Getter;
 @Getter
 @Builder
 public class MatchResponse {
-    private Long id;
+    private Long matchId;
 
     private Long roomId;
     private String matchName;

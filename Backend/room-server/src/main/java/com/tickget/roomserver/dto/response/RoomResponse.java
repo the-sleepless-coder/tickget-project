@@ -2,6 +2,7 @@ package com.tickget.roomserver.dto.response;
 
 import com.tickget.roomserver.domain.entity.Room;
 import com.tickget.roomserver.domain.enums.HallSize;
+import com.tickget.roomserver.domain.enums.HallType;
 import com.tickget.roomserver.domain.enums.RoomStatus;
 import com.tickget.roomserver.domain.enums.RoomType;
 import com.tickget.roomserver.domain.enums.ThumbnailType;
@@ -34,12 +35,20 @@ public class RoomResponse {
     private LocalDateTime startTime;
 
     private HallSize hallSize;
+    private HallType hallType;
     private String hallName;
+    private int totalSeat;
 
     private ThumbnailType thumbnailType;
     private String thumbnailValue;
 
     public static RoomResponse of (Room room, RoomInfo roomInfo ){
+        // startTime은 null일 수 있음
+        LocalDateTime startTime = null;
+        if (roomInfo.getStartTime() != null) {
+            startTime = TimeConverter.toLocalDateTime(roomInfo.getStartTime());
+        }
+
         return RoomResponse.builder()
                 .roomId(room.getId())
                 .roomName(roomInfo.getTitle())
@@ -50,9 +59,11 @@ public class RoomResponse {
                 .roomType(room.getRoomType())
                 .status(room.getStatus())
                 .createdAt(TimeConverter.toLocalDateTime(roomInfo.getCreatedAt()))
-                .startTime(TimeConverter.toLocalDateTime(roomInfo.getStartTime()))
+                .startTime(startTime)
                 .hallSize(room.getHallSize())
+                .hallType(room.isAIGenerated() ? HallType.AI_GENERATED : HallType.PRESET)
                 .hallName(room.getHallName())
+                .totalSeat(room.getTotalSeat())
                 .thumbnailType(room.getThumbnailType())
                 .thumbnailValue(room.getThumbnailValue())
                 .build();

@@ -36,28 +36,28 @@ public class RoomEventProducer {
     public void publishUserJoinedEvent(UserJoinedRoomEvent event) {
         String key = event.getRoomId().toString();
         joinedEventKafkaTemplate.send(ROOM_USER_JOINED_TOPIC, key, event);
-        log.debug("사용자 입장 이벤트 발행: userId={}, roomId={}, 현재인원={}",
+        log.info("사용자 입장 이벤트 발행: userId={}, roomId={}, 현재인원={}",
                 event.getUserId(), event.getRoomId(), event.getTotalUsersInRoom());
     }
 
     public void publishUserLeftEvent(UserLeftRoomEvent event) {
         String key = event.getRoomId().toString();
         leftEventKafkaTemplate.send(ROOM_USER_LEFT_TOPIC, key, event);
-        log.debug("사용자 퇴장 이벤트 발행: userId={}, roomId={}, 남은인원={}",
+        log.info("사용자 퇴장 이벤트 발행: userId={}, roomId={}, 남은인원={}",
                 event.getUserId(), event.getRoomId(), event.getTotalUsersInRoom());
     }
 
     public void publishHostChangedEvent(HostChangedEvent event) {
         String key = event.getRoomId().toString();
         hostChangedEventKafkaTemplate.send(ROOM_HOST_CHANGED_TOPIC, key, event);
-        log.debug("호스트 변경 이벤트 발행: 방={}, 이전호스트={}, 새호스트={}",
+        log.info("호스트 변경 이벤트 발행: 방={}, 이전호스트={}, 새호스트={}",
                 event.getRoomId(), event.getPreviousHostId(), event.getNewHostId());
     }
 
     public void publishSessionCloseEvent(SessionCloseEvent event) {
         String key = event.getUserId().toString();
         sessionCloseEventKafkaTemplate.send(SESSION_CLOSE_TOPIC, key, event);
-        log.debug("세션 강제 종료 이벤트 발행: userId={}, sessionId={}, 대상서버={}",
+        log.info("세션 강제 종료 이벤트 발행: userId={}, sessionId={}, 대상서버={}",
                 event.getUserId(), event.getSessionId(), event.getTargetServerId());
     }
 
@@ -66,21 +66,21 @@ public class RoomEventProducer {
         RoomSettingUpdatedEvent event = RoomSettingUpdatedEvent.from(matchSettingUpdateRequest);
 
         roomSettingUpdatedEventKafkaTemplate.send(ROOM_SETTING_UPDATED_TOPIC, key, event);
-        log.debug("방 설정 업데이트 이벤트 발행: 방={}, 난이도={}, 최대인원={}",
+        log.info("방 설정 업데이트 이벤트 발행: 방={}, 난이도={}, 최대인원={}",
                 event.getRoomId(), event.getDifficulty(), event.getMaxUserCount());
     }
 
     public void publishRoomPlayingEndedEvent(RoomPlayingEndedEvent event) {
         String key = event.getRoomId().toString();
         roomPlayingEndedEventKafkaTemplate.send(ROOM_PLAYING_ENDED_TOPIC, key, event);
-        log.debug("방 경기 종료 이벤트 발생: 방={}",
+        log.info("방 경기 종료 이벤트 발생: 방={}",
                 event.getRoomId());
     }
 
     public void publishRoomPlayingStartedEvent(RoomPlayingStartedEvent event) {
         String key = event.getRoomId().toString();
         roomPlayingStartedEventKafkaTemplate.send(ROOM_PLAYING_STARTED_TOPIC, key, event);
-        log.debug("방 경기 시작 이벤트 발생: 방={}",
+        log.info("방 경기 시작 이벤트 발생: 방={}",
                 event.getRoomId());
     }
 

@@ -18,20 +18,29 @@ type SectionStatusRequest struct {
 	UserId int64 `json:"userId"`
 }
 
+// 좌석 정보 (Spring의 SeatInfo와 일치)
+type SeatInfo struct {
+	SectionId int64  `json:"sectionId"`
+	Row       int64  `json:"row"`
+	Col       int64  `json:"col"`
+	Grade     string `json:"grade"`
+}
+
 // 좌석 선택 요청
 type SeatSelectRequest struct {
-	UserId  int64    `json:"userId"`
-	SeatIds []string `json:"seatIds"`
+	UserId     int64      `json:"userId"`
+	Seats      []SeatInfo `json:"seats"`      // seatIds → seats, string → SeatInfo
+	TotalSeats int        `json:"totalSeats"` // 봇은 0으로 고정
 }
 
 // 좌석 확정 요청
 type SeatConfirmRequest struct {
-	UserId                   int64 `json:"userId"`
-	DateSelectTime           int   `json:"dateSelectTime"`
-	SeccodeSelectTime        int   `json:"seccodeSelectTime"`
-	SeccodeBackspaceCount    int   `json:"seccodeBackspaceCount"`
-	SeccodeTryCount          int   `json:"seccodeTryCount"`
-	SeatSelectTime           int   `json:"seatSelectTime"`
-	SeatSelectTryCount       int   `json:"seatSelectTryCount"`
-	SeatSelectClickMissCount int   `json:"seatSelectClickMissCount"`
+	UserId                   int64   `json:"userId"`
+	DateSelectTime           float32 `json:"dateSelectTime"`
+	SeccodeSelectTime        float32 `json:"seccodeSelectTime"`
+	SeccodeBackspaceCount    int     `json:"seccodeBackspaceCount"`
+	SeccodeTryCount          int     `json:"seccodeTryCount"`
+	SeatSelectTime           float32 `json:"seatSelectTime"`
+	SeatSelectTryCount       int     `json:"seatSelectTryCount"`
+	SeatSelectClickMissCount int     `json:"seatSelectClickMissCount"`
 }

@@ -1,6 +1,7 @@
 package com.tickget.roomserver.domain.entity;
 
 import com.tickget.roomserver.domain.enums.HallSize;
+import com.tickget.roomserver.domain.enums.HallType;
 import com.tickget.roomserver.domain.enums.RoomStatus;
 import com.tickget.roomserver.domain.enums.RoomType;
 import com.tickget.roomserver.domain.enums.ThumbnailType;
@@ -76,7 +77,7 @@ public class Room extends BaseTimeEntity{
                 .hallId(createRoomRequest.getHallId())
                 .hallSize(hall.getSize())
                 .hallName(hall.getName())
-                .isAIGenerated(false)
+                .isAIGenerated(createRoomRequest.getHallType() == HallType.AI_GENERATED)
                 .botCount(createRoomRequest.getBotCount())
                 .totalSeat(createRoomRequest.getTotalSeat())
                 .status(RoomStatus.WAITING)

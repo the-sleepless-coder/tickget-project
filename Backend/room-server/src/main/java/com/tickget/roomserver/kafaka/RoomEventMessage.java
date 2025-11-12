@@ -31,7 +31,7 @@ public class RoomEventMessage {
 
     // ===== 정적 팩토리 메서드들 =====
 
-    public static RoomEventMessage userJoined(Long roomId, Long userId, int totalUsersInRoom) {
+    public static RoomEventMessage userJoined(Long roomId, Long userId,String userName, int totalUsersInRoom) {
         return RoomEventMessage.builder()
                 .eventType(EventType.USER_JOINED)
                 .roomId(roomId)
@@ -39,6 +39,7 @@ public class RoomEventMessage {
                 .message(userId + "이 방에 입장했습니다.")
                 .payload(UserJoinedPayload.builder()
                         .userId(userId)
+                        .userName(userName)
                         .totalUsersInRoom(totalUsersInRoom)
                         .build())
                 .build();
@@ -103,7 +104,7 @@ public class RoomEventMessage {
                 .build();
     }
 
-    public static RoomEventMessage userDequeued(Long roomId, Long userId, String matchId, Long timestamp) {
+    public static RoomEventMessage userDequeued(Long roomId, Long userId, Long matchId, Long timestamp) {
         return RoomEventMessage.builder()
                 .eventType(EventType.USER_DEQUEUED)
                 .roomId(roomId)

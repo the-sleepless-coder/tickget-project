@@ -53,11 +53,11 @@ public class TicketingServiceClient {
 
         try {
             ResponseEntity<MatchResponse> response = restTemplate.postForEntity(
-                    ticketingServiceUrl + "/matches",
+                    ticketingServiceUrl + "/ticketing/matches",
                     request,
                     MatchResponse.class
             );
-            log.info("방 {}에 매치 {} 생성 성공", response.getBody().getRoomId(), response.getBody().getId());
+            log.info("방 {}에 매치 {} 생성 성공", response.getBody().getRoomId(), response.getBody().getMatchId());
             return response.getBody();
 
         } catch (HttpClientErrorException.BadRequest e) {

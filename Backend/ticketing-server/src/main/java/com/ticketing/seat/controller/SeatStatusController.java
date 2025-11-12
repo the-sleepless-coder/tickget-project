@@ -15,7 +15,7 @@ import java.util.Map;
 @Slf4j
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/ticketing")
+@RequestMapping("/ticketing")
 public class SeatStatusController {
 
     private final SeatStatusService seatStatusService;

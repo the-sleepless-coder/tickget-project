@@ -38,6 +38,15 @@ public class RoomCacheRepository {
         roomInfo.put("difficulty",request.getDifficulty().toString());
         roomInfo.put("createdAt", String.valueOf(System.currentTimeMillis()));
 
+        // gameStartTime이 있으면 저장
+        if (request.getGameStartTime() != null) {
+            long startTimeMillis = request.getGameStartTime()
+                    .atZone(java.time.ZoneId.systemDefault())
+                    .toInstant()
+                    .toEpochMilli();
+            roomInfo.put("startTime", String.valueOf(startTimeMillis));
+        }
+
         redisTemplate.opsForHash().putAll(infoKey, roomInfo);
 
         redisTemplate.expire(infoKey, 24, TimeUnit.HOURS);
@@ -64,6 +73,19 @@ public class RoomCacheRepository {
 
         log.info("방 정보 업데이트: roomId={}, title={},difficulty={}, maxUserCount={}, startTime={}",
                 update.getRoomId(),update.getMatchName(), update.getDifficulty(), update.getMaxUserCount(), update.getStartTime());
+    }
+
+    public void updateStartTime(Long roomId, java.time.LocalDateTime startTime) {
+        String infoKey = "room:" + roomId + ":info";
+
+        if (startTime != null) {
+            long startTimeMillis = startTime
+                    .atZone(java.time.ZoneId.systemDefault())
+                    .toInstant()
+                    .toEpochMilli();
+            redisTemplate.opsForHash().put(infoKey, "startTime", String.valueOf(startTimeMillis));
+            log.debug("방 {}의 startTime 업데이트: {}", roomId, startTime);
+        }
     }
 
     public Integer addMemberToRoom(Long roomId, Long userId, String username) throws JsonProcessingException {
@@ -97,14 +119,21 @@ public class RoomCacheRepository {
         // 현재 인원 수
         Long currentCount = redisTemplate.opsForHash().size(memberKey);
 
+        // startTime은 optional이므로 null 체크
+        Long startTime = null;
+        if (info.get("startTime") != null) {
+            startTime = Long.parseLong(info.get("startTime").toString());
+        }
+
         return RoomInfo.builder()
                 .roomId(roomId)
                 .title(info.get("title").toString())
-                .hostId((Long) info.get("host"))
+                .hostId(Long.parseLong(info.get("host").toString()))
                 .difficulty(info.get("difficulty").toString())
                 .maxUserCount(Integer.parseInt(info.get("maxUserCount").toString()))
                 .currentUserCount(Math.toIntExact(currentCount))
                 .createdAt(Long.parseLong(info.get("createdAt").toString()))
+                .startTime(startTime)
                 .build();
     }
 
@@ -222,7 +251,7 @@ public class RoomCacheRepository {
     }
 
     // 방 ID로 매치 ID 조회
-    public String getMatchIdByRoomId(Long roomId) {
+    public Long getMatchIdByRoomId(Long roomId) {
         // 실제로 저장된 구조 -> room:{roomId}:match:{matchId}
         String pattern = "room:" + roomId + ":match:*";
         Set<String> keys = redisTemplate.keys(pattern);
@@ -237,24 +266,58 @@ public class RoomCacheRepository {
         String[] parts = key.split(":");
         String matchId = parts[parts.length - 1];
 
-        return matchId;
+        return Long.valueOf(matchId);
     }
 
 
     //유저의 대기열 상태 조회
-    public QueueStatus getQueueStatus(String matchId, Long userId) {
+    public QueueStatus getQueueStatus(Long matchId, Long userId) {
         String queueKey = "queue:" + matchId + ":" + userId;
-        String json = redisTemplate.opsForValue().get(queueKey);
 
-        if (json == null) {
+        // Hash의 모든 필드 조회
+        Map<Object, Object> data = redisTemplate.opsForHash().entries(queueKey);
+
+        if (data.isEmpty()) {
             return null;
         }
 
         try {
-            return mapper.readValue(json, QueueStatus.class);
-        } catch (JsonProcessingException e) {
-            log.error("대기열 상태 파싱 실패: matchId={}, userId={}, error={}",
+            // Hash 데이터를 QueueStatus 객체로 변환
+            return QueueStatus.builder()
+                    .ahead(getLong(data, "ahead"))
+                    .behind(getLong(data, "behind"))
+                    .total(getLong(data, "total"))
+                    .lastUpdated(getLong(data, "lastUpdated"))
+                    .build();
+
+        } catch (Exception e) {
+            log.error("대기열 상태 변환 실패: matchId={}, userId={}, error={}",
                     matchId, userId, e.getMessage());
+            return null;
+        }
+    }
+
+    private String getString(Map<Object, Object> data, String key) {
+        Object value = data.get(key);
+        return value != null ? value.toString() : null;
+    }
+
+    private Long getLong(Map<Object, Object> data, String key) {
+        Object value = data.get(key);
+        if (value == null) return null;
+        try {
+            return Long.parseLong(value.toString());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private Integer getInt(Map<Object, Object> data, String key) {
+        Object value = data.get(key);
+        if (value == null) return null;
+        try {
+            return Integer.parseInt(value.toString());
+        } catch (NumberFormatException e) {
             return null;
         }
     }
