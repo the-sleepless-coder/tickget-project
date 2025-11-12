@@ -74,7 +74,9 @@ public class RoomEventConsumer {
         roomEventHandler.endNotifyingScheduling(event.getRoomId());
     }
 
-    @KafkaListener(topics = USER_DEQUEUED_TOPIC)
+    @KafkaListener(
+            topics = USER_DEQUEUED_TOPIC,
+            containerFactory = "noTypeHeadersKafkaListenerContainerFactory")
     public void handleUserDequeuedEvent(UserDequeuedEvent event) {
         roomEventHandler.processUserDequeued(event);
     }
