@@ -724,33 +724,33 @@ export default function ITicketPage() {
   }, [calculateSecondsLeft]);
 
   // 예매하기 버튼이 활성화되는 순간의 타임스탬프 기록
+  // 모든 사용자(생성한 사람, 입장한 사람 모두) 동일하게 버튼 활성화 시점(secondsLeft가 1→0으로 변하는 순간)부터 측정
+  const prevSecondsLeftRef = useRef<number | null>(null);
   useEffect(() => {
-    if (secondsLeft === 0 && reserveAppearedAt === null) {
-      const appearedTs = Date.now();
-      setReserveAppearedAt(appearedTs);
-      setNonReserveClickCount(0);
-      setIsTrackingClicks(true);
-      // Log: the moment the reserve button becomes available
-      console.log("[ReserveTiming] Button appeared", {
-        appearedAt: new Date(appearedTs).toISOString(),
-      });
+    // 초기 마운트 시 prevSecondsLeftRef 초기화
+    if (prevSecondsLeftRef.current === null) {
+      prevSecondsLeftRef.current = secondsLeft;
+      return;
     }
-  }, [secondsLeft, reserveAppearedAt]);
 
-  // 초기 마운트 시 이미 버튼이 활성화된 경우 처리
-  useEffect(() => {
-    const initialSecondsLeft = calculateSecondsLeft();
-    if (initialSecondsLeft === 0 && reserveAppearedAt === null) {
+    // secondsLeft가 0이 되었고 이전에는 0이 아니었던 경우 (버튼이 방금 활성화된 경우)
+    if (
+      secondsLeft === 0 &&
+      prevSecondsLeftRef.current > 0 &&
+      reserveAppearedAt === null
+    ) {
       const appearedTs = Date.now();
       setReserveAppearedAt(appearedTs);
       setNonReserveClickCount(0);
       setIsTrackingClicks(true);
-      console.log("[ReserveTiming] Button already active on mount", {
+      console.log("[ReserveTiming] Button appeared (secondsLeft 1→0)", {
         appearedAt: new Date(appearedTs).toISOString(),
+        isJoinedUser: !!joinResponse,
       });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // 초기 마운트 시에만 실행
+
+    prevSecondsLeftRef.current = secondsLeft;
+  }, [secondsLeft, reserveAppearedAt, joinResponse]);
 
   useEffect(() => {
     if (!isTrackingClicks) return;
