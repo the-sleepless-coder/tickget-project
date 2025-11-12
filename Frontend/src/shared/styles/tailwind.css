@@ -1,5 +1,5 @@
 /* 기본 스타일 및 폰트 설정 */
-@import url("/fonts/SUITE-Variable.css");
+@import url("../../assets/fonts/SUITE-Variable.css");
 
 @import "tailwindcss";
 @source "../../**/*.{html,js,jsx,ts,tsx}";
