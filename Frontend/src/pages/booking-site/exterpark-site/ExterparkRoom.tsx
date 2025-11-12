@@ -3,8 +3,10 @@ import { useParams, useLocation } from "react-router-dom";
 import { Collapse, IconButton } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import PeopleIcon from "@mui/icons-material/People";
+import AccessTimeOutlinedIcon from "@mui/icons-material/AccessTimeOutlined";
 import { paths } from "../../../app/routes/paths";
 import RoomSettingModal from "../../room/edit-room-setting/RoomSettingModal";
+import StopwatchHUD from "./_components/StopwatchHUD";
 import type {
   CreateRoomResponse,
   CreateRoomRequest,
@@ -136,6 +138,7 @@ export default function ITicketPage() {
   const [nonReserveClickCount, setNonReserveClickCount] = useState<number>(0);
   const [isTrackingClicks, setIsTrackingClicks] = useState<boolean>(false);
   const [isRoomModalOpen, setIsRoomModalOpen] = useState<boolean>(false);
+  const [showStopwatch, setShowStopwatch] = useState<boolean>(false);
   const [isExiting, setIsExiting] = useState<boolean>(false);
   const subscriptionRef = useRef<Subscription | null>(null);
   const bridgeRef = useRef<BroadcastChannel | null>(null);
@@ -984,6 +987,7 @@ export default function ITicketPage() {
             hallSize={roomDetail?.hallSize}
             venue={roomDetail?.hallName}
             onOpenSettings={() => setIsRoomModalOpen(true)}
+            onOpenStopwatch={() => setShowStopwatch(true)}
             onExitRoom={handleExitRoom}
             isExiting={isExiting}
           />
@@ -1028,6 +1032,7 @@ export default function ITicketPage() {
         open={isRoomModalOpen}
         onClose={() => setIsRoomModalOpen(false)}
       />
+      {showStopwatch && <StopwatchHUD draggable />}
     </>
   );
 }
@@ -1116,6 +1121,7 @@ function TitleSection({
   matchName,
   hallSize,
   venue,
+  onOpenStopwatch,
   onExitRoom,
   isExiting,
 }: {
@@ -1123,6 +1129,7 @@ function TitleSection({
   hallSize?: string;
   venue?: string;
   onOpenSettings: () => void;
+  onOpenStopwatch: () => void;
   onExitRoom: () => void;
   isExiting?: boolean;
 }) {
@@ -1161,6 +1168,15 @@ function TitleSection({
           <SettingsOutlinedIcon fontSize="small" />
           <span>방 설정</span>
         </button> */}
+        <span className="text-gray-300">|</span>
+        <button
+          type="button"
+          className="inline-flex items-center gap-1 text-gray-500 cursor-pointer hover:text-gray-700"
+          onClick={onOpenStopwatch}
+        >
+          <AccessTimeOutlinedIcon fontSize="small" />
+          <span>타이머 설정</span>
+        </button>
       </div>
     </div>
   );

@@ -85,8 +85,13 @@ export async function processSeatmapTsx(
   file: File,
   capacity: number
 ): Promise<ProcessTsxResponse> {
-  const origin = import.meta.env.VITE_API_ORIGIN ?? "https://tickget.kr";
-  const url = `${origin}/api/v1/dev/stmap/pipeline/process_tsx`;
+  // Vite 프록시를 통해 요청: 상대 경로 사용
+  // 개발 환경에서는 Vite 프록시가 /api를 https://tickget.kr로 프록시
+  // 프로덕션에서는 VITE_API_ORIGIN이 설정되어 있으면 그 값을 사용
+  const origin = import.meta.env.VITE_API_ORIGIN;
+  const url = origin
+    ? `${origin}/api/v1/dev/stmap/pipeline/process_tsx`
+    : "/api/v1/dev/stmap/pipeline/process_tsx";
 
   const form = new FormData();
   form.append("file", file);
@@ -154,11 +159,29 @@ export async function processSeatmapTsx(
     // ignore console issues
   }
 
+  // 503 Service Unavailable 오류 처리
+  if (res.status === 503) {
+    return {
+      ok: false,
+      detail: text.includes("no available server")
+        ? "서버가 일시적으로 사용할 수 없습니다. 잠시 후 다시 시도해주세요."
+        : `서버 오류 (503): ${text || res.statusText}`,
+    };
+  }
+
+  // 500번대 서버 오류 처리
+  if (res.status >= 500) {
+    return {
+      ok: false,
+      detail: `서버 오류가 발생했습니다 (${res.status}). 잠시 후 다시 시도해주세요.`,
+    };
+  }
+
   if (parsed) {
     return parsed;
   }
   return {
     ok: false,
-    detail: `Unexpected response: ${res.status} ${res.statusText}`,
+    detail: `예상치 못한 응답: ${res.status} ${res.statusText}`,
   };
 }
