@@ -18,10 +18,18 @@ type SectionStatusRequest struct {
 	UserId int64 `json:"userId"`
 }
 
+// 좌석 정보 (Spring의 SeatInfo와 일치)
+type SeatInfo struct {
+	SectionId int64  `json:"sectionId"`
+	Row       int64  `json:"row"`
+	Col       int64  `json:"col"`
+	Grade     string `json:"grade"`
+}
+
 // 좌석 선택 요청
 type SeatSelectRequest struct {
-	UserId  int64    `json:"userId"`
-	SeatIds []string `json:"seatIds"`
+	UserId int64      `json:"userId"`
+	Seats  []SeatInfo `json:"seats"` // seatIds → seats, string → SeatInfo
 }
 
 // 좌석 확정 요청

@@ -3,6 +3,7 @@ package bot
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	"bot-server/client"
@@ -26,8 +27,9 @@ type Bot struct {
 // Seat는 좌석 정보 (순환 import 방지)
 type Seat struct {
 	SectionID  string
-	SeatNumber int // 좌석 번호: (행-1)*총열수 + 열
-	TotalCols  int // 섹션의 총 열 수 (행/열 변환에 필요)
+	SeatNumber int    // 좌석 번호: (행-1)*총열수 + 열
+	TotalCols  int    // 섹션의 총 열 수 (행/열 변환에 필요)
+	Grade      string // 좌석 등급 (VIP, R석, S석 등)
 }
 
 // 새로운 봇을 생성
@@ -172,17 +174,33 @@ func (b *Bot) selectSeat(ctx context.Context) error {
 		delay := b.DelayConfig.RandomDelay(b.DelayConfig.SelectSeatBase, b.DelayConfig.SelectSeatVariance)
 		time.Sleep(delay)
 
-		// 행/열 계산 (로깅용)
+		// 행/열 계산
 		row := (seat.SeatNumber-1)/seat.TotalCols + 1
 		col := (seat.SeatNumber-1)%seat.TotalCols + 1
 
-		// 좌석 ID 생성 (섹션ID_행_열 형식)
-		seatId := fmt.Sprintf("%s-%d-%d", seat.SectionID, row, col)
+		// SectionID를 int64로 변환
+		sectionIdNum, err := strconv.ParseInt(seat.SectionID, 10, 64)
+		if err != nil {
+			b.logger.Error("섹션ID 변환 실패",
+				zap.Int64("user_id", b.UserID),
+				zap.String("section_id", seat.SectionID),
+				zap.Error(err),
+			)
+			continue
+		}
+
+		// SeatInfo 생성
+		seatInfo := client.SeatInfo{
+			SectionId: sectionIdNum,
+			Row:       int64(row),
+			Col:       int64(col),
+			Grade:     seat.Grade,
+		}
 
 		// 실제 API 호출로 좌석 선점 시도
 		req := &client.SeatSelectRequest{
-			UserId:  b.UserID,
-			SeatIds: []string{seatId},
+			UserId: b.UserID,
+			Seats:  []client.SeatInfo{seatInfo},
 		}
 
 		resp, err := b.httpClient.HoldSeats(ctx, b.MatchID, req)
