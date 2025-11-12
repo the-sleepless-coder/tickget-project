@@ -7,6 +7,10 @@ import com.ticketing.queue.DTO.response.MatchIdResponseDTO;
 import com.ticketing.queue.DTO.response.MatchResponseDTO;
 import com.ticketing.queue.service.QueueLogProducerKafka;
 import com.ticketing.queue.service.QueueService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,6 +24,7 @@ import java.util.concurrent.ExecutionException;
 @Slf4j
 @RestController
 @RequestMapping("/ticketing")
+@Tag(name = "Queue", description = "Queue 관련 API")
 public class QueueController {
     @Autowired
     QueueLogProducerKafka producerService;
@@ -65,8 +70,16 @@ public class QueueController {
         return ResponseEntity.ok(result);
     }
 
-    // 경기 시작 시, 경기 관련 데이터를 생성하는 API
+
     @PostMapping("/matches")
+    @Operation(
+            summary = "경기 시작 시, DB, Kafka, Redis, 다른 서버에 요청 등 관련 데이터 처리",
+            description = "새로운 경기 데이터를 생성하여 경기 관련 처리를 한다."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "매치 생성 성공"),
+            @ApiResponse(responseCode = "400", description = "매치 데이터 생성 실패")
+    })
     public ResponseEntity<?> createDBData(@RequestBody MatchRequestDTO dto){
         MatchResponseDTO match = service.insertMatchData(dto);
 

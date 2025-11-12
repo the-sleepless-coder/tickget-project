@@ -27,9 +27,9 @@ public class QueueConsumer {
     private final ObjectMapper mapper;
 
     // 주기 설정
-    private static final int CONSUME_RATE_PER_2S = 10;  // 2초당 최대 소비자 수
+    private static final int CONSUME_RATE_PER_2S = 1;  // 2초당 최대 소비자 수
     private static final int EMIT_MS = 1_000;             // Kafka 발행 틱 (20ms)
-    private static final int COMMIT_MS = 5_000;          // Redis 상태 커밋 주기 (2s)
+    private static final int COMMIT_MS = 10_000;          // Redis 상태 커밋 주기 (2s)
 
     private static final String STATE = "state";
     private static final String DEQUEUED = "DEQUEUED";
@@ -85,7 +85,7 @@ public class QueueConsumer {
                 String roomIdString = redis.opsForValue().get("match:" + matchId + ":room");
                 if (roomIdString == null) {
                     log.warn("⚠️ roomIdString이 null입니다. matchId={}", matchId);
-                    return;
+                    continue;
                 }
                 Long roomIdLong = Long.valueOf(roomIdString);
                 Long userIdLong = Long.valueOf(userIdString);
@@ -101,15 +101,20 @@ public class QueueConsumer {
                     if(userIdLong>0){
                         log.info("유저{}가 대기열을 빠져나감",userIdLong);
                         kafkaTemplate.send(
-                                KafkaTopic.USER_DEQUEUED.getTopicName(),
-                                userIdString, // key: userId → 파티션 분산/순서 보장 용도
-                                payload // JSON 형태 그대로, 직렬화할 필요 없음.
-                        )
-                        .whenComplete( (result, ex) -> {
-                            if (ex != null || result == null) {
-                                log.error("❌ Kafka 발행 실패: topic={} key={}", KafkaTopic.USER_DEQUEUED.getTopicName(), userIdString, ex);
-                            }
-                        });
+                                        KafkaTopic.USER_DEQUEUED.getTopicName(),
+                                        userIdString, // key: userId → 파티션 분산/순서 보장 용도
+                                        payload // JSON 형태 그대로, 직렬화할 필요 없음.
+                                )
+                                .whenComplete( (result, ex) -> {
+                                    if (ex != null || result == null) {
+                                        log.error("❌ Kafka 발행 실패: topic={} key={}", KafkaTopic.USER_DEQUEUED.getTopicName(), userIdString, ex);
+                                    }
+                                /*
+                                else{
+                                    log.info(" roomId{}, matchId:{}, userId{} 사용자가 정상적으로 빠져나갔습니다.",roomIdLong, matchId, userIdLong);
+                                }
+                                */
+                                });
                     }
                     // 봇일 경우 보내는 대기열을 빠져나갔다는 Kafka 이벤트 발행
                     else if(userIdLong<0){
@@ -120,7 +125,9 @@ public class QueueConsumer {
                         ).whenComplete( (result, ex) -> {
                             if (ex != null || result == null) {
                                 log.error("❌ Kafka 발행 실패: topic={} key={}", KafkaTopic.USER_DEQUEUED.getTopicName(), userIdString, ex);
-                            }
+                            }/*else{
+                                    log.info(" roomId{}, matchId:{}, userId{} 봇이 정상적으로 빠져나갔습니다.",roomIdLong, matchId, userIdLong);
+                                }*/
                         });
                     }
 

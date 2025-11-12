@@ -1,18 +1,28 @@
 package com.ticketing.queue.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ticketing.KafkaTopic;
 import com.ticketing.entity.Match;
-import com.ticketing.repository.MatchCacheRepository;
+import com.ticketing.queue.domain.enums.QueueKeys;
 import com.ticketing.repository.MatchRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.connection.StringRedisConnection;
+import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.http.ResponseEntity;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
 
 @Slf4j
 @Service
@@ -80,6 +90,5 @@ public class MatchStatusChanger {
 
 
     }
-
 
 }

@@ -1,7 +1,9 @@
 package com.ticketing.queue.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ticketing.KafkaTopic;
 import com.ticketing.queue.DTO.MatchInsertedEventDTO;
+import com.ticketing.queue.DTO.QueueLogDTO;
 import com.ticketing.queue.DTO.request.MatchRequestDTO;
 import com.ticketing.queue.DTO.response.MatchIdResponseDTO;
 import com.ticketing.queue.DTO.QueueDTO;
@@ -17,6 +19,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -122,8 +125,8 @@ public class QueueService {
         /**
          * DLT 처리가 필요할까?
          * */
-        // QueueLogDTO logDto = QueueLogDTO.of(randomUUID, matchId, playerType, userId, status, positionAhead, positionBehind, total, userInfo.getClickMiss(), userInfo.getDuration(), LocalDateTime.now());
-        // SendResult<String, Object> recordData = kafkaTemplate.send(KafkaTopic.USER_LOG_QUEUE.getTopicName(), userId, logDto).get();
+        QueueLogDTO logDto = QueueLogDTO.of(randomUUID, matchId, playerType, userId, status, positionAhead, positionBehind, total, userInfo.getClickMiss(), userInfo.getDuration(), LocalDateTime.now());
+        SendResult<String, Object> recordData = kafkaTemplate.send(KafkaTopic.USER_LOG_QUEUE.getTopicName(), userId, logDto).get();
 
         return queueInfo;
     }
