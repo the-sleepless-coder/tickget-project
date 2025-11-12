@@ -41,7 +41,8 @@ public class SeatReservationService {
         }
 
         // 1-1. totalSeats 필수 검증
-        if (req.getTotalSeats() == null || req.getTotalSeats() <= 0) {
+        // *bot인 경우 확인 로직 skip
+        if (req.getUserId() > 0 && (req.getTotalSeats() == null || req.getTotalSeats() <= 0)) {
             throw new IllegalArgumentException("Total seats must be provided and greater than 0");
         }
 
