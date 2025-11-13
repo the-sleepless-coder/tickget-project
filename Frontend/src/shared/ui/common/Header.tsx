@@ -9,6 +9,7 @@ export default function Header() {
   const isITicket = location.pathname.startsWith("/i-ticket");
   const nickname = useAuthStore((state) => state.nickname);
   const accessToken = useAuthStore((state) => state.accessToken);
+  const profileImageUrl = useAuthStore((state) => state.profileImageUrl);
   const isLoggedIn = !!accessToken;
 
   const resolveRoomIdFromLocation = (): number | undefined => {
@@ -104,16 +105,24 @@ export default function Header() {
                     onClick={handleMyPageClick}
                   >
                     <span
-                      className="inline-flex items-center justify-center w-8 h-8 rounded-full"
+                      className="inline-flex items-center justify-center w-8 h-8 rounded-full overflow-hidden"
                       style={
                         {
                           // backgroundColor: "var(--color-c-blue-100)",
                         }
                       }
                     >
-                      <AccountCircleOutlinedIcon
-                        style={{ color: "var(--color-c-blue-200)" }}
-                      />
+                      {profileImageUrl ? (
+                        <img
+                          src={profileImageUrl}
+                          alt="프로필"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <AccountCircleOutlinedIcon
+                          style={{ color: "var(--color-c-blue-200)" }}
+                        />
+                      )}
                     </span>
                   </button>
                 ) : (
@@ -121,8 +130,17 @@ export default function Header() {
                     type="button"
                     aria-label="프로필"
                     onClick={handleMyPageClick}
+                    className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center"
                   >
-                    <AccountCircleOutlinedIcon className="text-purple-500" />
+                    {profileImageUrl ? (
+                      <img
+                        src={profileImageUrl}
+                        alt="프로필"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <AccountCircleOutlinedIcon className="text-purple-500" />
+                    )}
                   </button>
                 )}
                 {nickname && (

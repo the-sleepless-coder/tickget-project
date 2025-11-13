@@ -16,12 +16,12 @@ export default function SignupPage() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const setAuth = useAuthStore((state) => state.setAuth);
 
   // OAuth 인증 완료 후 저장된 사용자 정보 가져오기
   const email = useAuthStore((state) => state.email);
   const nickname = useAuthStore((state) => state.nickname);
   const name = useAuthStore((state) => state.name);
+  const setAuth = useAuthStore((state) => state.setAuth);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
@@ -95,6 +95,53 @@ export default function SignupPage() {
       setFormData((prev) => ({ ...prev, name: currentName }));
     }
   }, [nickname, name, searchParams]);
+
+  // 프로필 이미지 URL 가져오기 (needsProfile=true일 때)
+  useEffect(() => {
+    const fetchProfileImage = async () => {
+      const accessToken = useAuthStore.getState().accessToken;
+      if (!accessToken) return;
+
+      try {
+        const apiUrl = "https://tickget.kr/api/v1/dev/user/myprofile";
+        const response = await fetch(apiUrl, {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const profileImageUrl = data.profileImageUrl || null;
+
+          // auth store에 profileImageUrl 저장
+          const currentAuth = useAuthStore.getState();
+          setAuth({
+            accessToken: currentAuth.accessToken || "",
+            refreshToken: currentAuth.refreshToken,
+            userId: currentAuth.userId || 0,
+            email: currentAuth.email || "",
+            nickname: currentAuth.nickname || "",
+            name: currentAuth.name || "",
+            profileImageUrl: profileImageUrl,
+            message: currentAuth.nickname
+              ? "프로필 이미지 업데이트"
+              : "OAuth signup",
+          });
+
+          // 폼 데이터에도 프로필 이미지 설정
+          if (profileImageUrl) {
+            setFormData((prev) => ({ ...prev, profileImage: profileImageUrl }));
+          }
+        }
+      } catch (error) {
+        console.error("프로필 이미지 가져오기 실패:", error);
+      }
+    };
+
+    fetchProfileImage();
+  }, [setAuth]);
 
   const openSnackbar = (
     message: string,
@@ -188,6 +235,7 @@ export default function SignupPage() {
       const refreshToken = currentAuth.refreshToken;
 
       // auth store에 저장 (응답 데이터와 기존 정보 병합)
+      // PATCH 응답에는 profileImageUrl이 없으므로 기존 값 유지
       setAuth({
         accessToken: accessToken,
         refreshToken: refreshToken,
@@ -196,6 +244,7 @@ export default function SignupPage() {
         nickname:
           responseData.nickname || oauthNickname || currentAuth.nickname || "",
         name: responseData.name || "홍길동" || currentAuth.name || "",
+        profileImageUrl: currentAuth.profileImageUrl || null,
         message: "회원가입 완료",
       });
 
