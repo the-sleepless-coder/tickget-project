@@ -63,15 +63,8 @@ type QueueStatus = {
   lastUpdated: number;
 };
 
-// hallName을 한글로 변환하는 함수
-const convertHallNameToKorean = (
-  hallName: string,
-  hallType?: string
-): string => {
-  // AI 생성된 방은 "AI"로 표시
-  if (hallType === "AI_GENERATED") {
-    return "AI";
-  }
+// hallName을 한글로 변환하는 함수 (AI 생성 여부와 관계없이 hallName을 표시)
+const convertHallNameToKorean = (hallName: string): string => {
   const hallNameMap: Record<string, string> = {
     InspireArena: "인스파이어 아레나",
     CharlotteTheater: "샤롯데씨어터",
@@ -1006,7 +999,6 @@ export default function ITicketPage() {
             matchName={roomDetail?.roomName}
             hallSize={roomDetail?.hallSize}
             venue={roomDetail?.hallName}
-            hallType={roomDetail?.hallType}
             onOpenSettings={() => setIsRoomModalOpen(true)}
             onOpenTimer={() => setShowTimer(true)}
             onExitRoom={handleExitRoom}
@@ -1142,7 +1134,6 @@ function TitleSection({
   matchName,
   hallSize,
   venue,
-  hallType,
   onOpenTimer,
   onExitRoom,
   isExiting,
@@ -1150,7 +1141,6 @@ function TitleSection({
   matchName?: string;
   hallSize?: string;
   venue?: string;
-  hallType?: string;
   onOpenSettings: () => void;
   onOpenTimer: () => void;
   onExitRoom: () => void;
@@ -1160,9 +1150,7 @@ function TitleSection({
   const sizeLabel = hallSize
     ? HALL_SIZE_TO_LABEL[hallSize] || hallSize
     : "소형";
-  const venueLabel = venue
-    ? convertHallNameToKorean(venue, hallType)
-    : "샤롯데씨어터";
+  const venueLabel = venue ? convertHallNameToKorean(venue) : "샤롯데씨어터";
 
   return (
     <div>

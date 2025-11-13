@@ -434,7 +434,7 @@ export default function CreateRoomModal({
                   setVenue(v);
                   setVenueSelected(Boolean(v));
                 }}
-                isImageUploaded={Boolean(thumbnailFile || layoutFile)}
+                isImageUploaded={Boolean(layoutFile)}
                 hasGenerated={hasGenerated}
                 onReset={() => {
                   // 생성 초기화
@@ -447,7 +447,7 @@ export default function CreateRoomModal({
                   setSelectedHall(null);
                 }}
                 onCreate={async () => {
-                  const fileToSend = thumbnailFile ?? layoutFile;
+                  const fileToSend = layoutFile;
                   if (!fileToSend) {
                     alert("이미지를 업로드해주세요.");
                     return;
@@ -578,7 +578,6 @@ export default function CreateRoomModal({
                     let totalSeat: number;
                     let hallName: string;
                     let hallType: "PRESET" | "AI_GENERATED" = "PRESET";
-                    let tsxUrl: string | null = null;
 
                     if (step2Mode === "ai") {
                       if (!aiHallId) {
@@ -593,7 +592,6 @@ export default function CreateRoomModal({
                       hallId = aiHallId;
                       totalSeat = selectedHall.totalSeat;
                       hallName = selectedHall.name;
-                      tsxUrl = aiTsxUrl;
                       hallType = "AI_GENERATED";
                     } else {
                       const hallIdMap: Record<string, number> = {
