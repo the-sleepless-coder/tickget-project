@@ -64,7 +64,7 @@ public class Match {
 
 
     public enum Difficulty {
-        EASY, NORMAL, HARD
+        EASY, MEDIUM, HARD
     }
 
     public enum MatchStatus {
