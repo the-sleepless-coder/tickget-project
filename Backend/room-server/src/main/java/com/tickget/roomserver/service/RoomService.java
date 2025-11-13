@@ -4,7 +4,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.tickget.roomserver.domain.entity.PresetHall;
 import com.tickget.roomserver.domain.entity.Room;
 import com.tickget.roomserver.domain.enums.RoomStatus;
-import com.tickget.roomserver.domain.enums.ThumbnailType;
 import com.tickget.roomserver.domain.repository.PresetHallRepository;
 import com.tickget.roomserver.domain.repository.RoomCacheRepository;
 import com.tickget.roomserver.domain.repository.RoomRepository;
@@ -47,15 +46,12 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class RoomService {
 
-
-    private final MinioService minioService;
     private final TicketingServiceClient  ticketingServiceClient;
     private final WebSocketSessionManager sessionManager;
     private final RoomEventProducer roomEventProducer;
