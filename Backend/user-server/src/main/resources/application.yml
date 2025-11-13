@@ -19,8 +19,27 @@ spring:
         dialect: ${HIBERNATE_DIALECT:org.hibernate.dialect.MySQLDialect}
     open-in-view: ${SPRING_OPEN_IN_VIEW:false}
 
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 10MB        # 최대 파일 크기
+      max-request-size: 10MB     # 최대 요청 크기
+
+
+minio:
+  url: ${MINIO_URL:http://localhost:9000}
+  access-key: ${MINIO_ACCESS_KEY:minioadmin}
+  secret-key: ${MINIO_SECRET_KEY:minioadmin}
+  bucket-name: ${MINIO_BUCKET_NAME:tickget-dev}
+
 logging:
   level:
-    org.hibernate.SQL: ${LOG_SQL_LEVEL:info}
-    com.user: ${LOG_APP_LEVEL:info}
+    org.springframework.boot.actuate: DEBUG
+    com.tickget.userserver: DEBUG
 
+#
+#management:
+#  endpoints:
+#    web:
+#      exposure:
+#        include: health,info,mappings
