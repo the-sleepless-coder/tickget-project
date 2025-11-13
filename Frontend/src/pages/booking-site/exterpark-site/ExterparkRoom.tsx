@@ -487,12 +487,22 @@ export default function ITicketPage() {
                 `🔔 [메시지 수신] 이벤트 타입: ${data.eventType}`,
                 data
               );
-              // Bridge로 교차 창에 전달
+              // Bridge로 교차 창에 전달 (QUEUE_STATUS_UPDATE와 USER_DEQUEUED는 특히 중요)
               try {
-                bridgeRef.current?.postMessage(data);
-                // console.debug("📡 [bridge] 이벤트 전달:", data.eventType);
+                if (bridgeRef.current) {
+                  bridgeRef.current.postMessage(data);
+                  if (data.eventType === "USER_DEQUEUED" || data.eventType === "QUEUE_STATUS_UPDATE") {
+                    console.log(`📡 [bridge] 중요 이벤트 전달: ${data.eventType}`, {
+                      eventType: data.eventType,
+                      userId: (data.payload as { userId?: number })?.userId,
+                      matchId: (data.payload as { matchId?: string | number })?.matchId,
+                    });
+                  }
+                } else {
+                  console.warn(`⚠️ [bridge] 채널이 없어 이벤트 전달 실패: ${data.eventType}`);
+                }
               } catch (e) {
-                console.warn("⚠️ [bridge] 이벤트 전달 실패:", e);
+                console.error(`❌ [bridge] 이벤트 전달 실패: ${data.eventType}`, e);
               }
               handleRoomEvent(data);
             }

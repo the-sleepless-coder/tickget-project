@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import ConfirmationNumberOutlinedIcon from "@mui/icons-material/ConfirmationNumberOutlined";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { paths } from "../../../../app/routes/paths";
@@ -13,7 +13,6 @@ import { useRoomStore } from "@features/room/store";
 import { useAuthStore } from "@features/auth/store";
 import { useWebSocketStore } from "../../../../shared/lib/websocket-store";
 import { subscribe, type Subscription } from "../../../../shared/lib/websocket";
-import { joinRoom } from "@features/room/api";
 
 export default function BookingWaitingPage() {
   const navigate = useNavigate();
@@ -45,22 +44,199 @@ export default function BookingWaitingPage() {
 
   // 시뮬레이션 제거: 실제 수신 이벤트만 반영
 
-  // 새 창(WebSocket 새 세션)에서 세션-방 매핑을 보장하기 위해 방 입장 API 1회 호출
+  // 공통 이벤트 처리 함수 (WebSocket과 BroadcastChannel 모두에서 사용)
+  const handleQueueEvent = useCallback((
+    data: {
+      eventType?: string;
+      type?: string;
+      payload?: {
+        queueStatuses?: Record<string, { ahead?: number; behind?: number; total?: number; lastUpdated?: number }>;
+        userId?: number;
+        matchId?: string | number;
+        timestamp?: number;
+      };
+      timestamp?: number;
+    },
+    source: "ws" | "bridge"
+  ) => {
+    const evtType = data?.eventType || data?.type;
+    console.log(`📨 [waiting][${source}] 메시지 수신:`, {
+      eventType: evtType,
+      timestamp: new Date().toISOString(),
+    });
+
+    if (evtType === "QUEUE_STATUS_UPDATE") {
+      const myUserId = useAuthStore.getState().userId;
+      const statuses = data.payload?.queueStatuses;
+      if (!statuses) {
+        console.warn(`[waiting][QUEUE][${source}] payload.queueStatuses 없음:`, data);
+        return;
+      }
+      if (myUserId == null) {
+        console.warn(`[waiting][QUEUE][${source}] 사용자 ID 없음, 처리 불가`);
+        return;
+      }
+      const key = String(myUserId);
+      const raw =
+        statuses[key] ??
+        (statuses as unknown as Record<number, { ahead?: number; behind?: number; total?: number; lastUpdated?: number }>)[
+          myUserId as number
+        ];
+      if (raw) {
+        const ahead = Number(raw.ahead ?? 0);
+        const behind = Number(raw.behind ?? 0);
+        const currentRank = ahead + 1;
+        const currentTotalQueue = ahead + 1 + behind;
+        setRank(currentRank);
+        setTotalQueue(currentTotalQueue);
+        console.log(`✅ [waiting][QUEUE][${source}] 대기열 갱신 성공:`, {
+          myUserId,
+          ahead,
+          behind,
+          currentRank,
+          currentTotalQueue,
+          now: Date.now(),
+        });
+
+        // 항상 큐 화면 유지: DEQUEUE 이벤트 전까지는 대기열 표시
+        setStage("queue");
+      } else {
+        console.log(
+          `ℹ️ [waiting][QUEUE][${source}] 아직 대기열 미진입(내 userId 미포함):`,
+          {
+            myUserId,
+            keys: Object.keys(statuses),
+          }
+        );
+      }
+    } else if (evtType === "USER_DEQUEUED") {
+      const myUserId = useAuthStore.getState().userId;
+      const p = (data.payload ?? {}) as {
+        userId?: number;
+        matchId?: string | number;
+        timestamp?: number;
+      };
+
+      if (myUserId == null) {
+        console.warn(`[waiting][DEQUEUE][${source}] 사용자 ID 없음, 처리 불가`);
+        return;
+      }
+      if (p.userId == null) {
+        console.warn(`[waiting][DEQUEUE][${source}] payload.userId 없음:`, data);
+        return;
+      }
+      if (hasDequeuedRef.current) {
+        return; // 중복 처리 방지
+      }
+
+      if (Number(p.userId) === Number(myUserId)) {
+        hasDequeuedRef.current = true;
+        // matchId 저장
+        const numericMatchId =
+          typeof p.matchId === "string" ? Number(p.matchId) : p.matchId;
+        if (numericMatchId != null && !Number.isNaN(numericMatchId)) {
+          useMatchStore.getState().setMatchId(numericMatchId as number);
+        }
+        console.log(`✅ [waiting][DEQUEUE][${source}] 본인 티켓팅 성공!`, {
+          myUserId,
+          matchId: p.matchId,
+          ts: p.timestamp ?? data.timestamp ?? Date.now(),
+        });
+
+        // 즉시 좌석 선택 화면으로 이동
+        const rtSec = searchParams.get("rtSec") ?? "0";
+        const nrClicks = searchParams.get("nrClicks") ?? "0";
+        const hallId = searchParams.get("hallId");
+        const date = searchParams.get("date");
+        const round = searchParams.get("round");
+        const nextUrl = new URL(
+          window.location.origin + paths.booking.selectSeat
+        );
+        nextUrl.searchParams.set("rtSec", rtSec);
+        nextUrl.searchParams.set("nrClicks", nrClicks);
+        const tStart = searchParams.get("tStart");
+        if (tStart) nextUrl.searchParams.set("tStart", tStart);
+        if (hallId) nextUrl.searchParams.set("hallId", hallId);
+        if (p.matchId != null)
+          nextUrl.searchParams.set("matchId", String(p.matchId));
+        else {
+          const fallbackMatch =
+            matchIdFromStore != null
+              ? String(matchIdFromStore)
+              : searchParams.get("matchId");
+          if (fallbackMatch)
+            nextUrl.searchParams.set("matchId", fallbackMatch);
+        }
+        if (date) nextUrl.searchParams.set("date", date);
+        if (round) nextUrl.searchParams.set("round", round);
+        navigate(nextUrl.pathname + nextUrl.search, { replace: true });
+      } else {
+        console.log(`ℹ️ [waiting][DEQUEUE][${source}] 다른 유저 티켓팅 성공:`, {
+          dequeuedUserId: p.userId,
+          myUserId,
+        });
+      }
+    } else {
+      console.log(`ℹ️ [waiting][${source}] QUEUE 외 이벤트:`, evtType);
+    }
+  }, [navigate, searchParams, matchIdFromStore]);
+
+  // Bridge 수신: 원래 창에서 전달한 WebSocket 이벤트를 수신
   useEffect(() => {
-    const doJoin = async () => {
-      if (!roomId) return;
-      const userId = useAuthStore.getState().userId;
-      const nickname =
-        useAuthStore.getState().nickname ?? `User-${userId ?? "guest"}`;
-      if (!userId) return;
+    if (!roomId) return;
+    if (!("BroadcastChannel" in window)) {
+      console.warn("[waiting][bridge] BroadcastChannel 미지원");
+      return;
+    }
+
+    const channelName = `room-${roomId}-events`;
+    const bc = new BroadcastChannel(channelName);
+    console.log("🔗 [waiting][bridge] 채널 연결:", channelName);
+
+    bc.onmessage = (ev: MessageEvent) => {
       try {
-        await joinRoom(Number(roomId), { userId, userName: nickname });
+        const data = ev.data as {
+          eventType?: string;
+          type?: string;
+          payload?: {
+            queueStatuses?: Record<string, { ahead?: number; behind?: number; total?: number; lastUpdated?: number }>;
+            userId?: number;
+            matchId?: string | number;
+            timestamp?: number;
+          };
+          timestamp?: number;
+        };
+        // QUEUE_STATUS_UPDATE와 USER_DEQUEUED만 처리
+        const evtType = data?.eventType || data?.type;
+        if (evtType === "USER_DEQUEUED") {
+          console.log("🎯 [waiting][bridge] USER_DEQUEUED 수신!", {
+            eventType: evtType,
+            userId: (data.payload as { userId?: number })?.userId,
+            matchId: (data.payload as { matchId?: string | number })?.matchId,
+            timestamp: new Date().toISOString(),
+          });
+          handleQueueEvent(data, "bridge");
+        } else if (evtType === "QUEUE_STATUS_UPDATE") {
+          handleQueueEvent(data, "bridge");
+        } else {
+          console.log(`ℹ️ [waiting][bridge] 기타 이벤트 수신: ${evtType}`);
+        }
       } catch (e) {
-        if (import.meta.env.DEV) console.warn("joinRoom 실패(무시 가능):", e);
+        console.error("❌ [waiting][bridge] 메시지 처리 실패:", e);
       }
     };
-    doJoin();
-  }, [roomId]);
+
+    return () => {
+      try {
+        bc.close();
+        console.log("🔌 [waiting][bridge] 채널 종료:", channelName);
+      } catch (err) {
+        if (import.meta.env.DEV) {
+          console.warn("[waiting][bridge] close 실패:", err);
+        }
+      }
+    };
+  }, [roomId, handleQueueEvent]);
 
   // WebSocket 구독: /topic/rooms/{roomId} 에서 QUEUE_STATUS_UPDATE 수신
   useEffect(() => {
@@ -98,130 +274,23 @@ export default function BookingWaitingPage() {
           timestamp?: number;
           type?: string;
         };
+        // QUEUE_STATUS_UPDATE와 USER_DEQUEUED만 처리 (공통 함수 사용)
         const evtType = data?.eventType || data?.type;
-        console.log("📨 [waiting][ws] 메시지 수신:", {
-          destination,
-          eventType: evtType,
-          timestamp: new Date().toISOString(),
-        });
-        if (evtType === "QUEUE_STATUS_UPDATE") {
-          const myUserId = useAuthStore.getState().userId;
-          const statuses = data.payload?.queueStatuses;
-          if (!statuses) {
-            console.warn("[waiting][QUEUE] payload.queueStatuses 없음:", data);
-            return;
-          }
-          if (myUserId == null) {
-            console.warn("[waiting][QUEUE] 사용자 ID 없음, 처리 불가");
-            return;
-          }
-          const key = String(myUserId);
-          const raw =
-            statuses[key] ??
-            // 숫자 키로도 시도 (서버 직렬화 차이 대비)
-            (statuses as unknown as Record<number, QueueEntry>)[
-              myUserId as number
-            ];
-          if (raw) {
-            const ahead = Number(raw.ahead ?? 0);
-            const behind = Number(raw.behind ?? 0);
-            const currentRank = ahead + 1;
-            const currentTotalQueue = ahead + 1 + behind;
-            setRank(currentRank);
-            setTotalQueue(currentTotalQueue);
-            console.log("✅ [waiting][QUEUE] 대기열 갱신 성공:", {
-              myUserId,
-              ahead,
-              behind,
-              currentRank,
-              currentTotalQueue,
-              now: Date.now(),
-              wsDestination: destination,
-            });
-
-            // 항상 큐 화면 유지: DEQUEUE 이벤트 전까지는 대기열 표시
-            setStage("queue");
-          } else {
-            console.log(
-              "ℹ️ [waiting][QUEUE] 아직 대기열 미진입(내 userId 미포함):",
-              {
-                myUserId,
-                keys: Object.keys(statuses),
-              }
-            );
-          }
-        } else if (evtType === "USER_DEQUEUED") {
-          const myUserId = useAuthStore.getState().userId;
-          const p = (data.payload ?? {}) as {
-            userId?: number;
-            matchId?: string | number;
-            timestamp?: number;
-          };
-
-          if (myUserId == null) {
-            console.warn("[waiting][DEQUEUE] 사용자 ID 없음, 처리 불가");
-            return;
-          }
-          if (p.userId == null) {
-            console.warn("[waiting][DEQUEUE] payload.userId 없음:", data);
-            return;
-          }
-          if (hasDequeuedRef.current) {
-            return; // 중복 처리 방지
-          }
-
-          if (Number(p.userId) === Number(myUserId)) {
-            hasDequeuedRef.current = true;
-            // matchId 저장
-            const numericMatchId =
-              typeof p.matchId === "string" ? Number(p.matchId) : p.matchId;
-            if (numericMatchId != null && !Number.isNaN(numericMatchId)) {
-              useMatchStore.getState().setMatchId(numericMatchId as number);
-            }
-            console.log("✅ [waiting][DEQUEUE] 본인 티켓팅 성공!", {
-              myUserId,
-              matchId: p.matchId,
-              ts: p.timestamp ?? data.timestamp ?? Date.now(),
-            });
-
-            // 즉시 좌석 선택 화면으로 이동
-            const rtSec = searchParams.get("rtSec") ?? "0";
-            const nrClicks = searchParams.get("nrClicks") ?? "0";
-            const hallId = searchParams.get("hallId");
-            const date = searchParams.get("date");
-            const round = searchParams.get("round");
-            const nextUrl = new URL(
-              window.location.origin + paths.booking.selectSeat
-            );
-            nextUrl.searchParams.set("rtSec", rtSec);
-            nextUrl.searchParams.set("nrClicks", nrClicks);
-            const tStart = searchParams.get("tStart");
-            if (tStart) nextUrl.searchParams.set("tStart", tStart);
-            if (hallId) nextUrl.searchParams.set("hallId", hallId);
-            if (p.matchId != null)
-              nextUrl.searchParams.set("matchId", String(p.matchId));
-            else {
-              const fallbackMatch =
-                matchIdFromStore != null
-                  ? String(matchIdFromStore)
-                  : searchParams.get("matchId");
-              if (fallbackMatch)
-                nextUrl.searchParams.set("matchId", fallbackMatch);
-            }
-            if (date) nextUrl.searchParams.set("date", date);
-            if (round) nextUrl.searchParams.set("round", round);
-            navigate(nextUrl.pathname + nextUrl.search, { replace: true });
-          } else {
-            console.log("ℹ️ [waiting][DEQUEUE] 다른 유저 티켓팅 성공:", {
-              dequeuedUserId: p.userId,
-              myUserId,
-            });
-          }
+        if (evtType === "USER_DEQUEUED") {
+          console.log("🎯 [waiting][ws] USER_DEQUEUED 수신!", {
+            eventType: evtType,
+            userId: (data.payload as { userId?: number })?.userId,
+            matchId: (data.payload as { matchId?: string | number })?.matchId,
+            timestamp: new Date().toISOString(),
+          });
+          handleQueueEvent(data, "ws");
+        } else if (evtType === "QUEUE_STATUS_UPDATE") {
+          handleQueueEvent(data, "ws");
         } else {
-          console.log("ℹ️ [waiting][ws] QUEUE 외 이벤트:", evtType);
+          console.log(`ℹ️ [waiting][ws] 기타 이벤트 수신: ${evtType}`);
         }
       } catch (e) {
-        console.error("❌ [waiting][QUEUE] 메시지 파싱 실패:", e);
+        console.error("❌ [waiting][ws] 메시지 파싱 실패:", e);
       }
     };
 
@@ -263,7 +332,7 @@ export default function BookingWaitingPage() {
         subscriptionRef.current = null;
       }
     };
-  }, [roomId, wsClient]);
+  }, [roomId, wsClient, handleQueueEvent]);
 
   // 대기열 진입 시 큐 등록 API 호출 (matchId가 있을 때만)
   useEffect(() => {
