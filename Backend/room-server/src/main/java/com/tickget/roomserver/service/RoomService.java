@@ -84,7 +84,7 @@ public class RoomService {
         try {
             // Redis에 정보 저장
             roomCacheRepository.saveRoom(room.getId(), request);
-            roomCacheRepository.addMemberToRoom(room.getId(), request.getUserId(), request.getUsername());
+            roomCacheRepository.addMemberToRoom(room.getId(), request.getUserId(), request.getUsername(), request.getProfileImageUrl());
 
             // 세션에 방 정보 등록
             if (sessionId != null) {
@@ -173,7 +173,7 @@ public class RoomService {
 
 
 
-        int currentUserCount = roomCacheRepository.addMemberToRoom(roomId, userId, userName);
+        int currentUserCount = roomCacheRepository.addMemberToRoom(roomId, userId, userName, joinRoomRequest.getProfileImageUrl());
 
         String sessionId = sessionManager.getSessionIdByUserId(userId);
         if (sessionId != null) {
