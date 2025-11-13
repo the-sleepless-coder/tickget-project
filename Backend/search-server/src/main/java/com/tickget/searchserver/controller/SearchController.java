@@ -18,7 +18,7 @@ import jakarta.validation.constraints.NotBlank;
 @RequestMapping("/concerts/halls")
 @RequiredArgsConstructor
 @Tag(name = "공연장 검색", description = "Elasticsearch 기반 공연장 검색 API")
-@CrossOrigin(origins = {"https://tickget.kr", "http://localhost:5173"})
+@CrossOrigin(origins = "*") // 개발 환경: 모든 origin 허용 (HTML file:// 프로토콜 포함)
 public class SearchController {
 
     private final SearchService searchService;
