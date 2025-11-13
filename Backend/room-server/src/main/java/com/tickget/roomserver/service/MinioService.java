@@ -21,7 +21,7 @@ public class MinioService {
 
     public String uploadFile(MultipartFile file) {
         try{
-            String fileName = UUID.randomUUID() + "_" + file.getOriginalFilename();
+            String fileName = String.format("rooms/%s", file.getOriginalFilename());
             minioClient.putObject(
                     PutObjectArgs.builder()
                             .bucket(bucketName)
@@ -36,4 +36,6 @@ public class MinioService {
             throw new ImageUploadException("이미지 업로드에 실패했습니다", e);
         }
     }
+
+
 }

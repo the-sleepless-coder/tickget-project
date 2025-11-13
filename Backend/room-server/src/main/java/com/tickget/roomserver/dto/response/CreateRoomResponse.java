@@ -29,6 +29,7 @@ public class CreateRoomResponse {
     private String subscriptionTopic;
     private ThumbnailType thumbnailType;
     private String thumbnailValue;
+    private String tsxUrl;
 
     public static CreateRoomResponse of(Room room, Long matchId) {
         return CreateRoomResponse.builder()
@@ -44,6 +45,7 @@ public class CreateRoomResponse {
                 .subscriptionTopic("/topic/rooms/" + room.getId())
                 .thumbnailType(room.getThumbnailType())
                 .thumbnailValue(room.getThumbnailValue())
+                .tsxUrl(room.getTsxUrl())
                 .build();
     }
 }
