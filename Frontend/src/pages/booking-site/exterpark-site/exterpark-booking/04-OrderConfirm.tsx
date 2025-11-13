@@ -1,8 +1,9 @@
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import BookingLayout from "./_components/BookingLayout";
 import { paths } from "../../../../app/routes/paths";
 import dayjs from "dayjs";
+import { useAuthStore } from "@features/auth/store";
 
 type SeatData = {
   grade: string;
@@ -72,13 +73,113 @@ export default function OrderConfirmPage() {
     return `${date.format("YYYY.MM.DD")} (${weekday}) ${time}`;
   }, [dateParam, timeParam]);
 
+  // authstore에서 사용자 정보 가져오기
+  const storeName = useAuthStore((state) => state.name);
+  const storeEmail = useAuthStore((state) => state.email);
+  const accessToken = useAuthStore((state) => state.accessToken);
+
   // 예매자 정보 (제어 컴포넌트)
-  const [buyerName, setBuyerName] = useState<string>("홍길동");
-  const [birthDate, setBirthDate] = useState<string>("19900101");
+  const [buyerName, setBuyerName] = useState<string>(storeName || "");
+  const [birthDate, setBirthDate] = useState<string>("");
   const [phoneFirst, setPhoneFirst] = useState<string>("010");
-  const [phoneMiddle, setPhoneMiddle] = useState<string>("1234");
-  const [phoneLast, setPhoneLast] = useState<string>("5678");
-  const [email, setEmail] = useState<string>("ssafy13@gmail.com");
+  const [phoneMiddle, setPhoneMiddle] = useState<string>("");
+  const [phoneLast, setPhoneLast] = useState<string>("");
+  const [email, setEmail] = useState<string>(storeEmail || "");
+
+  // 배송지 정보
+  const [deliveryName, setDeliveryName] = useState<string>(storeName || "");
+  const [deliveryAddress, setDeliveryAddress] = useState<string>("");
+  const [deliveryPhone, setDeliveryPhone] = useState<string>("");
+
+  // API에서 생년월일과 연락처 가져오기
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (!accessToken) return;
+
+      try {
+        const apiUrl = "/api/v1/dev/user/myprofile";
+        const response = await fetch(apiUrl, {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+
+          // 생년월일 설정 (YYYY-MM-DD -> YYMMDD)
+          if (data.birthDate) {
+            const dateStr = data.birthDate;
+            if (dateStr.includes("-")) {
+              const [year, month, day] = dateStr.split("-");
+              const shortYear = year.slice(-2);
+              setBirthDate(`${shortYear}${month}${day}`);
+            } else {
+              // 이미 YYMMDD 형식인 경우
+              setBirthDate(dateStr);
+            }
+          }
+
+          // 연락처 설정 (010-1234-5678 -> 010, 1234, 5678)
+          if (data.phone) {
+            const phoneParts = data.phone.split("-");
+            if (phoneParts.length === 3) {
+              setPhoneFirst(phoneParts[0]);
+              setPhoneMiddle(phoneParts[1]);
+              setPhoneLast(phoneParts[2]);
+            } else {
+              // 하이픈이 없는 경우 (01012345678)
+              const phoneStr = data.phone.replace(/-/g, "");
+              if (phoneStr.length >= 10) {
+                setPhoneFirst(phoneStr.substring(0, 3));
+                setPhoneMiddle(phoneStr.substring(3, phoneStr.length - 4));
+                setPhoneLast(phoneStr.substring(phoneStr.length - 4));
+              }
+            }
+          }
+
+          // 이름과 이메일도 업데이트 (authstore에 없을 수 있으므로)
+          if (data.name && !storeName) {
+            setBuyerName(data.name);
+            setDeliveryName(data.name);
+          }
+
+          if (data.email && !storeEmail) {
+            setEmail(data.email);
+          }
+
+          // 배송지 정보 업데이트
+          if (data.address) {
+            setDeliveryAddress(data.address);
+          }
+
+          // 배송지 연락처 설정 (예매자 연락처와 동일)
+          if (data.phone) {
+            setDeliveryPhone(data.phone);
+          }
+        }
+      } catch (error) {
+        console.error("프로필 정보 가져오기 실패:", error);
+      }
+    };
+
+    fetchUserProfile();
+  }, [accessToken, storeName, storeEmail]);
+
+  // authstore의 name과 email이 변경되면 업데이트
+  useEffect(() => {
+    if (storeName) {
+      setBuyerName(storeName);
+      setDeliveryName(storeName);
+    }
+  }, [storeName]);
+
+  useEffect(() => {
+    if (storeEmail) {
+      setEmail(storeEmail);
+    }
+  }, [storeEmail]);
 
   return (
     <BookingLayout activeStep={3}>
@@ -144,10 +245,18 @@ export default function OrderConfirmPage() {
                 <button className="text-[12px] text-gray-500">변경 ▾</button>
               </div>
               <div className="mt-2 space-y-1 text-sm">
-                <div>홍길동</div>
-                <div>06220</div>
-                <div>서울특별시 강남구 테헤란로 212 멀티캠퍼스</div>
-                <div>010-1234-5678</div>
+                <div>{deliveryName || "이름 없음"}</div>
+                {deliveryAddress ? (
+                  <div>{deliveryAddress}</div>
+                ) : (
+                  <div className="text-gray-400">주소 정보가 없습니다</div>
+                )}
+                <div>
+                  {deliveryPhone ||
+                    (phoneFirst && phoneMiddle && phoneLast
+                      ? `${phoneFirst}-${phoneMiddle}-${phoneLast}`
+                      : "연락처 정보가 없습니다")}
+                </div>
               </div>
               <div className="mt-3 text-[12px] text-[#b02a2a] leading-5">
                 배송 받는 분의 연락처(휴대폰)로 배송정보(등기번호)가 전송되니
