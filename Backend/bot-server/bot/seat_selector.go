@@ -181,11 +181,20 @@ func AssignTargetSeats(bots []*Bot, hallLayout *models.HallLayout) {
 
 		for i := 0; i < candidateCount && len(targetSeats) < candidateCount; {
 			if i >= len(seatScores) {
-				break // 더 이상 사용 가능한 좌석 없음
+				// 모든 좌석을 다 확인했는데도 1순위를 못 찾은 경우
+				// 중복을 허용하고 처음부터 다시 할당 (순환)
+				if len(targetSeats) == 0 {
+					for j := 0; j < candidateCount && len(targetSeats) < candidateCount && j < len(seatScores); j++ {
+						seat := seatScores[j].Seat
+						seat.TotalCols = sectionInfo[seat.SectionID]
+						targetSeats = append(targetSeats, seat)
+					}
+				}
+				break
 			}
 
 			seat := seatScores[i].Seat
-			seatKey := seat.SectionID + "-" + string(rune('0'+seat.SeatNumber))
+			seatKey := seat.SectionID + "-" + strconv.Itoa(seat.SeatNumber)
 
 			// 1순위는 중복 체크, 2순위부터는 무조건 추가
 			if len(targetSeats) == 0 {
