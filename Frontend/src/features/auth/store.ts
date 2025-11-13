@@ -9,6 +9,7 @@ interface AuthState {
   email: string | null;
   nickname: string | null;
   name: string | null;
+  profileImageUrl: string | null;
   setAuth: (data: TestAccountLoginResponse) => void;
   clearAuth: () => void;
   getAuthHeaders: () => Record<string, string>;
@@ -23,6 +24,7 @@ export const useAuthStore = create<AuthState>()(
       email: null,
       nickname: null,
       name: null,
+      profileImageUrl: null,
 
       setAuth: (data) => {
         set({
@@ -32,6 +34,7 @@ export const useAuthStore = create<AuthState>()(
           email: data.email,
           nickname: data.nickname,
           name: data.name,
+          profileImageUrl: data.profileImageUrl ?? null,
         });
         // 개발 환경에서 store 상태 확인용
         if (import.meta.env.DEV) {
@@ -46,6 +49,7 @@ export const useAuthStore = create<AuthState>()(
             email: data.email,
             nickname: data.nickname,
             name: data.name,
+            profileImageUrl: data.profileImageUrl,
           });
         }
       },
@@ -58,6 +62,7 @@ export const useAuthStore = create<AuthState>()(
           email: null,
           nickname: null,
           name: null,
+          profileImageUrl: null,
         });
         if (import.meta.env.DEV) {
           console.log("✅ Auth Store 초기화됨");
