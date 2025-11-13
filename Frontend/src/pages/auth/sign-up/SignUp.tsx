@@ -4,17 +4,16 @@ import Button from "@mui/material/Button";
 import Snackbar from "@mui/material/Snackbar";
 import Alert from "@mui/material/Alert";
 import Avatar from "@mui/material/Avatar";
-
-// TODO: OAuth 인증 후 실제로 받아올 사용자 정보
-interface OAuthUserInfo {
-  email: string;
-  nickname: string;
-  picture: string;
-}
+import { useAuthStore } from "@features/auth/store";
 
 export default function SignupPage() {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // OAuth 인증 완료 후 저장된 사용자 정보 가져오기
+  const email = useAuthStore((state) => state.email);
+  const nickname = useAuthStore((state) => state.nickname);
+  const name = useAuthStore((state) => state.name);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
@@ -32,19 +31,15 @@ export default function SignupPage() {
     severity: "success" | "error" | "warning" | "info";
   }>({ open: false, message: "", severity: "info" });
 
-  // TODO: OAuth 인증 완료 후 실제 사용자 정보 받아오기
-  const [userInfo] = useState<OAuthUserInfo>({
-    email: "user@example.com", // 실제로는 OAuth에서 받음
-    nickname: "", // 실제로는 OAuth에서 받음
-    picture: "https://via.placeholder.com/150", // 실제로는 OAuth에서 받음
-  });
-
+  // OAuth에서 받아온 정보로 폼 초기값 설정
   useEffect(() => {
-    // 구글에서 받아온 이름으로 닉네임 기본값 설정
-    if (userInfo.nickname) {
-      setFormData((prev) => ({ ...prev, nickname: userInfo.nickname }));
+    if (nickname) {
+      setFormData((prev) => ({ ...prev, nickname }));
     }
-  }, [userInfo]);
+    if (name) {
+      setFormData((prev) => ({ ...prev, name }));
+    }
+  }, [nickname, name]);
 
   const openSnackbar = (
     message: string,
