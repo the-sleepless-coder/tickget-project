@@ -17,6 +17,7 @@ public class CreateMatchRequest {
 
     private int maxUserCount;
     private int botCount;
+    private int totalSeats;
 
     private Difficulty difficulty;
     private LocalDateTime startedAt;
@@ -29,6 +30,7 @@ public class CreateMatchRequest {
                 .matchName(request.getMatchName())
                 .maxUserCount(request.getMaxUserCount())
                 .botCount(request.getBotCount())
+                .totalSeats(request.getTotalSeat())
                 .difficulty(request.getDifficulty())
                 .startedAt(request.getGameStartTime())
                 .build();

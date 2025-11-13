@@ -38,4 +38,5 @@ public class CreateRoomRequest {
 
     private ThumbnailType thumbnailType;
     private String thumbnailValue;
+    private String tsxUrl;
 }

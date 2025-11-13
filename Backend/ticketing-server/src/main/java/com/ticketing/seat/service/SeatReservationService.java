@@ -12,9 +12,11 @@ import com.ticketing.seat.redis.MatchStatusRepository;
 import com.ticketing.repository.MatchRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -25,6 +27,7 @@ import java.util.List;
 public class SeatReservationService {
 
     private static final int MAX_SEATS_PER_REQUEST = 2;
+    private final StringRedisTemplate redisTemplate;
 
     private final MatchRepository matchRepository;
     private final MatchStatusRepository matchStatusRepository;
@@ -33,6 +36,7 @@ public class SeatReservationService {
     @Transactional
     public SeatReservationResponse reserveSeats(Long matchId, SeatReservationRequest req) {
         Long userId = req.getUserId();
+        boolean isBot = userId < 0;  // 봇 여부 판단
 
         // 1. 좌석 개수 검증
         int requested = (req.getSeats() == null) ? 0 : req.getSeats().size();
@@ -65,13 +69,14 @@ public class SeatReservationService {
 
         // 3-1. 프론트에서 받은 totalSeats를 DB에 저장
         // *bot인 경우 확인 로직 skip
-        if (req.getUserId() > 0 && !match.getMaxUser().equals(req.getTotalSeats())) {
-            log.info("totalSeats 업데이트: matchId={}, 기존값={}, 새로운값={}",
-                    matchId, match.getMaxUser(), req.getTotalSeats());
-            match.setMaxUser(req.getTotalSeats());
-            match.setUpdatedAt(LocalDateTime.now());
-            matchRepository.save(match);
-        }
+        // 기존에 받아오는 것으로 로직 변경
+//        if (req.getUserId() > 0 && !match.getMaxUser().equals(req.getTotalSeats())) {
+//            log.info("totalSeats 업데이트: matchId={}, 기존값={}, 새로운값={}",
+//                    matchId, match.getMaxUser(), req.getTotalSeats());
+//            match.setMaxUser(req.getTotalSeats());
+//            match.setUpdatedAt(LocalDateTime.now());
+//            matchRepository.save(match);
+//        }
 
         // 4. SeatInfo -> rowNumber, grade 변환
         String sectionId = req.extractSectionId();  // Long → String 변환 (Redis 키용)
@@ -91,12 +96,17 @@ public class SeatReservationService {
                 rowNumbers,
                 userId,
                 grades,     // 각 좌석의 grade 리스트
-                req.getTotalSeats()
+                match.getTotalSeats()
         );
 
         // 6. 결과 처리
         if (result == null || result == 0L) {
             return buildFailureResponse(matchId, req);
+        }
+
+        // ===== Hold 성공 시 실제 유저 등수 계산 =====
+        if (!isBot) {
+            calculateAndLogUserRank(matchId, userId);
         }
 
         // 만석 감지: Redis는 이미 CLOSED로 설정되어 더 이상 선점 불가
@@ -108,6 +118,23 @@ public class SeatReservationService {
 
         return buildSuccessResponse(matchId, req);
     }
+
+    /**
+     * 실제 유저 등수 계산 (Hold 시점)
+     */
+    private void calculateAndLogUserRank(Long matchId, Long userId) {
+        final String rankKey = "match:" + matchId + ":human_rank_counter";
+
+        try {
+            Long rank = redisTemplate.opsForValue().increment(rankKey);
+            if (rank != null) {
+                log.info("Hold 시점 유저 등수 계산: userId={}, rank={}", userId, rank);
+            }
+        } catch (Exception e) {
+            log.error("Hold 시점 등수 계산 중 오류: matchId={}, userId={}", matchId, userId, e);
+        }
+    }
+
 
     /**
      * 각 좌석에 grade가 있는지 확인하고, 없으면 최상위 grade 사용 (하위 호환성)

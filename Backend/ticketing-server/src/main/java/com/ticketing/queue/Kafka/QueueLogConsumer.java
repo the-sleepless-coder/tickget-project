@@ -1,6 +1,6 @@
 package com.ticketing.queue.Kafka;
 
-/**
+/*
 @Service
 @RequiredArgsConstructor
 public class QueueLogConsumer {

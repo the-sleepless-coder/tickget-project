@@ -4,8 +4,8 @@ package client
 
 // 공연 날짜/회차 선택 요청
 type DaySelectRequest struct {
-	ClickMiss int `json:"clickmiss"`
-	Duration  int `json:"duration"`
+	ClickMiss int     `json:"clickmiss"`
+	Duration  float64 `json:"duration"` // 초 단위 (s)
 }
 
 // 캡챠 검증 요청

@@ -11,8 +11,9 @@ public class CaptchaDTO {
 
     private String input;
     private String captchaId;
-    private float duration;
-    private int backSpaceCount;
-    private int attemptCount;
+    private Float duration;
+    private Integer backSpaceCount;
+    private Integer attemptCount;
+    private Long matchId;
 
 }

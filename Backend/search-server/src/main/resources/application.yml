@@ -1,0 +1,38 @@
+spring:
+  application:
+    name: search-server
+
+  elasticsearch:
+    uris: ${ELASTICSEARCH_HOSTS:http://elasticsearch-service.default.svc.cluster.local:9200}
+    connection-timeout: 5s
+    socket-timeout: 30s
+
+server:
+  port: 8084
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+
+# Springdoc OpenAPI
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: alpha
+    tags-sorter: alpha
+
+# Logging
+logging:
+  level:
+    com.tickget.searchserver: DEBUG
+    co.elastic.clients: INFO
+    org.elasticsearch: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
