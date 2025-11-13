@@ -1,12 +1,11 @@
 package com.tickget.searchserver.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import java.time.LocalDateTime;
 
 /**
  * Elasticsearch concert-halls 인덱스의 도큐먼트 매핑 클래스
@@ -15,6 +14,7 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true) // 알 수 없는 필드 무시
 public class ConcertHall {
 
     @JsonProperty("_id")
@@ -25,6 +25,5 @@ public class ConcertHall {
     @JsonProperty("total_seat")
     private Integer totalSeat;
 
-    @JsonProperty("created_at")
-    private LocalDateTime createdAt;
+    // created_at 필드는 검색 API에서 사용하지 않으므로 제거
 }
