@@ -17,6 +17,30 @@ export default function SignupPage() {
   const [searchParams] = useSearchParams();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // 팝업으로 열렸다면 메인 창으로 인증 결과를 전달하고 닫기
+  useEffect(() => {
+    try {
+      if (window.opener && !window.opener.closed) {
+        const message = {
+          type: "oauth-callback",
+          href: window.location.href,
+          search: window.location.search,
+          hash: window.location.hash,
+        };
+        window.opener.postMessage(message, "*");
+        setTimeout(() => {
+          try {
+            window.close();
+          } catch {
+            /* ignore */
+          }
+        }, 100);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
   // OAuth 인증 완료 후 저장된 사용자 정보 가져오기
   const email = useAuthStore((state) => state.email);
   const nickname = useAuthStore((state) => state.nickname);
@@ -81,7 +105,15 @@ export default function SignupPage() {
         );
       }
     }
-  }, [searchParams, setAuth, navigate]);
+  }, [
+    searchParams,
+    setAuth,
+    navigate,
+    location.pathname,
+    email,
+    nickname,
+    name,
+  ]);
 
   // OAuth에서 받아온 정보로 폼 초기값 설정
   useEffect(() => {
@@ -244,7 +276,7 @@ export default function SignupPage() {
         email: currentAuth.email || "",
         nickname:
           responseData.nickname || oauthNickname || currentAuth.nickname || "",
-        name: responseData.name || "홍길동" || currentAuth.name || "",
+        name: responseData.name || currentAuth.name || "홍길동",
         profileImageUrl: currentAuth.profileImageUrl || null,
         message: "회원가입 완료",
       });

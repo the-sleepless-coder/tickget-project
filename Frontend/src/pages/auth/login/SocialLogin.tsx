@@ -11,6 +11,8 @@ import { testAccountLogin, adminAccountLoginByName } from "@features/auth/api";
 import { useAuthStore } from "@features/auth/store";
 
 const BASE_URL = `${import.meta.env.VITE_API_ORIGIN ?? ""}/api/v1/dev/auth`;
+const API_ORIGIN = import.meta.env.VITE_API_ORIGIN ?? "";
+const PROFILE_URL = `${API_ORIGIN}/api/v1/dev/user/myprofile`;
 
 export default function SocialLogin() {
   const navigate = useNavigate();
@@ -30,14 +32,14 @@ export default function SocialLogin() {
 
   const oauthHandledRef = useRef(false);
 
-  const trySetAuthFromMessage = (data: unknown) => {
+  const trySetAuthFromMessage = async (data: unknown): Promise<boolean> => {
     try {
       const record =
         data && typeof data === "object"
           ? (data as Record<string, unknown>)
           : null;
       const href = typeof record?.href === "string" ? record.href : null;
-      if (!href) return;
+      if (!href) return false;
 
       // 상대 경로인 경우 절대 경로로 변환
       let url: URL | null = null;
@@ -48,16 +50,16 @@ export default function SocialLogin() {
         try {
           url = new URL(href, window.location.origin);
         } catch {
-          return;
+          return false;
         }
       }
 
       const params = url ? url.searchParams : null;
-      if (!params) return;
+      if (!params) return false;
 
       const accessToken =
         params.get("accessToken") || params.get("token") || null;
-      if (!accessToken) return;
+      if (!accessToken) return false;
 
       const refreshToken = params.get("refreshToken");
       const userIdParam = params.get("userId");
@@ -68,9 +70,6 @@ export default function SocialLogin() {
       const email = params.get("email") ?? "";
       const nickname = params.get("nickname") ?? "";
       const name = params.get("name") ?? "";
-      const needsProfileParam = params.get("needsProfile");
-      const needsProfile = needsProfileParam === "true";
-
       setAuth({
         accessToken,
         refreshToken,
@@ -81,22 +80,81 @@ export default function SocialLogin() {
         message: "OAuth login",
       });
 
-      // 분기: needsProfile=true면 추가정보 입력으로 이동, 아니면 성공 처리 (홈으로 이동)
-      oauthHandledRef.current = true;
-      if (needsProfile) {
-        openSnackbar("구글 인증이 완료되었습니다.", "success");
-        // 추가정보 페이지로 이동 (백엔드가 /signup/additional-info로 리다이렉트해도 /auth/signup으로 변환)
-        navigate("/auth/signup", { replace: true });
-      } else {
-        // needsProfile=false이면 로그인/회원가입 모두 홈으로 이동
-        openSnackbar("인증이 완료되었습니다.", "success");
-        const from =
-          (location.state as { from?: { pathname?: string } })?.from
-            ?.pathname || "/";
-        navigate(from, { replace: true });
+      // 프로필 이미지 조회 시도
+      const tokenInStore = useAuthStore.getState().accessToken;
+      let profileImageUrl: string | null = null;
+      if (tokenInStore) {
+        try {
+          const res = await fetch(PROFILE_URL, {
+            method: "GET",
+            headers: { Authorization: `Bearer ${tokenInStore}` },
+          });
+          if (res.ok) {
+            const data = await res.json();
+            profileImageUrl = data?.profileImageUrl || null;
+          }
+        } catch {
+          // 무시
+        }
       }
+
+      const finalNickname = nickname || useAuthStore.getState().nickname || "";
+      const finalName = name || useAuthStore.getState().name || "";
+      const hasNickname = !!finalNickname?.trim();
+      const hasProfileImage = !!profileImageUrl;
+      const hasName = !!finalName?.trim();
+
+      if (hasNickname && hasProfileImage) {
+        if (!hasName && tokenInStore) {
+          // 이름이 없으면 '홍길동'으로 지정 (서버 PATCH)
+          try {
+            await fetch(PROFILE_URL, {
+              method: "PATCH",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${tokenInStore}`,
+              },
+              body: JSON.stringify({ name: "홍길동" }),
+            });
+          } catch {
+            // 서버 반영 실패는 무시하고 클라이언트 업데이트로 진행
+          }
+          // 클라이언트 스토어에 반영
+          const current = useAuthStore.getState();
+          setAuth({
+            accessToken: current.accessToken || "",
+            refreshToken: current.refreshToken,
+            userId: current.userId || 0,
+            email: current.email || "",
+            nickname: current.nickname || finalNickname,
+            name: "홍길동",
+            profileImageUrl: profileImageUrl,
+            message: "OAuth login",
+          });
+        } else {
+          // 이름이 이미 있으면 수정하지 않음. 프로필 이미지만 반영
+          const current = useAuthStore.getState();
+          setAuth({
+            accessToken: current.accessToken || "",
+            refreshToken: current.refreshToken,
+            userId: current.userId || 0,
+            email: current.email || "",
+            nickname: current.nickname || finalNickname,
+            name: current.name || finalName,
+            profileImageUrl: profileImageUrl,
+            message: "OAuth login",
+          });
+        }
+        oauthHandledRef.current = true;
+        return true;
+      }
+
+      // 닉네임/프로필이미지가 불충분해도 추가정보 화면은 사용하지 않으므로 홈으로 이동
+      oauthHandledRef.current = true;
+      return true;
     } catch {
       // ignore parse errors
+      return false;
     }
   };
 
@@ -128,7 +186,7 @@ export default function SocialLogin() {
 
       // OAuth 창에서 `/oauth-callback.html` 페이지로 이동하면 인증 결과를 확인
       let timeoutId: number | null = null;
-      const onMessage = (event: MessageEvent) => {
+      const onMessage = async (event: MessageEvent) => {
         // 보안: origin 검증 (로컬 개발 환경에서는 완화)
         const allowedOrigins = [
           window.location.origin,
@@ -149,14 +207,22 @@ export default function SocialLogin() {
         }
 
         if (event.data?.type === "oauth-callback") {
-          trySetAuthFromMessage(event.data);
+          const goHome = await trySetAuthFromMessage(event.data);
           window.removeEventListener("message", onMessage);
           // 콜백을 받았으므로 타임아웃 정리
           if (timeoutId !== null) window.clearTimeout(timeoutId);
-          // trySetAuthFromMessage에서 이미 처리했으면 checkAuthStatus 호출하지 않음
-          if (!oauthHandledRef.current) {
-            checkAuthStatus(false);
+          // 팝업 닫기
+          try {
+            authWindow.close();
+          } catch {
+            /* ignore */
           }
+          // 홈으로 이동
+          if (goHome) {
+            openSnackbar("인증이 완료되었습니다.", "success");
+            navigate("/", { replace: true });
+          }
+          setIsLoading(null);
         }
       };
 
@@ -209,7 +275,7 @@ export default function SocialLogin() {
 
       // OAuth 창에서 `/oauth-callback.html` 페이지로 이동하면 인증 결과를 확인
       let timeoutId: number | null = null;
-      const onMessage = (event: MessageEvent) => {
+      const onMessage = async (event: MessageEvent) => {
         // 보안: origin 검증 (로컬 개발 환경에서는 완화)
         const allowedOrigins = [
           window.location.origin,
@@ -230,14 +296,22 @@ export default function SocialLogin() {
         }
 
         if (event.data?.type === "oauth-callback") {
-          trySetAuthFromMessage(event.data);
+          const goHome = await trySetAuthFromMessage(event.data);
           window.removeEventListener("message", onMessage);
           // 콜백을 받았으므로 타임아웃 정리
           if (timeoutId !== null) window.clearTimeout(timeoutId);
-          // trySetAuthFromMessage에서 이미 처리했으면 checkAuthStatus 호출하지 않음
-          if (!oauthHandledRef.current) {
-            checkAuthStatus(true);
+          // 팝업 닫기
+          try {
+            authWindow.close();
+          } catch {
+            /* ignore */
           }
+          // 홈으로 이동
+          if (goHome) {
+            openSnackbar("인증이 완료되었습니다.", "success");
+            navigate("/", { replace: true });
+          }
+          setIsLoading(null);
         }
       };
 
@@ -262,24 +336,7 @@ export default function SocialLogin() {
     }
   };
 
-  const checkAuthStatus = async (isSignup: boolean = false) => {
-    try {
-      // 실제 구현에서는 사용자 상태를 조회하여 분기 처리하세요.
-      if (isSignup) {
-        openSnackbar("구글 인증이 완료되었습니다!", "success");
-        navigate("/auth/signup", { replace: true });
-      } else {
-        openSnackbar("로그인이 성공했습니다!", "success");
-        const from =
-          (location.state as { from?: { pathname?: string } })?.from
-            ?.pathname || "/";
-        navigate(from, { replace: true });
-      }
-    } catch {
-      // 실패 시 스낵바만 표시
-      openSnackbar("인증 상태 확인에 실패했습니다.", "error");
-    }
-  };
+  // checkAuthStatus는 더 이상 사용하지 않습니다.
 
   const handleLogoClick = () => {
     navigate("/");
