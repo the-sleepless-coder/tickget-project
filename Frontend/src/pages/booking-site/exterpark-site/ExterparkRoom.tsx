@@ -64,7 +64,14 @@ type QueueStatus = {
 };
 
 // hallName을 한글로 변환하는 함수
-const convertHallNameToKorean = (hallName: string): string => {
+const convertHallNameToKorean = (
+  hallName: string,
+  hallType?: string
+): string => {
+  // AI 생성된 방은 "AI"로 표시
+  if (hallType === "AI_GENERATED") {
+    return "AI";
+  }
   const hallNameMap: Record<string, string> = {
     InspireArena: "인스파이어 아레나",
     CharlotteTheater: "샤롯데씨어터",
@@ -912,6 +919,18 @@ export default function ITicketPage() {
       ? `&hallId=${encodeURIComponent(String(hallId))}`
       : "";
 
+    // hallType, tsxUrl, hallSize 결정: roomDetail에서 가져오기
+    const hallType = roomDetail?.hallType;
+    const tsxUrl = roomDetail?.tsxUrl;
+    const hallSize = roomDetail?.hallSize;
+    const hallTypeParam = hallType
+      ? `&hallType=${encodeURIComponent(hallType)}`
+      : "";
+    const tsxUrlParam = tsxUrl ? `&tsxUrl=${encodeURIComponent(tsxUrl)}` : "";
+    const hallSizeParam = hallSize
+      ? `&hallSize=${encodeURIComponent(hallSize)}`
+      : "";
+
     // 일자 정보 결정: roomDetail → roomRequest 순으로 확인
     const startTime = roomDetail?.startTime ?? roomRequest?.gameStartTime;
     const reservationDay = startTime
@@ -939,14 +958,14 @@ export default function ITicketPage() {
       setIsTrackingClicks(false);
       finalUrl = `${baseUrl}?rtSec=${encodeURIComponent(String(reactionSec))}&nrClicks=${encodeURIComponent(String(nonReserveClickCount))}&tStart=${encodeURIComponent(String(totalStartAt))}${
         matchIdParam ? `&matchId=${encodeURIComponent(matchIdParam)}` : ""
-      }${hallIdParam}${dateParam}${roundParam}`;
+      }${hallIdParam}${hallTypeParam}${tsxUrlParam}${hallSizeParam}${dateParam}${roundParam}`;
     } else {
       console.log(
         "[ReserveTiming] Click without appearance timestamp (possibly test click)"
       );
       finalUrl = `${baseUrl}?rtSec=0&nrClicks=${encodeURIComponent(String(nonReserveClickCount))}&tStart=${encodeURIComponent(String(totalStartAt))}${
         matchIdParam ? `&matchId=${encodeURIComponent(matchIdParam)}` : ""
-      }${hallIdParam}${dateParam}${roundParam}`;
+      }${hallIdParam}${hallTypeParam}${tsxUrlParam}${hallSizeParam}${dateParam}${roundParam}`;
     }
 
     window.open(
@@ -986,6 +1005,7 @@ export default function ITicketPage() {
             matchName={roomDetail?.roomName}
             hallSize={roomDetail?.hallSize}
             venue={roomDetail?.hallName}
+            hallType={roomDetail?.hallType}
             onOpenSettings={() => setIsRoomModalOpen(true)}
             onOpenTimer={() => setShowTimer(true)}
             onExitRoom={handleExitRoom}
@@ -1121,6 +1141,7 @@ function TitleSection({
   matchName,
   hallSize,
   venue,
+  hallType,
   onOpenTimer,
   onExitRoom,
   isExiting,
@@ -1128,6 +1149,7 @@ function TitleSection({
   matchName?: string;
   hallSize?: string;
   venue?: string;
+  hallType?: string;
   onOpenSettings: () => void;
   onOpenTimer: () => void;
   onExitRoom: () => void;
@@ -1137,7 +1159,9 @@ function TitleSection({
   const sizeLabel = hallSize
     ? HALL_SIZE_TO_LABEL[hallSize] || hallSize
     : "소형";
-  const venueLabel = venue ? convertHallNameToKorean(venue) : "샤롯데씨어터";
+  const venueLabel = venue
+    ? convertHallNameToKorean(venue, hallType)
+    : "샤롯데씨어터";
 
   return (
     <div>

@@ -87,6 +87,8 @@ export interface RoomDetailResponse {
   hallId: number;
   hallSize: HallSize;
   hallName: string;
+  hallType?: HallType; // "PRESET" | "AI_GENERATED"
+  tsxUrl?: string | null; // AI 생성된 방의 경우 TSX URL
   thumbnailType: ThumbnailType;
   thumbnailValue: string | null;
   totalSeat?: number; // 총 좌석 수

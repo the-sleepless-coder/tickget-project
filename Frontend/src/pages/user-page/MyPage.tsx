@@ -1,18 +1,17 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import ProfileBanner from "./_components/ProfileBanner";
 import ProfileInfoModal from "./_components/ProfileInfoModal";
-// import TabNavigation from "../../shared/ui/common/TabNavigation";
+import TabNavigation from "../../shared/ui/common/TabNavigation";
 // import SearchBar from "../../shared/ui/common/SearchBar";
-// import MatchHistoryCard from "./_components/MatchHistoryCard";
-// import PersonalStats from "./_components/PersonalStats";
+import MatchHistoryCard from "./_components/MatchHistoryCard";
+import PersonalStats from "./_components/PersonalStats";
 import UserStats from "./_components/UserStats";
-import { mockMatchHistory, type UserRank } from "./mockData";
+import { mockMatchHistory, type UserRank, type MatchHistory } from "./mockData";
 import { useAuthStore } from "@features/auth/store";
-import UnderConstruction from "../../shared/ui/common/Under_construction";
 
 export default function MyPageIndex() {
   const [activePrimaryTab, setActivePrimaryTab] = useState("stats");
-  // const [activeSecondaryTab, setActiveSecondaryTab] = useState("all");
+  const [activeSecondaryTab, setActiveSecondaryTab] = useState("all");
   const [expandedCardIndex, setExpandedCardIndex] = useState<number | null>(
     null
   );
@@ -40,7 +39,57 @@ export default function MyPageIndex() {
     undefined
   );
 
-  // (사용 중지된 검색/필터 기능로직 제거)
+  // 경기 기록 필터링 및 페이지네이션
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+
+  // 필터링된 경기 기록
+  const filteredMatchHistory = useMemo(() => {
+    let filtered = mockMatchHistory.filter((match) => {
+      // 내가 참가한 경기만 필터링 (users 배열에 id: 0인 사용자가 있는 경우)
+      const hasMyParticipation = match.users?.some((user) => user.id === 0);
+      if (!hasMyParticipation) return false;
+
+      // Secondary 탭에 따른 필터링
+      if (activeSecondaryTab === "solo") {
+        const participantsMatch =
+          match.participants.match(/참가인원\s+(\d+)명/);
+        const humanCount = participantsMatch
+          ? parseInt(participantsMatch[1], 10)
+          : 0;
+        return humanCount === 1;
+      } else if (activeSecondaryTab === "match") {
+        const participantsMatch =
+          match.participants.match(/참가인원\s+(\d+)명/);
+        const humanCount = participantsMatch
+          ? parseInt(participantsMatch[1], 10)
+          : 0;
+        return humanCount > 1;
+      }
+      return true; // "all"인 경우
+    });
+
+    // 날짜순으로 정렬 (최신순)
+    return filtered.sort((a, b) => {
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      return dateB - dateA;
+    });
+  }, [activeSecondaryTab]);
+
+  // 페이지네이션 계산
+  const totalPages = Math.ceil(filteredMatchHistory.length / itemsPerPage);
+  const visibleItems = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return filteredMatchHistory.slice(startIndex, endIndex);
+  }, [filteredMatchHistory, currentPage, itemsPerPage]);
+
+  // 필터가 변경되면 첫 페이지로 및 확장된 카드 초기화
+  useEffect(() => {
+    setCurrentPage(1);
+    setExpandedCardIndex(null);
+  }, [activeSecondaryTab]);
 
   // 카드가 확장될 때 해당 카드로 스크롤
   useEffect(() => {
@@ -55,9 +104,10 @@ export default function MyPageIndex() {
     }
   }, [expandedCardIndex]);
 
-  // 필터가 변경되면 페이지 초기화
+  // 탭이 변경되면 페이지 초기화 및 확장된 카드 초기화
   useEffect(() => {
     setExpandedCardIndex(null);
+    setCurrentPage(1);
   }, [activePrimaryTab]);
 
   // store의 닉네임과 이메일이 변경되면 업데이트
@@ -148,8 +198,7 @@ export default function MyPageIndex() {
         <div className="-mt-40 rounded-t-3xl bg-white pb-8 pt-8">
           {/* Primary Tabs and Search */}
           <div className="mb-4 flex items-center justify-between gap-4 px-6">
-            {/* 탭 버튼 주석 처리 */}
-            {/* <TabNavigation
+            <TabNavigation
               tabs={[
                 { id: "stats", label: "개인 통계" },
                 { id: "match-history", label: "경기 기록" },
@@ -157,7 +206,7 @@ export default function MyPageIndex() {
               activeTab={activePrimaryTab}
               onTabChange={setActivePrimaryTab}
               variant="primary"
-            /> */}
+            />
 
             {/* 타 유저 검색 기능 주석 처리 */}
             {/* <div className="relative w-64">
@@ -195,7 +244,7 @@ export default function MyPageIndex() {
           </div>
 
           {/* Secondary Filter Tabs - 경기 기록일 때만 표시 */}
-          {/* {activePrimaryTab === "match-history" && (
+          {activePrimaryTab === "match-history" && (
             <div className="mb-6 px-6">
               <TabNavigation
                 tabs={[
@@ -208,7 +257,7 @@ export default function MyPageIndex() {
                 variant="secondary"
               />
             </div>
-          )} */}
+          )}
 
           {/* Content Area */}
           <div className="space-y-4 px-6 pb-6">
@@ -235,8 +284,7 @@ export default function MyPageIndex() {
               </>
             ) : activePrimaryTab === "match-history" ? (
               <>
-                {/* 경기 기록 탭 내용 주석 처리 */}
-                {/* {visibleItems.map((match: MatchHistory, index: number) => (
+                {visibleItems.map((match: MatchHistory, index: number) => (
                   <div
                     key={match.id}
                     ref={(el) => {
@@ -311,8 +359,7 @@ export default function MyPageIndex() {
                       다음
                     </button>
                   </div>
-                )} */}
-                <UnderConstruction />
+                )}
               </>
             ) : selectedUser ? (
               // 타 유저 통계 탭
@@ -339,8 +386,7 @@ export default function MyPageIndex() {
             ) : (
               // 개인 통계 탭
               <>
-                {/* <PersonalStats matchHistory={mockMatchHistory} /> */}
-                <UnderConstruction />
+                <PersonalStats matchHistory={mockMatchHistory} />
               </>
             )}
           </div>

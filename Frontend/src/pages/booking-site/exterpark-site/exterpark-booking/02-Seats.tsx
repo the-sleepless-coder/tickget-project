@@ -26,6 +26,7 @@ import MediumVenue, {
 import LargeVenue, {
   type LargeVenueRef,
 } from "../../../performance-halls/large-venue/InspireArena";
+import TsxPreview from "../../../../shared/components/TsxPreview";
 
 type GradeKey = "SR" | "R" | "S" | "A" | "STANDING";
 type SelectedSeat = {
@@ -124,6 +125,11 @@ export default function SelectSeatPage() {
   const hallIdFromStore = useRoomStore((s) => s.roomInfo.hallId);
   const hallId = hallIdParam ? Number(hallIdParam) : (hallIdFromStore ?? null);
 
+  // hallType과 tsxUrl 가져오기
+  const hallType = searchParams.get("hallType");
+  const tsxUrl = searchParams.get("tsxUrl");
+  const isAIGenerated = hallType === "AI_GENERATED";
+
   // hallId를 venue로 변환
   const getVenueFromHallId = (id: number | null): VenueKind => {
     if (id === 2) return "small"; // 샤롯데씨어터
@@ -132,15 +138,35 @@ export default function SelectSeatPage() {
     return "small"; // 기본값
   };
 
+  // AI 생성된 방의 경우 hallSize에 따라 venue 결정 (small 제외, medium 또는 large)
+  // hallSize는 URL 파라미터에서 가져오거나 기본값 사용
+  const hallSizeParam = searchParams.get("hallSize");
+
+  // 디버깅: AI 생성 방 정보 확인
+  if (isAIGenerated) {
+    console.log("[02-Seats] AI Generated Room:", {
+      hallType,
+      tsxUrl,
+      isAIGenerated,
+      hallSize: hallSizeParam,
+    });
+  }
+  const getAIVenueFromHallSize = (size: string | null): VenueKind => {
+    if (size === "LARGE" || size === "large") return "large";
+    return "medium"; // MEDIUM, medium 또는 기본값
+  };
+
   // 기존 venue 쿼리 파라미터도 지원 (하위 호환성)
   const venueParam = searchParams.get("venue");
-  const venueKey: VenueKind = hallId
-    ? getVenueFromHallId(hallId)
-    : venueParam === "medium" ||
-        venueParam === "large" ||
-        venueParam === "small"
-      ? venueParam
-      : "small";
+  const venueKey: VenueKind = isAIGenerated
+    ? getAIVenueFromHallSize(hallSizeParam)
+    : hallId
+      ? getVenueFromHallId(hallId)
+      : venueParam === "medium" ||
+          venueParam === "large" ||
+          venueParam === "small"
+        ? venueParam
+        : "small";
 
   // URL 파라미터에서 날짜와 시간 정보 가져오기
   const dateParam = searchParams.get("date") || "";
@@ -797,7 +823,7 @@ export default function SelectSeatPage() {
                   }}
                 />
               )}
-              {venueKey === "medium" && (
+              {venueKey === "medium" && !isAIGenerated && (
                 <MediumVenue
                   onBackToOverview={mediumVenueRef}
                   selectedIds={selected.map((s) => s.id)}
@@ -821,7 +847,7 @@ export default function SelectSeatPage() {
                   }}
                 />
               )}
-              {venueKey === "large" && (
+              {venueKey === "large" && !isAIGenerated && (
                 <LargeVenue
                   onBackToOverview={largeVenueRef}
                   selectedIds={selected.map((s) => s.id)}
@@ -845,6 +871,28 @@ export default function SelectSeatPage() {
                   }}
                 />
               )}
+              {isAIGenerated ? (
+                tsxUrl ? (
+                  <div
+                    className="w-full h-full flex items-center justify-center overflow-hidden"
+                    style={{
+                      transform: "scale(0.8)",
+                      transformOrigin: "center",
+                    }}
+                  >
+                    <TsxPreview src={tsxUrl} className="w-full h-full" />
+                  </div>
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-gray-500">
+                    <div className="text-center">
+                      <p className="text-lg font-semibold">
+                        AI 생성 배치도 로딩 중...
+                      </p>
+                      <p className="text-sm mt-2">TSX URL이 없습니다.</p>
+                    </div>
+                  </div>
+                )
+              ) : null}
             </div>
 
             {/* 우측: 사이드 정보 220 x 620 */}
