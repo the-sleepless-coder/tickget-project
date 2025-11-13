@@ -17,12 +17,14 @@ import java.time.LocalDateTime;
 public class SpecificStatsDTO {
     private LocalDateTime date;
     private Room.RoomType gameType;
-    private int totRank;
-    private float queueClickTime;
-    private float captchaClickTime;
-    private float seatClickTime;
-    private float totalDuration;
-
+    private Integer userRank;
+    private Integer totRank;
+    private Integer userTotCount;
+    private Integer playerTotCount;
+    private Float queueClickTime;
+    private Float captchaClickTime;
+    private Float seatClickTime;
+    private Float totalDuration;
 
     // Specific Stats Builder
     /**

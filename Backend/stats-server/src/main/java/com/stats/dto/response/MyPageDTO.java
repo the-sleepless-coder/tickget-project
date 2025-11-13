@@ -1,14 +1,27 @@
 package com.stats.dto.response;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
-/**
+import java.util.List;
+
+
 @Getter
 @AllArgsConstructor
 @NoArgsConstructor
+@Builder
 public class MyPageDTO {
+    private Long userId;
+    private ClickStatsDTO clickStats;
+    private List<SpecificStatsDTO> specificsList;
+
+    public static MyPageDTO dtobuilder(Long userId, ClickStatsDTO clickstats, List<SpecificStatsDTO> specificsList){
+
+        return MyPageDTO.builder()
+                .userId(userId)
+                .clickStats(clickstats)
+                .specificsList(specificsList)
+                .build();
+    }
+
 }
-*/
+

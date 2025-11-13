@@ -160,6 +160,7 @@ public class QueueService {
             match.setCreatedAt(LocalDateTime.now());
             match.setUpdatedAt(LocalDateTime.now());
             match.setStatus(Match.MatchStatus.WAITING);
+            match.setTimeLimitSeconds(MATCH_EXPIRE_TIME * 60);
 
             Match saved = matchRepository.save(match);
 

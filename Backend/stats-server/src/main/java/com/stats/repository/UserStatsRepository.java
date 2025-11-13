@@ -1,7 +1,10 @@
 package com.stats.repository;
 
+import com.stats.dto.response.MatchInfoStatsDTO;
 import com.stats.dto.response.SpecificStatsDTO;
+import com.stats.entity.Room;
 import com.stats.entity.UserStats;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -23,7 +26,10 @@ public interface UserStatsRepository extends JpaRepository<UserStats, Long> {
     select new com.stats.dto.response.SpecificStatsDTO(
         us.createdAt,
         r.roomType,
+        us.userRank,
         us.totalRank,
+        m.userCount,
+        r.botCount,
         us.dateSelectTime,
         us.seccodeSelectTime,
         us.seatSelectTime,
@@ -33,8 +39,39 @@ public interface UserStatsRepository extends JpaRepository<UserStats, Long> {
     join Match m on m.matchId = us.matchId
     join Room r  on r.id = m.roomId
     where us.userId = :userId
+    and r.roomType = :roomType
     order by us.createdAt desc
 """)
-    List<SpecificStatsDTO> findSpecificStatsWithRoom(@Param("userId") Long userId);
+    List<SpecificStatsDTO> findSpecificStatsWithRoom(@Param("userId") Long userId,
+                                                     @Param("roomType")Room.RoomType roomType,
+                                                     Pageable pageable
+                                                     );
+
+    @Query("""
+    select new com.stats.dto.response.MatchInfoStatsDTO(
+        m.matchName,
+        r.roomType,                 
+        m.userCount,                 
+        h.name,                                  
+        r.isAIGenerated,    
+        m.difficulty,        
+        r.totalSeat,                 
+        m.usedBotCount,              
+        m.startedAt,                 
+        us.isSuccess                 
+    )
+    from UserStats us
+    join Match m on m.matchId = us.matchId
+    join Room r  on r.id = m.roomId
+    join PresetHall h on h.id = r.hallId
+    where us.userId = :userId
+    and r.roomType = :roomType
+    order by m.startedAt desc
+""")
+    List<MatchInfoStatsDTO> findMatchInfoStatsByUserId(@Param("userId") Long userId,
+                                                       @Param("roomType")Room.RoomType roomType,
+                                                       Pageable pageable);
+
+
 
 }

@@ -13,6 +13,8 @@ import org.hibernate.annotations.ColumnDefault;
 @Table(name = "rooms")
 public class Room extends BaseTimeEntity{
 
+    static final String TSX_DEFAULT ="default";
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -54,27 +56,40 @@ public class Room extends BaseTimeEntity{
     @Column(name = "thumbnail_value", length = 500)
     private String thumbnailValue;
 
+    @Column(name = "tsx_url", length = 500)
+    private String tsxUrl;
+
     public enum RoomType {
         SOLO,
         MULTI
     }
 
-    public enum HallSize{
-        PRESET,
-        AI_GENERATED
+    public enum HallSize {
+        SMALL,
+        MEDIUM,
+        LARGE;
+
+        public static HallSize get(int totalSeat) {
+            if (totalSeat < 1000 )
+                return HallSize.SMALL;
+            else if (totalSeat < 10000 )
+                return HallSize.MEDIUM;
+            else
+                return HallSize.LARGE;
+        }
     }
 
-    public enum RoomStatus{
+    public enum RoomStatus {
         WAITING,
         PLAYING,
         CLOSED
     }
 
-    public enum ThumbnailType{
+    public enum ThumbnailType {
         PRESET
         ,UPLOADED
     }
 
 
-
 }
+
