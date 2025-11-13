@@ -12,9 +12,11 @@ import com.ticketing.seat.redis.MatchStatusRepository;
 import com.ticketing.repository.MatchRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -25,6 +27,7 @@ import java.util.List;
 public class SeatReservationService {
 
     private static final int MAX_SEATS_PER_REQUEST = 2;
+    private final StringRedisTemplate redisTemplate;
 
     private final MatchRepository matchRepository;
     private final MatchStatusRepository matchStatusRepository;
@@ -33,6 +36,7 @@ public class SeatReservationService {
     @Transactional
     public SeatReservationResponse reserveSeats(Long matchId, SeatReservationRequest req) {
         Long userId = req.getUserId();
+        boolean isBot = userId < 0;  // 봇 여부 판단
 
         // 1. 좌석 개수 검증
         int requested = (req.getSeats() == null) ? 0 : req.getSeats().size();
@@ -99,6 +103,11 @@ public class SeatReservationService {
             return buildFailureResponse(matchId, req);
         }
 
+        // ===== Hold 성공 시 실제 유저 등수 계산 =====
+        if (!isBot) {
+            calculateAndLogUserRank(matchId, userId);
+        }
+
         // 만석 감지: Redis는 이미 CLOSED로 설정되어 더 이상 선점 불가
         // 하지만 DB는 PLAYING 유지 → 이미 선점한 유저들이 Confirm 가능하도록
         if (result == 2L) {
@@ -108,6 +117,23 @@ public class SeatReservationService {
 
         return buildSuccessResponse(matchId, req);
     }
+
+    /**
+     * 실제 유저 등수 계산 (Hold 시점)
+     */
+    private void calculateAndLogUserRank(Long matchId, Long userId) {
+        final String rankKey = "match:" + matchId + ":human_rank_counter";
+
+        try {
+            Long rank = redisTemplate.opsForValue().increment(rankKey);
+            if (rank != null) {
+                log.info("Hold 시점 유저 등수 계산: userId={}, rank={}", userId, rank);
+            }
+        } catch (Exception e) {
+            log.error("Hold 시점 등수 계산 중 오류: matchId={}, userId={}", matchId, userId, e);
+        }
+    }
+
 
     /**
      * 각 좌석에 grade가 있는지 확인하고, 없으면 최상위 grade 사용 (하위 호환성)
