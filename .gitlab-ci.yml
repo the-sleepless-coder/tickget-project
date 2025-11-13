@@ -279,3 +279,31 @@ build:search-server:
     - *update_manifest
   tags:
     - docker
+
+build:user-server:
+  stage: build
+  image: docker:24-dind
+  services:
+    - docker:24-dind
+  only:
+    refs:
+      - dev
+      - master
+    changes:
+      - Backend/user-server/**/*
+  before_script:
+    - *docker_buildx_setup
+  script:
+    - export SERVICE_NAME="user-server"
+    - cd Backend/user-server
+    - |
+      if [ "$CI_COMMIT_BRANCH" = "dev" ]; then
+        IMAGE_TAG="dev-${CI_COMMIT_SHORT_SHA}"
+      else
+        IMAGE_TAG="prod-${CI_COMMIT_SHORT_SHA}"
+      fi
+    - echo "Building user-server with tag $IMAGE_TAG"
+    - docker buildx build --platform linux/arm64 -t kkaebu/user-server:$IMAGE_TAG --push .
+    - *update_manifest
+  tags:
+    - docker
