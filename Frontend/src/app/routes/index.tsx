@@ -75,6 +75,9 @@ const MyPageReservationsPage = lazy(
 );
 const LoginPage = lazy(() => import("../../pages/auth/login/SocialLogin"));
 const SignupPage = lazy(() => import("../../pages/auth/sign-up/SignUp"));
+const LoginSuccessPage = lazy(
+  () => import("../../pages/auth/login/LoginSuccess")
+);
 const NotFoundPage = lazy(() => import("../../pages/test/NotFound"));
 
 function withSuspense(el: ReactElement) {
@@ -91,6 +94,7 @@ export const router = createBrowserRouter([
       { path: "i-ticket", element: withSuspense(<ITicketPage />) },
       { path: "seatstest", element: withSuspense(<SeatsTestPage />) },
       { path: "game-result", element: withSuspense(<GameResultPage />) },
+      { path: "login/success", element: withSuspense(<LoginSuccessPage />) },
       {
         path: "rooms",
         element: withSuspense(<RoomsPage />),
