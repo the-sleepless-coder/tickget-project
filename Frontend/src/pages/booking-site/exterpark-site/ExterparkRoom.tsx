@@ -145,6 +145,9 @@ export default function ITicketPage() {
   const wsClient = useWebSocketStore((state) => state.client);
   const currentUserNickname = useAuthStore((state) => state.nickname);
   const currentUserId = useAuthStore((state) => state.userId);
+  const currentUserProfileImageUrl = useAuthStore(
+    (state) => state.profileImageUrl
+  );
   const matchIdFromStore = useMatchStore((s) => s.matchId);
   const [, setMyQueueStatus] = useState<QueueStatus | null>(null);
 
@@ -611,6 +614,7 @@ export default function ITicketPage() {
         userId: hostUserId,
         username: hostName,
         enteredAt: Date.now(),
+        profileImageUrl: currentUserProfileImageUrl || undefined,
       },
     ];
   });
@@ -678,11 +682,15 @@ export default function ITicketPage() {
 
   // 입장자 목록 구성: roomMembers를 Participant 형식으로 변환
   const participants: Participant[] = useMemo(() => {
-    return roomMembers.map((member) => ({
-      name: member.username,
-      isHost: hostUserId !== null && member.userId === hostUserId, // 방 생성 유저가 방장
-      avatarUrl: `https://i.pravatar.cc/48?img=${(member.userId % 70) + 1}`,
-    }));
+    return roomMembers.map((member) => {
+      const fallback = `https://i.pravatar.cc/48?img=${(member.userId % 70) + 1}`;
+      const avatar = member.profileImageUrl ?? fallback;
+      return {
+        name: member.username,
+        isHost: hostUserId !== null && member.userId === hostUserId, // 방 생성 유저가 방장
+        avatarUrl: avatar,
+      };
+    });
   }, [roomMembers, hostUserId]);
 
   // maxUserCount를 총 인원수로 사용 (상세 우선)

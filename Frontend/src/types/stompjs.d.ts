@@ -33,3 +33,4 @@ declare module "stompjs" {
 
   export function over(ws: WebSocket): Client;
 }
+

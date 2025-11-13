@@ -10,6 +10,7 @@ export type HallSize = "SMALL" | "MEDIUM" | "LARGE";
 export interface CreateRoomRequest {
   userId: number;
   username: string;
+  profileImageUrl?: string | null;
   matchName: string;
   roomType: RoomType;
   hallId: number;
@@ -47,12 +48,14 @@ export interface CreateRoomResponse {
 export interface JoinRoomRequest {
   userId: number;
   userName: string;
+  profileImageUrl?: string | null;
 }
 
 export interface RoomMember {
   userId: number;
   username: string;
   enteredAt: number; // timestamp
+  profileImageUrl?: string | null;
 }
 
 export interface JoinRoomResponse {

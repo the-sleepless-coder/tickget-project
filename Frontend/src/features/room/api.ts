@@ -36,6 +36,7 @@ export async function createRoom(
   thumbnailFile?: File
 ) {
   const headers = useAuthStore.getState().getAuthHeaders();
+  const profileImageUrl = useAuthStore.getState().profileImageUrl ?? null;
 
   const isUploaded: boolean = payload.thumbnailType === "UPLOADED";
   if (isUploaded) {
@@ -51,13 +52,18 @@ export async function createRoom(
     // 2) Create room with thumbnailValue set to uploaded URL
     const body: CreateRoomRequest = {
       ...payload,
+      profileImageUrl,
       thumbnailValue: absoluteUrl,
     };
     return roomApi.postJson<CreateRoomResponse>("/rooms", body, { headers });
   }
 
   // PRESET일 때 JSON 요청 (또는 파일이 없을 때)
-  return roomApi.postJson<CreateRoomResponse>("/rooms", payload, { headers });
+  return roomApi.postJson<CreateRoomResponse>(
+    "/rooms",
+    { ...payload, profileImageUrl },
+    { headers }
+  );
 }
 
 /**
@@ -69,9 +75,14 @@ export async function joinRoom(
   payload: JoinRoomRequest
 ): Promise<JoinRoomResponse> {
   const headers = useAuthStore.getState().getAuthHeaders();
-  return roomApi.postJson<JoinRoomResponse>(`/rooms/${roomId}/join`, payload, {
-    headers,
-  });
+  const profileImageUrl = useAuthStore.getState().profileImageUrl ?? null;
+  return roomApi.postJson<JoinRoomResponse>(
+    `/rooms/${roomId}/join`,
+    { ...payload, profileImageUrl },
+    {
+      headers,
+    }
+  );
 }
 
 /**

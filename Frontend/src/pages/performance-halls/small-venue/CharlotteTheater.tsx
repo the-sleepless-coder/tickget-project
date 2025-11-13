@@ -9,10 +9,12 @@ export default function SmallVenue({
   selectedIds = [],
   onToggleSeat,
   takenSeats = new Set<string>(),
+  isPreset = false,
 }: {
   selectedIds?: string[];
   onToggleSeat?: (seat: SmallVenueSeat) => void;
   takenSeats?: Set<string>; // section-row-col 형식의 TAKEN 또는 MY_RESERVED 좌석 ID Set
+  isPreset?: boolean; // 프리셋 모드일 때 section을 모두 1로 설정
 }) {
   // 좌석 정사각형 크기와 간격은 Tailwind + 인라인 스타일로 조절
   const seatStyle: React.CSSProperties = {
@@ -159,7 +161,14 @@ export default function SmallVenue({
                     : seatColor === COLORS.A
                       ? "A"
                       : "R";
-          const displaySection = seatColor === COLORS.OP ? "0" : sectionPart;
+          // 프리셋 모드일 때는 모든 section을 1로 설정
+          const displaySection = isPreset
+            ? seatColor === COLORS.OP
+              ? "0"
+              : "1"
+            : seatColor === COLORS.OP
+              ? "0"
+              : sectionPart;
           const displayRowInSection =
             floor === 2 ? (rowOffset >= 7 ? 7 + rowNo : rowNo) : rowNo;
           const seatId = `small-${floor}-${displaySection}-${row}-${col}`;
