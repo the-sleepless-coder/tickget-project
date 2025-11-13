@@ -8,6 +8,7 @@ import PersonalStats from "./_components/PersonalStats";
 import UserStats from "./_components/UserStats";
 import { mockMatchHistory, type UserRank, type MatchHistory } from "./mockData";
 import { useAuthStore } from "@features/auth/store";
+import { compressImage } from "@shared/utils/imageCompression";
 
 export default function MyPageIndex() {
   const [activePrimaryTab, setActivePrimaryTab] = useState("stats");
@@ -20,15 +21,17 @@ export default function MyPageIndex() {
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isProfileInfoModalOpen, setIsProfileInfoModalOpen] = useState(false);
 
-  // store에서 닉네임과 이메일 가져오기
+  // store에서 닉네임, 이메일, 프로필 이미지 가져오기
   const storeNickname = useAuthStore((state) => state.nickname);
   const storeEmail = useAuthStore((state) => state.email);
+  const storeProfileImageUrl = useAuthStore((state) => state.profileImageUrl);
+  const accessToken = useAuthStore((state) => state.accessToken);
 
   const [nickname, setNickname] = useState(storeNickname || "닉네임");
-  const [birthDate] = useState("90.01.01");
+  const [birthDate, setBirthDate] = useState("");
   const [email, setEmail] = useState(storeEmail || "tickget.gmail.com");
   const [profileImage, setProfileImage] = useState<string | undefined>(
-    undefined
+    storeProfileImageUrl || undefined
   );
   const [gender, setGender] = useState<string>("");
   const [name, setName] = useState<string>("");
@@ -37,6 +40,9 @@ export default function MyPageIndex() {
   const [tempNickname, setTempNickname] = useState("닉네임");
   const [tempProfileImage, setTempProfileImage] = useState<string | undefined>(
     undefined
+  );
+  const [tempProfileImageFile, setTempProfileImageFile] = useState<File | null>(
+    null
   );
 
   // 경기 기록 필터링 및 페이지네이션
@@ -110,7 +116,7 @@ export default function MyPageIndex() {
     setCurrentPage(1);
   }, [activePrimaryTab]);
 
-  // store의 닉네임과 이메일이 변경되면 업데이트
+  // store의 닉네임, 이메일, 프로필 이미지가 변경되면 업데이트
   useEffect(() => {
     if (storeNickname) {
       setNickname(storeNickname);
@@ -118,7 +124,86 @@ export default function MyPageIndex() {
     if (storeEmail) {
       setEmail(storeEmail);
     }
-  }, [storeNickname, storeEmail]);
+    if (storeProfileImageUrl) {
+      setProfileImage(storeProfileImageUrl);
+    }
+  }, [storeNickname, storeEmail, storeProfileImageUrl]);
+
+  // 프로필 정보 가져오기 (생년월일 포함)
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!accessToken) return;
+
+      try {
+        // Vite 프록시를 통해 요청 (상대 경로 사용)
+        const apiUrl = "/api/v1/dev/user/myprofile";
+        const response = await fetch(apiUrl, {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+
+          // 생년월일 설정 (YYYY-MM-DD 형식이면 YY.MM.DD로 변환)
+          if (data.birthDate) {
+            const dateStr = data.birthDate;
+            // YYYY-MM-DD 형식인 경우
+            if (dateStr.includes("-")) {
+              const [year, month, day] = dateStr.split("-");
+              const shortYear = year.slice(-2);
+              setBirthDate(`${shortYear}.${month}.${day}`);
+            } else {
+              setBirthDate(dateStr);
+            }
+          }
+
+          // 프로필 이미지 업데이트 (API에서 받은 값이 있으면 사용)
+          if (data.profileImageUrl) {
+            const { setAuth } = useAuthStore.getState();
+            const currentAuth = useAuthStore.getState();
+            setAuth({
+              accessToken: currentAuth.accessToken || "",
+              refreshToken: currentAuth.refreshToken,
+              userId: currentAuth.userId || 0,
+              email: currentAuth.email || "",
+              nickname: currentAuth.nickname || "",
+              name: currentAuth.name || "",
+              profileImageUrl: data.profileImageUrl,
+              message: "프로필 정보 업데이트",
+            });
+            setProfileImage(data.profileImageUrl);
+          }
+
+          // 내 정보 관리용 데이터 설정
+          // 성별 변환: MALE -> 남성, FEMALE -> 여성, UNKNOWN -> 선택하지 않음
+          if (data.gender) {
+            const genderMap: Record<string, string> = {
+              MALE: "남성",
+              FEMALE: "여성",
+              UNKNOWN: "선택하지 않음",
+            };
+            setGender(genderMap[data.gender] || "");
+          }
+          if (data.name) {
+            setName(data.name);
+          }
+          if (data.address) {
+            setAddress(data.address);
+          }
+          if (data.phone) {
+            setPhoneNumber(data.phone);
+          }
+        }
+      } catch (error) {
+        console.error("프로필 정보 가져오기 실패:", error);
+      }
+    };
+
+    fetchProfile();
+  }, [accessToken, storeProfileImageUrl]);
 
   return (
     <div className="min-h-screen bg-neutral-50">
@@ -152,25 +237,146 @@ export default function MyPageIndex() {
         onEdit={() => {
           setTempNickname(nickname);
           setTempProfileImage(profileImage);
+          setTempProfileImageFile(null);
           setIsEditingProfile(true);
         }}
         onInfoManage={() => setIsProfileInfoModalOpen(true)}
         onNicknameChange={(value) => setTempNickname(value)}
-        onProfileImageChange={(file) => {
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            setTempProfileImage(reader.result as string);
-          };
-          reader.readAsDataURL(file);
+        onProfileImageChange={async (file) => {
+          try {
+            // 파일 크기 체크 및 압축 (10MB 이하로)
+            const compressedFile = await compressImage(file, {
+              maxWidth: 1920,
+              maxHeight: 1920,
+              maxSizeMB: 10,
+              quality: 0.9,
+            });
+
+            // 압축된 파일 객체 저장 (POST 요청용)
+            setTempProfileImageFile(compressedFile);
+            // 미리보기용 base64 변환
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              setTempProfileImage(reader.result as string);
+            };
+            reader.readAsDataURL(compressedFile);
+          } catch (error) {
+            console.error("이미지 압축 오류:", error);
+            alert("이미지 처리 중 오류가 발생했습니다. 다시 시도해주세요.");
+          }
         }}
-        onSave={() => {
-          setNickname(tempNickname);
-          setProfileImage(tempProfileImage);
-          setIsEditingProfile(false);
+        onSave={async () => {
+          if (!accessToken) {
+            alert("인증 정보가 없습니다. 다시 로그인해주세요.");
+            return;
+          }
+
+          try {
+            // 기존 auth store 정보 가져오기
+            const currentAuth = useAuthStore.getState();
+            const { setAuth } = useAuthStore.getState();
+
+            // 프로필 이미지 업로드 (파일이 변경된 경우)
+            let newProfileImageUrl = currentAuth.profileImageUrl || null;
+            if (tempProfileImageFile) {
+              const formData = new FormData();
+              formData.append("file", tempProfileImageFile);
+
+              const imageUploadUrl = "/api/v1/dev/user/profile-image";
+              const imageResponse = await fetch(imageUploadUrl, {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${accessToken}`,
+                  // FormData를 사용할 때는 Content-Type을 설정하지 않음 (브라우저가 자동 설정)
+                },
+                body: formData,
+              });
+
+              if (!imageResponse.ok) {
+                const errorText = await imageResponse.text().catch(() => "");
+                throw new Error(
+                  `프로필 이미지 업로드 실패: ${imageResponse.status} ${errorText}`
+                );
+              }
+
+              const imageData = await imageResponse.json().catch(() => ({}));
+              newProfileImageUrl = imageData.profileImageUrl || null;
+            }
+
+            // 닉네임 수정 (닉네임이 변경된 경우)
+            let updatedNickname = currentAuth.nickname || "";
+            if (tempNickname !== nickname) {
+              const apiUrl = "/api/v1/dev/user/myprofile";
+              const response = await fetch(apiUrl, {
+                method: "PATCH",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${accessToken}`,
+                },
+                body: JSON.stringify({
+                  nickname: tempNickname,
+                }),
+              });
+
+              if (!response.ok) {
+                const errorText = await response.text().catch(() => "");
+                throw new Error(
+                  `닉네임 수정 실패: ${response.status} ${errorText}`
+                );
+              }
+
+              const responseData = await response.json().catch(() => ({}));
+              updatedNickname =
+                responseData.nickname ||
+                tempNickname ||
+                currentAuth.nickname ||
+                "";
+            }
+
+            // auth store 업데이트 (변경된 내용 반영)
+            if (
+              tempNickname !== nickname ||
+              newProfileImageUrl !== currentAuth.profileImageUrl
+            ) {
+              setAuth({
+                accessToken: currentAuth.accessToken || "",
+                refreshToken: currentAuth.refreshToken,
+                userId: currentAuth.userId || 0,
+                email: currentAuth.email || "",
+                nickname: updatedNickname,
+                name: currentAuth.name || "",
+                profileImageUrl: newProfileImageUrl,
+                message:
+                  tempNickname !== nickname &&
+                  newProfileImageUrl !== currentAuth.profileImageUrl
+                    ? "프로필 수정 완료"
+                    : tempNickname !== nickname
+                      ? "닉네임 수정 완료"
+                      : "프로필 이미지 업로드 완료",
+              });
+            }
+
+            // 로컬 state 업데이트
+            setNickname(tempNickname);
+            setProfileImage(
+              tempProfileImage || newProfileImageUrl || undefined
+            );
+            setTempProfileImageFile(null);
+            setIsEditingProfile(false);
+          } catch (error) {
+            console.error("프로필 수정 오류:", error);
+            const errorMessage =
+              error instanceof Error
+                ? error.message
+                : "프로필 수정 중 오류가 발생했습니다.";
+            alert(errorMessage);
+          }
         }}
         onCancel={() => {
+          // 취소 시 아무것도 하지 않음 (기존 값으로 되돌림만)
           setTempNickname(nickname);
           setTempProfileImage(profileImage);
+          setTempProfileImageFile(null);
           setIsEditingProfile(false);
         }}
       />
@@ -185,11 +391,76 @@ export default function MyPageIndex() {
           address,
           phoneNumber,
         }}
-        onSave={(data) => {
-          setGender(data.gender || "");
-          setName(data.name || "");
-          setAddress(data.address || "");
-          setPhoneNumber(data.phoneNumber || "");
+        onSave={async (data) => {
+          if (!accessToken) {
+            alert("인증 정보가 없습니다. 다시 로그인해주세요.");
+            return;
+          }
+
+          try {
+            // 성별 변환: 남성 -> MALE, 여성 -> FEMALE, 선택하지 않음 -> UNKNOWN
+            const genderMap: Record<string, string> = {
+              남성: "MALE",
+              여성: "FEMALE",
+              "선택하지 않음": "UNKNOWN",
+            };
+            const genderValue = data.gender
+              ? genderMap[data.gender] || "UNKNOWN"
+              : "UNKNOWN";
+
+            // PATCH 요청 보내기 (name, gender, phone, address만 전송)
+            const apiUrl = "/api/v1/dev/user/myprofile";
+            const response = await fetch(apiUrl, {
+              method: "PATCH",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${accessToken}`,
+              },
+              body: JSON.stringify({
+                name: data.name || "",
+                gender: genderValue,
+                phone: data.phoneNumber || "",
+                address: data.address || "",
+              }),
+            });
+
+            if (!response.ok) {
+              const errorText = await response.text().catch(() => "");
+              throw new Error(
+                `정보 수정 실패: ${response.status} ${errorText}`
+              );
+            }
+
+            // 응답 데이터 받기
+            const responseData = await response.json().catch(() => ({}));
+
+            // auth store 업데이트
+            const { setAuth } = useAuthStore.getState();
+            const currentAuth = useAuthStore.getState();
+            setAuth({
+              accessToken: currentAuth.accessToken || "",
+              refreshToken: currentAuth.refreshToken,
+              userId: currentAuth.userId || 0,
+              email: currentAuth.email || "",
+              nickname: currentAuth.nickname || "",
+              name: responseData.name || data.name || currentAuth.name || "",
+              profileImageUrl: currentAuth.profileImageUrl || null,
+              message: "내 정보 수정 완료",
+            });
+
+            // 로컬 state 업데이트
+            setGender(data.gender || "");
+            setName(data.name || "");
+            setAddress(data.address || "");
+            setPhoneNumber(data.phoneNumber || "");
+          } catch (error) {
+            console.error("정보 수정 오류:", error);
+            const errorMessage =
+              error instanceof Error
+                ? error.message
+                : "정보 수정 중 오류가 발생했습니다.";
+            alert(errorMessage);
+          }
         }}
       />
 

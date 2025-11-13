@@ -103,7 +103,8 @@ export default function SignupPage() {
       if (!accessToken) return;
 
       try {
-        const apiUrl = "https://tickget.kr/api/v1/dev/user/myprofile";
+        // Vite 프록시를 통해 요청 (상대 경로 사용)
+        const apiUrl = "/api/v1/dev/user/myprofile";
         const response = await fetch(apiUrl, {
           method: "GET",
           headers: {
@@ -203,8 +204,8 @@ export default function SignupPage() {
       // OAuth에서 받은 nickname 가져오기
       const oauthNickname = nickname || useAuthStore.getState().nickname || "";
 
-      // API 요청 URL
-      const apiUrl = "https://tickget.kr/api/v1/dev/user/myprofile";
+      // API 요청 URL (Vite 프록시를 통해 요청)
+      const apiUrl = "/api/v1/dev/user/myprofile";
 
       // PATCH 요청 보내기
       const response = await fetch(apiUrl, {

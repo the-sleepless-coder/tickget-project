@@ -31,6 +31,11 @@ export default function ProfileBanner({
   onSave,
   onCancel,
 }: ProfileBannerProps) {
+  // 수정 사항이 있는지 확인
+  const hasChanges =
+    (tempNickname !== undefined && tempNickname !== nickname) ||
+    (tempProfileImage !== undefined && tempProfileImage !== profileImage);
+
   return (
     <div
       className="relative z-0 h-96 w-full overflow-hidden"
@@ -104,7 +109,7 @@ export default function ProfileBanner({
             {isEditing ? (
               <input
                 type="text"
-                value={tempNickname || nickname}
+                value={tempNickname !== undefined ? tempNickname : nickname}
                 onChange={(e) => onNicknameChange?.(e.target.value)}
                 className="rounded-lg bg-white/90 px-4 py-2 text-2xl font-bold text-neutral-900"
               />
@@ -134,7 +139,12 @@ export default function ProfileBanner({
             <div className="mt-2 flex gap-3">
               <button
                 onClick={onSave}
-                className="rounded-lg bg-purple-600 px-4 py-2 text-sm text-white transition-colors hover:bg-purple-700"
+                disabled={!hasChanges}
+                className={`rounded-lg px-4 py-2 text-sm transition-colors ${
+                  hasChanges
+                    ? "bg-purple-600 text-white hover:bg-purple-700 cursor-pointer"
+                    : "bg-transparent text-white/50 cursor-not-allowed"
+                }`}
               >
                 저장
               </button>

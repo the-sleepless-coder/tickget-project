@@ -33,6 +33,13 @@ export default function ProfileInfoModal({
     }
   }, [open, initialData]);
 
+  // 수정 사항이 있는지 확인
+  const hasChanges =
+    formData.name !== initialData.name ||
+    formData.gender !== initialData.gender ||
+    formData.address !== initialData.address ||
+    formData.phoneNumber !== initialData.phoneNumber;
+
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
@@ -63,7 +70,12 @@ export default function ProfileInfoModal({
           <button
             type="submit"
             form="profile-info-form"
-            className="px-4 py-1.5 rounded-md bg-purple-600 text-white hover:bg-purple-700"
+            disabled={!hasChanges}
+            className={`px-4 py-1.5 rounded-md transition-colors ${
+              hasChanges
+                ? "bg-purple-600 text-white hover:bg-purple-700 cursor-pointer"
+                : "bg-transparent text-gray-400 cursor-not-allowed"
+            }`}
           >
             저장
           </button>
@@ -110,8 +122,8 @@ export default function ProfileInfoModal({
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
             >
               <option value="">선택하지 않음</option>
-              <option value="male">남성</option>
-              <option value="female">여성</option>
+              <option value="남성">남성</option>
+              <option value="여성">여성</option>
             </select>
           </div>
         </div>
