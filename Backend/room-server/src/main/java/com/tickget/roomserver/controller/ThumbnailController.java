@@ -15,7 +15,7 @@ import org.springframework.web.multipart.MultipartFile;
 @Slf4j
 @RestController
 @CrossOrigin(origins = "*")
-@RequestMapping("thumbnail")
+@RequestMapping("thumbnails")
 @RequiredArgsConstructor
 public class ThumbnailController {
 
