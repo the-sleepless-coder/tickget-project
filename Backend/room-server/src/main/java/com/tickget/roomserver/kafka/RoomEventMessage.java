@@ -1,14 +1,14 @@
-package com.tickget.roomserver.kafaka;
+package com.tickget.roomserver.kafka;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.tickget.roomserver.domain.enums.EventType;
 import com.tickget.roomserver.dto.cache.QueueStatus;
-import com.tickget.roomserver.kafaka.payload.HostChangedPayload;
-import com.tickget.roomserver.kafaka.payload.QueueStatusMapPayload;
-import com.tickget.roomserver.kafaka.payload.RoomSettingUpdatedPayload;
-import com.tickget.roomserver.kafaka.payload.UserDequeuedPayload;
-import com.tickget.roomserver.kafaka.payload.UserJoinedPayload;
-import com.tickget.roomserver.kafaka.payload.UserLeftPayload;
+import com.tickget.roomserver.kafka.payload.HostChangedPayload;
+import com.tickget.roomserver.kafka.payload.QueueStatusMapPayload;
+import com.tickget.roomserver.kafka.payload.RoomSettingUpdatedPayload;
+import com.tickget.roomserver.kafka.payload.UserDequeuedPayload;
+import com.tickget.roomserver.kafka.payload.UserJoinedPayload;
+import com.tickget.roomserver.kafka.payload.UserLeftPayload;
 import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Builder;

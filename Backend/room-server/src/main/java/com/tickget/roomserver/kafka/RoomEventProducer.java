@@ -1,4 +1,4 @@
-package com.tickget.roomserver.kafaka;
+package com.tickget.roomserver.kafka;
 
 import com.tickget.roomserver.dto.request.MatchSettingUpdateRequest;
 import com.tickget.roomserver.event.HostChangedEvent;

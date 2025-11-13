@@ -36,7 +36,7 @@ import com.tickget.roomserver.exception.RoomClosedException;
 import com.tickget.roomserver.exception.RoomFullException;
 import com.tickget.roomserver.exception.RoomNotFoundException;
 import com.tickget.roomserver.exception.RoomPlayingException;
-import com.tickget.roomserver.kafaka.RoomEventProducer;
+import com.tickget.roomserver.kafka.RoomEventProducer;
 import com.tickget.roomserver.session.WebSocketSessionManager;
 
 import java.util.*;

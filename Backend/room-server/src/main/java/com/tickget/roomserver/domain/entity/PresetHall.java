@@ -20,7 +20,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@Table(name = "prset_halls")
+@Table(name = "preset_halls")
 public class PresetHall extends BaseTimeEntity{
 
     @Id

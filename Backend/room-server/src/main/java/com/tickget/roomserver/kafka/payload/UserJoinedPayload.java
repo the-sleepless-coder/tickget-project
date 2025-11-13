@@ -1,4 +1,4 @@
-package com.tickget.roomserver.kafaka.payload;
+package com.tickget.roomserver.kafka.payload;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -9,7 +9,8 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class HostChangedPayload {
-    private String previousHostId;
-    private String newHostId;
+public class UserJoinedPayload {
+    private Long userId;
+    private String userName;
+    private Integer totalUsersInRoom;
 }

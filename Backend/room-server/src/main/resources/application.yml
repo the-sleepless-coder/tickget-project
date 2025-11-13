@@ -1,6 +1,10 @@
 spring:
   application:
     name: room-server
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 5MB
   jpa:
     hibernate:
       ddl-auto: ${SPRING_JPA_DDL_AUTO:update}

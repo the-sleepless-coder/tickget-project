@@ -4,7 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.tickget.roomserver.domain.repository.RoomCacheRepository;
 import com.tickget.roomserver.dto.cache.QueueStatus;
 import com.tickget.roomserver.dto.cache.RoomMember;
-import com.tickget.roomserver.kafaka.RoomEventMessage;
+import com.tickget.roomserver.kafka.RoomEventMessage;
 import com.tickget.roomserver.session.WebSocketSessionManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

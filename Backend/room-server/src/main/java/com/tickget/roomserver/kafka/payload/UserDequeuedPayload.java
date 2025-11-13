@@ -1,5 +1,4 @@
-package com.tickget.roomserver.kafaka.payload;
-
+package com.tickget.roomserver.kafka.payload;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -10,7 +9,8 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class UserLeftPayload {
+public class UserDequeuedPayload {
     private Long userId;
-    private Integer totalUsersInRoom;
+    private Long matchId;
+    private Long timestamp;
 }
