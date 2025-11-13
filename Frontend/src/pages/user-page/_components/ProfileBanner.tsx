@@ -3,15 +3,18 @@ import SettingsIcon from "@mui/icons-material/Settings";
 interface ProfileBannerProps {
   nickname: string;
   birthDate: string;
+  birthDateRaw?: string;
   email: string;
   profileImage?: string;
   isEditing?: boolean;
   tempNickname?: string;
   tempProfileImage?: string;
+  tempBirthDate?: string;
   onEdit?: () => void;
   onInfoManage?: () => void;
   onNicknameChange?: (value: string) => void;
   onProfileImageChange?: (file: File) => void;
+  onBirthDateChange?: (value: string) => void;
   onSave?: () => void;
   onCancel?: () => void;
 }
@@ -19,22 +22,32 @@ interface ProfileBannerProps {
 export default function ProfileBanner({
   nickname,
   birthDate,
+  birthDateRaw,
   email,
   profileImage,
   isEditing,
   tempNickname,
   tempProfileImage,
+  tempBirthDate,
   onEdit,
   onInfoManage,
   onNicknameChange,
   onProfileImageChange,
+  onBirthDateChange,
   onSave,
   onCancel,
 }: ProfileBannerProps) {
+  const originalBirthDate = birthDateRaw ?? "";
+  const hasNicknameChange =
+    tempNickname !== undefined && tempNickname !== nickname;
+  const hasProfileImageChange =
+    tempProfileImage !== undefined && tempProfileImage !== profileImage;
+  const hasBirthDateChange =
+    tempBirthDate !== undefined && tempBirthDate !== originalBirthDate;
+
   // 수정 사항이 있는지 확인
   const hasChanges =
-    (tempNickname !== undefined && tempNickname !== nickname) ||
-    (tempProfileImage !== undefined && tempProfileImage !== profileImage);
+    hasNicknameChange || hasProfileImageChange || hasBirthDateChange;
 
   return (
     <div
@@ -135,8 +148,28 @@ export default function ProfileBanner({
               </button>
             )}
           </div>
+          <div className="flex gap-6 text-sm">
+            {isEditing ? (
+              <label className="flex items-center gap-2 text-white">
+                <span>생년월일:</span>
+                <input
+                  type="date"
+                  value={
+                    tempBirthDate !== undefined
+                      ? tempBirthDate
+                      : originalBirthDate
+                  }
+                  onChange={(e) => onBirthDateChange?.(e.target.value)}
+                  className="rounded-lg bg-white/90 px-3 py-1 text-sm text-neutral-700"
+                />
+              </label>
+            ) : (
+              <span>생년월일: {birthDate || "-"}</span>
+            )}
+            <span>이메일: {email}</span>
+          </div>
           {isEditing && (
-            <div className="mt-2 flex gap-3">
+            <div className="mt-3 flex gap-3">
               <button
                 onClick={onSave}
                 disabled={!hasChanges}
@@ -156,10 +189,6 @@ export default function ProfileBanner({
               </button>
             </div>
           )}
-          <div className="flex gap-6 text-sm">
-            <span>생년월일: {birthDate}</span>
-            <span>이메일: {email}</span>
-          </div>
         </div>
       </div>
     </div>

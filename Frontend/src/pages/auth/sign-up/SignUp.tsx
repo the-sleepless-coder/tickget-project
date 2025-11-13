@@ -240,6 +240,13 @@ export default function SignupPage() {
       const apiUrl = "/api/v1/dev/user/myprofile";
 
       // PATCH 요청 보내기
+      const genderValue =
+        formData.gender === "male"
+          ? "MALE"
+          : formData.gender === "female"
+            ? "FEMALE"
+            : "UNKNOWN";
+
       const response = await fetch(apiUrl, {
         method: "PATCH",
         headers: {
@@ -249,7 +256,8 @@ export default function SignupPage() {
         body: JSON.stringify({
           nickname: oauthNickname,
           name: "홍길동",
-          gender: "선택 안함",
+          gender: genderValue,
+          birthDate: formData.birthDate || "2000-01-02",
           address: "서울시 강남구 테헤란로 123",
           phone: "010-1234-5678",
         }),

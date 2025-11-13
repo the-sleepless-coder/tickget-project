@@ -29,6 +29,7 @@ export default function MyPageIndex() {
 
   const [nickname, setNickname] = useState(storeNickname || "닉네임");
   const [birthDate, setBirthDate] = useState("");
+  const [birthDateRaw, setBirthDateRaw] = useState<string>("");
   const [email, setEmail] = useState(storeEmail || "tickget.gmail.com");
   const [profileImage, setProfileImage] = useState<string | undefined>(
     storeProfileImageUrl || undefined
@@ -44,6 +45,18 @@ export default function MyPageIndex() {
   const [tempProfileImageFile, setTempProfileImageFile] = useState<File | null>(
     null
   );
+  const [tempBirthDate, setTempBirthDate] = useState<string | undefined>(
+    undefined
+  );
+
+  const formatBirthDate = (value?: string | null): string => {
+    if (!value) return "";
+    if (value.includes("-")) {
+      const [year, month, day] = value.split("-");
+      return `${year.slice(-2)}.${month}.${day}`;
+    }
+    return value;
+  };
 
   // 경기 기록 필터링 및 페이지네이션
   const [currentPage, setCurrentPage] = useState(1);
@@ -147,17 +160,13 @@ export default function MyPageIndex() {
         if (response.ok) {
           const data = await response.json();
 
-          // 생년월일 설정 (YYYY-MM-DD 형식이면 YY.MM.DD로 변환)
+          // 생년월일 설정
           if (data.birthDate) {
-            const dateStr = data.birthDate;
-            // YYYY-MM-DD 형식인 경우
-            if (dateStr.includes("-")) {
-              const [year, month, day] = dateStr.split("-");
-              const shortYear = year.slice(-2);
-              setBirthDate(`${shortYear}.${month}.${day}`);
-            } else {
-              setBirthDate(dateStr);
-            }
+            setBirthDateRaw(data.birthDate);
+            setBirthDate(formatBirthDate(data.birthDate));
+          } else {
+            setBirthDateRaw("");
+            setBirthDate("");
           }
 
           // 프로필 이미지 업데이트 (API에서 받은 값이 있으면 사용)
@@ -229,19 +238,23 @@ export default function MyPageIndex() {
       <ProfileBanner
         nickname={nickname}
         birthDate={birthDate}
+        birthDateRaw={birthDateRaw}
         email={email}
         profileImage={profileImage}
         isEditing={isEditingProfile}
         tempNickname={tempNickname}
         tempProfileImage={tempProfileImage}
+        tempBirthDate={tempBirthDate}
         onEdit={() => {
           setTempNickname(nickname);
           setTempProfileImage(profileImage);
           setTempProfileImageFile(null);
+          setTempBirthDate(birthDateRaw || "");
           setIsEditingProfile(true);
         }}
         onInfoManage={() => setIsProfileInfoModalOpen(true)}
         onNicknameChange={(value) => setTempNickname(value)}
+        onBirthDateChange={(value) => setTempBirthDate(value)}
         onProfileImageChange={async (file) => {
           try {
             // 파일 크기 체크 및 압축 (10MB 이하로)
@@ -303,9 +316,19 @@ export default function MyPageIndex() {
               newProfileImageUrl = imageData.profileImageUrl || null;
             }
 
-            // 닉네임 수정 (닉네임이 변경된 경우)
-            let updatedNickname = currentAuth.nickname || "";
+            // 닉네임/생년월일 수정
+            const profileUpdatePayload: Record<string, unknown> = {};
             if (tempNickname !== nickname) {
+              profileUpdatePayload.nickname = tempNickname;
+            }
+            if (tempBirthDate !== undefined && tempBirthDate !== birthDateRaw) {
+              profileUpdatePayload.birthDate = tempBirthDate || null;
+            }
+
+            let updatedNickname = currentAuth.nickname || "";
+            let updatedBirthDateRaw = birthDateRaw;
+
+            if (Object.keys(profileUpdatePayload).length > 0) {
               const apiUrl = "/api/v1/dev/user/myprofile";
               const response = await fetch(apiUrl, {
                 method: "PATCH",
@@ -313,31 +336,70 @@ export default function MyPageIndex() {
                   "Content-Type": "application/json",
                   Authorization: `Bearer ${accessToken}`,
                 },
-                body: JSON.stringify({
-                  nickname: tempNickname,
-                }),
+                body: JSON.stringify(profileUpdatePayload),
               });
 
               if (!response.ok) {
                 const errorText = await response.text().catch(() => "");
                 throw new Error(
-                  `닉네임 수정 실패: ${response.status} ${errorText}`
+                  `프로필 수정 실패: ${response.status} ${errorText}`
                 );
               }
 
               const responseData = await response.json().catch(() => ({}));
-              updatedNickname =
-                responseData.nickname ||
-                tempNickname ||
-                currentAuth.nickname ||
-                "";
+              if (profileUpdatePayload.nickname !== undefined) {
+                updatedNickname =
+                  responseData.nickname ||
+                  tempNickname ||
+                  currentAuth.nickname ||
+                  "";
+              } else {
+                updatedNickname = nickname;
+              }
+              if (profileUpdatePayload.birthDate !== undefined) {
+                updatedBirthDateRaw =
+                  responseData.birthDate ||
+                  (typeof profileUpdatePayload.birthDate === "string"
+                    ? profileUpdatePayload.birthDate
+                    : "") ||
+                  "";
+              }
+            } else {
+              updatedNickname = nickname;
             }
 
-            // auth store 업데이트 (변경된 내용 반영)
+            const hasNicknameChange = tempNickname !== nickname;
+            const hasProfileImageChange =
+              newProfileImageUrl !== currentAuth.profileImageUrl;
+            const hasBirthDateChange =
+              tempBirthDate !== undefined && tempBirthDate !== birthDateRaw;
+
             if (
-              tempNickname !== nickname ||
-              newProfileImageUrl !== currentAuth.profileImageUrl
+              hasNicknameChange ||
+              hasProfileImageChange ||
+              hasBirthDateChange
             ) {
+              let message = "프로필 수정 완료";
+              if (
+                hasNicknameChange &&
+                !hasProfileImageChange &&
+                !hasBirthDateChange
+              ) {
+                message = "닉네임 수정 완료";
+              } else if (
+                !hasNicknameChange &&
+                hasProfileImageChange &&
+                !hasBirthDateChange
+              ) {
+                message = "프로필 이미지 업로드 완료";
+              } else if (
+                !hasNicknameChange &&
+                !hasProfileImageChange &&
+                hasBirthDateChange
+              ) {
+                message = "생년월일 수정 완료";
+              }
+
               setAuth({
                 accessToken: currentAuth.accessToken || "",
                 refreshToken: currentAuth.refreshToken,
@@ -346,22 +408,19 @@ export default function MyPageIndex() {
                 nickname: updatedNickname,
                 name: currentAuth.name || "",
                 profileImageUrl: newProfileImageUrl,
-                message:
-                  tempNickname !== nickname &&
-                  newProfileImageUrl !== currentAuth.profileImageUrl
-                    ? "프로필 수정 완료"
-                    : tempNickname !== nickname
-                      ? "닉네임 수정 완료"
-                      : "프로필 이미지 업로드 완료",
+                message,
               });
             }
 
             // 로컬 state 업데이트
-            setNickname(tempNickname);
+            setNickname(updatedNickname);
+            setBirthDateRaw(updatedBirthDateRaw);
+            setBirthDate(formatBirthDate(updatedBirthDateRaw));
             setProfileImage(
               tempProfileImage || newProfileImageUrl || undefined
             );
             setTempProfileImageFile(null);
+            setTempBirthDate(updatedBirthDateRaw);
             setIsEditingProfile(false);
           } catch (error) {
             console.error("프로필 수정 오류:", error);
@@ -377,6 +436,7 @@ export default function MyPageIndex() {
           setTempNickname(nickname);
           setTempProfileImage(profileImage);
           setTempProfileImageFile(null);
+          setTempBirthDate(birthDateRaw || "");
           setIsEditingProfile(false);
         }}
       />
