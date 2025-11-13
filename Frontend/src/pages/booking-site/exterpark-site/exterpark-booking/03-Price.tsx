@@ -42,19 +42,25 @@ export default function PricePage() {
   const thumbnailSrc = useMemo(() => {
     if (!roomInfo.thumbnailValue) return null;
 
+    const normalizeS3Url = (value: string): string => {
+      return /^https?:\/\//i.test(value)
+        ? value
+        : `https://s3.tickget.kr/${value}`;
+    };
+
     if (roomInfo.thumbnailType === "PRESET") {
       // PRESET인 경우 썸네일 번호로 이미지 선택
       return THUMBNAIL_IMAGES[roomInfo.thumbnailValue] || Thumbnail03;
     } else if (roomInfo.thumbnailType === "UPLOADED") {
       // UPLOADED인 경우 URL 직접 사용
-      return roomInfo.thumbnailValue;
+      return normalizeS3Url(roomInfo.thumbnailValue);
     } else {
       // thumbnailType이 없으면 thumbnailValue 형식으로 판단
       // 숫자 문자열이면 PRESET, 그렇지 않으면 UPLOADED
       if (/^\d+$/.test(roomInfo.thumbnailValue)) {
         return THUMBNAIL_IMAGES[roomInfo.thumbnailValue] || Thumbnail03;
       } else {
-        return roomInfo.thumbnailValue;
+        return normalizeS3Url(roomInfo.thumbnailValue);
       }
     }
   }, [roomInfo.thumbnailValue, roomInfo.thumbnailType]);

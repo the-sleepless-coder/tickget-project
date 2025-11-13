@@ -1216,12 +1216,25 @@ function PosterBox({
 }) {
   let thumbnailSrc = Thumbnail03; // 기본값
 
+  const normalizeS3Url = (value: string): string => {
+    return /^https?:\/\//i.test(value)
+      ? value
+      : `https://s3.tickget.kr/${value}`;
+  };
+
   if (thumbnailType === "PRESET" && thumbnailValue) {
     // 썸네일 번호로 이미지 선택
     thumbnailSrc = THUMBNAIL_IMAGES[thumbnailValue] || Thumbnail03;
   } else if (thumbnailType === "UPLOADED" && thumbnailValue) {
     // 업로드된 이미지 URL 사용
-    thumbnailSrc = thumbnailValue;
+    thumbnailSrc = normalizeS3Url(thumbnailValue);
+  } else if (thumbnailValue) {
+    // 타입 정보가 없을 때: 숫자면 PRESET, 아니면 업로드 이미지로 간주
+    if (/^\d+$/.test(thumbnailValue)) {
+      thumbnailSrc = THUMBNAIL_IMAGES[thumbnailValue] || Thumbnail03;
+    } else {
+      thumbnailSrc = normalizeS3Url(thumbnailValue);
+    }
   }
 
   return (

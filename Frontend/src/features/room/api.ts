@@ -1,4 +1,4 @@
-import { roomApi, toJsonBlob } from "@shared/lib/http";
+import { roomApi } from "@shared/lib/http";
 import { useAuthStore } from "@features/auth/store";
 import type {
   CreateRoomRequest,
@@ -12,11 +12,24 @@ import type {
 } from "./types";
 
 /**
+ * Upload room thumbnail image.
+ * POST /thumbnails (multipart/form-data: file)
+ */
+export async function uploadRoomThumbnail(
+  file: File
+): Promise<{ url: string }> {
+  const headers = useAuthStore.getState().getAuthHeaders();
+  const form = new FormData();
+  form.append("file", file);
+  return roomApi.postFormData<{ url: string }>("/thumbnails", form, {
+    headers,
+  });
+}
+
+/**
  * Create a room.
  * - When thumbnailType is "PRESET" (or no file provided), sends JSON body.
- * - When thumbnailType is "UPLOADED", sends multipart (JSON + file).
- *   - The JSON part key is "request"
- *   - The file part key is "file"
+ * - When thumbnailType is "UPLOADED", uploads thumbnail first, then sends JSON with returned URL.
  */
 export async function createRoom(
   payload: CreateRoomRequest,
@@ -29,12 +42,18 @@ export async function createRoom(
     if (!thumbnailFile) {
       throw new Error("'UPLOADED'일 때는 썸네일 파일이 필요합니다.");
     }
-    const form = new FormData();
-    form.append("file", thumbnailFile);
-    form.append("request", toJsonBlob(payload));
-    return roomApi.postFormData<CreateRoomResponse>("/rooms", form, {
-      headers,
-    });
+    // 1) Upload thumbnail
+    const { url } = await uploadRoomThumbnail(thumbnailFile);
+    // Build absolute S3 URL if server returned a MinIO key
+    const absoluteUrl = /^https?:\/\//i.test(url)
+      ? url
+      : `https://s3.tickget.kr/${url}`;
+    // 2) Create room with thumbnailValue set to uploaded URL
+    const body: CreateRoomRequest = {
+      ...payload,
+      thumbnailValue: absoluteUrl,
+    };
+    return roomApi.postJson<CreateRoomResponse>("/rooms", body, { headers });
   }
 
   // PRESET일 때 JSON 요청 (또는 파일이 없을 때)

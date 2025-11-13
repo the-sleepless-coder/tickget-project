@@ -133,10 +133,16 @@ export default function RoomsPage() {
               r.startTime && r.startTime.length >= 16
                 ? r.startTime.substring(11, 16)
                 : undefined;
-            const thumbnailImageSrc = getThumbnailImagePath(
-              r.thumbnailType,
-              r.thumbnailValue
-            );
+            const normalizeS3Url = (value: string): string => {
+              return /^https?:\/\//i.test(value)
+                ? value
+                : `https://s3.tickget.kr/${value}`;
+            };
+            const thumbnailImageSrc =
+              getThumbnailImagePath(r.thumbnailType, r.thumbnailValue) ||
+              (r.thumbnailType === "UPLOADED" && r.thumbnailValue
+                ? normalizeS3Url(r.thumbnailValue)
+                : undefined);
             return {
               id: r.roomId,
               title: r.roomName,
@@ -169,6 +175,7 @@ export default function RoomsPage() {
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [availableOnly]);
   const normalizedQuery = query.trim().toLowerCase();
   const filteredRooms = rooms
