@@ -126,9 +126,12 @@ export default function SelectSeatPage() {
   const hallId = hallIdParam ? Number(hallIdParam) : (hallIdFromStore ?? null);
 
   // hallType과 tsxUrl 가져오기
-  const hallType = searchParams.get("hallType");
-  const tsxUrl = searchParams.get("tsxUrl");
-  const isAIGenerated = hallType === "AI_GENERATED";
+  const hallTypeParam = searchParams.get("hallType");
+  const tsxUrlParam = searchParams.get("tsxUrl");
+  const tsxUrlFromStore = useRoomStore((s) => s.roomInfo.tsxUrl);
+  const hallType = hallTypeParam;
+  const tsxUrl = tsxUrlParam || tsxUrlFromStore || null;
+  const isAIGenerated = hallType === "AI_GENERATED" || (!hallType && !!tsxUrl);
 
   // hallId를 venue로 변환
   const getVenueFromHallId = (id: number | null): VenueKind => {
@@ -873,20 +876,14 @@ export default function SelectSeatPage() {
               )}
               {isAIGenerated ? (
                 tsxUrl ? (
-                  <div
-                    className="w-full h-full flex items-center justify-center overflow-hidden"
-                    style={{
-                      transform: "scale(0.8)",
-                      transformOrigin: "center",
-                    }}
-                  >
+                  <div className="w-full h-full flex items-center justify-center overflow-hidden">
                     <TsxPreview src={tsxUrl} className="w-full h-full" />
                   </div>
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-gray-500">
                     <div className="text-center">
                       <p className="text-lg font-semibold">
-                        AI 생성 배치도 로딩 중...
+                        AI 생성 좌석 배치도 로딩 중
                       </p>
                       <p className="text-sm mt-2">TSX URL이 없습니다.</p>
                     </div>
