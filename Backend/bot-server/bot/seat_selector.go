@@ -123,93 +123,63 @@ func (ss *SeatSelector) ScoreSeat(seat Seat, level Level) float64 {
 	return score
 }
 
-// 봇들에게 목표 좌석 할당 (레벨별 우선순위)
+// 봇들에게 목표 좌석 할당 (단순 순환 방식)
 func AssignTargetSeats(bots []*Bot, hallLayout *models.HallLayout) {
 	// 좌석 선택기 생성
 	selector := NewSeatSelector(hallLayout, 12345)
 
-	// 선택 가능한 좌석 목록
+	// 선택 가능한 좌석 목록 생성
 	availableSeats := selector.GetAvailableSeats()
 
-	// 고수 -> 중수 -> 초보 순으로 정렬 (고수가 먼저 좋은 자리 선택)
-	sortedBots := make([]*Bot, len(bots))
-	copy(sortedBots, bots)
-	sort.Slice(sortedBots, func(i, j int) bool {
-		return sortedBots[i].Level > sortedBots[j].Level
+	// 점수 계산 및 정렬 (레벨 구분 없이 통일된 점수)
+	type seatScore struct {
+		Seat  Seat
+		Score float64
+	}
+	seatScores := make([]seatScore, 0, len(availableSeats))
+
+	for _, seat := range availableSeats {
+		// 기본 점수 계산 (레벨 관계없이 LevelPro 기준으로 통일)
+		score := selector.ScoreSeat(seat, LevelPro)
+		seatScores = append(seatScores, seatScore{
+			Seat:  seat,
+			Score: score,
+		})
+	}
+
+	// 점수 높은 순으로 정렬
+	sort.Slice(seatScores, func(i, j int) bool {
+		return seatScores[i].Score > seatScores[j].Score
 	})
 
-	// 1순위 좌석만 중복 방지 (2순위부터는 겹쳐도 됨)
-	firstChoiceSeats := make(map[string]bool)
+	// 정렬된 좌석 배열 추출
+	sortedSeats := make([]Seat, len(seatScores))
+	for i, ss := range seatScores {
+		sortedSeats[i] = ss.Seat
+	}
 
-	// 섹션별 TotalCols 정보를 빠르게 조회하기 위한 맵
-	sectionInfo := make(map[string]int) // sectionID -> totalCols
+	totalSeats := len(sortedSeats)
+
+	// 섹션별 TotalCols 정보
+	sectionInfo := make(map[string]int)
 	for _, section := range hallLayout.Sections {
 		sectionInfo[section.SectionID] = section.TotalCols
 	}
 
-	for _, bot := range sortedBots {
-		// 봇별 좌석 점수 계산
-		type seatScore struct {
-			Seat  Seat
-			Score float64
-		}
-		seatScores := make([]seatScore, 0, len(availableSeats))
+	// 각 봇에게 3개씩 순환 할당
+	const seatsPerBot = 3
 
-		for _, seat := range availableSeats {
-			score := selector.ScoreSeat(seat, bot.Level)
+	for i, bot := range bots {
+		targetSeats := make([]Seat, 0, seatsPerBot)
 
-			// 봇마다 약간의 랜덤 jitter 추가 (자연스러운 분산)
-			jitter := selector.rng.Float64() * bot.Level.GetJitterRange()
-			score += jitter
-
-			seatScores = append(seatScores, seatScore{
-				Seat:  seat,
-				Score: score,
-			})
-		}
-
-		// 점수순 정렬
-		sort.Slice(seatScores, func(i, j int) bool {
-			return seatScores[i].Score > seatScores[j].Score
-		})
-
-		// 레벨별 후보 개수 (고수: 3개, 중수: 4개, 초보: 5개)
-		candidateCount := bot.Level.GetCandidateCount()
-
-		// 상위 N개를 목표 좌석으로 할당
-		targetSeats := make([]Seat, 0, candidateCount)
-
-		for i := 0; i < candidateCount && len(targetSeats) < candidateCount; {
-			if i >= len(seatScores) {
-				// 모든 좌석을 다 확인했는데도 1순위를 못 찾은 경우
-				// 중복을 허용하고 처음부터 다시 할당 (순환)
-				if len(targetSeats) == 0 {
-					for j := 0; j < candidateCount && len(targetSeats) < candidateCount && j < len(seatScores); j++ {
-						seat := seatScores[j].Seat
-						seat.TotalCols = sectionInfo[seat.SectionID]
-						targetSeats = append(targetSeats, seat)
-					}
-				}
-				break
+		// 좌석이 있는 경우에만 할당
+		if totalSeats > 0 {
+			for j := 0; j < seatsPerBot; j++ {
+				seatIndex := (i + j) % totalSeats
+				seat := sortedSeats[seatIndex]
+				seat.TotalCols = sectionInfo[seat.SectionID]
+				targetSeats = append(targetSeats, seat)
 			}
-
-			seat := seatScores[i].Seat
-			seatKey := seat.SectionID + "-" + strconv.Itoa(seat.SeatNumber)
-
-			// 1순위는 중복 체크, 2순위부터는 무조건 추가
-			if len(targetSeats) == 0 {
-				// 1순위: 다른 봇의 1순위와 겹치지 않아야 함
-				if firstChoiceSeats[seatKey] {
-					i++ // 다음 좌석으로
-					continue
-				}
-				firstChoiceSeats[seatKey] = true
-			}
-
-			// TotalCols 정보 추가
-			seat.TotalCols = sectionInfo[seat.SectionID]
-			targetSeats = append(targetSeats, seat)
-			i++
 		}
 
 		bot.TargetSeats = targetSeats
