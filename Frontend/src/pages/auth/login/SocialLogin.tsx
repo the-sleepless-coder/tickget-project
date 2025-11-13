@@ -85,7 +85,7 @@ export default function SocialLogin() {
       oauthHandledRef.current = true;
       if (needsProfile) {
         openSnackbar("구글 인증이 완료되었습니다.", "success");
-        // 추가정보 페이지로 이동
+        // 추가정보 페이지로 이동 (백엔드가 /signup/additional-info로 리다이렉트해도 /auth/signup으로 변환)
         navigate("/auth/signup", { replace: true });
       } else {
         openSnackbar("로그인에 성공했습니다.", "success");
@@ -163,7 +163,7 @@ export default function SocialLogin() {
 
       // COOP 정책으로 인해 window.closed 체크가 차단되므로 제거
       // postMessage와 타임아웃으로만 처리
-      // 팝업이 사용자에 의해 닫혔는지 확인하기 위한 대안: 
+      // 팝업이 사용자에 의해 닫혔는지 확인하기 위한 대안:
       // postMessage 이벤트가 발생하지 않고 타임아웃이 지나면 정리됨
 
       // 타임아웃 설정 (5분 후 자동 정리)
@@ -244,7 +244,7 @@ export default function SocialLogin() {
 
       // COOP 정책으로 인해 window.closed 체크가 차단되므로 제거
       // postMessage와 타임아웃으로만 처리
-      // 팝업이 사용자에 의해 닫혔는지 확인하기 위한 대안: 
+      // 팝업이 사용자에 의해 닫혔는지 확인하기 위한 대안:
       // postMessage 이벤트가 발생하지 않고 타임아웃이 지나면 정리됨
 
       // 타임아웃 설정 (5분 후 자동 정리)
