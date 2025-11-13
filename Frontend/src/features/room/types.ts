@@ -14,6 +14,7 @@ export interface CreateRoomRequest {
   roomType: RoomType;
   hallId: number;
   hallType: HallType;
+  hallName: string;
   difficulty: Difficulty;
   maxUserCount: number;
   totalSeat: number;
@@ -22,6 +23,7 @@ export interface CreateRoomRequest {
   gameStartTime: string; // ISO string e.g., 2024-11-09T14:20:00
   thumbnailType: ThumbnailType;
   thumbnailValue?: string | null; // PRESET: "default_thumbnail", UPLOADED: server will set URL
+  tsxUrl?: string | null; // AI 생성된 방의 경우 TSX URL
 }
 
 export interface CreateRoomResponse {
