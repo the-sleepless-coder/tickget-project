@@ -21,6 +21,7 @@ public class CreateRoomRequest {
     private RoomType roomType;
 
     private Long hallId;
+    private String hallName;
     private HallType hallType;
     private Difficulty difficulty;
 
