@@ -131,7 +131,7 @@ export default function SelectSeatPage() {
   const tsxUrlFromStore = useRoomStore((s) => s.roomInfo.tsxUrl);
   const hallType = hallTypeParam;
   const tsxUrl = tsxUrlParam || tsxUrlFromStore || null;
-  const isAIGenerated = hallType === "AI_GENERATED" || (!hallType && !!tsxUrl);
+  const isAIGenerated = hallType === "AI_GENERATED";
 
   // hallId를 venue로 변환
   const getVenueFromHallId = (id: number | null): VenueKind => {
