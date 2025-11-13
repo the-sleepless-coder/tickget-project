@@ -1,5 +1,10 @@
 import { useState, useRef, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import {
+  useNavigate,
+  Link,
+  useSearchParams,
+  useLocation,
+} from "react-router-dom";
 import Button from "@mui/material/Button";
 import Snackbar from "@mui/material/Snackbar";
 import Alert from "@mui/material/Alert";
@@ -8,7 +13,10 @@ import { useAuthStore } from "@features/auth/store";
 
 export default function SignupPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const setAuth = useAuthStore((state) => state.setAuth);
 
   // OAuth 인증 완료 후 저장된 사용자 정보 가져오기
   const email = useAuthStore((state) => state.email);
@@ -31,15 +39,62 @@ export default function SignupPage() {
     severity: "success" | "error" | "warning" | "info";
   }>({ open: false, message: "", severity: "info" });
 
+  // URL 쿼리 파라미터에서 OAuth 정보가 있으면 store에 저장
+  useEffect(() => {
+    const accessToken =
+      searchParams.get("accessToken") || searchParams.get("token");
+    if (accessToken) {
+      const refreshToken = searchParams.get("refreshToken");
+      const userIdParam = searchParams.get("userId");
+      const userId =
+        userIdParam !== null && !Number.isNaN(Number(userIdParam))
+          ? Number(userIdParam)
+          : 0;
+      const emailFromUrl = searchParams.get("email") ?? "";
+      const nicknameFromUrl = searchParams.get("nickname") ?? "";
+      const nameFromUrl = searchParams.get("name") ?? "";
+
+      // URL에서 받은 정보가 있으면 store에 저장
+      if (userId > 0 && accessToken) {
+        setAuth({
+          accessToken,
+          refreshToken: refreshToken || null,
+          userId,
+          email: emailFromUrl || email || "",
+          nickname: nicknameFromUrl || nickname || "",
+          name: nameFromUrl || name || "",
+          message: "OAuth signup",
+        });
+
+        // URL에서 쿼리 파라미터 제거 (보안상 민감한 정보는 URL에 남기지 않음)
+        const newSearchParams = new URLSearchParams(searchParams);
+        newSearchParams.delete("accessToken");
+        newSearchParams.delete("token");
+        newSearchParams.delete("refreshToken");
+        newSearchParams.delete("userId");
+        newSearchParams.delete("email");
+        newSearchParams.delete("nickname");
+        newSearchParams.delete("name");
+        navigate(
+          { pathname: location.pathname, search: newSearchParams.toString() },
+          { replace: true }
+        );
+      }
+    }
+  }, [searchParams, setAuth, navigate]);
+
   // OAuth에서 받아온 정보로 폼 초기값 설정
   useEffect(() => {
-    if (nickname) {
-      setFormData((prev) => ({ ...prev, nickname }));
+    const currentNickname = nickname || searchParams.get("nickname") || "";
+    const currentName = name || searchParams.get("name") || "";
+
+    if (currentNickname) {
+      setFormData((prev) => ({ ...prev, nickname: currentNickname }));
     }
-    if (name) {
-      setFormData((prev) => ({ ...prev, name }));
+    if (currentName) {
+      setFormData((prev) => ({ ...prev, name: currentName }));
     }
-  }, [nickname, name]);
+  }, [nickname, name, searchParams]);
 
   const openSnackbar = (
     message: string,
