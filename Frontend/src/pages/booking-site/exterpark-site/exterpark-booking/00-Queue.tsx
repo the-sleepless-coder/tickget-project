@@ -3,6 +3,7 @@ import ConfirmationNumberOutlinedIcon from "@mui/icons-material/ConfirmationNumb
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { paths } from "../../../../app/routes/paths";
 import Viewport from "./_components/Viewport";
+import BookingLoadingPage from "./00-Loading";
 import {
   requestCaptchaImage,
   enqueueTicketingQueue,
@@ -27,7 +28,6 @@ export default function BookingWaitingPage() {
   const roomId = useRoomStore((s) => s.roomInfo.roomId);
   const subscriptionRef = useRef<Subscription | null>(null);
   const enqueuedRef = useRef<boolean>(false);
-  const navigatedRef = useRef<boolean>(false);
   // 실데이터 수신 기반으로만 표시 (시뮬레이션 제거)
 
   // booking-site API 연결: 캡차 이미지 사전 확인
@@ -117,12 +117,8 @@ export default function BookingWaitingPage() {
               wsDestination: destination,
             });
 
-            // WS의 QUEUE 업데이트: total=0이면 로딩 유지, total>0이면 대기열 표시
-            if (total > 0) {
-              setStage("queue");
-            } else {
-              setStage("loading");
-            }
+            // 항상 큐 화면 유지: DEQUEUE 이벤트 전까지는 대기열 표시
+            setStage("queue");
           } else {
             console.log(
               "ℹ️ [waiting][QUEUE] 아직 대기열 미진입(내 userId 미포함):",
@@ -310,36 +306,8 @@ export default function BookingWaitingPage() {
             behind,
           });
 
-          // 이벤트(Bridge)에서는 total=0이면 좌석 선택으로 이동
-          if (total === 0 && !navigatedRef.current) {
-            navigatedRef.current = true;
-            const rtSec = searchParams.get("rtSec") ?? "0";
-            const nrClicks = searchParams.get("nrClicks") ?? "0";
-            const hallId = searchParams.get("hallId");
-            const date = searchParams.get("date");
-            const round = searchParams.get("round");
-            const nextUrl = new URL(
-              window.location.origin + paths.booking.selectSeat
-            );
-            nextUrl.searchParams.set("rtSec", rtSec);
-            nextUrl.searchParams.set("nrClicks", nrClicks);
-            const tStart = searchParams.get("tStart");
-            if (tStart) nextUrl.searchParams.set("tStart", tStart);
-            if (hallId) nextUrl.searchParams.set("hallId", hallId);
-            const fallbackMatch =
-              matchIdFromStore != null
-                ? String(matchIdFromStore)
-                : searchParams.get("matchId");
-            if (fallbackMatch)
-              nextUrl.searchParams.set("matchId", fallbackMatch);
-            if (date) nextUrl.searchParams.set("date", date);
-            if (round) nextUrl.searchParams.set("round", round);
-            navigate(nextUrl.pathname + nextUrl.search, { replace: true });
-          } else if (total > 0) {
-            setStage("queue");
-          } else {
-            setStage("loading");
-          }
+          // 항상 큐 화면 유지: DEQUEUE 이벤트 전까지는 대기열 표시
+          setStage("queue");
         }
       } else if (evtType === "USER_DEQUEUED") {
         const myUserId = useAuthStore.getState().userId;
@@ -455,21 +423,7 @@ export default function BookingWaitingPage() {
   // 캡차는 좌석 선택 페이지의 모달로 이동
 
   if (stage === "loading") {
-    return (
-      <Viewport>
-        <div className="w-full h-full flex items-center justify-center bg-white">
-          <div className="text-center">
-            <div className="mx-auto mb-8 h-12 w-12 animate-spin rounded-full border-4 border-gray-200 border-t-gray-500" />
-            <div className="text-xl font-extrabold text-gray-900 tracking-tight">
-              예매 화면을 불러오는 중입니다.
-            </div>
-            <div className="mt-2 text-lg text-blue-600 font-extrabold">
-              조금만 기다려주세요.
-            </div>
-          </div>
-        </div>
-      </Viewport>
-    );
+    return <BookingLoadingPage />;
   }
 
   // queue stage

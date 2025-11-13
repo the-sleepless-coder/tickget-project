@@ -49,7 +49,7 @@ const CompletePage = lazy(
 const BookingWaitingPage = lazy(
   () =>
     import(
-      "../../pages/booking-site/exterpark-site/exterpark-booking/00-Waiting"
+      "../../pages/booking-site/exterpark-site/exterpark-booking/00-Queue"
     )
 );
 const GameResultPage = lazy(
