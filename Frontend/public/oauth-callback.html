@@ -62,18 +62,25 @@
             hash: window.location.hash || "",
             href: window.location.href,
           };
+
+          // needsProfile 파라미터 확인
+          var urlParams = new URLSearchParams(window.location.search);
+          var needsProfile = urlParams.get("needsProfile") === "true";
+
           if (window.opener && !window.opener.closed) {
             // 보안상 origin을 제한하려면 '*' 대신 예상 origin으로 교체하세요.
             window.opener.postMessage(message, "*");
           }
-        } catch (e) {
-          // no-op
-        } finally {
+
+          // needsProfile 여부와 관계없이 정보 전달 후 창 닫기
+          // 메인 창에서 needsProfile=true인 경우 페이지로 이동하도록 처리됨
           setTimeout(function () {
             try {
               window.close();
             } catch (_) {}
           }, 100);
+        } catch (e) {
+          // no-op
         }
       })();
     </script>
