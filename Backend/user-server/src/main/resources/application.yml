@@ -1,0 +1,45 @@
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  application:
+    name: ${SPRING_APP_NAME:user-server}
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${DB_URL:jdbc:mysql://localhost:3306/ticketing_db?serverTimezone=Asia/Seoul&characterEncoding=UTF-8}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:update}
+    properties:
+      hibernate:
+        show_sql: ${HIBERNATE_SHOW_SQL:false}
+        format_sql: ${HIBERNATE_FORMAT_SQL:true}
+        dialect: ${HIBERNATE_DIALECT:org.hibernate.dialect.MySQLDialect}
+    open-in-view: ${SPRING_OPEN_IN_VIEW:false}
+
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 10MB        # 최대 파일 크기
+      max-request-size: 10MB     # 최대 요청 크기
+
+
+minio:
+  url: ${MINIO_URL:http://localhost:9000}
+  access-key: ${MINIO_ACCESS_KEY:minioadmin}
+  secret-key: ${MINIO_SECRET_KEY:minioadmin}
+  bucket-name: ${MINIO_BUCKET_NAME:tickget-dev}
+
+logging:
+  level:
+    org.springframework.boot.actuate: DEBUG
+    com.tickget.userserver: DEBUG
+
+#
+#management:
+#  endpoints:
+#    web:
+#      exposure:
+#        include: health,info,mappings
