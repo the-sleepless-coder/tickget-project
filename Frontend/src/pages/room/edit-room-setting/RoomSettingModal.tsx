@@ -12,6 +12,7 @@ import Thumbnail04 from "../../../shared/images/thumbnail/Thumbnail04.webp";
 import Thumbnail05 from "../../../shared/images/thumbnail/Thumbnail05.webp";
 import Thumbnail06 from "../../../shared/images/thumbnail/Thumbnail06.webp";
 import { paths } from "../../../app/routes/paths";
+import { useRoomStore } from "@features/room/store";
 import LeftPane from "./RoomSettingLeftPane";
 import RoomSettingStep1 from "./RoomSettingStep1";
 import RoomSettingStep2 from "./RoomSettingStep2";
@@ -311,6 +312,25 @@ export default function CreateRoomModal({
                 onSelectVenue={(v) => {
                   setVenue(v);
                   setVenueSelected(Boolean(v));
+                  // 선택한 공연장 이름을 hallId로 매핑하여 store에 반영
+                  const hallIdMap: Record<string, number> = {
+                    샤롯데씨어터: 2,
+                    "올림픽공원 올림픽홀": 3,
+                    "인스파이어 아레나": 4,
+                  };
+                  const mappedHallId = hallIdMap[v];
+                  if (mappedHallId) {
+                    useRoomStore.getState().setRoomInfo({
+                      hallId: mappedHallId,
+                      hallName: v,
+                    });
+                  } else {
+                    // 매핑이 없으면 hallId 초기화
+                    useRoomStore.getState().setRoomInfo({
+                      hallId: null,
+                      hallName: v || null,
+                    });
+                  }
                 }}
                 isImageUploaded={Boolean(layoutUrl)}
                 onCreate={() => {
