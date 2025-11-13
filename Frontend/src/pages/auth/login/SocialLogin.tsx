@@ -81,14 +81,15 @@ export default function SocialLogin() {
         message: "OAuth login",
       });
 
-      // 분기: needsProfile=true면 추가정보 입력으로 이동, 아니면 성공 처리
+      // 분기: needsProfile=true면 추가정보 입력으로 이동, 아니면 성공 처리 (홈으로 이동)
       oauthHandledRef.current = true;
       if (needsProfile) {
         openSnackbar("구글 인증이 완료되었습니다.", "success");
         // 추가정보 페이지로 이동 (백엔드가 /signup/additional-info로 리다이렉트해도 /auth/signup으로 변환)
         navigate("/auth/signup", { replace: true });
       } else {
-        openSnackbar("로그인에 성공했습니다.", "success");
+        // needsProfile=false이면 로그인/회원가입 모두 홈으로 이동
+        openSnackbar("인증이 완료되었습니다.", "success");
         const from =
           (location.state as { from?: { pathname?: string } })?.from
             ?.pathname || "/";
