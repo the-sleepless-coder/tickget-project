@@ -12,6 +12,16 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 public class GlobalExceptionHandler {
 
     // ===== 4xx 에러: 구체적인 메시지 제공 =====
+    @ExceptionHandler(FileUploadException.class)
+    public ResponseEntity<ErrorResponse> handleFileUploadException(FileUploadException e) {
+        log.warn("File upload validation failed: {}", e.getMessage());
+        ErrorResponse response = ErrorResponse.of(
+                "FILE_UPLOAD_ERROR",
+                e.getMessage()  // "지원하지 않는 이미지 형식입니다" 등 구체적 메시지
+        );
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
     @ExceptionHandler(RoomNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleRoomNotFoundException(RoomNotFoundException e) {
         log.warn("Room not found: {}", e.getMessage());

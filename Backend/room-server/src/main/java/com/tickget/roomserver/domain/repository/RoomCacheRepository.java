@@ -88,10 +88,10 @@ public class RoomCacheRepository {
         }
     }
 
-    public Integer addMemberToRoom(Long roomId, Long userId, String username) throws JsonProcessingException {
+    public Integer addMemberToRoom(Long roomId, Long userId, String username, String profileImageUrl) throws JsonProcessingException {
         String memberKey ="room:" + roomId+ ":members";
 
-        RoomMember roomMember = new RoomMember(userId, username, System.currentTimeMillis());
+        RoomMember roomMember = new RoomMember(userId, username, System.currentTimeMillis(), profileImageUrl);
         String json = mapper.writeValueAsString(roomMember);
         redisTemplate.opsForHash().put(memberKey, String.valueOf(userId), json);
 

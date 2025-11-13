@@ -6,7 +6,7 @@ import com.tickget.roomserver.event.SessionCloseEvent;
 import com.tickget.roomserver.event.UserDequeuedEvent;
 import com.tickget.roomserver.event.UserJoinedRoomEvent;
 import com.tickget.roomserver.event.UserLeftRoomEvent;
-import com.tickget.roomserver.kafaka.RoomEventMessage;
+import com.tickget.roomserver.kafka.RoomEventMessage;
 import com.tickget.roomserver.session.WebSocketSessionManager;
 import com.tickget.roomserver.util.ServerIdProvider;
 import lombok.RequiredArgsConstructor;

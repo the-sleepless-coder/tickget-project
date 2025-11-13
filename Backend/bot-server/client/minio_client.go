@@ -107,9 +107,29 @@ func (mc *MinioClient) GetHallLayout(ctx context.Context, hallID int64) (*models
 		return nil, fmt.Errorf("공연장 정보 파싱 실패: %w", err)
 	}
 
+	// 각 섹션의 좌석 정보 로깅
+	totalAvailableSeats := 0
+	for _, section := range layout.Sections {
+		totalSeatsInSection := section.TotalRows * section.TotalCols
+		unavailableCount := len(section.Seats)
+		availableCount := totalSeatsInSection - unavailableCount
+		totalAvailableSeats += availableCount
+
+		mc.logger.Info("섹션 정보",
+			zap.String("section_id", section.SectionID),
+			zap.String("grade", section.Grade),
+			zap.Int("total_rows", section.TotalRows),
+			zap.Int("total_cols", section.TotalCols),
+			zap.Int("total_seats", totalSeatsInSection),
+			zap.Int("unavailable_seats", unavailableCount),
+			zap.Int("available_seats", availableCount),
+		)
+	}
+
 	mc.logger.Info("공연장 좌석 정보 로드 완료",
 		zap.Int64("hall_id", hallID),
 		zap.Int("sections", len(layout.Sections)),
+		zap.Int("total_available_seats", totalAvailableSeats),
 	)
 
 	return &layout, nil

@@ -13,7 +13,7 @@ import (
 
 // 티케팅 봇
 type Bot struct {
-	UserID      int64       // 사용자 ID (봇은 음수)
+	UserID      int64 // 사용자 ID (봇은 음수)
 	MatchID     int64
 	Level       Level       // 봇 레벨 (초보/중수/고수)
 	DelayConfig DelayConfig // 딜레이 설정
@@ -105,13 +105,13 @@ func (b *Bot) selectDay(ctx context.Context) error {
 	//무조건 현재 +3일
 	select {
 	case <-time.After(delay):
-		// delay를 밀리초로 변환
-		durationMs := int(delay.Milliseconds())
+		// delay를 초 단위로 변환
+		durationSec := delay.Seconds()
 
 		// 요청 생성
 		req := &client.DaySelectRequest{
 			ClickMiss: 0,
-			Duration:  durationMs,
+			Duration:  durationSec,
 		}
 
 		_, err := b.httpClient.JoinQueue(ctx, b.MatchID, req, b.UserID)
@@ -122,7 +122,7 @@ func (b *Bot) selectDay(ctx context.Context) error {
 		b.logger.Debug("요일 선택됨",
 			zap.Int64("user_id", b.UserID),
 			zap.Duration("delay", delay),
-			zap.Int("duration_ms", durationMs),
+			zap.Float64("duration_sec", durationSec),
 		)
 		return nil
 	case <-ctx.Done():

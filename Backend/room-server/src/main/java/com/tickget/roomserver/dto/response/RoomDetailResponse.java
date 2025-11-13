@@ -44,6 +44,7 @@ public class RoomDetailResponse {
 
     private ThumbnailType thumbnailType;
     private String thumbnailValue;
+    private String tsxUrl;
 
 
     public static RoomDetailResponse of(Room room, RoomInfo roomInfo, List<RoomMember> roomMembers) {
@@ -72,6 +73,7 @@ public class RoomDetailResponse {
                 .hallName(room.getHallName())
                 .thumbnailType(room.getThumbnailType())
                 .thumbnailValue(room.getThumbnailValue())
+                .tsxUrl(room.getTsxUrl())
                 .build();
     }
 }

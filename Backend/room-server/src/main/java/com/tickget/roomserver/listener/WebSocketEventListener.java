@@ -4,7 +4,7 @@ import com.tickget.roomserver.domain.repository.RoomCacheRepository;
 import com.tickget.roomserver.dto.cache.GlobalSessionInfo;
 import com.tickget.roomserver.dto.request.ExitRoomRequest;
 import com.tickget.roomserver.event.SessionCloseEvent;
-import com.tickget.roomserver.kafaka.RoomEventProducer;
+import com.tickget.roomserver.kafka.RoomEventProducer;
 import com.tickget.roomserver.service.RoomService;
 import com.tickget.roomserver.session.WebSocketSessionManager;
 import com.tickget.roomserver.util.ServerIdProvider;

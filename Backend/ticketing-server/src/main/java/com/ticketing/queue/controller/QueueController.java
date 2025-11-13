@@ -80,8 +80,8 @@ public class QueueController {
             @ApiResponse(responseCode = "201", description = "매치 생성 성공"),
             @ApiResponse(responseCode = "400", description = "매치 데이터 생성 실패")
     })
-    public ResponseEntity<?> createDBData(@RequestBody MatchRequestDTO dto){
-        MatchResponseDTO match = service.insertMatchData(dto);
+    public ResponseEntity<?> startMatchController(@RequestBody MatchRequestDTO dto){
+        MatchResponseDTO match = service.startMatch(dto);
 
         // 매치 생성 실패
         if(match==null){

@@ -30,6 +30,8 @@ import org.hibernate.annotations.ColumnDefault;
 @Table(name = "rooms")
 public class Room extends BaseTimeEntity{
 
+    static final String TSX_DEFAULT ="default";
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -71,7 +73,10 @@ public class Room extends BaseTimeEntity{
     @Column(name = "thumbnail_value", length = 500)
     private String thumbnailValue;
 
-    public static Room of (CreateRoomRequest createRoomRequest,PresetHall hall, String thumbnailValue ) {
+    @Column(name = "tsx_url", length = 500)
+    private String tsxUrl;
+
+    public static Room of (CreateRoomRequest createRoomRequest,PresetHall hall ) {
         return Room.builder()
                 .roomType(createRoomRequest.getRoomType())
                 .hallId(createRoomRequest.getHallId())
@@ -82,7 +87,8 @@ public class Room extends BaseTimeEntity{
                 .totalSeat(createRoomRequest.getTotalSeat())
                 .status(RoomStatus.WAITING)
                 .thumbnailType(createRoomRequest.getThumbnailType())
-                .thumbnailValue(thumbnailValue)
+                .thumbnailValue(createRoomRequest.getThumbnailValue())
+                .tsxUrl(createRoomRequest.getTsxUrl()==null?TSX_DEFAULT:createRoomRequest.getTsxUrl())
                 .build();
     }
 

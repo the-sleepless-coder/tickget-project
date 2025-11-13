@@ -2,8 +2,10 @@ package com.ticketing.captcha.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ticketing.KafkaTopic;
 import com.ticketing.captcha.DTO.CaptchaDTO;
 import com.ticketing.captcha.DTO.HttpResultDTO;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -20,6 +22,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @Service
 public class CaptchaService {
     // 환경변수
@@ -41,9 +44,7 @@ public class CaptchaService {
         this.timeout = timeout;
         this.kafkaTemplate = kafkaTemplate;
     }
-    /**
-     * env파일로 주소 관리
-     **/
+
     public HttpResultDTO validateCaptcha(CaptchaDTO userInput, Long userId) throws IOException {
          // POST 요청에서 받은 동일한 captcha id로,
          // Captcha가 맞는지 확인한다.
@@ -88,7 +89,15 @@ public class CaptchaService {
          postCon.disconnect();
 
          // Kafka로 MongoDB에 비동기적으로 적재
-         // kafkaTemplate.send(userId);
+        /**
+        try{
+            SendResult<String, Object> recordData = kafkaTemplate.send().get();
+            log.info("Kafka: 캡차 Log 적재 이벤트 발행");
+
+        }catch(Exception e){
+            e.printStackTrace();
+        }
+         **/
 
          return response;
     }
