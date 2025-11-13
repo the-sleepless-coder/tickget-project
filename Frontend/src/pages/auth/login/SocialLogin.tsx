@@ -37,7 +37,21 @@ export default function SocialLogin() {
           ? (data as Record<string, unknown>)
           : null;
       const href = typeof record?.href === "string" ? record.href : null;
-      const url = typeof href === "string" ? new URL(href) : null;
+      if (!href) return;
+
+      // 상대 경로인 경우 절대 경로로 변환
+      let url: URL | null = null;
+      try {
+        url = new URL(href);
+      } catch {
+        // 상대 경로인 경우 현재 origin과 결합
+        try {
+          url = new URL(href, window.location.origin);
+        } catch {
+          return;
+        }
+      }
+
       const params = url ? url.searchParams : null;
       if (!params) return;
 
@@ -89,7 +103,6 @@ export default function SocialLogin() {
     setIsLoading(provider);
 
     try {
-      let popupCheckIntervalId: number | null = null;
       // OAuth 인증 URL로 리다이렉트
       const oauthUrls = {
         google: BASE_URL + "/oauth2/authorization/google",
@@ -113,13 +126,33 @@ export default function SocialLogin() {
       }
 
       // OAuth 창에서 `/oauth-callback.html` 페이지로 이동하면 인증 결과를 확인
+      let timeoutId: number | null = null;
       const onMessage = (event: MessageEvent) => {
-        if (event.data.type === "oauth-callback") {
+        // 보안: origin 검증 (로컬 개발 환경에서는 완화)
+        const allowedOrigins = [
+          window.location.origin,
+          "https://tickget.kr",
+          "http://localhost:5173",
+          "http://localhost:3000",
+        ];
+        // oauth-callback.html에서 "*"로 보내지만, 실제 origin도 검증
+        if (
+          event.origin &&
+          !allowedOrigins.some(
+            (origin) =>
+              event.origin === origin || event.origin.startsWith(origin)
+          )
+        ) {
+          console.warn("OAuth callback from unexpected origin:", event.origin);
+          return;
+        }
+
+        if (event.data?.type === "oauth-callback") {
           trySetAuthFromMessage(event.data);
           window.removeEventListener("message", onMessage);
-          // 콜백을 받았으므로 팝업 닫힘 감시 종료
-          if (popupCheckIntervalId !== null)
-            window.clearInterval(popupCheckIntervalId);
+          // 콜백을 받았으므로 타임아웃 정리
+          if (timeoutId !== null) window.clearTimeout(timeoutId);
+          // trySetAuthFromMessage에서 이미 처리했으면 checkAuthStatus 호출하지 않음
           if (!oauthHandledRef.current) {
             checkAuthStatus(false);
           }
@@ -128,15 +161,19 @@ export default function SocialLogin() {
 
       window.addEventListener("message", onMessage);
 
-      // 팝업이 콜백 없이 닫혔는지 주기적으로 확인
-      popupCheckIntervalId = window.setInterval(() => {
-        if (authWindow.closed) {
-          if (popupCheckIntervalId !== null)
-            window.clearInterval(popupCheckIntervalId);
+      // COOP 정책으로 인해 window.closed 체크가 차단되므로 제거
+      // postMessage와 타임아웃으로만 처리
+      // 팝업이 사용자에 의해 닫혔는지 확인하기 위한 대안: 
+      // postMessage 이벤트가 발생하지 않고 타임아웃이 지나면 정리됨
+
+      // 타임아웃 설정 (5분 후 자동 정리)
+      timeoutId = window.setTimeout(
+        () => {
           window.removeEventListener("message", onMessage);
           setIsLoading(null);
-        }
-      }, 500);
+        },
+        5 * 60 * 1000
+      );
     } catch {
       openSnackbar(`${provider} 로그인 중 오류가 발생했습니다.`, "error");
       setIsLoading(null);
@@ -147,7 +184,6 @@ export default function SocialLogin() {
     setIsLoading(provider);
 
     try {
-      let popupCheckIntervalId: number | null = null;
       // OAuth 인증 URL로 리다이렉트
       const oauthUrls = {
         google: BASE_URL + "/oauth2/authorization/google",
@@ -171,13 +207,33 @@ export default function SocialLogin() {
       }
 
       // OAuth 창에서 `/oauth-callback.html` 페이지로 이동하면 인증 결과를 확인
+      let timeoutId: number | null = null;
       const onMessage = (event: MessageEvent) => {
-        if (event.data.type === "oauth-callback") {
+        // 보안: origin 검증 (로컬 개발 환경에서는 완화)
+        const allowedOrigins = [
+          window.location.origin,
+          "https://tickget.kr",
+          "http://localhost:5173",
+          "http://localhost:3000",
+        ];
+        // oauth-callback.html에서 "*"로 보내지만, 실제 origin도 검증
+        if (
+          event.origin &&
+          !allowedOrigins.some(
+            (origin) =>
+              event.origin === origin || event.origin.startsWith(origin)
+          )
+        ) {
+          console.warn("OAuth callback from unexpected origin:", event.origin);
+          return;
+        }
+
+        if (event.data?.type === "oauth-callback") {
           trySetAuthFromMessage(event.data);
           window.removeEventListener("message", onMessage);
-          // 콜백을 받았으므로 팝업 닫힘 감시 종료
-          if (popupCheckIntervalId !== null)
-            window.clearInterval(popupCheckIntervalId);
+          // 콜백을 받았으므로 타임아웃 정리
+          if (timeoutId !== null) window.clearTimeout(timeoutId);
+          // trySetAuthFromMessage에서 이미 처리했으면 checkAuthStatus 호출하지 않음
           if (!oauthHandledRef.current) {
             checkAuthStatus(true);
           }
@@ -186,15 +242,19 @@ export default function SocialLogin() {
 
       window.addEventListener("message", onMessage);
 
-      // 팝업이 콜백 없이 닫혔는지 주기적으로 확인
-      popupCheckIntervalId = window.setInterval(() => {
-        if (authWindow.closed) {
-          if (popupCheckIntervalId !== null)
-            window.clearInterval(popupCheckIntervalId);
+      // COOP 정책으로 인해 window.closed 체크가 차단되므로 제거
+      // postMessage와 타임아웃으로만 처리
+      // 팝업이 사용자에 의해 닫혔는지 확인하기 위한 대안: 
+      // postMessage 이벤트가 발생하지 않고 타임아웃이 지나면 정리됨
+
+      // 타임아웃 설정 (5분 후 자동 정리)
+      timeoutId = window.setTimeout(
+        () => {
           window.removeEventListener("message", onMessage);
           setIsLoading(null);
-        }
-      }, 500);
+        },
+        5 * 60 * 1000
+      );
     } catch {
       openSnackbar(`${provider} 회원가입 중 오류가 발생했습니다.`, "error");
       setIsLoading(null);
@@ -448,7 +508,7 @@ export default function SocialLogin() {
 
             {/* 소셜 로그인 버튼 */}
             <div className="space-y-3 mb-6">
-              {/* {socialButtons.map((button) => (
+              {socialButtons.map((button) => (
                 <Button
                   key={button.provider}
                   size="medium"
@@ -467,7 +527,7 @@ export default function SocialLogin() {
                   <div className="mr-3">{button.icon}</div>
                   <span className="text-sm">{button.text}</span>
                 </Button>
-              ))} */}
+              ))}
 
               {/* 테스트 계정 생성 버튼 */}
               <Button
