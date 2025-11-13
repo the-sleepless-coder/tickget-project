@@ -18,6 +18,9 @@ public class UserProfileUpdateRequest {
     @Size(max = 25, message = "이름은 최대 25자까지 입력 가능합니다.")
     private String name;
 
+    @Pattern(regexp = "^\\d{4}-\\d{2}-\\d{2}$", message = "생년월일은 YYYY-MM-DD 형식이어야 합니다.")
+    private String birthDate;
+
     @Pattern(regexp = "^(MALE|FEMALE|UNKNOWN)$", message = "유효하지 않은 성별 값입니다. (MALE, FEMALE, UNKNOWN 중 하나여야 합니다)")
     private String gender;
 
