@@ -711,6 +711,7 @@ export default function CreateRoomModal({
                       gameStartTime,
                       thumbnailType,
                       thumbnailValue: thumbnailValue || null,
+                      tsxUrl: hallType === "AI_GENERATED" ? aiTsxUrl : null,
                     };
 
                     console.log("🚀 방 생성 요청 시작");
@@ -812,6 +813,8 @@ export default function CreateRoomModal({
                           hallId: roomDetail.hallId,
                           hallName: roomDetail.hallName,
                           startTime: roomDetail.startTime,
+                          totalSeat: roomDetail.totalSeat ?? null,
+                          tsxUrl: roomDetail.tsxUrl,
                           captchaPassed: false, // 방 생성 시 캡챠 false로 초기화
                         });
                       } catch (error) {
