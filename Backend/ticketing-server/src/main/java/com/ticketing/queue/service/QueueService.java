@@ -126,7 +126,14 @@ public class QueueService {
          * DLT 처리가 필요할까?
          * */
         QueueLogDTO logDto = QueueLogDTO.of(randomUUID, matchId, playerType, userId, status, positionAhead, positionBehind, total, userInfo.getClickMiss(), userInfo.getDuration(), LocalDateTime.now());
-        SendResult<String, Object> recordData = kafkaTemplate.send(KafkaTopic.USER_LOG_QUEUE.getTopicName(), userId, logDto).get();
+        try{
+            SendResult<String, Object> recordData = kafkaTemplate.send(KafkaTopic.USER_LOG_QUEUE.getTopicName(), userId, logDto).get();
+            log.info("Kafka: 사용자 Log 적재 이벤트 발행");
+
+        }catch(Exception e){
+            e.printStackTrace();
+        }
+
 
         return queueInfo;
     }
@@ -141,7 +148,7 @@ public class QueueService {
     // 정해진 KafkaTopic에 시작했다는 사실을 발행한다.
     // Websocket으로 받는다.
     @Transactional
-    public MatchResponseDTO insertMatchData(MatchRequestDTO dto){
+    public MatchResponseDTO startMatch(MatchRequestDTO dto){
         try{
             Match match = new Match();
             match.setRoomId(dto.getRoomId());

@@ -1,0 +1,71 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.5.7'
+    id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.tickget'
+version = '0.0.1-SNAPSHOT'
+description = 'tickget'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+configurations {
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
+}
+
+configurations.configureEach {
+    // log4j와의 충돌을 방지하기 위해, logback-classic은 제외
+    exclude group: 'ch.qos.logback', module: 'logback-classic'
+
+    // log4j-to-slf4j 제거
+    exclude group: 'org.apache.logging.log4j', module: 'log4j-to-slf4j'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation ('org.springframework.boot:spring-boot-starter-web'){
+        // log4j와의 충돌을 방지하기 위해, logback-classic은 제외
+        exclude group: 'org.springframework.boot', module: 'spring-boot-starter-logging'
+    }
+    // Spring Boot 기본 의존성
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'org.springframework.boot:spring-boot-starter-log4j2'
+    implementation 'org.apache.kafka:kafka-clients:4.1.0'
+    implementation 'org.springframework.kafka:spring-kafka'
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    implementation "me.paulschwarz:spring-dotenv:4.0.0"
+
+    // 데이터베이스 관련
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'com.mysql:mysql-connector-j'
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+
+    // Kafka 관련 의존성
+    implementation 'org.springframework.kafka:spring-kafka'
+
+    // MongoDB 관련 의존성
+    implementation 'org.springframework.boot:spring-boot-starter-data-mongodb'
+
+    // API 문서화
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.0'
+
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
