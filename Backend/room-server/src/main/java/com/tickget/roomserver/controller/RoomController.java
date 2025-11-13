@@ -27,9 +27,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.multipart.MultipartFile;
 
 @Slf4j
 @RestController
@@ -62,9 +60,8 @@ public class RoomController {
 
     // 방생성
     @PostMapping
-    public ResponseEntity<CreateRoomResponse> createRoom(@RequestBody CreateRoomRequest createRoomRequest,
-                                                         @RequestPart(value = "file", required = false) MultipartFile thumbnail) throws JsonProcessingException {
-        CreateRoomResponse response = roomService.createRoom(createRoomRequest,thumbnail);
+    public ResponseEntity<CreateRoomResponse> createRoom(@RequestBody CreateRoomRequest createRoomRequest) throws JsonProcessingException {
+        CreateRoomResponse response = roomService.createRoom(createRoomRequest);
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(response);
