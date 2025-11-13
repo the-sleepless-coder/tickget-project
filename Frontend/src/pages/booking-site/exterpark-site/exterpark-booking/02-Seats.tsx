@@ -806,6 +806,7 @@ export default function SelectSeatPage() {
                 <SmallVenue
                   selectedIds={selected.map((s) => s.id)}
                   takenSeats={takenSeats}
+                  isPreset={!isAIGenerated}
                   onToggleSeat={(seat) => {
                     const price =
                       seat.price ?? getPriceByGradeLabel(seat.gradeLabel);

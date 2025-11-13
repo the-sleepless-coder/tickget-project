@@ -186,7 +186,12 @@ export default function OrderConfirmPage() {
       <div className="p-3 grid grid-cols-[1fr_260px] gap-3">
         {/* 가운데: 예매자 확인 + 배송지 정보 */}
         <section className="bg-white rounded-md shadow border border-[#e3e3e3]">
-          <header className="px-3 py-2 font-bold border-b">예매자 확인</header>
+          <header className="px-3 py-2 font-bold border-b flex items-center justify-between">
+            <span>예매자 확인</span>
+            <span className="text-[12px] text-[#b02a2a] font-normal">
+              예매자 및 배송지 정보는 마이페이지에서 수정 가능합니다
+            </span>
+          </header>
           <div className="p-3 text-sm">
             <div className="grid grid-cols-[100px_1fr_1fr_1fr] items-center gap-2">
               <div className="text-gray-600">이름</div>
