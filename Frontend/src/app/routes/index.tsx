@@ -141,4 +141,12 @@ export const router = createBrowserRouter([
       { path: "signup", element: withSuspense(<SignupPage />) },
     ],
   },
+  // 백엔드가 /signup/additional-info로 리다이렉트하는 경우를 처리
+  {
+    path: "signup",
+    element: <AuthLayout />,
+    children: [
+      { path: "additional-info", element: withSuspense(<SignupPage />) },
+    ],
+  },
 ]);
