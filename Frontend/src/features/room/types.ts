@@ -31,6 +31,7 @@ export interface CreateRoomResponse {
   roomType: string; // server may return values beyond our input union (e.g., "SOLO", "MULTI")
   hallId: number;
   hallSize: HallSize;
+  hallName: string;
   hallType: HallType;
   matchId: number;
   totalSeat: number;

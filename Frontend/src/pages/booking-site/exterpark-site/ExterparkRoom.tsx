@@ -920,7 +920,11 @@ export default function ITicketPage() {
     const hallTypeParam = hallType
       ? `&hallType=${encodeURIComponent(hallType)}`
       : "";
-    const tsxUrlParam = tsxUrl ? `&tsxUrl=${encodeURIComponent(tsxUrl)}` : "";
+    // tsxUrl은 AI_GENERATED일 때만 전달 (PRESET은 프론트 내장 TSX 사용)
+    const tsxUrlParam =
+      hallType === "AI_GENERATED" && tsxUrl
+        ? `&tsxUrl=${encodeURIComponent(tsxUrl)}`
+        : "";
     const hallSizeParam = hallSize
       ? `&hallSize=${encodeURIComponent(hallSize)}`
       : "";
