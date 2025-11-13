@@ -666,6 +666,7 @@ export default function ITicketPage() {
           startTime: data.startTime,
           captchaPassed: false, // 방 입장 시 캡챠 false로 초기화
           totalSeat: data.totalSeat ?? null, // 총 좌석 수 저장
+          tsxUrl: data.tsxUrl,
         });
         // 입장자 목록 업데이트
         if (Array.isArray(data.roomMembers)) {
