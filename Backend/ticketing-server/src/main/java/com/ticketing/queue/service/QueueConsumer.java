@@ -27,16 +27,9 @@ public class QueueConsumer {
     private final ObjectMapper mapper;
 
     // 주기 설정
-<<<<<<< HEAD
     private static final int CONSUME_RATE_PER_2S = 500;  // 2초당 최대 소비자 수
     private static final int EMIT_MS = 1_000;             // Kafka 발행 틱 (20ms)
     private static final int COMMIT_MS = 2_000;          // Redis 상태 커밋 주기 (2s)
-=======
-    private static final int CONSUME_RATE_PER_2S = 5_000;  // Redis 주기 당 최대 소비자 수
-    private static final int EMIT_MS = 1_000;            // Kafka 발행 틱 (20ms)
-    private static final int COMMIT_MS = 2_000;         // Redis 상태 커밋 주기 (2s)
->>>>>>> b8b8872 (feat:stats-server in process)
-
     private static final String STATE = "state";
     private static final String DEQUEUED = "DEQUEUED";
     private static final Duration STATE_TTL = Duration.ofSeconds(3);
