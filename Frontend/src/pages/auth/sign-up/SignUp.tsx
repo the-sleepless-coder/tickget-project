@@ -16,12 +16,12 @@ export default function SignupPage() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const setAuth = useAuthStore((state) => state.setAuth);
 
   // OAuth 인증 완료 후 저장된 사용자 정보 가져오기
   const email = useAuthStore((state) => state.email);
   const nickname = useAuthStore((state) => state.nickname);
   const name = useAuthStore((state) => state.name);
+  const setAuth = useAuthStore((state) => state.setAuth);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
@@ -96,6 +96,53 @@ export default function SignupPage() {
     }
   }, [nickname, name, searchParams]);
 
+  // 프로필 이미지 URL 가져오기 (needsProfile=true일 때)
+  useEffect(() => {
+    const fetchProfileImage = async () => {
+      const accessToken = useAuthStore.getState().accessToken;
+      if (!accessToken) return;
+
+      try {
+        const apiUrl = "https://tickget.kr/api/v1/dev/user/myprofile";
+        const response = await fetch(apiUrl, {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const profileImageUrl = data.profileImageUrl || null;
+
+          // auth store에 profileImageUrl 저장
+          const currentAuth = useAuthStore.getState();
+          setAuth({
+            accessToken: currentAuth.accessToken || "",
+            refreshToken: currentAuth.refreshToken,
+            userId: currentAuth.userId || 0,
+            email: currentAuth.email || "",
+            nickname: currentAuth.nickname || "",
+            name: currentAuth.name || "",
+            profileImageUrl: profileImageUrl,
+            message: currentAuth.nickname
+              ? "프로필 이미지 업데이트"
+              : "OAuth signup",
+          });
+
+          // 폼 데이터에도 프로필 이미지 설정
+          if (profileImageUrl) {
+            setFormData((prev) => ({ ...prev, profileImage: profileImageUrl }));
+          }
+        }
+      } catch (error) {
+        console.error("프로필 이미지 가져오기 실패:", error);
+      }
+    };
+
+    fetchProfileImage();
+  }, [setAuth]);
+
   const openSnackbar = (
     message: string,
     severity: "success" | "error" | "warning" | "info" = "info"
@@ -145,19 +192,74 @@ export default function SignupPage() {
     setIsSubmitting(true);
 
     try {
-      // TODO: 실제 회원가입 API 연동
-      // OAuth에서 받은 정보 + 추가 정보를 서버로 전송
-      // const response = await fetch(...);
+      // OAuth에서 받은 accessToken 가져오기
+      const accessToken = useAuthStore.getState().accessToken;
+      if (!accessToken) {
+        openSnackbar("인증 정보가 없습니다. 다시 로그인해주세요.", "error");
+        setIsSubmitting(false);
+        return;
+      }
 
-      // 임시 처리
-      localStorage.setItem("token", "mock");
+      // OAuth에서 받은 nickname 가져오기
+      const oauthNickname = nickname || useAuthStore.getState().nickname || "";
+
+      // API 요청 URL
+      const apiUrl = "https://tickget.kr/api/v1/dev/user/myprofile";
+
+      // PATCH 요청 보내기
+      const response = await fetch(apiUrl, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          nickname: oauthNickname,
+          name: "홍길동",
+          gender: "선택 안함",
+          address: "서울시 강남구 테헤란로 123",
+          phone: "010-1234-5678",
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => "");
+        throw new Error(`회원가입 실패: ${response.status} ${errorText}`);
+      }
+
+      // 응답 데이터 받기
+      const responseData = await response.json().catch(() => ({}));
+
+      // 기존 auth store 정보 가져오기
+      const currentAuth = useAuthStore.getState();
+      const refreshToken = currentAuth.refreshToken;
+
+      // auth store에 저장 (응답 데이터와 기존 정보 병합)
+      // PATCH 응답에는 profileImageUrl이 없으므로 기존 값 유지
+      setAuth({
+        accessToken: accessToken,
+        refreshToken: refreshToken,
+        userId: currentAuth.userId || 0,
+        email: currentAuth.email || "",
+        nickname:
+          responseData.nickname || oauthNickname || currentAuth.nickname || "",
+        name: responseData.name || "홍길동" || currentAuth.name || "",
+        profileImageUrl: currentAuth.profileImageUrl || null,
+        message: "회원가입 완료",
+      });
+
       openSnackbar("회원가입이 완료되었습니다!", "success");
 
       setTimeout(() => {
         navigate("/", { replace: true });
       }, 1500);
-    } catch {
-      openSnackbar("회원가입 중 오류가 발생했습니다.", "error");
+    } catch (error) {
+      console.error("회원가입 오류:", error);
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "회원가입 중 오류가 발생했습니다.";
+      openSnackbar(errorMessage, "error");
       setIsSubmitting(false);
     }
   };

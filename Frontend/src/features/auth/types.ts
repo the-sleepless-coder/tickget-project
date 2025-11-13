@@ -5,5 +5,6 @@ export interface TestAccountLoginResponse {
   email: string;
   nickname: string;
   name: string;
+  profileImageUrl?: string | null;
   message: string;
 }
