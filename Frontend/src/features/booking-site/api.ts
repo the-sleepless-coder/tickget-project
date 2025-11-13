@@ -180,7 +180,12 @@ export async function enqueueTicketingQueue(
     ...getAuthHeaders(),
     "Content-Type": "application/json",
   };
-  if (userId != null) headers["userId"] = String(userId);
+  // 서버 명세: X-User-Id 사용
+  if (userId != null) {
+    headers["X-User-Id"] = String(userId);
+    // 하위 호환(혹시 백엔드 일부가 userId 키를 참고하는 경우를 대비해 함께 전송)
+    headers["userId"] = String(userId);
+  }
 
   // POST /tkt/ticketing/queue/{matchId}
   const path = `ticketing/queue/${encodeURIComponent(String(matchId))}`;
