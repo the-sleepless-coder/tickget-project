@@ -11,6 +11,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -52,6 +54,9 @@ public class UserProfileService {
         // 나머지 필드 업데이트 (null이 아닌 경우만)
         if (request.getName() != null) {
             user.setName(request.getName());
+        }
+        if (request.getBirthDate() != null) {
+            user.setBirthDate(LocalDate.parse(request.getBirthDate()));
         }
         if (request.getGender() != null) {
             user.setGender(User.Gender.valueOf(request.getGender()));
