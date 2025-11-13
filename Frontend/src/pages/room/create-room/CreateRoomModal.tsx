@@ -25,6 +25,7 @@ import { createRoom, processSeatmapTsx } from "@features/room/api";
 import { getRoomDetail } from "@features/room/api";
 import { useRoomStore } from "@features/room/store";
 import type { CreateRoomRequest } from "@features/room/types";
+import type { ConcertHall } from "@/shared/types/search.types";
 
 export default function CreateRoomModal({
   open,
@@ -65,7 +66,7 @@ export default function CreateRoomModal({
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
   const [layoutFile, setLayoutFile] = useState<File | null>(null);
   // AI TSX 생성용 상태
-  const [aiCapacity, setAICapacity] = useState<string>("");
+  const [selectedHall, setSelectedHall] = useState<ConcertHall | null>(null);
   const [aiTsxUrl, setAITsxUrl] = useState<string | null>(null);
   // const [aiMetaUrl, setAIMetaUrl] = useState<string | null>(null);
   const [aiHallId, setAIHallId] = useState<number | null>(null);
@@ -238,7 +239,7 @@ export default function CreateRoomModal({
     setIsGenerating(false);
     setCanFinalize(false);
     setVenueSelected(false);
-    setAICapacity("");
+    setSelectedHall(null);
     setAITsxUrl(null);
     // setAIMetaUrl(null);
     setAIHallId(null);
@@ -371,7 +372,7 @@ export default function CreateRoomModal({
             </button>
           </div>
         </div>
-        <div className="px-8 py-2 flex-1 overflow-y-auto">
+        <div className="px-8 py-2 flex-1 overflow-y-auto md:overflow-hidden">
           <div
             className={`grid grid-cols-1 ${step === 1 ? "md:grid-cols-[230px_1fr]" : "md:grid-cols-[230px_420px]"} gap-6`}
           >
@@ -398,6 +399,7 @@ export default function CreateRoomModal({
                 setLayoutUrl(null);
                 setThumbnailFile(null);
                 setThumbnailUrl(null);
+                setSelectedHall(null);
               }}
             />
 
@@ -442,6 +444,7 @@ export default function CreateRoomModal({
                   setLayoutUrl(null);
                   setThumbnailFile(null);
                   setThumbnailUrl(null);
+                  setSelectedHall(null);
                 }}
                 onCreate={async () => {
                   const fileToSend = thumbnailFile ?? layoutFile;
@@ -449,8 +452,8 @@ export default function CreateRoomModal({
                     alert("이미지를 업로드해주세요.");
                     return;
                   }
-                  if (!aiCapacity) {
-                    alert("최대 수용 인원을 선택해주세요.");
+                  if (!selectedHall) {
+                    alert("공연장을 선택해주세요.");
                     return;
                   }
                   try {
@@ -460,13 +463,14 @@ export default function CreateRoomModal({
                         size: fileToSend.size,
                         type: fileToSend.type,
                       },
-                      capacity: aiCapacity,
+                      hall: selectedHall,
+                      totalSeat: selectedHall.totalSeat,
                     });
                     setIsGenerating(true);
                     setCanFinalize(false);
                     const resp = await processSeatmapTsx(
                       fileToSend,
-                      parseInt(aiCapacity, 10)
+                      selectedHall.totalSeat
                     );
                     if (resp.ok) {
                       console.log("[CreateRoom] TSX 응답 성공", resp);
@@ -487,9 +491,8 @@ export default function CreateRoomModal({
                 }}
                 isGenerating={isGenerating}
                 isVenueSelected={venueSelected}
-                capacityOptions={[100, 500, 1000, 3000, 5000] as const}
-                capacity={aiCapacity}
-                setCapacity={setAICapacity}
+                selectedHall={selectedHall}
+                onSelectHall={setSelectedHall}
               />
             )}
           </div>
@@ -573,17 +576,24 @@ export default function CreateRoomModal({
                     // hallId 매핑
                     let hallId: number;
                     let totalSeat: number;
+                    let hallName: string;
                     let hallType: "PRESET" | "AI_GENERATED" = "PRESET";
+                    let tsxUrl: string | null = null;
 
                     if (step2Mode === "ai") {
                       if (!aiHallId) {
                         throw new Error("AI 공연장 TSX가 생성되지 않았습니다.");
                       }
-                      if (!aiCapacity) {
-                        throw new Error("최대 수용 인원을 선택해주세요.");
+                      if (!selectedHall) {
+                        throw new Error("공연장을 선택해주세요.");
+                      }
+                      if (!aiTsxUrl) {
+                        throw new Error("TSX URL이 생성되지 않았습니다.");
                       }
                       hallId = aiHallId;
-                      totalSeat = parseInt(aiCapacity, 10);
+                      totalSeat = selectedHall.totalSeat;
+                      hallName = selectedHall.name;
+                      tsxUrl = aiTsxUrl;
                       hallType = "AI_GENERATED";
                     } else {
                       const hallIdMap: Record<string, number> = {
@@ -603,6 +613,7 @@ export default function CreateRoomModal({
                       }
                       hallId = mappedHallId;
                       totalSeat = mappedSeat;
+                      hallName = venue;
                       hallType = "PRESET";
                     }
 
@@ -703,6 +714,7 @@ export default function CreateRoomModal({
                       roomType,
                       hallId,
                       hallType,
+                      hallName,
                       difficulty: difficultyValue,
                       maxUserCount,
                       totalSeat,
@@ -711,6 +723,7 @@ export default function CreateRoomModal({
                       gameStartTime,
                       thumbnailType,
                       thumbnailValue: thumbnailValue || null,
+                      tsxUrl: hallType === "AI_GENERATED" ? aiTsxUrl : null,
                     };
 
                     console.log("🚀 방 생성 요청 시작");
@@ -812,6 +825,8 @@ export default function CreateRoomModal({
                           hallId: roomDetail.hallId,
                           hallName: roomDetail.hallName,
                           startTime: roomDetail.startTime,
+                          totalSeat: roomDetail.totalSeat ?? null,
+                          tsxUrl: roomDetail.tsxUrl,
                           captchaPassed: false, // 방 생성 시 캡챠 false로 초기화
                         });
                       } catch (error) {

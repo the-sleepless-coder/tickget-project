@@ -495,7 +495,7 @@ export default function RoomCard({
             </div>
           ) : (
             <div className="mt-auto flex justify-end">
-              <span className="text-sm text-gray-500">상시</span>
+              <span className="text-sm text-gray-500">종료</span>
             </div>
           )}
         </div>

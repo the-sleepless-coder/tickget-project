@@ -14,6 +14,7 @@ export interface CreateRoomRequest {
   roomType: RoomType;
   hallId: number;
   hallType: HallType;
+  hallName: string;
   difficulty: Difficulty;
   maxUserCount: number;
   totalSeat: number;
@@ -22,6 +23,7 @@ export interface CreateRoomRequest {
   gameStartTime: string; // ISO string e.g., 2024-11-09T14:20:00
   thumbnailType: ThumbnailType;
   thumbnailValue?: string | null; // PRESET: "default_thumbnail", UPLOADED: server will set URL
+  tsxUrl: string | null; // AI_GENERATED: TSX URL, PRESET: null
 }
 
 export interface CreateRoomResponse {
@@ -29,12 +31,15 @@ export interface CreateRoomResponse {
   roomType: string; // server may return values beyond our input union (e.g., "SOLO", "MULTI")
   hallId: number;
   hallSize: HallSize;
+  hallType: HallType;
+  matchId: number;
   totalSeat: number;
   botCount: number;
   maxBooking: number;
   subscriptionTopic: string; // e.g., "/topic/rooms/1"
   thumbnailType: ThumbnailType;
   thumbnailValue: string | null; // URL if UPLOADED
+  tsxUrl: string | null; // "default" or actual URL
 }
 
 // Room join - Types
@@ -87,6 +92,8 @@ export interface RoomDetailResponse {
   hallId: number;
   hallSize: HallSize;
   hallName: string;
+  hallType?: HallType; // "PRESET" | "AI_GENERATED"
+  tsxUrl: string | null; // AI 생성된 방의 경우 TSX URL
   thumbnailType: ThumbnailType;
   thumbnailValue: string | null;
   totalSeat?: number; // 총 좌석 수

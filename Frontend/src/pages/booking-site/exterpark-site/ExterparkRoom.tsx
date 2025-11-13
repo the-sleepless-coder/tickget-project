@@ -64,7 +64,14 @@ type QueueStatus = {
 };
 
 // hallName을 한글로 변환하는 함수
-const convertHallNameToKorean = (hallName: string): string => {
+const convertHallNameToKorean = (
+  hallName: string,
+  hallType?: string
+): string => {
+  // AI 생성된 방은 "AI"로 표시
+  if (hallType === "AI_GENERATED") {
+    return "AI";
+  }
   const hallNameMap: Record<string, string> = {
     InspireArena: "인스파이어 아레나",
     CharlotteTheater: "샤롯데씨어터",
@@ -659,6 +666,7 @@ export default function ITicketPage() {
           startTime: data.startTime,
           captchaPassed: false, // 방 입장 시 캡챠 false로 초기화
           totalSeat: data.totalSeat ?? null, // 총 좌석 수 저장
+          tsxUrl: data.tsxUrl,
         });
         // 입장자 목록 업데이트
         if (Array.isArray(data.roomMembers)) {
@@ -912,6 +920,18 @@ export default function ITicketPage() {
       ? `&hallId=${encodeURIComponent(String(hallId))}`
       : "";
 
+    // hallType, tsxUrl, hallSize 결정: roomDetail에서 가져오기
+    const hallType = roomDetail?.hallType;
+    const tsxUrl = roomDetail?.tsxUrl;
+    const hallSize = roomDetail?.hallSize;
+    const hallTypeParam = hallType
+      ? `&hallType=${encodeURIComponent(hallType)}`
+      : "";
+    const tsxUrlParam = tsxUrl ? `&tsxUrl=${encodeURIComponent(tsxUrl)}` : "";
+    const hallSizeParam = hallSize
+      ? `&hallSize=${encodeURIComponent(hallSize)}`
+      : "";
+
     // 일자 정보 결정: roomDetail → roomRequest 순으로 확인
     const startTime = roomDetail?.startTime ?? roomRequest?.gameStartTime;
     const reservationDay = startTime
@@ -939,14 +959,14 @@ export default function ITicketPage() {
       setIsTrackingClicks(false);
       finalUrl = `${baseUrl}?rtSec=${encodeURIComponent(String(reactionSec))}&nrClicks=${encodeURIComponent(String(nonReserveClickCount))}&tStart=${encodeURIComponent(String(totalStartAt))}${
         matchIdParam ? `&matchId=${encodeURIComponent(matchIdParam)}` : ""
-      }${hallIdParam}${dateParam}${roundParam}`;
+      }${hallIdParam}${hallTypeParam}${tsxUrlParam}${hallSizeParam}${dateParam}${roundParam}`;
     } else {
       console.log(
         "[ReserveTiming] Click without appearance timestamp (possibly test click)"
       );
       finalUrl = `${baseUrl}?rtSec=0&nrClicks=${encodeURIComponent(String(nonReserveClickCount))}&tStart=${encodeURIComponent(String(totalStartAt))}${
         matchIdParam ? `&matchId=${encodeURIComponent(matchIdParam)}` : ""
-      }${hallIdParam}${dateParam}${roundParam}`;
+      }${hallIdParam}${hallTypeParam}${tsxUrlParam}${hallSizeParam}${dateParam}${roundParam}`;
     }
 
     window.open(
@@ -986,6 +1006,7 @@ export default function ITicketPage() {
             matchName={roomDetail?.roomName}
             hallSize={roomDetail?.hallSize}
             venue={roomDetail?.hallName}
+            hallType={roomDetail?.hallType}
             onOpenSettings={() => setIsRoomModalOpen(true)}
             onOpenTimer={() => setShowTimer(true)}
             onExitRoom={handleExitRoom}
@@ -1121,6 +1142,7 @@ function TitleSection({
   matchName,
   hallSize,
   venue,
+  hallType,
   onOpenTimer,
   onExitRoom,
   isExiting,
@@ -1128,6 +1150,7 @@ function TitleSection({
   matchName?: string;
   hallSize?: string;
   venue?: string;
+  hallType?: string;
   onOpenSettings: () => void;
   onOpenTimer: () => void;
   onExitRoom: () => void;
@@ -1137,7 +1160,9 @@ function TitleSection({
   const sizeLabel = hallSize
     ? HALL_SIZE_TO_LABEL[hallSize] || hallSize
     : "소형";
-  const venueLabel = venue ? convertHallNameToKorean(venue) : "샤롯데씨어터";
+  const venueLabel = venue
+    ? convertHallNameToKorean(venue, hallType)
+    : "샤롯데씨어터";
 
   return (
     <div>
@@ -1191,12 +1216,25 @@ function PosterBox({
 }) {
   let thumbnailSrc = Thumbnail03; // 기본값
 
+  const normalizeS3Url = (value: string): string => {
+    return /^https?:\/\//i.test(value)
+      ? value
+      : `https://s3.tickget.kr/${value}`;
+  };
+
   if (thumbnailType === "PRESET" && thumbnailValue) {
     // 썸네일 번호로 이미지 선택
     thumbnailSrc = THUMBNAIL_IMAGES[thumbnailValue] || Thumbnail03;
   } else if (thumbnailType === "UPLOADED" && thumbnailValue) {
     // 업로드된 이미지 URL 사용
-    thumbnailSrc = thumbnailValue;
+    thumbnailSrc = normalizeS3Url(thumbnailValue);
+  } else if (thumbnailValue) {
+    // 타입 정보가 없을 때: 숫자면 PRESET, 아니면 업로드 이미지로 간주
+    if (/^\d+$/.test(thumbnailValue)) {
+      thumbnailSrc = THUMBNAIL_IMAGES[thumbnailValue] || Thumbnail03;
+    } else {
+      thumbnailSrc = normalizeS3Url(thumbnailValue);
+    }
   }
 
   return (

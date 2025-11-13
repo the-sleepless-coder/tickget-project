@@ -1,9 +1,6 @@
 import InfoOutlined from "@mui/icons-material/InfoOutlined";
-// 공연장 검색창 관련 코드는 요구사항에 따라 주석 처리되었습니다.
-// import SearchIcon from "@mui/icons-material/Search";
-// import { useEffect, useMemo, useRef, useState } from "react";
-// import CheckCircleRounded from "@mui/icons-material/CheckCircleRounded";
-// import { VENUE_MOCKS } from "../edit-room-setting/mockVenues";
+import { ConcertHallSearch } from "@/features/search/components/ConcertHallSearch";
+import type { ConcertHall } from "@/shared/types/search.types";
 
 export default function Step2AdvancedForm({
   step2Mode,
@@ -22,9 +19,8 @@ export default function Step2AdvancedForm({
   onCreate,
   isGenerating,
   isVenueSelected,
-  capacityOptions,
-  capacity,
-  setCapacity,
+  selectedHall,
+  onSelectHall,
   hasGenerated,
   onReset,
 }: {
@@ -44,55 +40,18 @@ export default function Step2AdvancedForm({
   onCreate: () => void;
   isGenerating?: boolean;
   isVenueSelected: boolean;
-  capacityOptions: readonly number[];
-  capacity: string;
-  setCapacity: (v: string) => void;
+  selectedHall: ConcertHall | null;
+  onSelectHall: (hall: ConcertHall | null) => void;
   hasGenerated?: boolean;
   onReset?: () => void;
 }) {
-  // 검색 UI 주석 처리 기간 동안 사용되지 않는 콜백 참조 유지
-  void onSelectVenue;
-  // 공연장 검색창 상태/로직 (주석 처리)
-  // const [search, setSearch] = useState("");
-  // const [isOpen, setIsOpen] = useState(false);
-  // const anchorRef = useRef<HTMLDivElement | null>(null);
-  // const [dropdownRect, setDropdownRect] = useState<{
-  //   left: number;
-  //   top: number;
-  //   width: number;
-  // } | null>(null);
-  // const filtered = useMemo(() => {
-  //   const q = search.trim();
-  //   if (!q) return VENUE_MOCKS.slice(0, 6);
-  //   return VENUE_MOCKS.filter((n) =>
-  //     n.toLowerCase().includes(q.toLowerCase())
-  //   ).slice(0, 8);
-  // }, [search]);
-  // const isSelected = Boolean(venue) && search === venue;
-  // useEffect(() => {
-  //   if (!isOpen) return;
-  //   const update = () => {
-  //     const el = anchorRef.current;
-  //     if (!el) return;
-  //     const r = el.getBoundingClientRect();
-  //     setDropdownRect({ left: r.left, top: r.bottom + 4, width: r.width });
-  //   };
-  //   update();
-  //   window.addEventListener("resize", update);
-  //   window.addEventListener("scroll", update, true);
-  //   return () => {
-  //     window.removeEventListener("resize", update);
-  //     window.removeEventListener("scroll", update, true);
-  //   };
-  // }, [isOpen]);
-
-  // AI 모드: 썸네일 업로드 + 수용 인원 선택 시 생성 가능
+  // AI 모드: 썸네일 업로드 + 공연장 선택 시 생성 가능
   // 생성 완료 후에는 "생성" 버튼으로 변경 (초기화용)
   const canCreate =
     step2Mode === "ai"
       ? hasGenerated
         ? true // 생성 완료 후에는 항상 활성화 (초기화 버튼)
-        : Boolean(isImageUploaded) && Boolean(capacity) && !isGenerating
+        : Boolean(isImageUploaded) && Boolean(selectedHall) && !isGenerating
       : Boolean(isVenueSelected) && isImageUploaded && !isGenerating;
   return (
     <div className="space-y-6">
@@ -154,23 +113,13 @@ export default function Step2AdvancedForm({
         </div>
       ) : (
         <div className="w-full">
-          {/* 공연장 검색창은 요구사항에 따라 주석처리되었습니다.
-          <div className="flex items-center gap-3"> ... </div>
-          */}
           <div className="flex items-center gap-3">
-            <div className="relative w-full max-w-[220px]">
-              <select
-                value={capacity}
-                onChange={(e) => setCapacity(e.target.value)}
-                className="w-full rounded-none border border-gray-300 px-5 py-2.5 pr-10 text-gray-700 placeholder:text-gray-400 shadow-sm focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/40 bg-white"
-              >
-                <option value="">최대 수용 인원</option>
-                {capacityOptions.map((n) => (
-                  <option key={n} value={n}>
-                    {n} 명
-                  </option>
-                ))}
-              </select>
+            <div className="relative w-full max-w-[400px]">
+              <ConcertHallSearch
+                onSelect={(hall) => onSelectHall(hall)}
+                placeholder="공연장을 검색하세요"
+                selectedHall={selectedHall}
+              />
             </div>
             <button
               type="button"
@@ -182,7 +131,7 @@ export default function Step2AdvancedForm({
                   : "bg-gray-200 text-gray-500 cursor-not-allowed"
               }`}
             >
-              {hasGenerated ? "생성" : "생성하기"}
+              {hasGenerated ? "다시 생성" : "생성하기"}
             </button>
           </div>
         </div>

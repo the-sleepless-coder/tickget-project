@@ -47,8 +47,15 @@ export default function RoomsPage() {
   const [rooms, setRooms] = useState<UiRoom[]>([]);
   const [availableOnly, setAvailableOnly] = useState(false);
 
-  // hallName을 한글로 변환하는 함수
-  const convertHallNameToKorean = (hallName: string): string => {
+  // hallName을 한글로 변환하는 함수 (hallType이 AI_GENERATED면 "AI" 반환)
+  const convertHallNameToKorean = (
+    hallName: string,
+    hallType?: string
+  ): string => {
+    // AI 생성된 방은 "AI"로 표시
+    if (hallType === "AI_GENERATED") {
+      return "AI";
+    }
     const hallNameMap: Record<string, string> = {
       InspireArena: "인스파이어 아레나",
       CharlotteTheater: "샤롯데씨어터",
@@ -126,16 +133,22 @@ export default function RoomsPage() {
               r.startTime && r.startTime.length >= 16
                 ? r.startTime.substring(11, 16)
                 : undefined;
-            const thumbnailImageSrc = getThumbnailImagePath(
-              r.thumbnailType,
-              r.thumbnailValue
-            );
+            const normalizeS3Url = (value: string): string => {
+              return /^https?:\/\//i.test(value)
+                ? value
+                : `https://s3.tickget.kr/${value}`;
+            };
+            const thumbnailImageSrc =
+              getThumbnailImagePath(r.thumbnailType, r.thumbnailValue) ||
+              (r.thumbnailType === "UPLOADED" && r.thumbnailValue
+                ? normalizeS3Url(r.thumbnailValue)
+                : undefined);
             return {
               id: r.roomId,
               title: r.roomName,
               variant: "blue",
               size,
-              venueName: convertHallNameToKorean(r.hallName),
+              venueName: convertHallNameToKorean(r.hallName, r.hallType),
               imageSrc: thumbnailImageSrc,
               participants: {
                 current: r.currentUserCount,
@@ -162,6 +175,7 @@ export default function RoomsPage() {
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [availableOnly]);
   const normalizedQuery = query.trim().toLowerCase();
   const filteredRooms = rooms

@@ -18,6 +18,7 @@ export interface RoomResponse {
   startTime: string; // ISO string
   hallSize: HallSize;
   hallName: string;
+  hallType?: string; // "PRESET" | "AI_GENERATED"
   thumbnailType: ThumbnailType;
   thumbnailValue: string;
   totalSeat?: number; // 총 좌석 수
@@ -41,6 +42,8 @@ export interface RoomDetailResponse {
   hallId: number;
   hallSize: HallSize;
   hallName: string;
+  hallType?: string; // "PRESET" | "AI_GENERATED"
+  tsxUrl?: string | null; // AI 생성된 방의 경우 TSX URL
   thumbnailType: ThumbnailType;
   thumbnailValue: string;
   totalSeat?: number; // 총 좌석 수
