@@ -76,7 +76,7 @@ public class Room extends BaseTimeEntity{
     @Column(name = "tsx_url", length = 500)
     private String tsxUrl;
 
-    public static Room of (CreateRoomRequest createRoomRequest,PresetHall hall, String thumbnailValue ) {
+    public static Room of (CreateRoomRequest createRoomRequest,PresetHall hall ) {
         return Room.builder()
                 .roomType(createRoomRequest.getRoomType())
                 .hallId(createRoomRequest.getHallId())
@@ -87,7 +87,7 @@ public class Room extends BaseTimeEntity{
                 .totalSeat(createRoomRequest.getTotalSeat())
                 .status(RoomStatus.WAITING)
                 .thumbnailType(createRoomRequest.getThumbnailType())
-                .thumbnailValue(thumbnailValue)
+                .thumbnailValue(createRoomRequest.getThumbnailValue())
                 .tsxUrl(createRoomRequest.getTsxUrl()==null?TSX_DEFAULT:createRoomRequest.getTsxUrl())
                 .build();
     }

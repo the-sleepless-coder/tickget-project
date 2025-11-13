@@ -62,9 +62,8 @@ public class RoomController {
 
     // 방생성
     @PostMapping
-    public ResponseEntity<CreateRoomResponse> createRoom(@RequestBody CreateRoomRequest createRoomRequest,
-                                                         @RequestPart(value = "file", required = false) MultipartFile thumbnail) throws JsonProcessingException {
-        CreateRoomResponse response = roomService.createRoom(createRoomRequest,thumbnail);
+    public ResponseEntity<CreateRoomResponse> createRoom(@RequestBody CreateRoomRequest createRoomRequest) throws JsonProcessingException {
+        CreateRoomResponse response = roomService.createRoom(createRoomRequest);
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(response);

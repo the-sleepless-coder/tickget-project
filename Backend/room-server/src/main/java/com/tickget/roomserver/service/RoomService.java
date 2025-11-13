@@ -64,20 +64,14 @@ public class RoomService {
     private final PresetHallRepository  presetHallRepository;
 
     @Transactional
-    public CreateRoomResponse createRoom(CreateRoomRequest request, MultipartFile thumbnail) throws JsonProcessingException {
+    public CreateRoomResponse createRoom(CreateRoomRequest request ) throws JsonProcessingException {
 
         log.info("사용자  {}(id:{})(이)가 방 생성 요청",request.getUsername(), request.getUserId());
         
         PresetHall presetHall = presetHallRepository.findById(request.getHallId()).orElseThrow(
                 () -> new PresetHallNotFoundException(request.getHallId()));
 
-        String thumbnailValue = request.getThumbnailValue();
-        if (request.getThumbnailType() == ThumbnailType.UPLOADED) {
-            thumbnailValue = minioService.uploadFile(thumbnail);
-
-        }
-
-        Room room = Room.of(request,presetHall,thumbnailValue);
+        Room room = Room.of(request,presetHall);
         room = roomRepository.save(room); // 알아서 id값 반영되지만 명시
         String sessionId = sessionManager.getSessionIdByUserId(request.getUserId());
 
