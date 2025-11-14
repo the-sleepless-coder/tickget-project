@@ -11,4 +11,5 @@ public enum EventType {
     QUEUE_STATUS_UPDATE,
     USER_DEQUEUED,
     FORCE_DISCONNECT,
+    MATCH_ENDED
 }

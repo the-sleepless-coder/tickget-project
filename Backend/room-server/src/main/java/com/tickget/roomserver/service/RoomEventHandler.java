@@ -4,6 +4,7 @@ import com.tickget.roomserver.domain.repository.RoomCacheRepository;
 import com.tickget.roomserver.dto.cache.GlobalSessionInfo;
 import com.tickget.roomserver.dto.request.ExitRoomRequest;
 import com.tickget.roomserver.event.HostChangedEvent;
+import com.tickget.roomserver.event.RoomPlayingEndedEvent;
 import com.tickget.roomserver.event.RoomSettingUpdatedEvent;
 import com.tickget.roomserver.event.SessionCloseEvent;
 import com.tickget.roomserver.event.UserDequeuedEvent;
@@ -191,7 +192,7 @@ public class RoomEventHandler {
 
             // 6. 클라이언트에게 강제 종료 알림 전송
             String userDestination = "/user/" + userId;
-            RoomEventMessage disconnectMessage = RoomEventMessage.forceDisconnect(userId, "DUPLICATE_SESSION");
+            RoomEventMessage disconnectMessage = RoomEventMessage.forceDisconnect( "DUPLICATE_SESSION");
 
             try {
                 messagingTemplate.convertAndSend(userDestination, disconnectMessage);
@@ -293,6 +294,24 @@ public class RoomEventHandler {
         } catch (Exception e) {
             log.error("유저 Dequeue 이벤트 처리 중 오류: userId={}, roomId={}, error={}",
                     userId, event.getRoomId(), e.getMessage(), e);
+        }
+    }
+
+    public void notifyMatchEnded(RoomPlayingEndedEvent event) {
+        try {
+            String destination = "/topic/rooms/" + event.getRoomId();
+            Long matchId = roomCacheRepository.getMatchIdByRoomId(event.getRoomId());
+
+            RoomEventMessage message = RoomEventMessage.matchEnded(
+                    event.getRoomId(),
+                    matchId
+            );
+            messagingTemplate.convertAndSend(destination, message);
+            log.info("방 종료 매치 종료 알림 전송 완료: 방={} , 매치={}", event.getRoomId(), matchId);
+
+        } catch (Exception e) {
+            log.info("방 설정 업데이트 이벤트 처리 중 오류: 방={}, error={}",
+                    event.getRoomId(), e.getMessage(), e);
         }
     }
 }

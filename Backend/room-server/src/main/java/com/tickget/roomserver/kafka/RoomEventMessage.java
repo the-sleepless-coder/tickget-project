@@ -5,6 +5,7 @@ import com.tickget.roomserver.domain.enums.EventType;
 import com.tickget.roomserver.dto.cache.QueueStatus;
 import com.tickget.roomserver.kafka.payload.ForceDisconnectPayload;
 import com.tickget.roomserver.kafka.payload.HostChangedPayload;
+import com.tickget.roomserver.kafka.payload.MatchEndedPayload;
 import com.tickget.roomserver.kafka.payload.QueueStatusMapPayload;
 import com.tickget.roomserver.kafka.payload.RoomSettingUpdatedPayload;
 import com.tickget.roomserver.kafka.payload.UserDequeuedPayload;
@@ -119,7 +120,7 @@ public class RoomEventMessage {
                 .build();
     }
 
-    public static RoomEventMessage forceDisconnect(Long userId, String reason) {
+    public static RoomEventMessage forceDisconnect( String reason) {
         return RoomEventMessage.builder()
                 .eventType(EventType.FORCE_DISCONNECT)
                 .timestamp(System.currentTimeMillis())
@@ -129,6 +130,17 @@ public class RoomEventMessage {
                         .message("다른 기기에서 로그인되어 현재 연결이 종료됩니다.")
                         .timestamp(System.currentTimeMillis())
                         .build())
+                .build();
+    }
+
+    public static RoomEventMessage matchEnded(Long roomId,Long matchId) {
+        return RoomEventMessage.builder()
+                .eventType(EventType.MATCH_ENDED)
+                .timestamp(System.currentTimeMillis())
+                .message("매치가 종료되었습니다")
+                .payload(MatchEndedPayload.builder()
+                        .matchId(matchId)
+                        .roomId(roomId))
                 .build();
     }
 }

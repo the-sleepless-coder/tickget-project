@@ -72,6 +72,7 @@ public class RoomEventConsumer {
     @KafkaListener(topics = ROOM_PLAYING_ENDED_TOPIC)
     public void handleRoomPlayingEndedEvent(RoomPlayingEndedEvent event) {
         roomEventHandler.endNotifyingScheduling(event.getRoomId());
+        roomEventHandler.notifyMatchEnded(event);
     }
 
     @KafkaListener(
