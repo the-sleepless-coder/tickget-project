@@ -592,13 +592,18 @@ export default function ITicketPage() {
     }
   }, [roomData, roomRequest, joinResponse, roomId]);
 
-  // WebSocket 구독: /topic/rooms/{roomId}
-  useEffect(() => {
-    const targetRoomId =
+  // targetRoomId를 useMemo로 추출하여 객체 참조 변경으로 인한 불필요한 재구독 방지
+  const targetRoomId = useMemo(() => {
+    return (
       roomId ||
       joinResponse?.roomId?.toString() ||
-      roomData?.roomId?.toString();
+      roomData?.roomId?.toString() ||
+      null
+    );
+  }, [roomId, joinResponse?.roomId, roomData?.roomId]);
 
+  // WebSocket 구독: /topic/rooms/{roomId}
+  useEffect(() => {
     if (!targetRoomId) {
       console.warn("⚠️ [구독] Room ID가 없어 구독할 수 없습니다.");
       return;
@@ -749,9 +754,7 @@ export default function ITicketPage() {
     };
   }, [
     wsClient,
-    roomId,
-    joinResponse?.roomId,
-    roomData?.roomId,
+    targetRoomId, // useMemo로 추출한 값만 사용하여 불필요한 재구독 방지
     // handleRoomEvent는 ref로 관리하므로 의존성 배열에 포함하지 않음
   ]);
 
