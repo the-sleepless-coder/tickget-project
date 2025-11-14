@@ -131,7 +131,7 @@ public class WebSocketEventListener {
     private void cleanupFailedConnection(String sessionId, Long userId) {
         try {
             sessionManager.remove(sessionId);
-            roomCacheRepository.removeGlobalSession(userId);
+            roomCacheRepository.removeGlobalSession(userId,sessionId);
         } catch (Exception e) {
             log.error("연결 실패 정리 중 오류: sessionId={}, userId={}", sessionId, userId, e);
         }
@@ -175,20 +175,17 @@ public class WebSocketEventListener {
         }
     }
 
-    /**
-     * 세션 정리 (로컬 + 전역)
-     * - finally 블록에서 호출되므로 반드시 실행됨
-     */
+    //finally 블록에서 호출되므로 반드시 실행됨
     private void cleanupSession(String sessionId, Long userId) {
         try {
             // 1. 로컬 세션 제거
             sessionManager.remove(sessionId);
 
-            // 2. Redis 전역 세션 제거 (같은 세션일 때만)
-            GlobalSessionInfo globalSession = roomCacheRepository.getGlobalSession(userId);
+            // 2. Redis 전역 세션 제거 (Lua Script - 원자적)
+            // sessionId가 일치하는 경우에만 삭제됨
+            boolean removed = roomCacheRepository.removeGlobalSession(userId, sessionId);
 
-            if (globalSession != null && globalSession.getSessionId().equals(sessionId)) {
-                roomCacheRepository.removeGlobalSession(userId);
+            if (removed) {
                 log.debug("Redis 전역 세션 제거: userId={}, sessionId={}", userId, sessionId);
             } else {
                 log.debug("Redis 전역 세션 유지 (다른 세션이 등록됨): userId={}", userId);
@@ -198,13 +195,10 @@ public class WebSocketEventListener {
 
         } catch (Exception e) {
             log.error("세션 정리 중 오류: sessionId={}, userId={}", sessionId, userId, e);
-            // 정리 실패해도 예외를 던지지 않음 (이미 disconnect 처리 중)
         }
     }
 
-    /**
-     * WebSocketSession 종료
-     */
+    //WebSocketSession 종료
     private void closeWebSocketSession(WebSocketSession session) {
         if (session != null && session.isOpen()) {
             try {

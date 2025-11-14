@@ -207,10 +207,13 @@ public class RoomEventHandler {
             sessionManager.remove(sessionInfo.getSessionId());
             log.info("로컬 세션 제거 완료: userId={}, sessionId={}", userId, targetSessionId);
 
-            // 8. Redis 전역 세션 제거 (같은 세션일 때만)
-            if (currentGlobalSession != null && currentGlobalSession.getSessionId().equals(targetSessionId)) {
-                roomCacheRepository.removeGlobalSession(userId);
-                log.info("Redis 전역 세션 제거 완료: userId={}", userId);
+            // 8. Redis 전역에서 원자적으로 세션 제거 
+            boolean removed = roomCacheRepository.removeGlobalSession(userId, targetSessionId);
+
+            if (removed) {
+                log.info("Redis 전역 세션 제거 완료: userId={}, sessionId={}", userId, targetSessionId);
+            } else {
+                log.warn("Redis 전역 세션 제거 실패 (이미 다른 세션으로 교체됨): userId={}", userId);
             }
 
             // 9. WebSocketSession 종료 (마지막에)
