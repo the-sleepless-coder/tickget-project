@@ -2,6 +2,7 @@ package com.tickget.authserver.oauth;
 
 import com.tickget.authserver.entity.User;
 import com.tickget.authserver.repository.UserRepository;
+import com.tickget.authserver.service.ProfileImageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
@@ -22,6 +23,7 @@ import java.util.Map;
 public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
     private final UserRepository userRepository;
+    private final ProfileImageService profileImageService;
 
     @Override
     @Transactional
@@ -47,17 +49,29 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
     }
 
     private User createNewUser(String email, String nickname, String picture) {
-        log.info("신규 사용자 생성: email={}, nickname={}, picture={}", email, nickname, picture);
+        log.info("신규 사용자 생성: email={}, nickname={}", email, nickname);
 
-        // Google OAuth2에서 받은 정보로 사용자 생성
+        // 1. 먼저 사용자를 저장하여 ID 생성 (프로필 이미지는 null)
         User newUser = User.builder()
                 .email(email)
                 .name(null)
                 .nickname(nickname)  // 처음은 사용자 이름과 동일하게
-                .profileImageUrl(picture)  // Google 프로필 이미지 저장
+                .profileImageUrl(null)  // 일단 null로 저장
                 .gender(User.Gender.UNKNOWN)
                 .birthDate(null)
                 .build();
+
+        newUser = userRepository.save(newUser);
+
+        // 2. 기본 프로필 이미지를 S3에 업로드
+        try {
+            String s3ProfileUrl = profileImageService.copyRandomDefaultProfileImage(newUser.getId());
+            newUser.setProfileImageUrl(s3ProfileUrl);
+            log.info("기본 프로필 이미지 설정 완료 - userId: {}, url: {}", newUser.getId(), s3ProfileUrl);
+        } catch (Exception e) {
+            log.error("기본 프로필 이미지 업로드 실패 - userId: {}, error: {}", newUser.getId(), e.getMessage());
+            // 프로필 이미지 업로드 실패 시에도 사용자 생성은 계속 진행 (null로 유지)
+        }
 
         return userRepository.save(newUser);
     }

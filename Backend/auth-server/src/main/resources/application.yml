@@ -53,6 +53,14 @@ app:
   oauth2:
     frontend-url: ${FRONTEND_URL:http://localhost:3000}
 
+# MinIO S3 설정 (프로필 이미지 저장)
+minio:
+  url: ${MINIO_URL:https://s3.tickget.kr}
+  access-key: ${MINIO_ACCESS_KEY:minioadmin}
+  secret-key: ${MINIO_SECRET_KEY:minioadmin}
+  bucket-name: ${MINIO_BUCKET_NAME:tickget-dev}
+  default-profile-count: ${MINIO_DEFAULT_PROFILE_COUNT:4}  # 기본 이미지 개수
+
 # Springdoc OpenAPI
 springdoc:
   api-docs:
