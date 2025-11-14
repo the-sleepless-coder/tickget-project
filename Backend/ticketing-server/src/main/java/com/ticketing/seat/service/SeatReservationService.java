@@ -1,5 +1,6 @@
 package com.ticketing.seat.service;
 
+import com.ticketing.entity.UserStats;
 import com.ticketing.seat.concurrency.LuaReservationExecutor;
 import com.ticketing.seat.dto.ReservedSeatInfoDto;
 import com.ticketing.seat.dto.SeatInfo;
@@ -49,6 +50,7 @@ public class SeatReservationService {
         if (req.getUserId() > 0 && (req.getTotalSeats() == null || req.getTotalSeats() <= 0)) {
             throw new IllegalArgumentException("Total seats must be provided and greater than 0");
         }
+
 
         // 1-2. 각 좌석에 grade가 있는지 확인 (없으면 최상위 grade 사용)
         validateAndFillGrades(req);
@@ -106,8 +108,18 @@ public class SeatReservationService {
             setMatchRedisTTL(matchId);
         }
 
+        // 성공 시 (1L 또는 2L 모두) TTL 설정
+        if (result != null && (result == 1L || result == 2L)) {
+            setMatchRedisTTL(matchId);
+        }
+
         // 6. 결과 처리
-        if (result == null || result == 0L) {
+        if (result == null || result == 0L) { //좌석 선점 실패 시
+//            // 실제 유저만 user_stats 저장
+//            if (!isBot) {
+//                saveFailedUserStats(matchId, userId, req);
+//                log.info("Hold 실패 - user_stats 저장 완료");
+//            }
             return buildFailureResponse(matchId, req);
         }
 
@@ -269,4 +281,31 @@ public class SeatReservationService {
                 .failedSeats(List.of())
                 .build();
     }
+
+
+//    private void saveFailedUserStats(Long matchId, Long userId, SeatReservationRequest request) {
+//        UserStats userStats = UserStats.builder()
+//                .userId(userId)
+//                .matchId(matchId)
+//                .isSuccess(false)           // 실패
+//                .selectedSection(selectedSection)
+//                .selectedSeat(selectedSeat)
+//                .dateSelectTime(request.getDateSelectTime())
+//                .dateMissCount(request.getDateMissCount() != null ? request.getDateMissCount() : 0)
+//                .seccodeSelectTime(request.getSeccodeSelectTime())
+//                .seccodeBackspaceCount(request.getSeccodeBackspaceCount() != null ? request.getSeccodeBackspaceCount() : 0)
+//                .seccodeTryCount(request.getSeccodeTryCount() != null ? request.getSeccodeTryCount() : 0)
+//                .seatSelectTime(request.getSeatSelectTime())
+//                .seatSelectTryCount(request.getSeatSelectTryCount() != null ? request.getSeatSelectTryCount() : 0)
+//                .seatSelectClickMissCount(request.getSeatSelectClickMissCount() != null ? request.getSeatSelectClickMissCount() : 0)
+//                .userRank(-1)               // 실패로 -1
+//                .totalRank(-1)              // 실패로 -1
+//                .createdAt(LocalDateTime.now())
+//                .updatedAt(LocalDateTime.now())
+//                .build();
+//
+//        userStatsRepository.save(userStats);
+//    }
+
 }
+
