@@ -5,6 +5,7 @@ import com.tickget.authserver.dto.TokenResponse;
 import com.tickget.authserver.entity.User;
 import com.tickget.authserver.jwt.JwtTokenProvider;
 import com.tickget.authserver.repository.UserRepository;
+import com.tickget.authserver.service.ProfileImageService;
 import com.tickget.authserver.service.TokenService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -34,6 +35,7 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
     private final TokenService tokenService;
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
+    private final ProfileImageService profileImageService;
 
     @Value("${app.oauth2.frontend-url:http://localhost:3000}")
     private String frontendUrl;
@@ -126,16 +128,29 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
      * 신규 사용자 생성
      */
     private User createNewUser(String email, String name, String picture) {
-        log.info("신규 사용자 생성: email={}, name={}, picture={}", email, name, picture);
+        log.info("신규 사용자 생성: email={}, name={}", email, name);
 
+        // 1. 먼저 사용자를 저장하여 ID 생성 (프로필 이미지는 null)
         User newUser = User.builder()
                 .email(email)
                 .name(name)
                 .nickname(null)  // 추가 정보 입력 필요
-                .profileImageUrl(picture)  // Google 프로필 이미지 저장
+                .profileImageUrl(null)  // 일단 null로 저장
                 .gender(User.Gender.UNKNOWN)
                 .birthDate(null)
                 .build();
+
+        newUser = userRepository.save(newUser);
+
+        // 2. 기본 프로필 이미지를 S3에 업로드
+        try {
+            String s3ProfileUrl = profileImageService.copyRandomDefaultProfileImage(newUser.getId());
+            newUser.setProfileImageUrl(s3ProfileUrl);
+            log.info("기본 프로필 이미지 설정 완료 - userId: {}, url: {}", newUser.getId(), s3ProfileUrl);
+        } catch (Exception e) {
+            log.error("기본 프로필 이미지 업로드 실패 - userId: {}, error: {}", newUser.getId(), e.getMessage());
+            // 프로필 이미지 업로드 실패 시에도 사용자 생성은 계속 진행 (null로 유지)
+        }
 
         return userRepository.save(newUser);
     }
