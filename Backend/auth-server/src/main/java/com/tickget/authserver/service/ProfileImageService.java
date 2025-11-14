@@ -55,7 +55,7 @@ public class ProfileImageService {
             long fileSize = resource.contentLength();
 
             // 3. S3에 업로드 (users/{userId}/profile.jpg)
-            String objectName = String.format("users/%d/profile.jpg", userId);
+            String objectName = String.format("users/%d/profile", userId);
 
             minioClient.putObject(
                     PutObjectArgs.builder()
