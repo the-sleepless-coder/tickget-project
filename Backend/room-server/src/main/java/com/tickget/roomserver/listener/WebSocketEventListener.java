@@ -58,8 +58,13 @@ public class WebSocketEventListener {
 
         try {
             // 1. 기존 세션 확인 및 종료 처리
-            handleExistingSession(userId);
+            boolean hadExistingSession = handleExistingSession(userId);
 
+            // 기존 세션이 있었던 경우에만 대기
+            if (hadExistingSession) {
+                Thread.sleep(200);
+                log.debug("기존 세션 종료 처리 대기 완료: userId={}", userId);
+            }
             // 2. WebSocketSession 객체 가져오기
             WebSocketSession webSocketSession = getWebSocketSession(connectHeaders);
 
@@ -87,12 +92,12 @@ public class WebSocketEventListener {
      * - close()만 호출하여 disconnect 이벤트가 자연스럽게 발생하도록 함
      * - disconnect 이벤트에서 방 퇴장 + 세션 정리가 완전히 처리됨
      */
-    private void handleExistingSession(Long userId) throws InterruptedException {
+    private boolean handleExistingSession(Long userId) {
         GlobalSessionInfo globalSession = roomCacheRepository.getGlobalSession(userId);
 
         if (globalSession == null) {
             log.debug("유저 {}의 기존 전역 세션 없음", userId);
-            return;
+            return false;
         }
 
         log.warn("유저 {}의 기존 전역 세션 발견 - sessionId: {}, serverId: {}",
@@ -111,7 +116,7 @@ public class WebSocketEventListener {
 
         log.info("기존 세션 종료 요청 발행: userId={}, targetServerId={}",
                 userId, globalSession.getServerId());
-        Thread.sleep(200);
+        return true;
     }
 
     //WebSocketSession 객체 추출
