@@ -23,6 +23,8 @@ import { useRoomStore } from "@features/room/store";
 import { useMatchStore } from "@features/booking-site/store";
 import { useNavigate } from "react-router-dom";
 import ExitToAppIcon from "@mui/icons-material/ExitToApp";
+import ConfirmationNumberOutlinedIcon from "@mui/icons-material/ConfirmationNumberOutlined";
+import { enqueueTicketingQueue } from "@features/booking-site/api";
 import Thumbnail01 from "../../../shared/images/thumbnail/Thumbnail01.webp";
 import Thumbnail02 from "../../../shared/images/thumbnail/Thumbnail02.webp";
 import Thumbnail03 from "../../../shared/images/thumbnail/Thumbnail03.webp";
@@ -140,8 +142,50 @@ export default function ITicketPage() {
   const [isRoomModalOpen, setIsRoomModalOpen] = useState<boolean>(false);
   const [showTimer, setShowTimer] = useState<boolean>(false);
   const [isExiting, setIsExiting] = useState<boolean>(false);
+  const [bookingStage, setBookingStage] = useState<null | "loading" | "queue">(
+    null
+  );
+  const [queueRank, setQueueRank] = useState<number>(0);
+  const [totalQueue, setTotalQueue] = useState<number>(0);
+  const [hasEnqueued, setHasEnqueued] = useState<boolean>(false);
+  const [hasDequeuedInPage, setHasDequeuedInPage] = useState<boolean>(false);
   const subscriptionRef = useRef<Subscription | null>(null);
-  const bridgeRef = useRef<BroadcastChannel | null>(null);
+  // ref로 상태를 관리하여 handleRoomEvent 재생성 방지
+  const bookingStageRef = useRef<null | "loading" | "queue">(null);
+  const hasDequeuedInPageRef = useRef<boolean>(false);
+  const handleRoomEventRef = useRef<
+    | ((event: {
+        eventType?: string;
+        type?: string;
+        roomId?: number;
+        timestamp?: number;
+        message?: string;
+        payload?: {
+          userId?: number;
+          username?: string;
+          userName?: string;
+          totalUsersInRoom?: number;
+          [key: string]: unknown;
+        };
+        roomMembers?: RoomMember[];
+        userId?: number;
+        username?: string;
+        userName?: string;
+        [key: string]: unknown;
+      }) => void)
+    | null
+  >(null);
+
+  // bookingStage 변경 시 ref도 업데이트
+  useEffect(() => {
+    bookingStageRef.current = bookingStage;
+  }, [bookingStage]);
+
+  // hasDequeuedInPage 변경 시 ref도 업데이트
+  useEffect(() => {
+    hasDequeuedInPageRef.current = hasDequeuedInPage;
+  }, [hasDequeuedInPage]);
+
   const wsClient = useWebSocketStore((state) => state.client);
   const currentUserNickname = useAuthStore((state) => state.nickname);
   const currentUserId = useAuthStore((state) => state.userId);
@@ -151,7 +195,7 @@ export default function ITicketPage() {
   const matchIdFromStore = useMatchStore((s) => s.matchId);
   const [, setMyQueueStatus] = useState<QueueStatus | null>(null);
 
-  // WebSocket 이벤트 핸들러
+  // WebSocket 이벤트 핸들러 (ref로 관리하여 재생성 방지)
   const handleRoomEvent = useCallback(
     (event: {
       eventType?: string;
@@ -202,7 +246,7 @@ export default function ITicketPage() {
             if (p.userId === myUserId) {
               // 본인 성공
               if (p.matchId == null) {
-                console.log("✅ [DEQUEUE] 본인 티켓팅 성공 (matchId 없음)", {
+                console.log("✅ [DEQUEUE] 본인 대기열 통과 (matchId 없음)", {
                   myUserId,
                   timestamp: p.timestamp ?? event.timestamp ?? Date.now(),
                 });
@@ -213,12 +257,63 @@ export default function ITicketPage() {
                 if (!Number.isNaN(numericMatchId)) {
                   useMatchStore.getState().setMatchId(numericMatchId as number);
                 }
-                console.log("✅ [DEQUEUE] 본인 티켓팅 성공!", {
+                console.log("✅ [DEQUEUE] 본인 대기열 통과!", {
                   myUserId,
                   matchId: p.matchId,
                   timestamp: p.timestamp ?? event.timestamp ?? Date.now(),
                   message: event.message,
                 });
+              }
+
+              // 현재 페이지에서 경기 진행 중인 경우 좌석 선택 페이지로 이동
+              if (
+                bookingStageRef.current !== null &&
+                !hasDequeuedInPageRef.current
+              ) {
+                setHasDequeuedInPage(true);
+                hasDequeuedInPageRef.current = true;
+                setBookingStage(null);
+                bookingStageRef.current = null;
+                const hallId =
+                  roomDetail?.hallId ?? roomData?.hallId ?? roomRequest?.hallId;
+                const startTime =
+                  roomDetail?.startTime ?? roomRequest?.gameStartTime;
+                const reservationDay = startTime
+                  ? dayjs(startTime).format("YYYY-MM-DD")
+                  : roomRequest?.reservationDay;
+
+                const nextUrl = new URL(
+                  window.location.origin + paths.booking.selectSeat
+                );
+                if (reserveAppearedAt) {
+                  const clickedTs = Date.now();
+                  const reactionMs = clickedTs - reserveAppearedAt;
+                  const reactionSec = Number((reactionMs / 1000).toFixed(2));
+                  nextUrl.searchParams.set("rtSec", String(reactionSec));
+                } else {
+                  nextUrl.searchParams.set("rtSec", "0");
+                }
+                nextUrl.searchParams.set(
+                  "nrClicks",
+                  String(nonReserveClickCount)
+                );
+                const totalStartAt = getTotalStartAtMs();
+                if (totalStartAt) {
+                  nextUrl.searchParams.set("tStart", String(totalStartAt));
+                }
+                if (hallId) {
+                  nextUrl.searchParams.set("hallId", String(hallId));
+                }
+                if (p.matchId != null) {
+                  nextUrl.searchParams.set("matchId", String(p.matchId));
+                } else if (matchIdFromStore != null) {
+                  nextUrl.searchParams.set("matchId", String(matchIdFromStore));
+                }
+                if (reservationDay) {
+                  nextUrl.searchParams.set("date", reservationDay);
+                }
+                nextUrl.searchParams.set("round", "1");
+                navigate(nextUrl.pathname + nextUrl.search, { replace: true });
               }
             } else {
               // 타인 성공
@@ -273,6 +368,20 @@ export default function ITicketPage() {
               };
 
               setMyQueueStatus(next);
+
+              // 현재 페이지에서 경기 진행 중인 경우 대기열 상태 업데이트
+              if (bookingStageRef.current !== null) {
+                const total = Number(raw.total ?? 0);
+                const behind = Number(raw.behind ?? 0);
+                setQueueRank(total);
+                setTotalQueue(total + behind);
+                if (total > 0) {
+                  setBookingStage("queue");
+                } else {
+                  setBookingStage("loading");
+                }
+              }
+
               console.log("✅ [QUEUE] 내 대기열 상태 업데이트 성공:", {
                 myUserId,
                 ...next,
@@ -391,8 +500,24 @@ export default function ITicketPage() {
           console.log("ℹ️ 알 수 없는 이벤트 타입:", eventType, event);
       }
     },
-    []
+    [
+      matchIdFromStore,
+      navigate,
+      nonReserveClickCount,
+      reserveAppearedAt,
+      roomData?.hallId,
+      roomDetail?.hallId,
+      roomDetail?.startTime,
+      roomRequest?.gameStartTime,
+      roomRequest?.hallId,
+      roomRequest?.reservationDay,
+    ]
   );
+
+  // handleRoomEvent를 ref에 저장하여 항상 최신 함수 참조
+  useEffect(() => {
+    handleRoomEventRef.current = handleRoomEvent;
+  }, [handleRoomEvent]);
 
   // 방 생성/입장 응답 데이터 로그
   useEffect(() => {
@@ -441,19 +566,7 @@ export default function ITicketPage() {
     let retryCount = 0;
     const maxRetries = 20; // 최대 10초 대기 (500ms * 20)
 
-    // Bridge 채널 준비 (교차 창 전달용)
-    const bridgeChannelName = `room-${targetRoomId}-events`;
-    try {
-      if ("BroadcastChannel" in window) {
-        bridgeRef.current?.close();
-        bridgeRef.current = new BroadcastChannel(bridgeChannelName);
-        console.log("🔗 [bridge] 채널 준비:", bridgeChannelName);
-      } else {
-        console.warn("⚠️ [bridge] BroadcastChannel 미지원 - 브릿지 비활성");
-      }
-    } catch (e) {
-      console.warn("⚠️ [bridge] 채널 생성 실패:", e);
-    }
+    // Bridge는 현재 페이지에서만 처리하므로 생성하지 않음
 
     console.log("🚀 [구독] 구독 프로세스 시작:", {
       targetRoomId,
@@ -467,6 +580,7 @@ export default function ITicketPage() {
       if (wsClient.connected) {
         console.log(`📡 [구독] 방 구독 시도: ${destination}`);
 
+        // handleRoomEvent를 직접 참조하여 항상 최신 함수 사용
         const subscription = subscribe(wsClient, destination, (message) => {
           console.log("📨 [메시지 수신] 방 메시지 수신:", {
             destination: message.headers.destination,
@@ -487,14 +601,11 @@ export default function ITicketPage() {
                 `🔔 [메시지 수신] 이벤트 타입: ${data.eventType}`,
                 data
               );
-              // Bridge로 교차 창에 전달
-              try {
-                bridgeRef.current?.postMessage(data);
-                // console.debug("📡 [bridge] 이벤트 전달:", data.eventType);
-              } catch (e) {
-                console.warn("⚠️ [bridge] 이벤트 전달 실패:", e);
+              // 현재 페이지에서만 처리하므로 Bridge 전달 불필요
+              // ref를 통해 최신 handleRoomEvent 함수 사용
+              if (handleRoomEventRef.current) {
+                handleRoomEventRef.current(data);
               }
-              handleRoomEvent(data);
             }
             // roomMembers 배열이 있으면 무조건 업데이트 (기존 형식 지원)
             else if (data.roomMembers && Array.isArray(data.roomMembers)) {
@@ -570,7 +681,14 @@ export default function ITicketPage() {
     checkConnection();
 
     // cleanup: 컴포넌트 언마운트 시 구독 해제
+    // 단, 현재 페이지에서 경기 진행 중인 경우(DEQUEUE 후 좌석 선택 페이지로 이동)에는 구독 유지
     return () => {
+      // 현재 페이지에서 경기 진행 중이고 DEQUEUE된 경우 구독 유지
+      if (hasDequeuedInPageRef.current) {
+        console.log(`🔌 [구독] 경기 진행 중이므로 구독 유지: ${destination}`);
+        return;
+      }
+
       if (subscriptionRef.current) {
         console.log(`🔌 [구독] 방 구독 해제: ${destination}`, {
           subscriptionId: subscriptionRef.current.id,
@@ -579,24 +697,13 @@ export default function ITicketPage() {
         subscriptionRef.current.unsubscribe();
         subscriptionRef.current = null;
       }
-      if (bridgeRef.current) {
-        try {
-          bridgeRef.current.close();
-          console.log("🔌 [bridge] 채널 종료:", bridgeChannelName);
-        } catch (err) {
-          if (import.meta.env.DEV) {
-            console.warn("[bridge] close 실패:", err);
-          }
-        }
-        bridgeRef.current = null;
-      }
     };
   }, [
     wsClient,
     roomId,
     joinResponse?.roomId,
     roomData?.roomId,
-    handleRoomEvent,
+    // handleRoomEvent는 ref로 관리하므로 의존성 배열에 포함하지 않음
   ]);
 
   // 입장자 목록 상태 관리 (WebSocket 메시지로 실시간 업데이트)
@@ -896,11 +1003,9 @@ export default function ITicketPage() {
     };
   }, [handleExitRoom]);
 
-  const openQueueWindow = () => {
-    let finalUrl: string;
-    const baseUrl =
-      (paths as { booking: { waiting: string } })?.booking?.waiting ??
-      "/booking/waiting";
+  // URL 파라미터 생성 로직을 공통 함수로 분리
+  const buildBookingUrl = useCallback(() => {
+    const baseUrl = paths.booking.waiting;
     const clickedTs = Date.now();
     const totalStartAt = getTotalStartAtMs() ?? clickedTs;
 
@@ -949,6 +1054,7 @@ export default function ITicketPage() {
     // 회차는 단일 회차(1회차)로 고정
     const roundParam = `&round=1`;
 
+    let finalUrl: string;
     if (reserveAppearedAt) {
       const reactionMs = clickedTs - reserveAppearedAt;
       // 밀리초 단위로 계산 후 초 단위로 변환 (소수점 2자리까지)
@@ -974,12 +1080,180 @@ export default function ITicketPage() {
       }${hallIdParam}${hallTypeParam}${tsxUrlParam}${hallSizeParam}${dateParam}${roundParam}`;
     }
 
+    return finalUrl;
+  }, [
+    joinResponse,
+    matchIdFromStore,
+    roomDetail,
+    roomData,
+    roomRequest,
+    reserveAppearedAt,
+    nonReserveClickCount,
+  ]);
+
+  const openQueueWindow = () => {
+    const finalUrl = buildBookingUrl();
     window.open(
       finalUrl,
       "_blank",
       "width=900,height=682,toolbar=no,menubar=no,location=no,status=no,scrollbars=yes,resizable=no"
     );
   };
+
+  // 현재 페이지에서 경기 시작 (모달 없이)
+  const startBookingInPage = useCallback(async () => {
+    if (hasEnqueued) {
+      console.log("[booking] 이미 대기열에 진입했습니다.");
+      return;
+    }
+
+    setHasEnqueued(true);
+    setBookingStage("loading");
+
+    // matchId 결정
+    const jr = joinResponse as unknown as {
+      matchId?: unknown;
+    };
+    const rawMatchId =
+      matchIdFromStore ?? (jr?.matchId != null ? Number(jr.matchId) : null);
+
+    if (!rawMatchId) {
+      console.warn("[booking] matchId가 없어 대기열 진입을 건너뜁니다.");
+      setBookingStage(null);
+      setHasEnqueued(false);
+      return;
+    }
+
+    const matchId = String(rawMatchId);
+    const clickMiss = nonReserveClickCount;
+    const duration = reserveAppearedAt
+      ? Number(((Date.now() - reserveAppearedAt) / 1000).toFixed(2))
+      : 0;
+
+    try {
+      console.log("[booking] 대기열 진입 요청:", {
+        matchId,
+        clickMiss,
+        duration,
+      });
+      await enqueueTicketingQueue(matchId, {
+        clickMiss,
+        duration,
+      });
+      console.log("[booking] 대기열 진입 성공");
+    } catch (error) {
+      console.error("[booking] 대기열 진입 실패:", error);
+      setBookingStage(null);
+      setHasEnqueued(false);
+    }
+  }, [
+    hasEnqueued,
+    matchIdFromStore,
+    joinResponse,
+    nonReserveClickCount,
+    reserveAppearedAt,
+  ]);
+
+  // 경기 진행 중인 경우 대기열 UI 표시
+  if (bookingStage === "loading") {
+    return (
+      <>
+        <div className="min-h-screen overflow-x-auto">
+          <div className="w-full h-screen flex items-center justify-center bg-white">
+            <div className="text-center">
+              <div className="mx-auto mb-8 h-12 w-12 animate-spin rounded-full border-4 border-gray-200 border-t-gray-500" />
+              <div className="text-xl font-extrabold text-gray-900 tracking-tight">
+                예매 화면을 불러오는 중입니다.
+              </div>
+              <div className="mt-2 text-lg text-blue-600 font-extrabold">
+                조금만 기다려주세요.
+              </div>
+            </div>
+          </div>
+        </div>
+        <RoomSettingModal
+          open={isRoomModalOpen}
+          onClose={() => setIsRoomModalOpen(false)}
+        />
+        {showTimer && <Timer draggable />}
+      </>
+    );
+  }
+
+  if (bookingStage === "queue") {
+    const percent =
+      totalQueue > 0
+        ? Math.max(0, Math.min(100, Math.round((queueRank / totalQueue) * 100)))
+        : 100;
+    const widthPercent = Math.max(0, Math.min(100, 100 - percent));
+    const isImminent = percent <= 20;
+
+    return (
+      <>
+        <div className="min-h-screen overflow-x-auto">
+          <div className="w-full h-screen bg-white">
+            <div className="pt-6 max-w-lg mx-auto p-6">
+              <h1 className="text-2xl font-extrabold text-gray-900">
+                {isImminent
+                  ? "곧 고객님의 순서가 다가옵니다."
+                  : "접속 인원이 많아 대기 중입니다."}
+              </h1>
+              <div
+                className={`text-2xl mt-1 font-extrabold ${isImminent ? "text-red-600" : "text-blue-600"}`}
+              >
+                {isImminent ? "예매를 준비해주세요." : "조금만 기다려주세요."}
+              </div>
+
+              <div className="mt-2 text-gray-700">티켓을 겟하다, Tickget!</div>
+
+              <div className="mt-4 rounded-xl border-[#e3e3e3] border shadow-lg bg-white p-6">
+                <div className="text-center text-md text-black font-bold mb-2">
+                  나의 대기순서
+                </div>
+                <div className="text-center text-6xl font-extrabold text-gray-900">
+                  {queueRank}
+                </div>
+
+                <div className="mt-2">
+                  <div className="relative h-6 rounded-full bg-gray-100">
+                    <div
+                      className={`absolute left-0 top-0 h-6 rounded-full ${
+                        isImminent ? "bg-red-500" : "bg-blue-600"
+                      }`}
+                      style={{ width: `${widthPercent}%` }}
+                    />
+                    <ConfirmationNumberOutlinedIcon
+                      fontSize="small"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-300 rotate-[-10deg]"
+                    />
+                  </div>
+                  <div className="mt-4 h-px bg-gray-100" />
+                  <div className="mt-3 font-regular text-md text-gray-600 flex items-center justify-between">
+                    <span>현재 대기인원</span>
+                    <span className="text-black font-extrabold">
+                      {totalQueue}명
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <ul className="mt-6 text-sm text-gray-400 list-disc pl-5 space-y-1">
+                <li>잠시만 기다려주시면, 예매하기 페이지로 연결됩니다.</li>
+                <li>
+                  새로고침하거나 재접속 하시면 대기순서가 초기화되어 대기시간이
+                  더 길어집니다.
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        <RoomSettingModal
+          open={isRoomModalOpen}
+          onClose={() => setIsRoomModalOpen(false)}
+        />
+        {showTimer && <Timer draggable />}
+      </>
+    );
+  }
 
   return (
     <>
@@ -1048,6 +1322,7 @@ export default function ITicketPage() {
                 remaining={formatted}
                 canReserve={secondsLeft === 0}
                 onReserve={openQueueWindow}
+                onStartInPage={startBookingInPage}
               />
             </aside>
           </div>
@@ -1305,12 +1580,14 @@ function StartInfoCard({
   remaining,
   canReserve,
   onReserve,
+  onStartInPage,
 }: {
   reservationDay?: string;
   gameStartTime?: string;
   remaining: string;
   canReserve: boolean;
   onReserve: () => void;
+  onStartInPage?: () => void;
 }) {
   // 날짜 포맷팅 (yyyy-MM-dd -> yyyy.MM.dd)
   const formatDate = (dateStr?: string) => {
@@ -1334,6 +1611,7 @@ function StartInfoCard({
     return (
       <BookingCalendarCard
         onBook={onReserve}
+        onStartInPage={onStartInPage}
         reservationDay={reservationDay}
         gameStartTime={gameStartTime}
       />
@@ -1372,10 +1650,12 @@ const formatTimeSlot = (timeStr?: string) => {
 
 function BookingCalendarCard({
   onBook,
+  onStartInPage,
   reservationDay,
   gameStartTime,
 }: {
   onBook: () => void;
+  onStartInPage?: () => void;
   reservationDay?: string;
   gameStartTime?: string;
 }) {
@@ -1609,6 +1889,7 @@ function BookingCalendarCard({
         </button>
         <button
           type="button"
+          onClick={onStartInPage}
           className="w-full py-3 rounded-xl border text-indigo-600 border-indigo-200 hover:bg-indigo-50 text-sm font-semibold"
         >
           BOOKING / 外國語
