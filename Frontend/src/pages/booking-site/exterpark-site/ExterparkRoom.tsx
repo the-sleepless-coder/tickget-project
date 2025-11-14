@@ -18,6 +18,7 @@ import dayjs from "dayjs";
 import { useWebSocketStore } from "../../../shared/lib/websocket-store";
 import { subscribe, type Subscription } from "../../../shared/lib/websocket";
 import { useAuthStore } from "@features/auth/store";
+import { normalizeProfileImageUrl } from "../../../shared/utils/profileImageUrl";
 import { exitRoom, getRoomDetail } from "@features/room/api";
 import { useRoomStore } from "@features/room/store";
 import { useMatchStore } from "@features/booking-site/store";
@@ -791,7 +792,9 @@ export default function ITicketPage() {
   const participants: Participant[] = useMemo(() => {
     return roomMembers.map((member) => {
       const fallback = `https://i.pravatar.cc/48?img=${(member.userId % 70) + 1}`;
-      const avatar = member.profileImageUrl ?? fallback;
+      const avatar =
+        normalizeProfileImageUrl(member.profileImageUrl, member.userId) ??
+        fallback;
       return {
         name: member.username,
         isHost: hostUserId !== null && member.userId === hostUserId, // 방 생성 유저가 방장

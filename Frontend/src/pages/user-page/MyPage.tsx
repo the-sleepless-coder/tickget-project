@@ -9,6 +9,7 @@ import UserStats from "./_components/UserStats";
 import { mockMatchHistory, type UserRank, type MatchHistory } from "./mockData";
 import { useAuthStore } from "@features/auth/store";
 import { compressImage } from "@shared/utils/imageCompression";
+import { normalizeProfileImageUrl } from "@shared/utils/profileImageUrl";
 
 export default function MyPageIndex() {
   const [activePrimaryTab, setActivePrimaryTab] = useState("stats");
@@ -25,6 +26,7 @@ export default function MyPageIndex() {
   const storeNickname = useAuthStore((state) => state.nickname);
   const storeEmail = useAuthStore((state) => state.email);
   const storeProfileImageUrl = useAuthStore((state) => state.profileImageUrl);
+  const storeUserId = useAuthStore((state) => state.userId);
   const accessToken = useAuthStore((state) => state.accessToken);
 
   const [nickname, setNickname] = useState(storeNickname || "닉네임");
@@ -32,7 +34,7 @@ export default function MyPageIndex() {
   const [birthDateRaw, setBirthDateRaw] = useState<string>("");
   const [email, setEmail] = useState(storeEmail || "tickget.gmail.com");
   const [profileImage, setProfileImage] = useState<string | undefined>(
-    storeProfileImageUrl || undefined
+    normalizeProfileImageUrl(storeProfileImageUrl, storeUserId) || undefined
   );
   const [gender, setGender] = useState<string>("");
   const [name, setName] = useState<string>("");
@@ -138,9 +140,11 @@ export default function MyPageIndex() {
       setEmail(storeEmail);
     }
     if (storeProfileImageUrl) {
-      setProfileImage(storeProfileImageUrl);
+      setProfileImage(
+        normalizeProfileImageUrl(storeProfileImageUrl, storeUserId) || undefined
+      );
     }
-  }, [storeNickname, storeEmail, storeProfileImageUrl]);
+  }, [storeNickname, storeEmail, storeProfileImageUrl, storeUserId]);
 
   // 프로필 정보 가져오기 (생년월일 포함)
   useEffect(() => {
@@ -183,7 +187,10 @@ export default function MyPageIndex() {
               profileImageUrl: data.profileImageUrl,
               message: "프로필 정보 업데이트",
             });
-            setProfileImage(data.profileImageUrl);
+            setProfileImage(
+              normalizeProfileImageUrl(data.profileImageUrl, storeUserId) ||
+                undefined
+            );
           }
 
           // 내 정보 관리용 데이터 설정
@@ -417,7 +424,9 @@ export default function MyPageIndex() {
             setBirthDateRaw(updatedBirthDateRaw);
             setBirthDate(formatBirthDate(updatedBirthDateRaw));
             setProfileImage(
-              tempProfileImage || newProfileImageUrl || undefined
+              tempProfileImage ||
+                normalizeProfileImageUrl(newProfileImageUrl, storeUserId) ||
+                undefined
             );
             setTempProfileImageFile(null);
             setTempBirthDate(updatedBirthDateRaw);
