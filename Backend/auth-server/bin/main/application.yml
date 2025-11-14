@@ -47,8 +47,8 @@ server:
 app:
   jwt:
     secret: ${JWT_SECRET}
-    access-token-validity: 3600000    # 1시간 (밀리초)
-    refresh-token-validity: 604800000 # 7일 (밀리초)
+    access-token-validity: 604800000   # 7일 (밀리초)
+    refresh-token-validity: 2592000000 # 30일 (밀리초)
 
   oauth2:
     frontend-url: ${FRONTEND_URL:http://localhost:3000}
