@@ -307,3 +307,31 @@ build:user-server:
     - *update_manifest
   tags:
     - docker
+
+build:stats-server:
+  stage: build
+  image: docker:24-dind
+  services:
+    - docker:24-dind
+  only:
+    refs:
+      - dev
+      - master
+    changes:
+      - Backend/stats-server/**/*
+  before_script:
+    - *docker_buildx_setup
+  script:
+    - export SERVICE_NAME="stats-server"
+    - cd Backend/stats-server
+    - |
+      if [ "$CI_COMMIT_BRANCH" = "dev" ]; then
+        IMAGE_TAG="dev-${CI_COMMIT_SHORT_SHA}"
+      else
+        IMAGE_TAG="prod-${CI_COMMIT_SHORT_SHA}"
+      fi
+    - echo "Building stats-server with tag $IMAGE_TAG"
+    - docker buildx build --platform linux/arm64 -t kkaebu/stats-server:$IMAGE_TAG --push .
+    - *update_manifest
+  tags:
+    - docker
