@@ -12,4 +12,6 @@ public interface UserStatsRepository extends JpaRepository<UserStats, Long> {
     List<UserStats> findByUserId(Long userId);
 
     List<UserStats> findByMatchIdAndUserId(Long matchId, Long userId);
+
+    boolean existsByUserIdAndMatchId(Long userId, Long matchId);
 }

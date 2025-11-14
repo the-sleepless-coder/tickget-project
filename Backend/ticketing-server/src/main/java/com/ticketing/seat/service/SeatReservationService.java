@@ -27,6 +27,7 @@ import java.util.List;
 public class SeatReservationService {
 
     private static final int MAX_SEATS_PER_REQUEST = 2;
+    private static final int MATCH_REDIS_TTL_SECONDS = 600; // 10분
     private final StringRedisTemplate redisTemplate;
 
     private final MatchRepository matchRepository;
@@ -66,14 +67,14 @@ public class SeatReservationService {
             throw new MatchClosedException(matchId);
         }
 
-        // 3-1. 프론트에서 받은 totalSeats를 DB에 저장
-        if (!match.getMaxUser().equals(req.getTotalSeats())) {
-            log.info("totalSeats 업데이트: matchId={}, 기존값={}, 새로운값={}",
-                    matchId, match.getMaxUser(), req.getTotalSeats());
-            match.setMaxUser(req.getTotalSeats());
-            match.setUpdatedAt(LocalDateTime.now());
-            matchRepository.save(match);
-        }
+//        // 3-1. 프론트에서 받은 totalSeats를 DB에 저장
+//        if (!match.getMaxUser().equals(req.getTotalSeats())) {
+//            log.info("totalSeats 업데이트: matchId={}, 기존값={}, 새로운값={}",
+//                    matchId, match.getMaxUser(), req.getTotalSeats());
+//            match.setMaxUser(req.getTotalSeats());
+//            match.setUpdatedAt(LocalDateTime.now());
+//            matchRepository.save(match);
+//        }
 
         // 4. SeatInfo -> rowNumber, grade 변환
         String sectionId = req.extractSectionId();  // Long → String 변환 (Redis 키용)
@@ -96,6 +97,15 @@ public class SeatReservationService {
                 req.getTotalSeats()
         );
 
+        // 5-1. 성공 시 매치 Redis 키들에 TTL 설정 (첫 Hold 이후 자동 정리 보장)
+        if (result != null && result == 1L) {
+            setMatchRedisTTL(matchId);
+        }
+        //마지막 좌석 잡은 유저
+        if (result != null && result == 2L) {
+            setMatchRedisTTL(matchId);
+        }
+
         // 6. 결과 처리
         if (result == null || result == 0L) {
             return buildFailureResponse(matchId, req);
@@ -116,22 +126,88 @@ public class SeatReservationService {
         return buildSuccessResponse(matchId, req);
     }
 
-    /**
-     * 실제 유저 등수 계산 (Hold 시점)
-     */
-    private void calculateAndLogUserRank(Long matchId, Long userId) {
-        final String rankKey = "match:" + matchId + ":human_rank_counter";
 
+    /**
+     * 매치 관련 Redis 키에 TTL 설정 (10분)
+     * Hold 첫 요청 시점에 호출하여 예상치 못한 종료 시 자동 정리
+     */
+    private void setMatchRedisTTL(Long matchId) {
         try {
-            Long rank = redisTemplate.opsForValue().increment(rankKey);
-            if (rank != null) {
-                log.info("Hold 시점 유저 등수 계산: userId={}, rank={}", userId, rank);
-            }
+            Duration ttl = Duration.ofSeconds(MATCH_REDIS_TTL_SECONDS);
+
+            // 1. 상태 키
+            String statusKey = "match:" + matchId + ":status";
+            redisTemplate.expire(statusKey, ttl);
+
+            // 2. 카운트 키들
+            String reservedCountKey = "match:" + matchId + ":reserved_count";
+            String confirmedCountKey = "match:" + matchId + ":confirmed_count";
+            redisTemplate.expire(reservedCountKey, ttl);
+            redisTemplate.expire(confirmedCountKey, ttl);
+
+            // 3. 실제 유저 카운터
+            String humanUsersKey = "humanusers:match:" + matchId;
+            redisTemplate.expire(humanUsersKey, ttl);
+
+            // 4. 등수 카운터
+            String humanRankCounterKey = "match:" + matchId + ":human_rank_counter";
+            String totalRankCounterKey = "match:" + matchId + ":total_rank_counter";
+            redisTemplate.expire(humanRankCounterKey, ttl);
+            redisTemplate.expire(totalRankCounterKey, ttl);
+
+            log.info("매치 Redis 키 TTL 설정 완료: matchId={}, ttl={}초", matchId, MATCH_REDIS_TTL_SECONDS);
+
         } catch (Exception e) {
-            log.error("Hold 시점 등수 계산 중 오류: matchId={}, userId={}", matchId, userId, e);
+            log.error("매치 Redis TTL 설정 중 오류: matchId={}", matchId, e);
         }
     }
 
+
+    /**
+     * 실제 유저 등수 계산 및 전체 등수 계산 (Hold 시점)
+     * - userRank: 실제 유저만 (봇 제외)
+     * - totalRank: 봇 포함 전체 사용자
+     */
+    private void calculateAndLogUserRank(Long matchId, Long userId) {
+        boolean isBot = userId < 0;
+        Duration ttl = Duration.ofSeconds(MATCH_REDIS_TTL_SECONDS);
+
+        // 1. userRank 계산 (실제 유저만)
+        Integer userRank = null;
+        if (!isBot) {
+            final String rankKey = "match:" + matchId + ":human_rank_counter";
+            try {
+                Long rank = redisTemplate.opsForValue().increment(rankKey);
+                if (rank != null) {
+                    userRank = rank.intValue();
+
+                    // Redis에 개별 유저 등수 저장 (Confirm 시 조회용)
+                    String userRankKey = "user:" + userId + ":match:" + matchId + ":rank";
+                    redisTemplate.opsForValue().set(userRankKey, String.valueOf(userRank), ttl);
+
+                    log.info("Hold 시점 유저 등수 계산 (TTL 포함): userId={}, userRank={}", userId, rank);
+                }
+            } catch (Exception e) {
+                log.error("Hold 시점 등수 계산 중 오류: matchId={}, userId={}", matchId, userId, e);
+            }
+        }
+
+        // 2. totalRank 계산 (봇 포함 전체)
+        final String totalRankKey = "match:" + matchId + ":total_rank_counter";
+        try {
+            Long totalRank = redisTemplate.opsForValue().increment(totalRankKey);
+            if (totalRank != null) {
+                // Redis에 개별 유저 전체 등수 저장 (Confirm 시 조회용)
+                String userTotalRankKey = "user:" + userId + ":match:" + matchId + ":totalRank";
+                redisTemplate.opsForValue().set(userTotalRankKey, String.valueOf(totalRank), ttl);
+
+                log.info("Hold 시점 전체 등수 계산 (TTL 포함): userId={}, totalRank={}, isBot={}",
+                        userId, totalRank, isBot);
+            }
+        } catch (Exception e) {
+            log.error("Hold 시점 전체 등수 계산 중 오류: matchId={}, userId={}", matchId, userId, e);
+        }
+    }
 
     /**
      * 각 좌석에 grade가 있는지 확인하고, 없으면 최상위 grade 사용 (하위 호환성)
