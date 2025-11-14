@@ -407,6 +407,11 @@ export default function MyPageIndex() {
                 message = "생년월일 수정 완료";
               }
 
+              // 프로필 이미지가 변경된 경우 store에 원본 URL 저장
+              // Header에서 rawProfileImageUrl 변경을 감지하여 캐시 무효화 적용
+              // store에는 타임스탬프 없이 저장하고, Header에서 변경 감지 시 타임스탬프 추가
+              const storeProfileImageUrl = newProfileImageUrl;
+
               setAuth({
                 accessToken: currentAuth.accessToken || "",
                 refreshToken: currentAuth.refreshToken,
@@ -414,7 +419,7 @@ export default function MyPageIndex() {
                 email: currentAuth.email || "",
                 nickname: updatedNickname,
                 name: currentAuth.name || "",
-                profileImageUrl: newProfileImageUrl,
+                profileImageUrl: storeProfileImageUrl,
                 message,
               });
             }
@@ -423,9 +428,15 @@ export default function MyPageIndex() {
             setNickname(updatedNickname);
             setBirthDateRaw(updatedBirthDateRaw);
             setBirthDate(formatBirthDate(updatedBirthDateRaw));
+            // 프로필 이미지가 변경된 경우 캐시 무효화를 위해 timestamp 추가
+            const shouldCacheBust = hasProfileImageChange;
             setProfileImage(
               tempProfileImage ||
-                normalizeProfileImageUrl(newProfileImageUrl, storeUserId) ||
+                normalizeProfileImageUrl(
+                  newProfileImageUrl,
+                  storeUserId,
+                  shouldCacheBust
+                ) ||
                 undefined
             );
             setTempProfileImageFile(null);

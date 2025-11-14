@@ -88,7 +88,25 @@ export default function PlainLayout() {
       }
     };
 
-    if (isLoggedIn && !clientRef.current) {
+    // 기존 클라이언트가 있으면 재사용 (MainLayout에서 생성한 클라이언트)
+    const existingClient = useWebSocketStore.getState().client;
+
+    if (isLoggedIn && existingClient) {
+      // 기존 클라이언트가 있으면 재사용
+      clientRef.current = existingClient;
+      if (existingClient.connected && !userSubscriptionRef.current) {
+        if (import.meta.env.DEV) {
+          console.log("✅ [PlainLayout] 기존 WebSocket 클라이언트 재사용");
+        }
+        doSubscribeUserMessage(existingClient);
+      } else if (!existingClient.connected) {
+        // 연결이 끊어진 경우 재연결 대기
+        if (import.meta.env.DEV) {
+          console.log("⏳ [PlainLayout] WebSocket 재연결 대기 중...");
+        }
+      }
+    } else if (isLoggedIn && !clientRef.current) {
+      // 기존 클라이언트가 없을 때만 새로 생성
       const client = createStompClient({
         onConnect: () => {
           if (import.meta.env.DEV) {
@@ -122,32 +140,20 @@ export default function PlainLayout() {
       clientRef.current = client;
       setClient(client);
       connectStompClient(client);
-    } else if (isLoggedIn) {
-      // 웹소켓이 이미 연결되어 있는 경우 (방 입장 후 나와서 다시 전체 방 목록인 경우)
-      const existingClient = useWebSocketStore.getState().client;
-      if (
-        existingClient &&
-        existingClient.connected &&
-        !userSubscriptionRef.current
-      ) {
-        if (import.meta.env.DEV) {
-          console.log("✅ [개인 메시지] 기존 연결에서 구독 시도");
-        }
-        doSubscribeUserMessage(existingClient);
-      }
     }
 
     return () => {
-      if (clientRef.current) {
-        // 구독 해제
-        if (userSubscriptionRef.current) {
-          userSubscriptionRef.current.unsubscribe();
-          userSubscriptionRef.current = null;
+      // PlainLayout 언마운트 시 개인 메시지 구독만 해제
+      // WebSocket 클라이언트는 다른 컴포넌트(MainLayout, ExterparkRoom)에서도 사용 중일 수 있으므로 끊지 않음
+      if (userSubscriptionRef.current) {
+        if (import.meta.env.DEV) {
+          console.log("🔌 [PlainLayout] 개인 메시지 구독 해제");
         }
-        disconnectStompClient(clientRef.current);
-        setClient(null);
-        clientRef.current = null;
+        userSubscriptionRef.current.unsubscribe();
+        userSubscriptionRef.current = null;
       }
+      // clientRef는 초기화하지만 클라이언트 자체는 끊지 않음
+      clientRef.current = null;
     };
   }, [isLoggedIn, setClient]);
 

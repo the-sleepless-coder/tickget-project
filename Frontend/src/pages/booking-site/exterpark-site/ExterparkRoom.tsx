@@ -314,7 +314,14 @@ export default function ITicketPage() {
                   nextUrl.searchParams.set("date", reservationDay);
                 }
                 nextUrl.searchParams.set("round", "1");
-                navigate(nextUrl.pathname + nextUrl.search, { replace: true });
+
+                // 구독 유지 플래그를 설정한 후, 다음 이벤트 루프에서 navigate 실행
+                // 이렇게 하면 cleanup 함수가 실행될 때 hasDequeuedInPageRef.current가 true인 상태가 보장됨
+                setTimeout(() => {
+                  navigate(nextUrl.pathname + nextUrl.search, {
+                    replace: true,
+                  });
+                }, 0);
               }
             } else {
               // 타인 성공
@@ -465,6 +472,7 @@ export default function ITicketPage() {
         case "USER_EXITED": {
           const userId = payload?.userId || event.userId;
           const totalUsersInRoom = payload?.totalUsersInRoom;
+          const myUserId = useAuthStore.getState().userId;
 
           if (userId) {
             console.log(
@@ -472,6 +480,46 @@ export default function ITicketPage() {
             );
             console.log(`📝 메시지: ${event.message || ""}`);
 
+            // 본인이 퇴장당한 경우
+            if (userId === myUserId) {
+              const eventType = event.eventType || event.type || "USER_EXITED";
+              const reason =
+                payload?.reason || payload?.message || event.message;
+
+              console.warn("🚨 [퇴장] 본인이 방에서 퇴장되었습니다:", {
+                userId,
+                myUserId,
+                eventType,
+                reason,
+                message: event.message,
+                timestamp: event.timestamp ?? Date.now(),
+              });
+
+              // 사용자에게 알림 (이벤트 타입과 사유 포함)
+              let exitMessage = `방에서 퇴장되었습니다.\n\n이벤트: ${eventType}`;
+              if (reason) {
+                exitMessage += `\n사유: ${reason}`;
+              } else if (event.message) {
+                exitMessage += `\n사유: ${event.message}`;
+              }
+              alert(exitMessage);
+
+              // Room store 초기화
+              useRoomStore.getState().clearRoomInfo();
+
+              // WebSocket 구독 해제
+              if (subscriptionRef.current) {
+                console.log(`🔌 [퇴장] 방 구독 해제`);
+                subscriptionRef.current.unsubscribe();
+                subscriptionRef.current = null;
+              }
+
+              // 홈으로 이동
+              navigate(paths.home, { replace: true });
+              break;
+            }
+
+            // 다른 유저가 퇴장한 경우
             setRoomMembers((prev) => {
               const filtered = prev.filter((m) => m.userId !== userId);
               console.log(
