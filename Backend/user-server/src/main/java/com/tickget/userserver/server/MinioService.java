@@ -31,11 +31,12 @@ public class MinioService {
             ensureBucketExists();
 
             // 파일 확장자 추출
-            String originalFilename = file.getOriginalFilename();
-            String extension = getFileExtension(originalFilename);
+            // String originalFilename = file.getOriginalFilename(); // 이미지명 고정을 위해 확장자가 필요 없음(content-type에 적힘)
+            // String extension = getFileExtension(originalFilename);
 
             // 객체 키 생성: users/{userId}/profile_img.{extension}
-            String objectName = String.format("users/%d/profile_img.%s", userId, extension);
+            // String objectName = String.format("users/%d/profile_img.%s", userId, extension);
+            String objectName = String.format("users/%d/profile", userId); // 유저 프로필 이미지명고정
 
             // 파일 업로드
             minioClient.putObject(
@@ -114,10 +115,10 @@ public class MinioService {
     /**
      * 파일 확장자 추출
      */
-    private String getFileExtension(String filename) {
-        if (filename == null || !filename.contains(".")) {
-            return "png";
-        }
-        return filename.substring(filename.lastIndexOf(".") + 1);
-    }
+    // private String getFileExtension(String filename) {
+    //     if (filename == null || !filename.contains(".")) {
+    //         return "png";
+    //     }
+    //     return filename.substring(filename.lastIndexOf(".") + 1);
+    // }
 }
