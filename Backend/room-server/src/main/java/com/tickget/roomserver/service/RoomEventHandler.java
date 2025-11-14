@@ -1,5 +1,7 @@
 package com.tickget.roomserver.service;
 
+import com.tickget.roomserver.domain.repository.RoomCacheRepository;
+import com.tickget.roomserver.dto.cache.GlobalSessionInfo;
 import com.tickget.roomserver.event.HostChangedEvent;
 import com.tickget.roomserver.event.RoomSettingUpdatedEvent;
 import com.tickget.roomserver.event.SessionCloseEvent;
@@ -23,6 +25,7 @@ public class RoomEventHandler {
     private final WebSocketSessionManager sessionManager;
     private final SimpMessagingTemplate messagingTemplate;
     private final RoomNotificationScheduler roomNotificationScheduler;
+    private final RoomCacheRepository roomCacheRepository;
 
     private final ServerIdProvider serverIdProvider;
 
@@ -117,35 +120,84 @@ public class RoomEventHandler {
 
 
     public void processSessionClose(SessionCloseEvent event) {
-        log.info("세션 강제 종료 이벤트 수신: userId={}, 대상서버={}", event.getUserId(), event.getTargetServerId());
+        log.info("세션 강제 종료 이벤트 수신: userId={}, sessionId={}, targetServerId={}, version={}",
+                event.getUserId(), event.getSessionId(), event.getTargetServerId(), event.getSessionVersion());
 
         String myServerId = serverIdProvider.getServerId();
 
         // 이 서버가 타겟인지 확인
         if (!myServerId.equals(event.getTargetServerId())) {
-            log.info("다른 서버의 세션 종료 이벤트 무시: userId={}, 대상서버={}", event.getUserId(), event.getTargetServerId());
+            log.info("다른 서버의 세션 종료 이벤트 무시: userId={}, targetServerId={}",
+                    event.getUserId(), event.getTargetServerId());
             return;
         }
 
         Long userId = event.getUserId();
+        String targetSessionId = event.getSessionId();
+        Long eventVersion = event.getSessionVersion();
 
         try {
-            // 해당 유저의 세션이 있으면 종료
-            if (sessionManager.hasSession(userId)) {
-                log.info("세션 강제 종료 처리: userId={}, sessionId={}", userId, event.getSessionId());
-
-                WebSocketSession session = sessionManager.getSessionByUserId(userId);
-
-                if (session != null) {
-                    sessionManager.closeSession(session);
-                    sessionManager.removeSessionData(session.getId());
-                    log.info("세션 강제 종료 완료: userId={}", userId);
-                } else {
-                    log.warn("세션 객체를 찾을 수 없음: userId={}", userId);
-                }
-            } else {
-                log.info("해당 유저의 세션이 없음 (이미 종료됨): userId={}", userId);
+            // 1. 해당 유저의 세션이 있는지 확인
+            if (!sessionManager.hasSession(userId)) {
+                log.info("이 서버에 유저 {}의 세션이 없음 (이미 종료됨)", userId);
+                return;
             }
+
+            // 2. 현재 세션 정보 조회
+            String currentSessionId = sessionManager.getSessionIdByUserId(userId);
+            if (currentSessionId == null) {
+                log.warn("유저 {}의 세션 ID를 찾을 수 없음", userId);
+                return;
+            }
+
+            // 3. sessionId 불일치 확인 (새 세션이 이미 등록된 경우)
+            if (!currentSessionId.equals(targetSessionId)) {
+                log.warn("세션 ID 불일치로 종료 무시: userId={}, 이벤트sessionId={}, 현재sessionId={}",
+                        userId, targetSessionId, currentSessionId);
+                return;
+            }
+
+            // 4. Redis에서 현재 전역 세션 버전 확인
+            GlobalSessionInfo currentGlobalSession = roomCacheRepository.getGlobalSession(userId);
+            if (currentGlobalSession != null) {
+                Long currentVersion = currentGlobalSession.getVersion();
+
+                // 버전 비교: 이벤트 버전이 현재 버전보다 낮으면 무시
+                if (eventVersion < currentVersion) {
+                    log.warn("세션 버전 불일치로 종료 무시: userId={}, 이벤트version={}, 현재version={}",
+                            userId, eventVersion, currentVersion);
+                    return;
+                }
+
+                log.info("세션 버전 일치 확인: userId={}, version={}", userId, eventVersion);
+            }
+
+            // 5. 클라이언트에게 강제 종료 알림 전송
+            String userDestination = "/user/" + userId;
+            RoomEventMessage disconnectMessage = RoomEventMessage.forceDisconnect(userId, "DUPLICATE_SESSION");
+
+            try {
+                messagingTemplate.convertAndSend(userDestination, disconnectMessage);
+                log.info("강제 종료 알림 전송 완료: userId={}, destination={}", userId, userDestination);
+
+                // 클라이언트가 메시지를 받을 시간 확보 (150ms)
+                Thread.sleep(150);
+            } catch (Exception e) {
+                log.warn("강제 종료 알림 전송 실패: userId={}, error={}", userId, e.getMessage());
+            }
+
+            // 6. 세션 강제 종료 처리
+            WebSocketSession session = sessionManager.getSessionByUserId(userId);
+
+            if (session != null) {
+                log.info("세션 강제 종료 처리: userId={}, sessionId={}", userId, targetSessionId);
+                sessionManager.closeSession(session);
+                sessionManager.removeSessionData(session.getId());
+                log.info("세션 강제 종료 완료: userId={}", userId);
+            } else {
+                log.warn("세션 객체를 찾을 수 없음: userId={}", userId);
+            }
+
         } catch (Exception e) {
             log.error("세션 강제 종료 중 오류: userId={}, error={}",
                     userId, e.getMessage(), e);
