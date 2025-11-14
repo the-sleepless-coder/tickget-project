@@ -6,7 +6,6 @@ import com.tickget.roomserver.dto.request.ExitRoomRequest;
 import com.tickget.roomserver.event.SessionCloseEvent;
 import com.tickget.roomserver.kafka.RoomEventProducer;
 import com.tickget.roomserver.service.RoomService;
-import com.tickget.roomserver.session.SessionInfo;
 import com.tickget.roomserver.session.WebSocketSessionManager;
 import com.tickget.roomserver.util.ServerIdProvider;
 import lombok.RequiredArgsConstructor;
@@ -59,7 +58,7 @@ public class WebSocketEventListener {
 
         try {
             // 1. 기존 세션 확인 및 종료 처리
-            handleExistingSession(userId, serverId);
+            handleExistingSession(userId);
 
             // 2. WebSocketSession 객체 가져오기
             WebSocketSession webSocketSession = getWebSocketSession(connectHeaders);
@@ -88,7 +87,7 @@ public class WebSocketEventListener {
      * - close()만 호출하여 disconnect 이벤트가 자연스럽게 발생하도록 함
      * - disconnect 이벤트에서 방 퇴장 + 세션 정리가 완전히 처리됨
      */
-    private void handleExistingSession(Long userId, String currentServerId) {
+    private void handleExistingSession(Long userId) {
         GlobalSessionInfo globalSession = roomCacheRepository.getGlobalSession(userId);
 
         if (globalSession == null) {
@@ -99,27 +98,18 @@ public class WebSocketEventListener {
         log.warn("유저 {}의 기존 전역 세션 발견 - sessionId: {}, serverId: {}",
                 userId, globalSession.getSessionId(), globalSession.getServerId());
 
-        // 같은 서버의 기존 세션
-        if (currentServerId.equals(globalSession.getServerId())) {
-            SessionInfo existingSession = sessionManager.getByUserId(userId);
-            if (existingSession != null) {
-                log.warn("같은 서버의 기존 세션 종료: userId={}, sessionId={}",
-                        userId, existingSession.getSessionId());
+        // 같은 서버든 다른 서버든 동일하게 Kafka 발행
+        SessionCloseEvent closeEvent = SessionCloseEvent.of(
+                userId,
+                globalSession.getSessionId(),
+                globalSession.getServerId(),
+                globalSession.getVersion()
+        );
 
-                //알아서 close가 감지되면 rmove()는 호출됨
-                closeWebSocketSession(existingSession.getSession());
-            }
-        } else {
-            // 다른 서버의 기존 세션 → Kafka로 종료 요청
-            log.warn("다른 서버({})의 기존 세션 종료 요청 전송", globalSession.getServerId());
-            SessionCloseEvent closeEvent = SessionCloseEvent.of(
-                    userId,
-                    globalSession.getSessionId(),
-                    globalSession.getServerId(),
-                    globalSession.getVersion()
-            );
-            roomEventProducer.publishSessionCloseEvent(closeEvent);
-        }
+        roomEventProducer.publishSessionCloseEvent(closeEvent);
+
+        log.info("기존 세션 종료 요청 발행: userId={}, targetServerId={}",
+                userId, globalSession.getServerId());
     }
 
     //WebSocketSession 객체 추출
@@ -195,19 +185,6 @@ public class WebSocketEventListener {
 
         } catch (Exception e) {
             log.error("세션 정리 중 오류: sessionId={}, userId={}", sessionId, userId, e);
-        }
-    }
-
-    //WebSocketSession 종료
-    private void closeWebSocketSession(WebSocketSession session) {
-        if (session != null && session.isOpen()) {
-            try {
-                session.close();
-                log.debug("세션 종료: {}", session.getId());
-            } catch (Exception e) {
-                log.warn("세션 종료 중 오류: sessionId={}, error={}",
-                        session.getId(), e.getMessage());
-            }
         }
     }
 }
