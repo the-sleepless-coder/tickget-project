@@ -140,7 +140,8 @@ public class RoomEventMessage {
                 .message("매치가 종료되었습니다")
                 .payload(MatchEndedPayload.builder()
                         .matchId(matchId)
-                        .roomId(roomId))
+                        .roomId(roomId)
+                        .build())
                 .build();
     }
 }
