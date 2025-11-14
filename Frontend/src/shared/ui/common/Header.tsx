@@ -13,7 +13,18 @@ export default function Header() {
   const accessToken = useAuthStore((state) => state.accessToken);
   const userId = useAuthStore((state) => state.userId);
   const rawProfileImageUrl = useAuthStore((state) => state.profileImageUrl);
-  const profileImageUrl = normalizeProfileImageUrl(rawProfileImageUrl, userId);
+  const [imageKey, setImageKey] = useState(0);
+  const [cacheBustTimestamp, setCacheBustTimestamp] = useState<number | null>(
+    null
+  );
+  // rawProfileImageUrl이 없어도 userId로 S3 경로 생성
+  // rawProfileImageUrl이 변경될 때마다 새로운 타임스탬프를 추가하여 캐시 무효화
+  // cacheBustTimestamp가 있으면 항상 새로운 타임스탬프 추가
+  const profileImageUrl = normalizeProfileImageUrl(
+    rawProfileImageUrl || null,
+    userId,
+    cacheBustTimestamp !== null // cacheBustTimestamp가 있으면 cacheBust 적용
+  );
   const isLoggedIn = !!accessToken;
   const [imageError, setImageError] = useState(false);
 
@@ -27,10 +38,16 @@ export default function Header() {
     }
   }, [rawProfileImageUrl, profileImageUrl, isLoggedIn]);
 
-  // 프로필 이미지 URL이 변경되면 에러 상태 리셋
+  // 프로필 이미지 URL이 변경되면 에러 상태 리셋 및 이미지 강제 리렌더링
   useEffect(() => {
     setImageError(false);
-  }, [profileImageUrl]);
+    // rawProfileImageUrl이 변경되면 새로운 타임스탬프를 생성하여 캐시 무효화
+    // store의 profileImageUrl이 변경되면 무조건 이미지를 다시 로드해야 함
+    if (rawProfileImageUrl !== null && rawProfileImageUrl !== undefined) {
+      setCacheBustTimestamp(Date.now());
+      setImageKey((prev) => prev + 1);
+    }
+  }, [rawProfileImageUrl]);
 
   const resolveRoomIdFromLocation = (): number | undefined => {
     // 1) /i-ticket/:roomId 패턴
@@ -134,6 +151,7 @@ export default function Header() {
                     >
                       {profileImageUrl && !imageError ? (
                         <img
+                          key={imageKey}
                           src={profileImageUrl}
                           alt="프로필"
                           className="w-full h-full object-cover"
@@ -163,6 +181,7 @@ export default function Header() {
                   >
                     {profileImageUrl && !imageError ? (
                       <img
+                        key={imageKey}
                         src={profileImageUrl}
                         alt="프로필"
                         className="w-full h-full object-cover"
