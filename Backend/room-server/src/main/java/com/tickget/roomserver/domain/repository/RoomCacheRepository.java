@@ -8,10 +8,12 @@ import com.tickget.roomserver.dto.cache.RoomInfoUpdate;
 import com.tickget.roomserver.dto.cache.RoomMember;
 import com.tickget.roomserver.dto.cache.RoomInfo;
 import com.tickget.roomserver.dto.request.CreateRoomRequest;
+import java.util.Collections;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -27,6 +29,11 @@ public class RoomCacheRepository {
 
     private final RedisTemplate<String,String> redisTemplate;
     private final ObjectMapper mapper;
+
+    private final RedisScript<Long> registerGlobalSessionScript;
+    private final RedisScript<Long> removeGlobalSessionIfMatchScript;
+
+    private static final String GLOBAL_SESSION_PREFIX = "global:session:";
 
     public void saveRoom(Long roomId, CreateRoomRequest request) {
         String infoKey = "room:" + roomId+ ":info";
@@ -204,62 +211,165 @@ public class RoomCacheRepository {
     }
 
 
-    // 기존 세션이 없으면 1로 시작, 있으면 버전을 1증가
-    public void registerGlobalSession(Long userId, String sessionId, String serverId) {
-        String sessionKey = "user:" + userId + ":session";
-        String serverKey = "user:" + userId + ":server";
-        String versionKey = "user:" + userId + ":version";
+    /**
+     * 전역 세션 등록 (Lua Script - 원자적)
+     * 변경사항:
+     * - 기존: GET → 계산 → SET (3단계, 비원자적)
+     * - 개선: Lua Script 1회 호출 (원자적)
+     * 효과:
+     * - 동시 등록 시 version 충돌 방지
+     * - 네트워크 왕복 감소 (2회 → 1회)
+     *
+     * @param userId 유저 ID
+     * @param sessionId 세션 ID
+     * @param serverId 서버 ID
+     * @return 새로운 version
+     */
+    public Long registerGlobalSession(Long userId, String sessionId, String serverId) {
+        try {
+            // Lua Script 실행 (원자적)
+            Long newVersion = redisTemplate.execute(
+                    registerGlobalSessionScript,
+                    Collections.singletonList(String.valueOf(userId)),  // KEYS[1]
+                    sessionId,    // ARGV[1]
+                    serverId      // ARGV[2]
+            );
 
-        // 기존 세션 정보 조회
-        GlobalSessionInfo oldSession = getGlobalSession(userId);
+            log.info("전역 세션 등록 완료 (Lua): userId={}, sessionId={}, serverId={}, version={}",
+                    userId, sessionId, serverId, newVersion);
 
-        Long newVersion = 1L;
-        if (oldSession != null) {
-            newVersion = oldSession.getVersion() + 1;
-            log.warn("유저 {}의 기존 전역 세션 발견 - sessionId: {}, serverId: {}, version: {} → 새 버전: {}",
-                    userId, oldSession.getSessionId(), oldSession.getServerId(), oldSession.getVersion(), newVersion);
+            return newVersion;
+
+        } catch (Exception e) {
+            log.error("전역 세션 등록 실패 (Lua): userId={}, sessionId={}", userId, sessionId, e);
+
+            // Fallback: 기존 방식 (비원자적)
+            log.warn("Fallback 실행: 비원자적 방식으로 전역 세션 등록 시도");
+            return registerGlobalSessionFallback(userId, sessionId, serverId);
         }
-
-        // 새 세션 정보 저장 (버전 포함)
-        redisTemplate.opsForValue().set(sessionKey, sessionId, 24, TimeUnit.HOURS);
-        redisTemplate.opsForValue().set(serverKey, serverId, 24, TimeUnit.HOURS);
-        redisTemplate.opsForValue().set(versionKey, String.valueOf(newVersion), 24, TimeUnit.HOURS);
-
-        log.debug("전역 세션 등록: userId={}, sessionId={}, serverId={}, version={}",
-                userId, sessionId, serverId, newVersion);
     }
 
+    /**
+     * Fallback: 기존 비원자적 방식
+     * Lua Script 실패 시에만 사용
+     */
+    private Long registerGlobalSessionFallback(Long userId, String sessionId, String serverId) {
+        String key = GLOBAL_SESSION_PREFIX + userId;
 
+        // 기존 세션 조회
+        GlobalSessionInfo current = getGlobalSession(userId);
+
+        // version 계산
+        Long version = (current != null) ? current.getVersion() + 1 : 1L;
+
+        // 저장
+        GlobalSessionInfo newSession = GlobalSessionInfo.builder()
+                .sessionId(sessionId)
+                .serverId(serverId)
+                .version(version)
+                .build();
+
+        redisTemplate.opsForHash().putAll(key, Map.of(
+                "sessionId", sessionId,
+                "serverId", serverId,
+                "version", version.toString()
+        ));
+
+        redisTemplate.expire(key, 24, TimeUnit.HOURS);
+
+        return version;
+    }
+
+    /**
+     * 전역 세션 조회
+     *
+     * @param userId 유저 ID
+     * @return GlobalSessionInfo 또는 null
+     */
     public GlobalSessionInfo getGlobalSession(Long userId) {
-        String sessionKey = "user:" + userId + ":session";
-        String serverKey = "user:" + userId + ":server";
-        String versionKey = "user:" + userId + ":version";
+        try {
+            String key = GLOBAL_SESSION_PREFIX + userId;
 
-        String sessionId = redisTemplate.opsForValue().get(sessionKey);
-        String serverId = redisTemplate.opsForValue().get(serverKey);
-        String versionStr = redisTemplate.opsForValue().get(versionKey);
+            String sessionId = (String) redisTemplate.opsForHash().get(key, "sessionId");
+            String serverId = (String) redisTemplate.opsForHash().get(key, "serverId");
+            String versionStr = (String) redisTemplate.opsForHash().get(key, "version");
 
-        if (sessionId == null) {
+            if (sessionId == null || serverId == null || versionStr == null) {
+                return null;
+            }
+
+            return GlobalSessionInfo.builder()
+                    .sessionId(sessionId)
+                    .serverId(serverId)
+                    .version(Long.parseLong(versionStr))
+                    .build();
+
+        } catch (Exception e) {
+            log.error("전역 세션 조회 실패: userId={}", userId, e);
             return null;
         }
-
-        Long version = (versionStr != null) ? Long.parseLong(versionStr) : 1L;
-
-        return new GlobalSessionInfo(sessionId, serverId, version);
     }
 
-    // 전역 세션 제거
-    public void removeGlobalSession(Long userId) {
-        String sessionKey = "user:" + userId + ":session";
-        String serverKey = "user:" + userId + ":server";
-        String versionKey = "user:" + userId + ":version";
+    /**
+     * 전역 세션 삭제 (Lua Script - 원자적)
+     *
+     * 변경사항:
+     * - 기존: GET → 비교 → DELETE (3단계, 비원자적)
+     * - 개선: Lua Script 1회 호출 (원자적)
+     *
+     * 효과:
+     * - 새 세션이 등록된 경우 자동으로 삭제 방지
+     * - 네트워크 왕복 감소 (2회 → 1회)
+     *
+     * @param userId 유저 ID
+     * @param sessionId 예상되는 세션 ID (이것과 일치해야 삭제)
+     * @return true=삭제됨, false=삭제 안됨
+     */
+    public boolean removeGlobalSession(Long userId, String sessionId) {
+        try {
+            // Lua Script 실행 (원자적)
+            Long result = redisTemplate.execute(
+                    removeGlobalSessionIfMatchScript,
+                    Collections.singletonList(String.valueOf(userId)),  // KEYS[1]
+                    sessionId  // ARGV[1]
+            );
 
-        redisTemplate.delete(sessionKey);
-        redisTemplate.delete(serverKey);
-        redisTemplate.delete(versionKey);
+            boolean deleted = (result != null && result == 1L);
 
-        log.debug("전역 세션 제거: userId={}", userId);
+            if (deleted) {
+                log.info("전역 세션 삭제 완료 (Lua): userId={}, sessionId={}", userId, sessionId);
+            } else {
+                log.debug("전역 세션 삭제 안됨 (Lua): userId={}, sessionId={} (불일치 또는 없음)",
+                        userId, sessionId);
+            }
+
+            return deleted;
+
+        } catch (Exception e) {
+            log.error("전역 세션 삭제 실패 (Lua): userId={}, sessionId={}", userId, sessionId, e);
+
+            // Fallback: 기존 방식 (비원자적)
+            log.warn("Fallback 실행: 비원자적 방식으로 전역 세션 삭제 시도");
+            return removeGlobalSessionFallback(userId, sessionId);
+        }
     }
+
+    /**
+     * Fallback: 기존 비원자적 방식
+     * Lua Script 실패 시에만 사용
+     */
+    private boolean removeGlobalSessionFallback(Long userId, String sessionId) {
+        GlobalSessionInfo current = getGlobalSession(userId);
+
+        if (current != null && current.getSessionId().equals(sessionId)) {
+            String key = GLOBAL_SESSION_PREFIX + userId;
+            redisTemplate.delete(key);
+            return true;
+        }
+
+        return false;
+    }
+
 
     // 방 ID로 매치 ID 조회
     public Long getMatchIdByRoomId(Long roomId) {
@@ -308,10 +418,7 @@ public class RoomCacheRepository {
         }
     }
 
-    private String getString(Map<Object, Object> data, String key) {
-        Object value = data.get(key);
-        return value != null ? value.toString() : null;
-    }
+
 
     private Long getLong(Map<Object, Object> data, String key) {
         Object value = data.get(key);
@@ -323,13 +430,5 @@ public class RoomCacheRepository {
         }
     }
 
-    private Integer getInt(Map<Object, Object> data, String key) {
-        Object value = data.get(key);
-        if (value == null) return null;
-        try {
-            return Integer.parseInt(value.toString());
-        } catch (NumberFormatException e) {
-            return null;
-        }
-    }
+
 }
