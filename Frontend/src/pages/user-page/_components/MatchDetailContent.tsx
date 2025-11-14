@@ -236,7 +236,7 @@ export default function MatchDetailContent({
           }
         />
         <StatCard
-          title="좌석 선정"
+          title="좌석 선택"
           timeText={`${formatMsToClock(seat?.durationMs ?? 63210)}`}
           timeDiff={
             baseline

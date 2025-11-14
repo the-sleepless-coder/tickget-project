@@ -55,7 +55,9 @@ export default function LoginSuccess() {
           // ignore
         }
 
-        const hasNickname = !!(nickname || useAuthStore.getState().nickname)?.trim();
+        const hasNickname = !!(
+          nickname || useAuthStore.getState().nickname
+        )?.trim();
         const hasProfileImage = !!profileImageUrl;
         const hasName = !!(name || useAuthStore.getState().name)?.trim();
 
@@ -130,5 +132,3 @@ export default function LoginSuccess() {
 
   return null;
 }
-
-

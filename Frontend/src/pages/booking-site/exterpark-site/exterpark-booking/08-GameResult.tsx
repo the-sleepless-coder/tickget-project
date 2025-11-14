@@ -191,7 +191,7 @@ export default function GameResultPage() {
             ]}
           />
           <ResultCard
-            title="좌석 선정"
+            title="좌석 선택"
             items={[
               {
                 label: "소요 시간",

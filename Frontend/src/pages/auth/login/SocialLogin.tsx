@@ -389,6 +389,41 @@ export default function SocialLogin() {
       const data = await adminAccountLoginByName(name);
       console.log(`${name} 관리자 계정 API 응답 데이터:`, data);
       setAuth(data);
+
+      // 프로필 이미지 조회 및 auth store 업데이트
+      const accessToken = data.accessToken;
+      let profileImageUrl: string | null = null;
+      if (accessToken) {
+        try {
+          const res = await fetch(PROFILE_URL, {
+            method: "GET",
+            headers: { Authorization: `Bearer ${accessToken}` },
+          });
+          if (res.ok) {
+            const profileData = await res.json();
+            profileImageUrl = profileData?.profileImageUrl || null;
+          }
+        } catch (error) {
+          if (import.meta.env.DEV) {
+            console.warn("프로필 이미지 조회 실패:", error);
+          }
+        }
+      }
+
+      // 프로필 이미지 조회 후 auth store 업데이트
+      if (profileImageUrl !== null) {
+        const current = useAuthStore.getState();
+        setAuth({
+          accessToken: current.accessToken || data.accessToken,
+          refreshToken: current.refreshToken || data.refreshToken,
+          userId: current.userId || data.userId,
+          email: current.email || data.email,
+          nickname: current.nickname || data.nickname,
+          name: current.name || data.name,
+          profileImageUrl: profileImageUrl,
+        });
+      }
+
       const storeState = useAuthStore.getState();
       console.log("저장된 Store 상태:", {
         accessToken: storeState.accessToken
@@ -397,6 +432,7 @@ export default function SocialLogin() {
         nickname: storeState.nickname,
         email: storeState.email,
         userId: storeState.userId,
+        profileImageUrl: storeState.profileImageUrl,
       });
       openSnackbar(`${name} 관리자 계정으로 로그인되었습니다!`, "success");
       const from =
