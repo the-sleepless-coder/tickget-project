@@ -3,6 +3,7 @@ package com.tickget.roomserver.kafka;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.tickget.roomserver.domain.enums.EventType;
 import com.tickget.roomserver.dto.cache.QueueStatus;
+import com.tickget.roomserver.kafka.payload.ForceDisconnectPayload;
 import com.tickget.roomserver.kafka.payload.HostChangedPayload;
 import com.tickget.roomserver.kafka.payload.QueueStatusMapPayload;
 import com.tickget.roomserver.kafka.payload.RoomSettingUpdatedPayload;
@@ -114,6 +115,19 @@ public class RoomEventMessage {
                         .userId(userId)
                         .matchId(matchId)
                         .timestamp(timestamp)
+                        .build())
+                .build();
+    }
+
+    public static RoomEventMessage forceDisconnect(Long userId, String reason) {
+        return RoomEventMessage.builder()
+                .eventType(EventType.FORCE_DISCONNECT)
+                .timestamp(System.currentTimeMillis())
+                .message("다른 기기에서 로그인되어 연결이 종료됩니다.")
+                .payload(ForceDisconnectPayload.builder()
+                        .reason(reason)
+                        .message("다른 기기에서 로그인되어 현재 연결이 종료됩니다.")
+                        .timestamp(System.currentTimeMillis())
                         .build())
                 .build();
     }
