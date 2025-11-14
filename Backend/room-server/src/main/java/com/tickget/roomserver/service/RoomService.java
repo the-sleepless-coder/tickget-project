@@ -36,6 +36,7 @@ import com.tickget.roomserver.exception.RoomFullException;
 import com.tickget.roomserver.exception.RoomNotFoundException;
 import com.tickget.roomserver.exception.RoomPlayingException;
 import com.tickget.roomserver.kafka.RoomEventProducer;
+import com.tickget.roomserver.session.SessionInfo;
 import com.tickget.roomserver.session.WebSocketSessionManager;
 
 import java.util.*;
@@ -69,7 +70,8 @@ public class RoomService {
 
         Room room = Room.of(request,presetHall);
         room = roomRepository.save(room); // 알아서 id값 반영되지만 명시
-        String sessionId = sessionManager.getSessionIdByUserId(request.getUserId());
+        SessionInfo sessionInfo = sessionManager.getByUserId(request.getUserId());
+        String sessionId = sessionInfo != null ? sessionInfo.getSessionId() : null;
 
         try {
             // Redis에 정보 저장
@@ -165,7 +167,8 @@ public class RoomService {
 
         int currentUserCount = roomCacheRepository.addMemberToRoom(roomId, userId, userName, joinRoomRequest.getProfileImageUrl());
 
-        String sessionId = sessionManager.getSessionIdByUserId(userId);
+        SessionInfo sessionInfo = sessionManager.getByUserId(joinRoomRequest.getUserId());
+        String sessionId = sessionInfo != null ? sessionInfo.getSessionId() : null;
         if (sessionId != null) {
             sessionManager.joinRoom(sessionId, roomId);
         }
@@ -229,7 +232,8 @@ public class RoomService {
         }
 
 
-        String sessionId = sessionManager.getSessionIdByUserId(userId);
+        SessionInfo sessionInfo = sessionManager.getByUserId(exitRoomRequest.getUserId());
+        String sessionId = sessionInfo != null ? sessionInfo.getSessionId() : null;
         if (sessionId != null) {
             sessionManager.leaveRoom(sessionId);
         }
