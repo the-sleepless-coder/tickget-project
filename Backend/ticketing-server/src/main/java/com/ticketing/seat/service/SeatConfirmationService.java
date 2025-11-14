@@ -141,7 +141,7 @@ public class SeatConfirmationService {
                 remainingHumanUsers = redisTemplate.opsForValue().decrement(humanUsersKey);
                 log.info("실제 유저 Confirm: matchId={}, userId={}, 남은 실제 유저={}",
                         matchId, userId, remainingHumanUsers);
-            }
+            }// 1
             // ==================================================
 
             // 6. confirmed_count 증가 (좌석 수만큼)
@@ -241,6 +241,7 @@ public class SeatConfirmationService {
             Integer humanRank = 0;
 
             if (totalRankStr != null) {
+
                 try {
                     totalRank = Integer.parseInt(totalRankStr);
                 } catch (NumberFormatException e) {
@@ -270,7 +271,7 @@ public class SeatConfirmationService {
         }
     }
 
-    // 기존 getUserRankFromRedis() 메서드 수정 (라인 222-234)
+    // 기존 getUserRankFromRedis() 메서드 수정
     /**
      * Hold 시점에 저장된 등수 조회 (Confirm 시점)
      */
