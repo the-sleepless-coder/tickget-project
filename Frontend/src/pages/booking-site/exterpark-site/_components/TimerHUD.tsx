@@ -18,7 +18,7 @@ type LiveOverrides = {
   captchaLiveSec?: number;
   capBackspacesLive?: number;
   capWrongLive?: number;
-  // 좌석 선정
+  // 좌석 선택
   seatLiveSec?: number;
   seatClickMissLive?: number;
   seatTakenCountLive?: number;
@@ -224,7 +224,7 @@ export default function Timer({
                   <Row label="백스페이스" value={`${values.capBackspaces}회`} />
                   <Row label="틀린 횟수" value={`${values.capWrong}회`} />
                 </Section>
-                <Section title="좌석 선정">
+                <Section title="좌석 선택">
                   <Row
                     label="소요 시간"
                     value={

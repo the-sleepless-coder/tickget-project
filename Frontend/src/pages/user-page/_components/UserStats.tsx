@@ -291,10 +291,10 @@ export default function UserStats({
           </ResponsiveContainer>
         </div>
 
-        {/* 좌석 선정 */}
+        {/* 좌석 선택 */}
         <div className="rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
           <h4 className="mb-4 text-base font-bold text-neutral-900">
-            좌석 선정
+            좌석 선택
           </h4>
           <ResponsiveContainer width="100%" height={150}>
             <BarChart data={chartData}>
@@ -426,7 +426,7 @@ export default function UserStats({
                   className="px-2 py-3 text-left text-sm font-semibold text-neutral-700"
                   style={{ width: "24px" }}
                 >
-                  좌석 선정 (초)
+                  좌석 선택 (초)
                 </th>
                 <th
                   className="px-2 py-3 text-left text-sm font-semibold text-neutral-700"

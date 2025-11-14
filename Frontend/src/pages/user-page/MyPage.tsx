@@ -726,7 +726,7 @@ export default function MyPageIndex() {
             ) : (
               // 개인 통계 탭
               <>
-                <PersonalStats matchHistory={mockMatchHistory} />
+                <PersonalStats />
               </>
             )}
           </div>
