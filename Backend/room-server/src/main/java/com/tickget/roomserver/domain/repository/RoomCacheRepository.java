@@ -204,6 +204,7 @@ public class RoomCacheRepository {
     }
 
 
+    // 기존 세션이 없으면 1로 시작, 있으면 버전을 1증가
     public void registerGlobalSession(Long userId, String sessionId, String serverId) {
         String sessionKey = "user:" + userId + ":session";
         String serverKey = "user:" + userId + ":server";

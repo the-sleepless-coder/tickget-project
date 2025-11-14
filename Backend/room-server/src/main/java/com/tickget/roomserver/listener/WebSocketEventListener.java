@@ -74,7 +74,8 @@ public class WebSocketEventListener {
                 SessionCloseEvent closeEvent = SessionCloseEvent.of(
                         userId,
                         globalSession.getSessionId(),
-                        globalSession.getServerId()
+                        globalSession.getServerId(),
+                        globalSession.getVersion()
                 );
                 roomEventProducer.publishSessionCloseEvent(closeEvent);
             }
