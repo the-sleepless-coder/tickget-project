@@ -1,5 +1,6 @@
 package com.ticketing.seat.service;
 
+import com.ticketing.seat.dto.RoomDetailResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -55,6 +56,40 @@ public class RoomServerClient {
             log.error("룸 서버 매치 종료 알림 중 오류 발생: roomId={}, error={}",
                     roomId, e.getMessage(), e);
             return false;
+        }
+    }
+
+    /**
+     * Room 정보 조회 (userCount, usedBotCount 등)
+     * GET /rooms/{roomId}
+     *
+     * @param roomId 방 ID
+     * @return RoomDetailResponse (null이면 실패)
+     */
+    public RoomDetailResponse getRoomDetail(Long roomId) {
+        String url = roomServerUrl + "/rooms/" + roomId;
+
+        try {
+            log.info("룸 서버에서 방 정보 조회: roomId={}, url={}", roomId, url);
+
+            ResponseEntity<RoomDetailResponse> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.GET,
+                    null,
+                    RoomDetailResponse.class
+            );
+
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                log.info("룸 서버 방 정보 조회 성공: roomId={}", roomId);
+                return response.getBody();
+            } else {
+                log.warn("룸 서버 방 정보 조회 실패: roomId={}, status={}", roomId, response.getStatusCode());
+                return null;
+            }
+
+        } catch (Exception e) {
+            log.error("룸 서버 방 정보 조회 중 오류 발생: roomId={}, error={}", roomId, e.getMessage(), e);
+            return null;
         }
     }
 }

@@ -25,11 +25,14 @@ public class LuaReservationExecutor {
 
     private final StringRedisTemplate redisTemplate;
 
+    private static final int MATCH_REDIS_TTL_SECONDS = 600; // 10분
+
     private final DefaultRedisScript<Long> reserveSeatsLuaScript = new DefaultRedisScript<>(
             """
             local seatCount = tonumber(ARGV[1])
             local totalSeats = tonumber(ARGV[2])
             local userId = ARGV[3]
+            local ttl = tonumber(ARGV[4])  -- TTL 추가
             
             -- check phase: 모든 좌석이 비어있는지 확인
             for i = 1, seatCount do
@@ -38,11 +41,12 @@ public class LuaReservationExecutor {
                 end
             end
     
-            -- assign phase: 각 좌석을 userId:grade로 할당
+            -- assign phase: 각 좌석을 userId:grade로 할당하고 TTL 설정
             for i = 1, seatCount do
-                local grade = ARGV[3 + i]  -- ARGV[4]부터 각 좌석의 grade
+                local grade = ARGV[4 + i]  -- ARGV[5]부터 각 좌석의 grade
                 local userIdGrade = userId .. ':' .. grade
                 redis.call('SET', KEYS[i], userIdGrade)
+                redis.call('EXPIRE', KEYS[i], ttl)  -- 좌석 키에 TTL 설정 (10분)
             end
             
             -- 카운터 증가
@@ -88,12 +92,13 @@ public class LuaReservationExecutor {
                 Stream.of("match:" + matchId + ":status")
         ).flatMap(s -> s).toList();
 
-        // ARGV: [seatCount, totalSeats, userId, grade1, grade2, ...]
+        // ARGV: [seatCount, totalSeats, userId, ttl, grade1, grade2, ...]
         List<String> args = new ArrayList<>();
-        args.add(String.valueOf(rowNumbers.size()));  // ARGV[1]: seatCount
-        args.add(String.valueOf(totalSeats));         // ARGV[2]: totalSeats
-        args.add(String.valueOf(userId));             // ARGV[3]: userId
-        args.addAll(grades);                          // ARGV[4]~: 각 좌석의 grade
+        args.add(String.valueOf(rowNumbers.size()));       // ARGV[1]: seatCount
+        args.add(String.valueOf(totalSeats));              // ARGV[2]: totalSeats
+        args.add(String.valueOf(userId));                  // ARGV[3]: userId
+        args.add(String.valueOf(MATCH_REDIS_TTL_SECONDS)); // ARGV[4]: ttl (10분)
+        args.addAll(grades);                               // ARGV[5]~: 각 좌석의 grade
 
         Long result = redisTemplate.execute(
                 reserveSeatsLuaScript,

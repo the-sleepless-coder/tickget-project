@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface MatchRepository extends JpaRepository<Match, Long> {
 
@@ -17,4 +18,8 @@ public interface MatchRepository extends JpaRepository<Match, Long> {
 
     // matchStatus, 현재 시간 기준으로 찾는다.
     List<Match> findByStatusAndStartedAtBefore(MatchStatus matchStatus, LocalDateTime now);
+
+    // roomId로 가장 최근 매치 조회 (경기 중 유저 퇴장 처리용)
+    Optional<Match> findTopByRoomIdOrderByCreatedAtDesc(Long roomId);
+
 }
