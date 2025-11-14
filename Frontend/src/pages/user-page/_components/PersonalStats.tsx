@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   LineChart,
   Line,
@@ -11,146 +11,193 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
+import { getMyPageStats } from "@features/user-page/api";
+import type { MyPageStatsResponse } from "@features/user-page/types";
 
-interface PersonalStatsProps {
-  matchHistory: Array<{
-    id: number;
-    date: string;
-    time: string;
-    participants: string;
-    tags?: Array<{ label: string; color: string }>;
-    users?: Array<{
-      id: number;
-      rank: number;
-      rankAmongBots?: number;
-      rankAmongUsers?: number;
-      metrics?: {
-        bookingClick?: { reactionMs?: number };
-        captcha?: { durationMs?: number };
-        seatSelection?: { durationMs?: number };
-      };
-    }>;
-  }>;
-}
-
-export default function PersonalStats({ matchHistory }: PersonalStatsProps) {
+export default function PersonalStats() {
   const [visibleRows, setVisibleRows] = useState(5);
-  const [matchFilter, setMatchFilter] = useState<"all" | "match" | "solo">("all");
+  const [matchFilter, setMatchFilter] = useState<"all" | "match" | "solo">(
+    "all"
+  );
+  const [statsData, setStatsData] = useState<MyPageStatsResponse | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const computeRankAmongUsers = (
-    users?: Array<{ id: number; rank: number }>,
-    targetUserId: number = 0
-  ): number | undefined => {
-    if (!users || users.length === 0) return undefined;
-    const sortedByRank = [...users].sort(
-      (a, b) => (a.rank ?? 0) - (b.rank ?? 0)
-    );
-    const idx = sortedByRank.findIndex((u) => u.id === targetUserId);
-    return idx >= 0 ? idx + 1 : undefined;
-  };
-
-  // 전체 참가자 수를 계산하는 함수 (participants와 tags에서 추출)
-  const getTotalParticipants = (match: (typeof matchHistory)[0]): number => {
-    let humanParticipants = 0;
-    let botParticipants = 0;
-
-    // participants에서 참가인원 추출
-    const participantsMatch = match.participants.match(/참가인원\s+(\d+)명/);
-    if (participantsMatch) {
-      humanParticipants = parseInt(participantsMatch[1], 10);
-    }
-
-    // tags에서 봇 인원 추출
-    const botTag = match.tags?.find((tag) => tag.label.includes("봇"));
-    if (botTag) {
-      const botMatch = botTag.label.match(/봇\s+(\d+)명/);
-      if (botMatch) {
-        botParticipants = parseInt(botMatch[1], 10);
+  // API 데이터 로드
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await getMyPageStats(currentPage);
+        console.log("API 응답 데이터:", data);
+        console.log("specificsList:", data?.specificsList);
+        setStatsData(data);
+      } catch (err) {
+        console.error("통계 데이터 로드 실패:", err);
+        setError(
+          err instanceof Error
+            ? err.message
+            : "데이터를 불러오는데 실패했습니다."
+        );
+      } finally {
+        setLoading(false);
       }
-    }
+    };
 
-    return humanParticipants + botParticipants;
+    fetchStats();
+  }, [currentPage]);
+
+  // 날짜 포맷팅 함수
+  const formatDate = (dateString: string): { date: string; time: string } => {
+    const date = new Date(dateString);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    const hours = String(date.getHours()).padStart(2, "0");
+    const minutes = String(date.getMinutes()).padStart(2, "0");
+
+    return {
+      date: `${year}.${month}.${day}`,
+      time: `${hours}:${minutes}`,
+    };
   };
 
-  // 내 데이터만 필터링하고 역순으로 정렬 (최신 경기부터)
-  const myData = matchHistory
-    .filter((match) => match.users?.some((user) => user.id === 0))
-    .map((match) => {
-      const myUser = match.users?.find((user) => user.id === 0);
-      const totalParticipants = getTotalParticipants(match);
-      const percentile =
-        totalParticipants > 0
-          ? ((myUser?.rank ?? 0) / totalParticipants) * 100
-          : 0;
-
-      // 솔로/대결 판단
-      const participantsMatch = match.participants.match(/참가인원\s+(\d+)명/);
-      const humanCount = participantsMatch
-        ? parseInt(participantsMatch[1], 10)
-        : 0;
-      const matchType = humanCount === 1 ? "솔로" : "대결";
-
-      const derivedRankAmongUsers =
-        myUser?.rankAmongUsers ?? computeRankAmongUsers(match.users, 0);
-
+  // 예매 버튼 클릭 그래프 데이터
+  const queueClickChartData = (statsData?.clickStats?.queueClick ?? [])
+    .map((item) => {
+      const { date, time } = formatDate(item.date);
       return {
-        date: match.date,
-        time: match.time,
-        matchType,
-        rank: myUser?.rank ?? 0,
-        humanParticipants: humanCount,
-        rankAmongBots: myUser?.rankAmongBots,
-        rankAmongUsers: derivedRankAmongUsers,
-        totalParticipants,
-        percentile,
-        bookingClick: myUser?.metrics?.bookingClick?.reactionMs ?? 0,
-        captcha: myUser?.metrics?.captcha?.durationMs ?? 0,
-        seatSelection: myUser?.metrics?.seatSelection?.durationMs ?? 0,
+        date,
+        time,
+        clickTime: item.clickTime,
+        dateTime: `${date} ${time}`,
       };
     })
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) // 역순 정렬
-    .slice(0, 20); // 최대 20개만
+    .reverse();
 
-  // 평균 퍼센트 계산
-  const averagePercentile =
-    myData.length > 0
+  // 보안 문자 그래프 데이터
+  const captchaClickChartData = (statsData?.clickStats?.catpchaClick ?? [])
+    .map((item) => {
+      const { date, time } = formatDate(item.date);
+      return {
+        date,
+        time,
+        selectTime: item.selectTime,
+        dateTime: `${date} ${time}`,
+      };
+    })
+    .reverse();
+
+  // 좌석 선택 그래프 데이터
+  const seatReserveClickChartData = (
+    statsData?.clickStats?.seatReserveClick ?? []
+  )
+    .map((item) => {
+      const { date, time } = formatDate(item.date);
+      return {
+        date,
+        time,
+        selectTime: item.selectTime,
+        dateTime: `${date} ${time}`,
+      };
+    })
+    .reverse();
+
+  // 상세 기록 데이터 처리
+  const specificsData = (statsData?.specificsList ?? [])
+    .map((item) => {
+      const { date, time } = formatDate(item.date);
+      const gameType = item.gameType === "MULTI" ? "대결" : "솔로";
+      const topPercentile =
+        item.playerTotCount > 0
+          ? ((item.totRank / item.playerTotCount) * 100).toFixed(2)
+          : "0.00";
+
+      return {
+        date,
+        time,
+        dateTime: `${date} ${time}`,
+        gameType,
+        topPercentile,
+        userRank: item.userRank,
+        userTotCount: item.userTotCount,
+        playerTotCount: item.playerTotCount,
+        queueClickTime: item.queueClickTime.toFixed(2),
+        captchaClickTime: item.captchaClickTime.toFixed(2),
+        seatClickTime: item.seatClickTime.toFixed(2),
+        totalDuration: item.totalDuration.toFixed(2),
+      };
+    })
+    .reverse();
+
+  // 필터링된 상세 기록
+  const filteredSpecificsData = specificsData.filter((item) => {
+    if (matchFilter === "all") return true;
+    if (matchFilter === "match") return item.gameType === "대결";
+    if (matchFilter === "solo") return item.gameType === "솔로";
+    return true;
+  });
+
+  // 디버깅: 데이터 확인
+  useEffect(() => {
+    console.log("statsData:", statsData);
+    console.log("specificsData length:", specificsData.length);
+    console.log("specificsData:", specificsData);
+    console.log("filteredSpecificsData length:", filteredSpecificsData.length);
+    console.log("filteredSpecificsData:", filteredSpecificsData);
+    console.log("matchFilter:", matchFilter);
+  }, [statsData, specificsData, filteredSpecificsData, matchFilter]);
+
+  // 필터 변경 시 페이지 및 visibleRows 리셋
+  useEffect(() => {
+    setCurrentPage(1);
+    setVisibleRows(5);
+  }, [matchFilter]);
+
+  // 평균 상위 비율 계산
+  const averageTopPercentile =
+    specificsData.length > 0
       ? (
-          myData.reduce((sum, data) => sum + data.percentile, 0) / myData.length
+          specificsData.reduce(
+            (sum, item) => sum + parseFloat(item.topPercentile),
+            0
+          ) / specificsData.length
         ).toFixed(2)
       : "-";
 
   // 상위/하위 텍스트 결정 (50% 기준)
   const percentileText =
-    averagePercentile !== "-"
-      ? parseFloat(averagePercentile) <= 50
-        ? `상위 ${averagePercentile}%`
-        : `하위 ${(100 - parseFloat(averagePercentile)).toFixed(2)}%`
+    averageTopPercentile !== "-"
+      ? parseFloat(averageTopPercentile) <= 50
+        ? `상위 ${averageTopPercentile}%`
+        : `하위 ${(100 - parseFloat(averageTopPercentile)).toFixed(2)}%`
       : "-";
 
-  // 차트 데이터 포맷팅 (역순으로 정렬하여 최신부터 표시)
-  const chartData = myData
-    .slice()
-    .reverse() // 차트는 오래된 것부터 표시
-    .map((data, index) => ({
-      matchNumber: myData.length - index, // 경기 번호 (최신 경기 = 큰 번호)
-      date: data.date.replace(/-/g, "."),
-      dateTime: `${data.date.replace(/-/g, ".")} ${data.time} [${data.matchType}]`,
-      time: data.time,
-      matchType: data.matchType,
-      rank: data.rank,
-      humanParticipants: data.humanParticipants,
-      totalParticipants: data.totalParticipants,
-      rankAmongBots: data.rankAmongBots,
-      rankAmongUsers: data.rankAmongUsers,
-      percentile: data.percentile.toFixed(2),
-      bookingClick: (data.bookingClick / 1000).toFixed(2),
-      captcha: (data.captcha / 1000).toFixed(2),
-      seatSelection: (data.seatSelection / 1000).toFixed(2),
-      totalTime: (
-        (data.bookingClick + data.captcha + data.seatSelection) /
-        1000
-      ).toFixed(2),
-    }));
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-12">
+        <div className="text-neutral-500">데이터를 불러오는 중...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center p-12">
+        <div className="text-red-500">오류: {error}</div>
+      </div>
+    );
+  }
+
+  if (!statsData) {
+    return (
+      <div className="flex items-center justify-center p-12">
+        <div className="text-neutral-500">데이터가 없습니다.</div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -163,49 +210,59 @@ export default function PersonalStats({ matchHistory }: PersonalStatsProps) {
               {percentileText}
             </span>
             <span className="text-sm text-neutral-600">
-              (총 {myData.length}회 참여)
+              (총 {specificsData.length}회 참여)
             </span>
           </div>
-          {averagePercentile !== "-" && (
+          {averageTopPercentile !== "-" && (
             <p className="text-sm text-neutral-500">
-              전체 참가자 중 평균 {averagePercentile}% 위치
+              전체 참가자 중 평균 {averageTopPercentile}% 위치
             </p>
           )}
         </div>
       </div>
 
       {/* 퍼센트 추이 차트 */}
-      <div className="rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
-        <div className="mb-2 flex items-center justify-between">
-          <h3 className="text-lg font-bold text-neutral-900">성과 추이</h3>
-          <p className="text-xs text-neutral-500">최근 20경기만 표시</p>
+      {specificsData.length > 0 && (
+        <div className="rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
+          <div className="mb-2 flex items-center justify-between">
+            <h3 className="text-lg font-bold text-neutral-900">성과 추이</h3>
+            <p className="text-xs text-neutral-500">
+              {specificsData.length}경기 표시
+            </p>
+          </div>
+          <ResponsiveContainer width="100%" height={200}>
+            <LineChart
+              data={specificsData.map((item, index) => ({
+                matchNumber: specificsData.length - index,
+                percentile: item.topPercentile,
+                dateTime: item.dateTime,
+              }))}
+            >
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis
+                dataKey="matchNumber"
+                label={{ value: "경기", position: "insideBottom", offset: -5 }}
+              />
+              <YAxis />
+              <Tooltip
+                formatter={(
+                  value: string,
+                  _name: string,
+                  props: { payload?: { dateTime?: string } }
+                ) => [`${value}%`, props.payload?.dateTime || ""]}
+              />
+              <Legend />
+              <Line
+                type="monotone"
+                dataKey="percentile"
+                stroke="#9333ea"
+                strokeWidth={2}
+                name="퍼센트"
+              />
+            </LineChart>
+          </ResponsiveContainer>
         </div>
-        <ResponsiveContainer width="100%" height={200}>
-          <LineChart data={chartData}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis
-              dataKey="matchNumber"
-              label={{ value: "경기", position: "insideBottom", offset: -5 }}
-            />
-            <YAxis />
-            <Tooltip
-              formatter={(
-                value: string,
-                _name: string,
-                props: { payload?: { dateTime?: string } }
-              ) => [`${value}%`, props.payload?.dateTime || ""]}
-            />
-            <Legend />
-            <Line
-              type="monotone"
-              dataKey="percentile"
-              stroke="#9333ea"
-              strokeWidth={2}
-              name="퍼센트"
-            />
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
+      )}
 
       {/* 예매 성능 분석 */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -215,7 +272,7 @@ export default function PersonalStats({ matchHistory }: PersonalStatsProps) {
             예매 버튼 클릭
           </h4>
           <ResponsiveContainer width="100%" height={150}>
-            <BarChart data={chartData}>
+            <BarChart data={queueClickChartData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="date" hide />
               <YAxis />
@@ -244,7 +301,7 @@ export default function PersonalStats({ matchHistory }: PersonalStatsProps) {
                   );
                 }}
               />
-              <Bar dataKey="bookingClick" fill="#3b82f6" />
+              <Bar dataKey="clickTime" fill="#3b82f6" />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -255,7 +312,7 @@ export default function PersonalStats({ matchHistory }: PersonalStatsProps) {
             보안 문자
           </h4>
           <ResponsiveContainer width="100%" height={150}>
-            <BarChart data={chartData}>
+            <BarChart data={captchaClickChartData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="date" hide />
               <YAxis />
@@ -284,18 +341,18 @@ export default function PersonalStats({ matchHistory }: PersonalStatsProps) {
                   );
                 }}
               />
-              <Bar dataKey="captcha" fill="#10b981" />
+              <Bar dataKey="selectTime" fill="#10b981" />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
-        {/* 좌석 선정 */}
+        {/* 좌석 선택 */}
         <div className="rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
           <h4 className="mb-4 text-base font-bold text-neutral-900">
-            좌석 선정
+            좌석 선택
           </h4>
           <ResponsiveContainer width="100%" height={150}>
-            <BarChart data={chartData}>
+            <BarChart data={seatReserveClickChartData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="date" hide />
               <YAxis />
@@ -324,7 +381,7 @@ export default function PersonalStats({ matchHistory }: PersonalStatsProps) {
                   );
                 }}
               />
-              <Bar dataKey="seatSelection" fill="#f59e0b" />
+              <Bar dataKey="selectTime" fill="#f59e0b" />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -403,7 +460,7 @@ export default function PersonalStats({ matchHistory }: PersonalStatsProps) {
                   보안 문자 (초)
                 </th>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-neutral-700">
-                  좌석 선정 (초)
+                  좌석 선택 (초)
                 </th>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-neutral-700">
                   총 소요시간 (초)
@@ -411,82 +468,106 @@ export default function PersonalStats({ matchHistory }: PersonalStatsProps) {
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-200">
-              {chartData
-                .filter((data) => {
-                  if (matchFilter === "all") return true;
-                  if (matchFilter === "match") return data.matchType === "대결";
-                  if (matchFilter === "solo") return data.matchType === "솔로";
-                  return true;
-                })
-                .slice(0, visibleRows)
-                .map((data, index) => (
-                <tr key={index} className="hover:bg-neutral-50">
-                  <td className="px-6 py-4 text-sm text-neutral-900">
-                    <div className="flex flex-col">
-                      <span>
-                        {data.date
-                          ? data.date.length >= 3
-                            ? data.date.slice(2)
-                            : data.date
-                          : "-"}
-                      </span>
-                      <span className="text-neutral-500">{data.time || "-"}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-neutral-900">{data.matchType}</td>
-                  <td className="px-6 py-4 text-sm font-semibold text-purple-600">
-                    {data.percentile}%
-                  </td>
-                  <td className="px-6 py-4 text-sm text-neutral-700">
-                    {data.humanParticipants &&
-                    data.humanParticipants > 1 &&
-                    data.rankAmongUsers ? (
-                      <div className="text-sm text-purple-600">
-                        {data.rankAmongUsers}/{data.humanParticipants}등
-                      </div>
-                    ) : (
-                      <div className="text-sm text-neutral-500">-</div>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-neutral-700">
-                    {data.bookingClick}초
-                  </td>
-                  <td className="px-6 py-4 text-sm text-neutral-700">
-                    {data.captcha}초
-                  </td>
-                  <td className="px-6 py-4 text-sm text-neutral-700">
-                    {data.seatSelection}초
-                  </td>
-                  <td className="px-6 py-4 text-sm text-neutral-700">
-                    {data.totalTime}초
+              {filteredSpecificsData.slice(0, visibleRows).length > 0 ? (
+                filteredSpecificsData
+                  .slice(0, visibleRows)
+                  .map((data, index) => (
+                    <tr key={index} className="hover:bg-neutral-50">
+                      <td className="px-6 py-4 text-sm text-neutral-900">
+                        <div className="flex flex-col">
+                          <span>
+                            {data.date
+                              ? data.date.length >= 3
+                                ? data.date.slice(2)
+                                : data.date
+                              : "-"}
+                          </span>
+                          <span className="text-neutral-500">
+                            {data.time || "-"}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-neutral-900">
+                        {data.gameType}
+                      </td>
+                      <td className="px-6 py-4 text-sm font-semibold text-purple-600">
+                        {data.topPercentile}%
+                      </td>
+                      <td className="px-6 py-4 text-sm text-neutral-700">
+                        {data.userTotCount !== null && data.userTotCount > 0 ? (
+                          <div className="text-sm text-purple-600">
+                            {data.userRank}/{data.userTotCount}등
+                          </div>
+                        ) : (
+                          <div className="text-sm text-neutral-500">-</div>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-neutral-700">
+                        {data.queueClickTime}초
+                      </td>
+                      <td className="px-6 py-4 text-sm text-neutral-700">
+                        {data.captchaClickTime}초
+                      </td>
+                      <td className="px-6 py-4 text-sm text-neutral-700">
+                        {data.seatClickTime}초
+                      </td>
+                      <td className="px-6 py-4 text-sm text-neutral-700">
+                        {data.totalDuration}초
+                      </td>
+                    </tr>
+                  ))
+              ) : (
+                <tr>
+                  <td
+                    colSpan={8}
+                    className="px-6 py-8 text-center text-sm text-neutral-500"
+                  >
+                    표시할 데이터가 없습니다.
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
 
-        {/* 더보기 버튼 */}
-        {(() => {
-          const filteredData = chartData.filter((data) => {
-            if (matchFilter === "all") return true;
-            if (matchFilter === "match") return data.matchType === "대결";
-            if (matchFilter === "solo") return data.matchType === "솔로";
-            return true;
-          });
-          return visibleRows < filteredData.length ? (
-            <div className="flex justify-center border-t border-neutral-200 px-6 py-4">
-              <button
-                onClick={() =>
-                  setVisibleRows((prev) => Math.min(prev + 5, filteredData.length))
-                }
-                className="rounded-md border border-neutral-300 bg-white px-6 py-2 text-sm text-neutral-700 transition-colors hover:bg-neutral-50"
-              >
-                더보기
-              </button>
-            </div>
-          ) : null;
-        })()}
+        {/* 더보기 버튼 및 페이지네이션 */}
+        <div className="flex items-center justify-between border-t border-neutral-200 px-6 py-4">
+          {visibleRows < filteredSpecificsData.length ? (
+            <button
+              onClick={() =>
+                setVisibleRows((prev) =>
+                  Math.min(prev + 5, filteredSpecificsData.length)
+                )
+              }
+              className="rounded-md border border-neutral-300 bg-white px-6 py-2 text-sm text-neutral-700 transition-colors hover:bg-neutral-50"
+            >
+              더보기
+            </button>
+          ) : (
+            <div></div>
+          )}
+
+          {/* 페이지네이션 */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className="rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-700 transition-colors disabled:cursor-not-allowed disabled:opacity-50 hover:bg-neutral-50"
+            >
+              이전
+            </button>
+            <span className="flex items-center px-3 py-2 text-sm text-neutral-700">
+              {currentPage}페이지
+            </span>
+            <button
+              onClick={() => setCurrentPage((prev) => prev + 1)}
+              disabled={filteredSpecificsData.length === 0}
+              className="rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-700 transition-colors disabled:cursor-not-allowed disabled:opacity-50 hover:bg-neutral-50"
+            >
+              다음
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

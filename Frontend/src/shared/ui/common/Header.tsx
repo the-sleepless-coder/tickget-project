@@ -1,7 +1,9 @@
+import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import AccountCircleOutlinedIcon from "@mui/icons-material/AccountCircleOutlined";
 import { useAuthStore } from "@features/auth/store";
 import { exitRoom } from "@features/room/api";
+import { normalizeProfileImageUrl } from "@shared/utils/profileImageUrl";
 
 export default function Header() {
   const location = useLocation();
@@ -9,8 +11,26 @@ export default function Header() {
   const isITicket = location.pathname.startsWith("/i-ticket");
   const nickname = useAuthStore((state) => state.nickname);
   const accessToken = useAuthStore((state) => state.accessToken);
-  const profileImageUrl = useAuthStore((state) => state.profileImageUrl);
+  const userId = useAuthStore((state) => state.userId);
+  const rawProfileImageUrl = useAuthStore((state) => state.profileImageUrl);
+  const profileImageUrl = normalizeProfileImageUrl(rawProfileImageUrl, userId);
   const isLoggedIn = !!accessToken;
+  const [imageError, setImageError] = useState(false);
+
+  // 디버깅: 프로필 이미지 URL 확인
+  useEffect(() => {
+    if (import.meta.env.DEV && isLoggedIn) {
+      console.log("🔍 [Header] 프로필 이미지 URL:", {
+        raw: rawProfileImageUrl,
+        normalized: profileImageUrl,
+      });
+    }
+  }, [rawProfileImageUrl, profileImageUrl, isLoggedIn]);
+
+  // 프로필 이미지 URL이 변경되면 에러 상태 리셋
+  useEffect(() => {
+    setImageError(false);
+  }, [profileImageUrl]);
 
   const resolveRoomIdFromLocation = (): number | undefined => {
     // 1) /i-ticket/:roomId 패턴
@@ -112,11 +132,20 @@ export default function Header() {
                         }
                       }
                     >
-                      {profileImageUrl ? (
+                      {profileImageUrl && !imageError ? (
                         <img
                           src={profileImageUrl}
                           alt="프로필"
                           className="w-full h-full object-cover"
+                          onError={() => {
+                            if (import.meta.env.DEV) {
+                              console.error(
+                                "❌ [Header] 프로필 이미지 로드 실패:",
+                                profileImageUrl
+                              );
+                            }
+                            setImageError(true);
+                          }}
                         />
                       ) : (
                         <AccountCircleOutlinedIcon
@@ -132,11 +161,20 @@ export default function Header() {
                     onClick={handleMyPageClick}
                     className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center"
                   >
-                    {profileImageUrl ? (
+                    {profileImageUrl && !imageError ? (
                       <img
                         src={profileImageUrl}
                         alt="프로필"
                         className="w-full h-full object-cover"
+                        onError={() => {
+                          if (import.meta.env.DEV) {
+                            console.error(
+                              "❌ [Header] 프로필 이미지 로드 실패:",
+                              profileImageUrl
+                            );
+                          }
+                          setImageError(true);
+                        }}
                       />
                     ) : (
                       <AccountCircleOutlinedIcon className="text-purple-500" />

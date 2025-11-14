@@ -168,9 +168,12 @@ export function subscribe(
     return null;
   }
 
-  const fullDestination = destination.startsWith(TOPIC_PREFIX)
+  // /user/로 시작하는 destination은 prefix를 붙이지 않음 (STOMP user destination)
+  const fullDestination = destination.startsWith("/user/")
     ? destination
-    : `${TOPIC_PREFIX}${destination.startsWith("/") ? destination : `/${destination}`}`;
+    : destination.startsWith(TOPIC_PREFIX)
+      ? destination
+      : `${TOPIC_PREFIX}${destination.startsWith("/") ? destination : `/${destination}`}`;
 
   return client.subscribe(fullDestination, callback);
 }

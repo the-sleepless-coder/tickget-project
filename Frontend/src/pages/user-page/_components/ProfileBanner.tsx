@@ -1,4 +1,6 @@
 import SettingsIcon from "@mui/icons-material/Settings";
+import { normalizeProfileImageUrl } from "@shared/utils/profileImageUrl";
+import { useAuthStore } from "@features/auth/store";
 
 interface ProfileBannerProps {
   nickname: string;
@@ -37,6 +39,7 @@ export default function ProfileBanner({
   onSave,
   onCancel,
 }: ProfileBannerProps) {
+  const userId = useAuthStore((state) => state.userId);
   const originalBirthDate = birthDateRaw ?? "";
   const hasNicknameChange =
     tempNickname !== undefined && tempNickname !== nickname;
@@ -69,7 +72,11 @@ export default function ProfileBanner({
             {isEditing ? (
               tempProfileImage || profileImage ? (
                 <img
-                  src={tempProfileImage || profileImage}
+                  src={
+                    tempProfileImage ||
+                    normalizeProfileImageUrl(profileImage, userId) ||
+                    undefined
+                  }
                   alt="Profile"
                   className="h-full w-full rounded-full object-cover"
                 />
@@ -84,7 +91,9 @@ export default function ProfileBanner({
               )
             ) : profileImage ? (
               <img
-                src={profileImage}
+                src={
+                  normalizeProfileImageUrl(profileImage, userId) || undefined
+                }
                 alt="Profile"
                 className="h-full w-full rounded-full object-cover"
               />
