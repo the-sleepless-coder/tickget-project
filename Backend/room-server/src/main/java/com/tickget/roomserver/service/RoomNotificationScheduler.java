@@ -85,17 +85,8 @@ public class RoomNotificationScheduler {
         }
     }
 
-    /**
-     * Redis 기반 대기열 상태 알림 전송 로직
-     *
-     * [핵심 로직]
-     * 1. Redis에서 방의 전체 멤버 조회 (MSA의 모든 서버 유저 포함)
-     * 2. 이 서버에 연결된 유저만 필터링
-     * 3. 필터링된 유저들의 QueueStatus 조회
-     * 4. 브로드캐스트
-     *
-     * @param roomId 방 ID
-     */
+    //Redis 기반 대기열 상태 알림 전송 로직
+    // 현재 서버 고려하지 않고 모두 전송
     private void notifyQueueStatus(Long roomId) {
         try {
             // 1. 방의 매치 ID 조회
@@ -116,19 +107,11 @@ public class RoomNotificationScheduler {
                 return;
             }
 
-            // 3. 이 서버에 연결된 유저만 필터링하여 QueueStatus 수집
+            // 3. QueueStatus
             Map<Long, QueueStatus> queueStatusMap = new HashMap<>();
-            int localUserCount = 0;
 
             for (RoomMember member : allMembers) {
                 Long userId = member.getUserId();
-
-                // 이 서버에 세션이 있는지 확인 (로컬 검증)
-                if (!sessionManager.hasSession(userId)) {
-                    continue;  // 다른 서버에 연결된 유저는 스킵
-                }
-
-                localUserCount++;
 
                 try {
                     // Redis에서 해당 유저의 대기열 상태 조회
@@ -155,11 +138,10 @@ public class RoomNotificationScheduler {
 
                 messagingTemplate.convertAndSend(destination, message);
 
-                log.debug("방 {} 대기열 상태 브로드캐스트 완료: 전체 멤버={}, 이 서버 연결 유저={}, 전송된 상태={}",
-                        roomId, allMembers.size(), localUserCount, queueStatusMap.size());
+                log.debug("방 {} 대기열 상태 브로드캐스트 완료: 전체 멤버={}, 전송된 상태={}",
+                        roomId, allMembers.size(), queueStatusMap.size());
             } else {
-                log.debug("방 {}에 전송할 대기열 상태 없음 (이 서버 연결 유저: {})",
-                        roomId, localUserCount);
+                log.debug("방 {}에 전송할 대기열 상태 없음 ", roomId);
             }
 
         } catch (JsonProcessingException e) {
