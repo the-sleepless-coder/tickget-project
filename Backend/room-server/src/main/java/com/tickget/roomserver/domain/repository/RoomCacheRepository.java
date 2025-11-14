@@ -207,45 +207,55 @@ public class RoomCacheRepository {
     public void registerGlobalSession(Long userId, String sessionId, String serverId) {
         String sessionKey = "user:" + userId + ":session";
         String serverKey = "user:" + userId + ":server";
+        String versionKey = "user:" + userId + ":version";
 
         // 기존 세션 정보 조회
-        String oldSessionId = redisTemplate.opsForValue().get(sessionKey);
-        String oldServerId = redisTemplate.opsForValue().get(serverKey);
+        GlobalSessionInfo oldSession = getGlobalSession(userId);
 
-        if (oldSessionId != null) {
-            log.warn("유저 {}의 기존 전역 세션 발견 - sessionId: {}, serverId: {}",
-                    userId, oldSessionId, oldServerId);
+        Long newVersion = 1L;
+        if (oldSession != null) {
+            newVersion = oldSession.getVersion() + 1;
+            log.warn("유저 {}의 기존 전역 세션 발견 - sessionId: {}, serverId: {}, version: {} → 새 버전: {}",
+                    userId, oldSession.getSessionId(), oldSession.getServerId(), oldSession.getVersion(), newVersion);
         }
 
-        // 새 세션 정보 저장
+        // 새 세션 정보 저장 (버전 포함)
         redisTemplate.opsForValue().set(sessionKey, sessionId, 24, TimeUnit.HOURS);
         redisTemplate.opsForValue().set(serverKey, serverId, 24, TimeUnit.HOURS);
+        redisTemplate.opsForValue().set(versionKey, String.valueOf(newVersion), 24, TimeUnit.HOURS);
 
-        log.debug("전역 세션 등록: userId={}, sessionId={}, serverId={}", userId, sessionId, serverId);
+        log.debug("전역 세션 등록: userId={}, sessionId={}, serverId={}, version={}",
+                userId, sessionId, serverId, newVersion);
     }
 
 
     public GlobalSessionInfo getGlobalSession(Long userId) {
         String sessionKey = "user:" + userId + ":session";
         String serverKey = "user:" + userId + ":server";
+        String versionKey = "user:" + userId + ":version";
 
         String sessionId = redisTemplate.opsForValue().get(sessionKey);
         String serverId = redisTemplate.opsForValue().get(serverKey);
+        String versionStr = redisTemplate.opsForValue().get(versionKey);
 
         if (sessionId == null) {
             return null;
         }
 
-        return new GlobalSessionInfo(sessionId, serverId);
+        Long version = (versionStr != null) ? Long.parseLong(versionStr) : 1L;
+
+        return new GlobalSessionInfo(sessionId, serverId, version);
     }
 
     // 전역 세션 제거
     public void removeGlobalSession(Long userId) {
         String sessionKey = "user:" + userId + ":session";
         String serverKey = "user:" + userId + ":server";
+        String versionKey = "user:" + userId + ":version";
 
         redisTemplate.delete(sessionKey);
         redisTemplate.delete(serverKey);
+        redisTemplate.delete(versionKey);
 
         log.debug("전역 세션 제거: userId={}", userId);
     }
