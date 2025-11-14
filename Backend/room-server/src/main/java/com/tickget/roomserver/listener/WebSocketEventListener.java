@@ -87,7 +87,7 @@ public class WebSocketEventListener {
      * - close()만 호출하여 disconnect 이벤트가 자연스럽게 발생하도록 함
      * - disconnect 이벤트에서 방 퇴장 + 세션 정리가 완전히 처리됨
      */
-    private void handleExistingSession(Long userId) {
+    private void handleExistingSession(Long userId) throws InterruptedException {
         GlobalSessionInfo globalSession = roomCacheRepository.getGlobalSession(userId);
 
         if (globalSession == null) {
@@ -108,8 +108,10 @@ public class WebSocketEventListener {
 
         roomEventProducer.publishSessionCloseEvent(closeEvent);
 
+
         log.info("기존 세션 종료 요청 발행: userId={}, targetServerId={}",
                 userId, globalSession.getServerId());
+        Thread.sleep(200);
     }
 
     //WebSocketSession 객체 추출
