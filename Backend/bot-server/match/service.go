@@ -45,6 +45,9 @@ func NewService(botService *bot.Service, minioClient MinioClient, httpClient *cl
 // 매치 및 봇 세팅 시작
 func (s *Service) SetBotsForMatch(matchID int64, req models.MatchSettingRequest) error {
 	matchLogger := logger.WithMatchContext(matchID)
+	if req.BotCount == 0 {
+		return nil
+	}
 
 	// 0. 시작 시간 검증 (현재 시간 + 10초 이전 거부)
 	minStartTime := time.Now().Add(10 * time.Second)
