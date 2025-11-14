@@ -23,7 +23,6 @@ import java.util.Optional;
 
 @Controller
 @RequiredArgsConstructor
-@RequestMapping("/stats")
 @Tag(name = "Stats", description = "Stat 관련 API")
 public class StatsController {
     private final StatsService service;
