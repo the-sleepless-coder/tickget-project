@@ -58,12 +58,12 @@ type SeatDetail struct {
 
 //===좌석 확정 응답===
 type SeatConfirmResponse struct {
-	Success        bool              `json:"success"`
-	Message        string            `json:"message"`
-	UserRank       int               `json:"userRank"`
-	ConfirmedSeats []ConfirmedSeat   `json:"confirmedSeats"`
-	MatchId        string            `json:"matchId"`
-	UserId         string            `json:"userId"`
+	Success        bool            `json:"success"`
+	Message        string          `json:"message"`
+	UserRank       int             `json:"userRank"`
+	ConfirmedSeats []ConfirmedSeat `json:"confirmedSeats"`
+	MatchId        int64           `json:"matchId"`
+	UserId         int64           `json:"userId"`
 }
 
 type ConfirmedSeat struct {
