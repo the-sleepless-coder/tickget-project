@@ -1766,7 +1766,7 @@ function StartInfoCard({
 
 // gameStartTime을 기반으로 시간 슬롯 포맷팅
 const formatTimeSlot = (timeStr?: string) => {
-  if (!timeStr) return "1회 14:30";
+  if (!timeStr) return "1회 12:00";
   const date = dayjs(timeStr);
   const hour = date.hour();
   const minute = date.minute();

@@ -60,7 +60,7 @@ export default function BookingSelectSchedulePage() {
     }
     return {
       date: new Date(currentYear, currentMonth, todayDate),
-      time: "14:30",
+      time: "12:00",
     };
   }, [roomInfo.startTime, currentYear, currentMonth, todayDate]);
 

@@ -236,7 +236,7 @@ export default function SelectSeatPage() {
     availableDates.push(date);
   }
 
-  // 시간 포맷팅 (14:30 -> 14시 30분)
+  // 시간 포맷팅 (12:00 -> 12시 00분)
   const formatTime = (timeStr: string) => {
     const [hour, minute] = timeStr.split(":");
     return `${hour}시 ${minute}분`;
@@ -472,7 +472,7 @@ export default function SelectSeatPage() {
         console.log("[AI-section-click] 발견된 polygon 개수:", polygons.length);
 
         if (polygons.length === 0) {
-          console.warn("[AI-section-click] polygon을 찾을 수 없습니다");
+          // polygon이 아직 렌더링되지 않았을 수 있으므로 경고 제거
           return false;
         }
 
@@ -522,11 +522,11 @@ export default function SelectSeatPage() {
           `[AI-section-click] SVG 찾음 (시도 ${retryCount}회), observer 해제`
         );
         observer.disconnect();
+        if (intervalId) clearInterval(intervalId);
       } else if (retryCount >= maxRetries) {
-        console.warn(
-          "[AI-section-click] SVG를 찾지 못했습니다. 이벤트 리스너 추가 실패"
-        );
+        // 경고는 제거 - 정상적인 경우에도 발생할 수 있음
         observer.disconnect();
+        if (intervalId) clearInterval(intervalId);
       }
     });
 
@@ -536,15 +536,16 @@ export default function SelectSeatPage() {
     });
 
     // 주기적으로도 확인 (MutationObserver가 놓칠 수 있음)
-    const intervalId = setInterval(() => {
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+    intervalId = setInterval(() => {
       if (checkAndAttachListener()) {
-        clearInterval(intervalId);
+        if (intervalId) clearInterval(intervalId);
         observer.disconnect();
       }
     }, 100);
 
     return () => {
-      clearInterval(intervalId);
+      if (intervalId) clearInterval(intervalId);
       observer.disconnect();
       const svgElement = document.querySelector("svg");
       if (svgElement) {
@@ -976,17 +977,29 @@ export default function SelectSeatPage() {
       (acc, seat) => {
         const grade = seat.gradeLabel;
         if (!acc[grade]) {
-          acc[grade] = { count: 0, price: seat.price ?? 0 };
+          acc[grade] = { count: 0, price: seat.price ?? 0, seats: [] };
         }
         acc[grade].count += 1;
+        acc[grade].seats.push({
+          gradeLabel: seat.gradeLabel,
+          label: seat.label,
+        });
         return acc;
       },
-      {} as Record<string, { count: number; price: number }>
+      {} as Record<
+        string,
+        {
+          count: number;
+          price: number;
+          seats: Array<{ gradeLabel: string; label: string }>;
+        }
+      >
     );
     const seatsData = Object.entries(seatsByGrade).map(([grade, data]) => ({
       grade,
       count: data.count,
       price: data.price,
+      seats: data.seats,
     }));
     if (seatsData.length > 0) {
       nextUrl.searchParams.set("seats", JSON.stringify(seatsData));

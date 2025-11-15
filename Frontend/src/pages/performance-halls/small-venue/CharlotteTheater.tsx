@@ -169,8 +169,17 @@ export default function SmallVenue({
             : seatColor === COLORS.OP
               ? "0"
               : sectionPart;
+          // 2층 좌석의 row 계산
+          // 2층 1행: 22부터 시작 (fixedDisplayRow=22)
+          // 2층 2행: 29부터 시작 (fixedDisplayRow=29, rowOffset=7)
           const displayRowInSection =
-            floor === 2 ? (rowOffset >= 7 ? 7 + rowNo : rowNo) : rowNo;
+            floor === 2
+              ? fixedDisplayRow
+                ? fixedDisplayRow + rowNo - 1
+                : rowOffset >= 7
+                  ? 29 + (rowNo - 1) // 2층 2행: 29부터 시작
+                  : 22 + (rowNo - 1) // 2층 1행: 22부터 시작
+              : rowNo;
           const seatId = `small-${floor}-${displaySection}-${row}-${col}`;
           const isSelected = selectedIds.includes(seatId);
 
