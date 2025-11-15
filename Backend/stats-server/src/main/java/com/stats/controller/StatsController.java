@@ -65,8 +65,6 @@ public class StatsController {
         return ResponseEntity.ok(specificsData);
     }
 
-
-
     /**
      * 경기 기록
      * */

@@ -161,7 +161,7 @@ public class StatsService {
         List<MatchDataDTO> matchResults = new ArrayList<>();
 
         List<MatchInfoStatsDTO> matchData = new ArrayList<>();
-        List<List<MatchSpecificsStatsDTO>> allMatchSpecifics = new ArrayList<>();
+        // List<List<MatchSpecificsStatsDTO>> allMatchSpecifics = new ArrayList<>();
         List<List<MatchSpecificsStatsDifferenceAddedDTO>> allMatchSpecificsDifferenceAdded = new ArrayList<>();
 
         /**
@@ -266,7 +266,7 @@ public class StatsService {
                     specificsDiffAdded.add(dto);
                 }
 
-                allMatchSpecifics.add(matchSpecifics);
+                // allMatchSpecifics.add(matchSpecifics);
                 allMatchSpecificsDifferenceAdded.add(specificsDiffAdded);
             }
 
@@ -421,48 +421,6 @@ public class StatsService {
             }
         }
 
-//        /**
-//         * 전체 데이터 처리
-//         * */
-//        else if(roomType.equals("all")){
-//            List<MatchInfoStatsDTO> soloData =  userStatsRepository.findMatchInfoStatsByUserId(userId, SOLO, topN);
-//            List<MatchInfoStatsDTO> multiData = userStatsRepository.findMatchInfoStatsByUserId(userId, MULTI, topN);
-//
-//            /**
-//             * 데이터 없음.
-//             * */
-//            if( soloData.isEmpty() && multiData.isEmpty() ){
-//                return Collections.emptyList();
-//            }
-//
-//            for(MatchInfoStatsDTO solo: soloData ){
-//                matchData.add(solo);
-//            }
-//            for(MatchInfoStatsDTO multi:multiData){
-//                matchData.add(multi);
-//            }
-//
-//
-//            // 시간 역순 정렬
-//            matchData.sort((MatchInfoStatsDTO m1, MatchInfoStatsDTO m2) -> m2.getStartedAt().compareTo(m1.getStartedAt()));
-//
-//            if(matchData.size() > 5){
-//                matchData = matchData.subList(0,5);
-//            }
-//
-//            // 여기서도 matchInfo + specifics 묶어서 MatchDataDTO로 변환
-//            for (MatchInfoStatsDTO info : matchData) {
-//                Long matchId = info.getMatchId();
-//                Room.RoomType type = info.getRoomType(); // 각 매치마다 SOLO/MULTI 정보 포함돼 있다고 가정
-//
-//                List<MatchSpecificsStatsDTO> specifics =
-//                        userStatsRepository.findMatchSpecificInfoStatsByMatchId(matchId, type, topN);
-//
-//                MatchDataDTO dto = MatchDataDTO.dtobuilder(info, specifics);
-//                matchResults.add(dto);
-//            }
-//
-//        }
 
         return matchResults;
     }
