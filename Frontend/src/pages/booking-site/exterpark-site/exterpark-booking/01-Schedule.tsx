@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import BookingLayout from "./_components/BookingLayout";
 import { paths } from "../../../../app/routes/paths";
@@ -37,19 +37,91 @@ export default function BookingSelectSchedulePage() {
   const currentMonth = today.getMonth();
   const currentYear = today.getFullYear();
 
-  const [selectedDate, setSelectedDate] = useState<Date>(
-    new Date(currentYear, currentMonth, todayDate)
+  // roomInfo의 startTime에서 기본 날짜/시간 추출
+  const defaultDateTime = useMemo(() => {
+    if (roomInfo.startTime) {
+      try {
+        // "2025-11-15T14:43:00" 형식 파싱
+        const dateTime = new Date(roomInfo.startTime);
+        if (!isNaN(dateTime.getTime())) {
+          const year = dateTime.getFullYear();
+          const month = dateTime.getMonth();
+          const day = dateTime.getDate();
+          const hour = String(dateTime.getHours()).padStart(2, "0");
+          const minute = String(dateTime.getMinutes()).padStart(2, "0");
+          return {
+            date: new Date(year, month, day),
+            time: `${hour}:${minute}`,
+          };
+        }
+      } catch (error) {
+        console.warn("[01-Schedule] startTime 파싱 실패:", error);
+      }
+    }
+    return {
+      date: new Date(currentYear, currentMonth, todayDate),
+      time: "14:30",
+    };
+  }, [roomInfo.startTime, currentYear, currentMonth, todayDate]);
+
+  // URL 파라미터에서 날짜와 시간 정보 가져오기
+  const dateParam = searchParams.get("date");
+  const timeParam = searchParams.get("time");
+  const roundParam = searchParams.get("round");
+
+  // 초기 날짜 설정 (URL 파라미터 우선, 없으면 startTime, 없으면 오늘)
+  const getInitialDate = () => {
+    if (dateParam) {
+      try {
+        const [year, month, day] = dateParam.split("-").map(Number);
+        return new Date(year, month - 1, day);
+      } catch (error) {
+        console.warn("[01-Schedule] dateParam 파싱 실패:", error);
+      }
+    }
+    return defaultDateTime.date;
+  };
+
+  const [selectedDate, setSelectedDate] = useState<Date>(getInitialDate());
+  const [month, setMonth] = useState<number>(selectedDate.getMonth());
+  const [year, setYear] = useState<number>(selectedDate.getFullYear());
+
+  // 회차 목록 (startTime에서 추출한 시간 사용)
+  const rounds = useMemo(
+    () => [{ id: "1", label: "1회", time: defaultDateTime.time }],
+    [defaultDateTime.time]
   );
-  const [selectedRound, setSelectedRound] = useState<string | null>(null);
-  const [month, setMonth] = useState<number>(currentMonth);
-  const [year, setYear] = useState<number>(currentYear);
+
+  // 초기 회차 선택 (URL 파라미터의 time과 매칭되는 회차 선택)
+  const getInitialRound = (roundsList: typeof rounds) => {
+    if (roundParam) return roundParam;
+    if (timeParam) {
+      const matchingRound = roundsList.find((r) => r.time === timeParam);
+      if (matchingRound) return matchingRound.id;
+    }
+    // timeParam이 없으면 startTime의 시간과 매칭되는 회차 선택
+    const matchingRound = roundsList.find(
+      (r) => r.time === defaultDateTime.time
+    );
+    return matchingRound?.id || null;
+  };
+
+  const [selectedRound, setSelectedRound] = useState<string | null>(() => {
+    // 초기화 시점에 rounds를 계산
+    const initialRounds = [
+      { id: "1", label: "1회", time: defaultDateTime.time },
+    ];
+    return getInitialRound(initialRounds);
+  });
+
   const navigate = useNavigate();
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const goPrev = () => navigate(paths.booking.waiting);
   const goNext = () => {
     if (!selectedDate || !selectedRound) return;
     const selectedRoundData = rounds.find((r) => r.id === selectedRound);
     const dateStr = `${selectedDate.getFullYear()}-${(selectedDate.getMonth() + 1).toString().padStart(2, "0")}-${selectedDate.getDate().toString().padStart(2, "0")}`;
-    const timeStr = selectedRoundData?.time || "14:30";
+    const timeStr = selectedRoundData?.time || defaultDateTime.time;
     const url = new URL(window.location.origin + paths.booking.selectSeat);
     url.searchParams.set("date", dateStr);
     url.searchParams.set("time", timeStr);
@@ -59,8 +131,42 @@ export default function BookingSelectSchedulePage() {
     navigate(url.pathname + url.search);
   };
 
-  // 회차 목록 (날짜 선택 시 표시)
-  const rounds = [{ id: "1", label: "1회", time: "14:30" }];
+  // URL 파라미터가 변경되면 날짜와 회차 업데이트
+  useEffect(() => {
+    if (dateParam) {
+      try {
+        const [year, month, day] = dateParam.split("-").map(Number);
+        const newDate = new Date(year, month - 1, day);
+        if (
+          selectedDate.getFullYear() !== newDate.getFullYear() ||
+          selectedDate.getMonth() !== newDate.getMonth() ||
+          selectedDate.getDate() !== newDate.getDate()
+        ) {
+          setSelectedDate(newDate);
+          setMonth(newDate.getMonth());
+          setYear(newDate.getFullYear());
+        }
+      } catch (error) {
+        console.warn("[01-Schedule] dateParam 파싱 실패:", error);
+      }
+    }
+  }, [dateParam, selectedDate]);
+
+  // timeParam이 변경되면 해당 시간과 매칭되는 회차 선택
+  useEffect(() => {
+    if (timeParam) {
+      const matchingRound = rounds.find((r) => r.time === timeParam);
+      if (matchingRound && selectedRound !== matchingRound.id) {
+        setSelectedRound(matchingRound.id);
+      }
+    } else if (!selectedRound) {
+      // timeParam이 없고 selectedRound도 없으면 기본 회차 선택
+      const defaultRound = rounds.find((r) => r.time === defaultDateTime.time);
+      if (defaultRound) {
+        setSelectedRound(defaultRound.id);
+      }
+    }
+  }, [timeParam, rounds, selectedRound, defaultDateTime.time]);
 
   // 달력 날짜 생성
   const monthStart = new Date(year, month, 1);
@@ -121,7 +227,7 @@ export default function BookingSelectSchedulePage() {
     if (!roomInfo.startTime) return "날짜 정보 없음";
     const date = dayjs(roomInfo.startTime);
     const dateStr = date.format("YYYY.MM.DD");
-    return `${dateStr} ~ ${dateStr}`;
+    return `${dateStr}`;
   };
 
   return (
@@ -286,13 +392,13 @@ export default function BookingSelectSchedulePage() {
                   <div className="font-bold">
                     {roomInfo.roomName || "방 이름"}
                   </div>
-                  <div className="text-gray-600">{roomInfo.roomName || ""}</div>
+                  {/* <div className="text-gray-600">{roomInfo.roomName || ""}</div> */}
                   <div className="text-[12px] mt-1 text-gray-500">
                     {formatDateRange()}
                   </div>
                   <div className="text-[12px] text-gray-500">{venueName}</div>
                   <div className="text-[12px] text-gray-500">
-                    만 7세이상 • 120분
+                    Get your ticket!
                   </div>
                 </div>
               </div>
@@ -346,12 +452,6 @@ export default function BookingSelectSchedulePage() {
               </dl>
 
               <div className="mt-3 flex gap-2">
-                <button
-                  onClick={goPrev}
-                  className="flex-1 bg-[#5a5a5a] hover:bg-[#4a4a4a] text-white rounded-md py-2 font-semibold"
-                >
-                  이전단계
-                </button>
                 <button
                   onClick={goNext}
                   disabled={!selectedDate || !selectedRound}

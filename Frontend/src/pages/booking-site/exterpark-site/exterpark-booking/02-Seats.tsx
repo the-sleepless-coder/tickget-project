@@ -1,4 +1,10 @@
-import { useEffect, useState, useRef, type CSSProperties } from "react";
+import {
+  useEffect,
+  useState,
+  useRef,
+  useMemo,
+  type CSSProperties,
+} from "react";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
 import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
 import RefreshIcon from "@mui/icons-material/Refresh";
@@ -58,6 +64,18 @@ const getPriceByGradeLabel = (gradeLabel: string): number => {
   if (gradeLabel.includes("SR석")) return GRADE_META.SR.price;
   // 기본값
   return GRADE_META.S.price;
+};
+
+// 등급 코드를 한글 레이블로 변환
+const convertGradeToLabel = (grade: string): string => {
+  const gradeUpper = grade.toUpperCase();
+  if (gradeUpper === "STANDING") return "스탠딩";
+  if (gradeUpper === "VIP" || gradeUpper === "SR") return "VIP석";
+  if (gradeUpper === "R") return "R석";
+  if (gradeUpper === "S") return "S석";
+  if (gradeUpper === "A") return "A석";
+  // 기본값
+  return grade;
 };
 
 type VenueKind = "small" | "medium" | "large";
@@ -121,6 +139,7 @@ export default function SelectSeatPage() {
   // hallId 2: 샤롯데씨어터 (small)
   // hallId 3: 올림픽 홀 (medium)
   // hallId 4: 인스파이어 아레나 (large)
+  // hallId 5 이상: AI 생성 공연장
   const hallIdParam = searchParams.get("hallId");
   const hallIdFromStore = useRoomStore((s) => s.roomInfo.hallId);
   const hallId = hallIdParam ? Number(hallIdParam) : (hallIdFromStore ?? null);
@@ -131,7 +150,9 @@ export default function SelectSeatPage() {
   const tsxUrlFromStore = useRoomStore((s) => s.roomInfo.tsxUrl);
   const hallType = hallTypeParam;
   const tsxUrl = tsxUrlParam || tsxUrlFromStore || null;
-  const isAIGenerated = hallType === "AI_GENERATED";
+  // hallId가 5 이상이거나 hallType이 "AI_GENERATED"이면 AI 생성 공연장
+  const isAIGenerated =
+    hallType === "AI_GENERATED" || (hallId !== null && hallId >= 5);
 
   // hallId를 venue로 변환
   const getVenueFromHallId = (id: number | null): VenueKind => {
@@ -148,6 +169,7 @@ export default function SelectSeatPage() {
   // 디버깅: AI 생성 방 정보 확인
   if (isAIGenerated) {
     console.log("[02-Seats] AI Generated Room:", {
+      hallId,
       hallType,
       tsxUrl,
       isAIGenerated,
@@ -171,9 +193,33 @@ export default function SelectSeatPage() {
         ? venueParam
         : "small";
 
-  // URL 파라미터에서 날짜와 시간 정보 가져오기
-  const dateParam = searchParams.get("date") || "";
-  const timeParam = searchParams.get("time") || "";
+  // roomInfo의 startTime에서 기본 날짜/시간 추출 (useMemo로 최적화)
+  const defaultDateTime = useMemo(() => {
+    if (roomInfo.startTime) {
+      try {
+        // "2025-11-15T14:43:00" 형식 파싱
+        const dateTime = new Date(roomInfo.startTime);
+        if (!isNaN(dateTime.getTime())) {
+          const year = dateTime.getFullYear();
+          const month = String(dateTime.getMonth() + 1).padStart(2, "0");
+          const day = String(dateTime.getDate()).padStart(2, "0");
+          const hour = String(dateTime.getHours()).padStart(2, "0");
+          const minute = String(dateTime.getMinutes()).padStart(2, "0");
+          return {
+            date: `${year}-${month}-${day}`,
+            time: `${hour}:${minute}`,
+          };
+        }
+      } catch (error) {
+        console.warn("[02-Seats] startTime 파싱 실패:", error);
+      }
+    }
+    return { date: "", time: "" };
+  }, [roomInfo.startTime]);
+
+  // URL 파라미터에서 날짜와 시간 정보 가져오기 (없으면 기본값 사용)
+  const dateParam = searchParams.get("date") || defaultDateTime.date;
+  const timeParam = searchParams.get("time") || defaultDateTime.time;
   const roundParam = searchParams.get("round");
 
   // 선택 가능한 날짜 목록 생성 (오늘부터 3일)
@@ -213,8 +259,10 @@ export default function SelectSeatPage() {
     return {};
   };
 
-  // 시간 목록 (현재 14:30 하나만 노출)
-  const availableTimes: string[] = ["14:30"];
+  // 시간 목록 (startTime에서 추출한 시간 사용, 없으면 기본값)
+  const availableTimes: string[] = defaultDateTime.time
+    ? [defaultDateTime.time]
+    : ["12:00"];
 
   // 시간 placeholder 라벨
   const timePlaceholderLabel = "선택하세요!";
@@ -278,6 +326,243 @@ export default function SelectSeatPage() {
   const currentUserId = useAuthStore((s) => s.userId);
   // TAKEN 좌석 정보 저장 (SmallVenue용, section-row-col 형식)
   const [takenSeats, setTakenSeats] = useState<Set<string>>(new Set());
+
+  // AI 공연장 섹션 선택 상태
+  const [selectedAISection, setSelectedAISection] = useState<{
+    sectionId: string;
+    grade: string;
+    totalRows: number;
+    totalCols: number;
+    fillColor: string;
+  } | null>(null);
+  // AI 공연장 섹션별 TAKEN 좌석 정보 (sectionId-row-col 형식)
+  const [aiTakenSeats, setAITakenSeats] = useState<Set<string>>(new Set());
+
+  // AI 공연장 SVG polygon 클릭 이벤트 처리
+  // selectedAISection이 null일 때만 SVG 전체 보기가 표시되므로 이때만 리스너 추가
+  useEffect(() => {
+    if (!isAIGenerated || !tsxUrl || selectedAISection !== null) return;
+
+    const handlePolygonClick = async (e: MouseEvent) => {
+      const target = e.target as SVGPolygonElement | null;
+      console.log("[AI-section-click] 클릭 이벤트 발생:", {
+        target,
+        tagName: target?.tagName,
+        isPolygon: target?.tagName === "polygon",
+      });
+
+      if (!target || target.tagName !== "polygon") {
+        console.log("[AI-section-click] polygon이 아닙니다:", target?.tagName);
+        return;
+      }
+
+      const sectionId = target.getAttribute("section");
+      const grade = target.getAttribute("grade") || "";
+      const totalRowsStr = target.getAttribute("totalRows");
+      const totalColsStr = target.getAttribute("totalCols");
+      const fillColor = target.getAttribute("fill") || "#CF0098";
+
+      console.log("[AI-section-click] polygon 속성:", {
+        sectionId,
+        grade,
+        totalRowsStr,
+        totalColsStr,
+        fillColor,
+        allAttributes: Array.from(target.attributes).map((attr) => ({
+          name: attr.name,
+          value: attr.value,
+        })),
+      });
+
+      if (!sectionId || !totalRowsStr || !totalColsStr) {
+        console.warn("[AI-section-click] 섹션 정보가 불완전합니다:", {
+          sectionId,
+          grade,
+          totalRowsStr,
+          totalColsStr,
+        });
+        return;
+      }
+
+      const totalRows = Number(totalRowsStr);
+      const totalCols = Number(totalColsStr);
+
+      if (Number.isNaN(totalRows) || Number.isNaN(totalCols)) {
+        console.warn(
+          "[AI-section-click] totalRows 또는 totalCols가 숫자가 아닙니다:",
+          {
+            totalRowsStr,
+            totalColsStr,
+          }
+        );
+        return;
+      }
+
+      console.log("[AI-section-click] 섹션 클릭 성공:", {
+        sectionId,
+        grade,
+        totalRows,
+        totalCols,
+        fillColor,
+      });
+
+      // 섹션 선택
+      setSelectedAISection({
+        sectionId,
+        grade,
+        totalRows,
+        totalCols,
+        fillColor,
+      });
+
+      // 해당 섹션의 좌석 현황 조회
+      if (matchIdFromStore && currentUserId) {
+        try {
+          const response = await getSectionSeatsStatus(
+            matchIdFromStore,
+            sectionId,
+            currentUserId
+          );
+          console.log("[AI-section-click] 섹션 좌석 현황:", response);
+
+          const taken = new Set<string>();
+          if (response.seats) {
+            response.seats.forEach((seat) => {
+              if (seat.status === "TAKEN" || seat.status === "MY_RESERVED") {
+                // API 응답의 seatId를 그대로 사용 (sectionId-row-col 형식)
+                taken.add(seat.seatId);
+              }
+            });
+          }
+          setAITakenSeats(taken);
+          console.log(
+            "[AI-section-click] TAKEN 좌석 저장:",
+            Array.from(taken),
+            `(총 ${taken.size}개)`
+          );
+        } catch (error) {
+          console.error(
+            `[AI-section-click] 섹션 ${sectionId} 좌석 현황 조회 실패:`,
+            error
+          );
+        }
+      }
+    };
+
+    // SVG 요소가 렌더링될 때까지 대기
+    const checkAndAttachListener = () => {
+      // TsxPreview가 렌더링하는 SVG를 찾기 위해 더 구체적으로 검색
+      const container =
+        document.getElementById("ai-venue-container") ||
+        document.querySelector('[class*="w-[600px]"]');
+      const svgElement =
+        container?.querySelector("svg") || document.querySelector("svg");
+
+      if (svgElement) {
+        // 이미 리스너가 추가되었는지 확인
+        const hasListener = svgElement.hasAttribute(
+          "data-ai-listener-attached"
+        );
+        if (hasListener) {
+          return true; // 이미 추가됨
+        }
+
+        console.log("[AI-section-click] SVG 요소 찾음, 이벤트 리스너 추가");
+        const polygons = svgElement.querySelectorAll("polygon");
+        console.log("[AI-section-click] 발견된 polygon 개수:", polygons.length);
+
+        if (polygons.length === 0) {
+          console.warn("[AI-section-click] polygon을 찾을 수 없습니다");
+          return false;
+        }
+
+        // 각 polygon에 직접 이벤트 리스너 추가 (이벤트 위임 대신)
+        polygons.forEach((polygon) => {
+          polygon.addEventListener("click", handlePolygonClick);
+          polygon.style.cursor = "pointer";
+          // 탭 효과(아웃라인) 제거
+          polygon.style.outline = "none";
+          // pointer-events가 none으로 설정되어 있을 수 있으므로 확인
+          const pointerEvents = window.getComputedStyle(polygon).pointerEvents;
+          if (pointerEvents === "none") {
+            polygon.style.pointerEvents = "all";
+          }
+        });
+
+        // SVG에도 이벤트 위임으로 추가 (백업)
+        svgElement.addEventListener("click", handlePolygonClick);
+        svgElement.setAttribute("data-ai-listener-attached", "true");
+        return true;
+      }
+      return false;
+    };
+
+    // 즉시 확인
+    if (checkAndAttachListener()) {
+      return () => {
+        const svgElement = document.querySelector("svg");
+        if (svgElement) {
+          svgElement.removeEventListener("click", handlePolygonClick);
+          const polygons = svgElement.querySelectorAll("polygon");
+          polygons.forEach((polygon) => {
+            polygon.removeEventListener("click", handlePolygonClick);
+          });
+        }
+      };
+    }
+
+    // SVG가 나중에 렌더링될 수 있으므로 MutationObserver 사용
+    let retryCount = 0;
+    const maxRetries = 50; // 최대 5초 대기 (100ms * 50)
+
+    const observer = new MutationObserver(() => {
+      retryCount++;
+      if (checkAndAttachListener()) {
+        console.log(
+          `[AI-section-click] SVG 찾음 (시도 ${retryCount}회), observer 해제`
+        );
+        observer.disconnect();
+      } else if (retryCount >= maxRetries) {
+        console.warn(
+          "[AI-section-click] SVG를 찾지 못했습니다. 이벤트 리스너 추가 실패"
+        );
+        observer.disconnect();
+      }
+    });
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+    });
+
+    // 주기적으로도 확인 (MutationObserver가 놓칠 수 있음)
+    const intervalId = setInterval(() => {
+      if (checkAndAttachListener()) {
+        clearInterval(intervalId);
+        observer.disconnect();
+      }
+    }, 100);
+
+    return () => {
+      clearInterval(intervalId);
+      observer.disconnect();
+      const svgElement = document.querySelector("svg");
+      if (svgElement) {
+        svgElement.removeEventListener("click", handlePolygonClick);
+        svgElement.removeAttribute("data-ai-listener-attached");
+        const polygons = svgElement.querySelectorAll("polygon");
+        polygons.forEach((polygon) => {
+          polygon.removeEventListener("click", handlePolygonClick);
+        });
+      }
+    };
+  }, [
+    isAIGenerated,
+    tsxUrl,
+    matchIdFromStore,
+    currentUserId,
+    selectedAISection,
+  ]);
 
   // SmallVenue의 경우 모든 섹션에 대해 TAKEN 좌석 조회
   useEffect(() => {
@@ -372,25 +657,28 @@ export default function SelectSeatPage() {
 
             if (seatElement) {
               const sectionId =
-                seatElement.getAttribute("section") ??
-                seatElement.getAttribute("data-section");
+                seatElement.getAttribute("data-section") ??
+                seatElement.getAttribute("section");
               const row =
-                seatElement.getAttribute("row") ??
-                seatElement.getAttribute("data-row");
+                seatElement.getAttribute("data-row") ??
+                seatElement.getAttribute("row");
               const grade =
-                seatElement.getAttribute("grade") ??
-                seatElement.getAttribute("data-grade");
+                seatElement.getAttribute("data-grade") ??
+                seatElement.getAttribute("grade");
               const active =
-                seatElement.getAttribute("active") ??
-                seatElement.getAttribute("data-active");
+                seatElement.getAttribute("data-active") ??
+                seatElement.getAttribute("active");
 
               // 올림픽홀/인스파이어 아레나는 seat 속성 사용 (섹션 내 좌석 번호)
-              // 샤롯데는 col 속성 사용
+              // 샤롯데와 AI 공연장은 col 속성 사용
               let colValue: string | null;
               if (isMediumOrLargeVenue) {
                 colValue = seatElement.getAttribute("seat"); // 섹션 내 좌석 번호
               } else {
-                colValue = seatElement.getAttribute("col"); // 절대 열 번호
+                // AI 공연장과 샤롯데는 data-col 속성 사용
+                colValue =
+                  seatElement.getAttribute("data-col") ??
+                  seatElement.getAttribute("col"); // 절대 열 번호
               }
 
               if (sectionId && row && colValue && grade && active === "1") {
@@ -490,7 +778,46 @@ export default function SelectSeatPage() {
 
               // 각 섹션의 좌석 현황을 다시 가져오기
               if (matchId && currentUserId) {
-                if (venueKey === "small") {
+                if (isAIGenerated) {
+                  // AI 공연장: 선택한 좌석들의 섹션 좌석 현황 가져오기
+                  const allTaken = new Set<string>();
+
+                  for (const sectionId of sectionIds) {
+                    try {
+                      const statusResponse = await getSectionSeatsStatus(
+                        matchId,
+                        sectionId,
+                        currentUserId
+                      );
+                      console.log(
+                        `[seat-hold] AI 공연장 섹션 ${sectionId} 좌석 현황:`,
+                        statusResponse
+                      );
+
+                      if (statusResponse.seats) {
+                        statusResponse.seats.forEach((seat) => {
+                          if (
+                            seat.status === "TAKEN" ||
+                            seat.status === "MY_RESERVED"
+                          ) {
+                            allTaken.add(seat.seatId);
+                          }
+                        });
+                      }
+                    } catch (error) {
+                      console.error(
+                        `[seat-hold] AI 공연장 섹션 ${sectionId} 좌석 현황 조회 실패:`,
+                        error
+                      );
+                    }
+                  }
+
+                  setAITakenSeats(allTaken);
+                  console.log(
+                    "[seat-hold] AI 공연장 TAKEN 좌석 업데이트:",
+                    Array.from(allTaken)
+                  );
+                } else if (venueKey === "small") {
                   // SmallVenue: 모든 섹션의 좌석 현황 가져오기
                   const allTaken = new Set<string>();
                   const sections = ["1", "2", "3", "4", "5", "6"];
@@ -667,6 +994,38 @@ export default function SelectSeatPage() {
     navigate(nextUrl.pathname + nextUrl.search);
   };
 
+  // dateParam 또는 timeParam이 없고 기본값이 있으면 URL에 추가
+  // 이전 단계로 돌아갔다가 다시 돌아와도 기본값 유지
+  useEffect(() => {
+    const currentDate = searchParams.get("date");
+    const currentTime = searchParams.get("time");
+
+    // 둘 다 있으면 업데이트 불필요
+    if (currentDate && currentTime) return;
+
+    // 하나라도 없고 기본값이 있으면 URL에 추가
+    if (
+      (!currentDate && defaultDateTime.date) ||
+      (!currentTime && defaultDateTime.time)
+    ) {
+      const url = new URL(window.location.href);
+      let shouldUpdate = false;
+
+      if (!currentDate && defaultDateTime.date) {
+        url.searchParams.set("date", defaultDateTime.date);
+        shouldUpdate = true;
+      }
+      if (!currentTime && defaultDateTime.time) {
+        url.searchParams.set("time", defaultDateTime.time);
+        shouldUpdate = true;
+      }
+
+      if (shouldUpdate) {
+        navigate(url.pathname + url.search, { replace: true });
+      }
+    }
+  }, [searchParams, defaultDateTime.date, defaultDateTime.time, navigate]);
+
   useEffect(() => {
     // 팝업 크기 보정만 수행 (스크롤은 숨기지 않음)
     if (typeof window.resizeTo === "function") {
@@ -802,7 +1161,7 @@ export default function SelectSeatPage() {
                   : undefined
               }
             >
-              {venueKey === "small" && (
+              {venueKey === "small" && !isAIGenerated && (
                 <SmallVenue
                   selectedIds={selected.map((s) => s.id)}
                   takenSeats={takenSeats}
@@ -877,8 +1236,155 @@ export default function SelectSeatPage() {
               )}
               {isAIGenerated ? (
                 tsxUrl ? (
-                  <div className="w-full h-full flex items-center justify-center overflow-hidden">
-                    <TsxPreview src={tsxUrl} className="w-full h-full" />
+                  <div className="w-full h-full flex items-center justify-center overflow-hidden relative">
+                    {selectedAISection ? (
+                      // 좌석 그리드 뷰
+                      <div className="w-full h-full flex flex-col items-center justify-center p-4">
+                        <div
+                          className="grid gap-0.5 p-2 overflow-auto"
+                          style={{
+                            gridTemplateColumns: `repeat(${selectedAISection.totalCols}, minmax(0, 1fr))`,
+                            maxWidth: "600px",
+                            maxHeight: "580px",
+                          }}
+                        >
+                          {Array.from({
+                            length: selectedAISection.totalRows,
+                          }).map((_, rowIndex) => {
+                            const row = rowIndex + 1;
+                            return Array.from({
+                              length: selectedAISection.totalCols,
+                            }).map((_, colIndex) => {
+                              const col = colIndex + 1;
+                              // CharlotteTheater와 동일한 형식: sectionId-row-col
+                              const seatId = `${selectedAISection.sectionId}-${row}-${col}`;
+                              // API 응답은 sectionId-row-col 형식이므로 동일하게 사용
+                              const takenSeatId = seatId;
+                              const isTaken = aiTakenSeats.has(takenSeatId);
+                              const isSelected = selected.some(
+                                (s) => s.id === seatId
+                              );
+                              const active = isTaken ? "0" : "1";
+
+                              return (
+                                <div
+                                  key={`${row}-${col}`}
+                                  data-seat-id={seatId}
+                                  data-section={selectedAISection.sectionId}
+                                  data-row={String(row)}
+                                  data-col={String(col)}
+                                  data-grade={selectedAISection.grade}
+                                  data-active={active}
+                                  onClick={() => {
+                                    if (isTaken || isSeatBlocked) {
+                                      console.log(
+                                        "[AI-seat-click] 좌석 클릭 차단:",
+                                        {
+                                          isTaken,
+                                          isSeatBlocked,
+                                          seatId,
+                                        }
+                                      );
+                                      return;
+                                    }
+
+                                    // grade 값 확인 및 사용
+                                    const grade =
+                                      selectedAISection.grade || "R";
+                                    const sectionId =
+                                      selectedAISection.sectionId;
+
+                                    // 한글 레이블로 변환
+                                    const gradeLabel =
+                                      convertGradeToLabel(grade);
+                                    const price =
+                                      getPriceByGradeLabel(gradeLabel);
+
+                                    console.log("[AI-seat-click] 좌석 클릭:", {
+                                      seatId,
+                                      grade,
+                                      gradeLabel,
+                                      sectionId,
+                                      row,
+                                      col,
+                                      price,
+                                    });
+
+                                    setSelected((prev) => {
+                                      const exists = prev.some(
+                                        (x) => x.id === seatId
+                                      );
+                                      if (exists) {
+                                        console.log(
+                                          "[AI-seat-click] 좌석 해제:",
+                                          seatId
+                                        );
+                                        return prev.filter(
+                                          (x) => x.id !== seatId
+                                        );
+                                      }
+                                      if (prev.length >= 2) {
+                                        console.log(
+                                          "[AI-seat-click] 최대 2개까지 선택 가능"
+                                        );
+                                        return prev;
+                                      }
+
+                                      // CharlotteTheater와 동일한 형식으로 저장
+                                      const newSeat = {
+                                        id: seatId,
+                                        gradeLabel: gradeLabel, // "스탠딩", "R석", "S석", "A석", "VIP석"
+                                        label: `${sectionId}구역-${row}열-${col}`, // "15구역-2열-46" 형식
+                                        price,
+                                      };
+
+                                      console.log(
+                                        "[AI-seat-click] 좌석 선택 완료:",
+                                        newSeat,
+                                        "이전 선택:",
+                                        prev,
+                                        "새로운 선택:",
+                                        [...prev, newSeat]
+                                      );
+
+                                      return [...prev, newSeat];
+                                    });
+                                  }}
+                                  className={`w-5 h-5 rounded border flex items-center justify-center text-xs cursor-pointer transition-all ${
+                                    isTaken
+                                      ? "bg-gray-400 cursor-not-allowed opacity-50"
+                                      : isSelected
+                                        ? "bg-gray-800 text-white"
+                                        : ""
+                                  }`}
+                                  style={{
+                                    backgroundColor: isTaken
+                                      ? "#9ca3af"
+                                      : isSelected
+                                        ? "#4a4a4a"
+                                        : selectedAISection.fillColor,
+                                    borderColor: "#d1d5db", // light gray
+                                  }}
+                                  title={
+                                    isTaken
+                                      ? "이미 선택된 좌석"
+                                      : `${selectedAISection.sectionId}구역-${row}열-${col}`
+                                  }
+                                />
+                              );
+                            });
+                          })}
+                        </div>
+                      </div>
+                    ) : (
+                      // 전체 보기 (SVG)
+                      <div
+                        className="w-[600px] h-full flex items-center justify-center"
+                        id="ai-venue-container"
+                      >
+                        <TsxPreview src={tsxUrl} className="w-full h-full" />
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-gray-500">
@@ -900,7 +1406,12 @@ export default function SelectSeatPage() {
                 venueKey={venueKey}
                 mediumVenueRef={mediumVenueRef}
                 largeVenueRef={largeVenueRef}
-                onBackToOverview={() => {}}
+                onBackToOverview={() => {
+                  // AI 공연장의 경우 섹션 선택 해제
+                  if (isAIGenerated && selectedAISection) {
+                    setSelectedAISection(null);
+                  }
+                }}
               />
 
               {/* 좌석등급 / 잔여석: 선택좌석 위로 이동 */}

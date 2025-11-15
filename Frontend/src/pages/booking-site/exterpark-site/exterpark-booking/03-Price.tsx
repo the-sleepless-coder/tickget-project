@@ -330,7 +330,7 @@ export default function PricePage() {
                   {roomInfo.hallName || "공연장 이름"}
                 </div>
                 <div className="text-[12px] text-gray-500">
-                  만 7세이상 • 120분
+                  Get your ticket!
                 </div>
               </div>
             </div>

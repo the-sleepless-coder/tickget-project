@@ -1154,6 +1154,73 @@ export default function ITicketPage() {
     );
   };
 
+  // 좌석 선택 페이지로 직접 이동 (대기열 거치지 않음)
+  const goToSeatSelection = useCallback(() => {
+    const clickedTs = Date.now();
+    const totalStartAt = getTotalStartAtMs() ?? clickedTs;
+
+    // matchId 결정: store 우선 → joinResponse.matchId
+    const jr = joinResponse as unknown as {
+      matchId?: unknown;
+    };
+    const rawMatchId =
+      matchIdFromStore ?? (jr?.matchId != null ? Number(jr.matchId) : null);
+    const matchIdParam = rawMatchId != null ? String(rawMatchId) : undefined;
+
+    // hallId 결정: roomDetail → roomData → roomRequest 순으로 확인
+    const hallId =
+      roomDetail?.hallId ?? roomData?.hallId ?? roomRequest?.hallId;
+
+    // hallType, tsxUrl, hallSize 결정: roomDetail에서 가져오기
+    const hallType = roomDetail?.hallType;
+    const tsxUrl = roomDetail?.tsxUrl;
+    const hallSize = roomDetail?.hallSize;
+
+    // 일자 정보 결정: roomDetail → roomRequest 순으로 확인
+    const startTime = roomDetail?.startTime ?? roomRequest?.gameStartTime;
+    const reservationDay = startTime
+      ? dayjs(startTime).format("YYYY-MM-DD")
+      : roomRequest?.reservationDay;
+
+    const nextUrl = new URL(window.location.origin + paths.booking.selectSeat);
+
+    // 총 시간 시작 시각 전달
+    nextUrl.searchParams.set("tStart", String(totalStartAt));
+
+    // reaction time과 click miss는 0으로 설정 (대기열 거치지 않으므로)
+    nextUrl.searchParams.set("rtSec", "0");
+    nextUrl.searchParams.set("nrClicks", "0");
+
+    if (matchIdParam) {
+      nextUrl.searchParams.set("matchId", matchIdParam);
+    }
+    if (hallId) {
+      nextUrl.searchParams.set("hallId", String(hallId));
+    }
+    if (hallType) {
+      nextUrl.searchParams.set("hallType", hallType);
+    }
+    if (hallType === "AI_GENERATED" && tsxUrl) {
+      nextUrl.searchParams.set("tsxUrl", tsxUrl);
+    }
+    if (hallSize) {
+      nextUrl.searchParams.set("hallSize", hallSize);
+    }
+    if (reservationDay) {
+      nextUrl.searchParams.set("date", reservationDay);
+    }
+    nextUrl.searchParams.set("round", "1");
+
+    navigate(nextUrl.pathname + nextUrl.search);
+  }, [
+    navigate,
+    joinResponse,
+    matchIdFromStore,
+    roomDetail,
+    roomData,
+    roomRequest,
+  ]);
+
   // 현재 페이지에서 경기 시작 (모달 없이)
   const startBookingInPage = useCallback(async () => {
     if (hasEnqueued) {
@@ -1377,6 +1444,7 @@ export default function ITicketPage() {
                 canReserve={secondsLeft === 0}
                 onReserve={openQueueWindow}
                 onStartInPage={startBookingInPage}
+                onGoToSeats={goToSeatSelection}
               />
             </aside>
           </div>
@@ -1635,6 +1703,7 @@ function StartInfoCard({
   canReserve,
   onReserve,
   onStartInPage,
+  onGoToSeats,
 }: {
   reservationDay?: string;
   gameStartTime?: string;
@@ -1642,6 +1711,7 @@ function StartInfoCard({
   canReserve: boolean;
   onReserve: () => void;
   onStartInPage?: () => void;
+  onGoToSeats?: () => void;
 }) {
   // 날짜 포맷팅 (yyyy-MM-dd -> yyyy.MM.dd)
   const formatDate = (dateStr?: string) => {
@@ -1666,6 +1736,7 @@ function StartInfoCard({
       <BookingCalendarCard
         onBook={onReserve}
         onStartInPage={onStartInPage}
+        onGoToSeats={onGoToSeats}
         reservationDay={reservationDay}
         gameStartTime={gameStartTime}
       />
@@ -1705,11 +1776,13 @@ const formatTimeSlot = (timeStr?: string) => {
 function BookingCalendarCard({
   onBook,
   onStartInPage,
+  onGoToSeats,
   reservationDay,
   gameStartTime,
 }: {
   onBook: () => void;
   onStartInPage?: () => void;
+  onGoToSeats?: () => void;
   reservationDay?: string;
   gameStartTime?: string;
 }) {
@@ -1948,6 +2021,15 @@ function BookingCalendarCard({
         >
           BOOKING / 外國語
         </button>
+        {onGoToSeats && (
+          <button
+            type="button"
+            onClick={onGoToSeats}
+            className="w-full py-3 rounded-xl border text-gray-700 border-gray-300 hover:bg-gray-50 text-sm font-semibold"
+          >
+            좌석 배치로 이동
+          </button>
+        )}
       </div>
     </section>
   );
