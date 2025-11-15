@@ -16,13 +16,12 @@ import java.time.LocalDateTime;
 public class QueueSelectDTO {
     private LocalDateTime date;
     private float clickTime;
-    private int missCount;
+    //private int missCount;
 
     public static QueueSelectDTO dtobuild(UserStats userStats){
         return QueueSelectDTO.builder()
                 .date(userStats.getCreatedAt())
                 .clickTime(userStats.getDateSelectTime())
-                .missCount(userStats.getDateMissCount())
                 .build();
     }
 
