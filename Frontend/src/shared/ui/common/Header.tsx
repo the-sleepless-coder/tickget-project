@@ -155,19 +155,30 @@ export default function Header() {
                           src={profileImageUrl}
                           alt="프로필"
                           className="w-full h-full object-cover"
-                          onError={() => {
+                          onError={(e) => {
                             if (import.meta.env.DEV) {
                               console.error(
                                 "❌ [Header] 프로필 이미지 로드 실패:",
                                 profileImageUrl
                               );
                             }
-                            setImageError(true);
+                            // profile.png로 대체
+                            const target = e.target as HTMLImageElement;
+                            if (target.src !== "/profile.png") {
+                              target.src = "/profile.png";
+                            } else {
+                              setImageError(true);
+                            }
                           }}
                         />
                       ) : (
-                        <AccountCircleOutlinedIcon
-                          style={{ color: "var(--color-c-blue-200)" }}
+                        <img
+                          src="/profile.png"
+                          alt="프로필"
+                          className="w-full h-full object-cover"
+                          onError={() => {
+                            setImageError(true);
+                          }}
                         />
                       )}
                     </span>
@@ -185,18 +196,31 @@ export default function Header() {
                         src={profileImageUrl}
                         alt="프로필"
                         className="w-full h-full object-cover"
-                        onError={() => {
+                        onError={(e) => {
                           if (import.meta.env.DEV) {
                             console.error(
                               "❌ [Header] 프로필 이미지 로드 실패:",
                               profileImageUrl
                             );
                           }
-                          setImageError(true);
+                          // profile.png로 대체
+                          const target = e.target as HTMLImageElement;
+                          if (target.src !== "/profile.png") {
+                            target.src = "/profile.png";
+                          } else {
+                            setImageError(true);
+                          }
                         }}
                       />
                     ) : (
-                      <AccountCircleOutlinedIcon className="text-purple-500" />
+                      <img
+                        src="/profile.png"
+                        alt="프로필"
+                        className="w-full h-full object-cover"
+                        onError={() => {
+                          setImageError(true);
+                        }}
+                      />
                     )}
                   </button>
                 )}
