@@ -1,8 +1,7 @@
-package com.stats.dto.response;
+package com.stats.dto.response.IndividualData;
 
 import com.stats.entity.Room;
 import com.stats.entity.UserStats;
-import com.stats.repository.UserRepository;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;

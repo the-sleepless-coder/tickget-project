@@ -128,7 +128,7 @@ public class QueueService {
         QueueLogDTO logDto = QueueLogDTO.of(randomUUID, matchId, playerType, userId, status, positionAhead, positionBehind, total, userInfo.getClickMiss(), userInfo.getDuration(), LocalDateTime.now());
         try{
             SendResult<String, Object> recordData = kafkaTemplate.send(KafkaTopic.USER_LOG_QUEUE.getTopicName(), userId, logDto).get();
-            log.info("Kafka: 사용자 Log 적재 이벤트 발행");
+            // log.info("Kafka: 사용자 Log 적재 이벤트 발행");
 
         }catch(Exception e){
             e.printStackTrace();

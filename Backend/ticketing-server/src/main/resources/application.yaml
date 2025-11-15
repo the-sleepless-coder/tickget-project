@@ -71,7 +71,7 @@ logging:
   level:
     org.hibernate.SQL: ${LOG_SQL_LEVEL:info}
     com.ticketing: ${LOG_APP_LEVEL:info}
-    org.springframework.data.mongodb.core.MongoTemplate: ${LOG_MONGO_LEVEL:info}
+    org.springframework.data.mongodb.core.MongoTemplate: ${LOG_MONGO_LEVEL:error}
     org.springframework.kafka: ${LOG_KAFKA_LEVEL:info}
 
 app:
@@ -108,3 +108,6 @@ bot-server:
 
 room-server:
   url: ${ROOM_SERVICE_URL:http://localhost:8083}
+
+#expire:
+#  time:
