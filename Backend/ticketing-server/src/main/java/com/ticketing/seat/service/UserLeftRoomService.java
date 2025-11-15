@@ -60,6 +60,7 @@ public class UserLeftRoomService {
             }
 
             // 1. DB에서 roomId로 가장 최근 매치 조회
+            /// //////////////
             Match match = matchRepository.findTopByRoomIdOrderByCreatedAtDesc(roomId).orElse(null);
 
             if (match == null) {
@@ -100,6 +101,7 @@ public class UserLeftRoomService {
 
             // 5. Redis 좌석 키 확인 (Hold 여부)
             List<SeatInfo> userSeats = findUserSeatsInfo(matchId, userId);
+            //
 
             if (!userSeats.isEmpty()) {
                 // 케이스 2: Hold 했지만 Confirm 안 함 → 좌석 취소 + humanusers 감소
