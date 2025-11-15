@@ -1267,10 +1267,16 @@ export default function ITicketPage() {
         clickMiss,
         duration,
       });
-      console.log("[booking] 대기열 진입 성공, API 응답:", res);
+      console.log("[booking] 대기열 진입 성공");
+      console.log("[booking] API 응답:", res);
 
       // API 응답으로 초기 상태 설정
       if (res) {
+        console.log("[booking] API 응답 처리 시작:", {
+          totalNum: res.totalNum,
+          positionAhead: res.positionAhead,
+          positionBehind: res.positionBehind,
+        });
         // 나의 대기순서: totalNum
         setQueueRank(res.totalNum);
         // positionAhead 저장 (게이지바 계산용)
@@ -1279,6 +1285,9 @@ export default function ITicketPage() {
         setTotalQueue(res.totalNum + res.positionBehind);
         // queue stage로 전환
         setBookingStage("queue");
+        console.log("[booking] 상태 설정 완료, queue stage로 전환");
+      } else {
+        console.warn("[booking] API 응답이 없습니다.");
       }
     } catch (error) {
       console.error("[booking] 대기열 진입 실패:", error);
