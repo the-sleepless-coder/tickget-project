@@ -1,6 +1,5 @@
-package com.stats.dto.response;
+package com.stats.dto.response.IndividualData;
 
-import com.stats.entity.User;
 import com.stats.entity.UserStats;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -16,13 +15,12 @@ import java.time.LocalDateTime;
 public class QueueSelectDTO {
     private LocalDateTime date;
     private float clickTime;
-    private int missCount;
+    //private int missCount;
 
     public static QueueSelectDTO dtobuild(UserStats userStats){
         return QueueSelectDTO.builder()
                 .date(userStats.getCreatedAt())
                 .clickTime(userStats.getDateSelectTime())
-                .missCount(userStats.getDateMissCount())
                 .build();
     }
 

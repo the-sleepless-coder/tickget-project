@@ -1,4 +1,4 @@
-package com.stats.dto.response;
+package com.stats.dto.response.MatchData;
 
 import com.stats.entity.Match;
 import com.stats.entity.Room;
@@ -6,7 +6,6 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.apache.commons.lang3.builder.Diff;
 
 import java.time.LocalDateTime;
 
@@ -16,6 +15,7 @@ import java.time.LocalDateTime;
 @Builder
 public class MatchInfoStatsDTO {
 
+    private Long matchId;
     private String matchName;        // 경기 제목
     private Room.RoomType roomType;  // 경기 타입
     private Integer userTotCount; // 참가 인원
