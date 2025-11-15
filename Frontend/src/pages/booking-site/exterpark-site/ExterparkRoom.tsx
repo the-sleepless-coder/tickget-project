@@ -853,7 +853,7 @@ export default function ITicketPage() {
   // 입장자 목록 구성: roomMembers를 Participant 형식으로 변환
   const participants: Participant[] = useMemo(() => {
     return roomMembers.map((member) => {
-      const fallback = `https://i.pravatar.cc/48?img=${(member.userId % 70) + 1}`;
+      const fallback = "/profile.png";
       const avatar =
         normalizeProfileImageUrl(member.profileImageUrl, member.userId) ??
         fallback;
@@ -1755,17 +1755,17 @@ function ParticipantList({
         {participants.map((p, idx) => (
           <li key={idx} className="flex items-center justify-between px-4 py-2">
             <div className="flex items-center gap-3">
-              {p.avatarUrl ? (
-                <img
-                  src={p.avatarUrl}
-                  alt={p.name}
-                  className="w-9 h-9 rounded-full object-cover"
-                />
-              ) : (
-                <span className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-indigo-100 text-indigo-700">
-                  👤
-                </span>
-              )}
+              <img
+                src={p.avatarUrl || "/profile.png"}
+                alt={p.name}
+                className="w-9 h-9 rounded-full object-cover"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  if (target.src !== "/profile.png") {
+                    target.src = "/profile.png";
+                  }
+                }}
+              />
               <span className="text-gray-800">{p.name}</span>
             </div>
             {p.isHost && (
