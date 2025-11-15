@@ -55,6 +55,7 @@ public class LuaReservationExecutor {
             -- 만석 체크: 전체 좌석에 도달하면 상태를 CLOSED로 자동 변경
             if newCount >= totalSeats then
                 redis.call('SET', KEYS[seatCount + 2], 'CLOSED')
+                redis.call('EXPIRE', KEYS[seatCount + 2], ttl)
                 return 2  -- 성공 + 만석으로 CLOSED 처리됨
             end
     
