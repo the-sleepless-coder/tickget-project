@@ -21,8 +21,9 @@ import java.util.Set;
  * 주요 기능:
  * 1. DB 기준 Redis 상태 교정 (PLAYING → OPEN, FINISHED → CLOSED)
  * 2. Redis 키가 없는 PLAYING 경기 자동 종료
- * 3. 경기 종료 시 Redis 정리
- * 4. 스케줄러로 주기적 실행
+ * 3. 시작 후 30분 경과한 PLAYING 경기 자동 종료
+ * 4. 경기 종료 시 Redis 정리
+ * 5. 스케줄러로 주기적 실행
  */
 @Slf4j
 @Service
@@ -34,10 +35,14 @@ public class MatchStatusSyncService {
     private final StringRedisTemplate redisTemplate;
     private final RoomServerClient roomServerClient;
 
+    // 경기 시작 후 자동 종료 시간 (분)
+    private static final int AUTO_FINISH_MINUTES = 30;
+
     /**
      * 매 5분마다 자동 실행되는 스케줄러
      * 1. DB 기준 Redis 상태 교정
      * 2. Redis 키 없는 PLAYING 경기 종료
+     * 3. 시작 후 30분 경과한 PLAYING 경기 자동 종료
      */
     @Scheduled(fixedDelay = 300000) // 5분
     public void scheduledSync() {
@@ -49,6 +54,9 @@ public class MatchStatusSyncService {
 
             // 2. Redis 키 없는 PLAYING 경기 종료
             finishOrphanedMatches();
+
+            // 3. 시작 후 30분 경과한 PLAYING 경기 자동 종료
+            finishTimeExpiredMatches();
 
             log.info("=== 경기 상태 동기화 스케줄러 완료 ===");
 
@@ -185,6 +193,204 @@ public class MatchStatusSyncService {
     }
 
     /**
+     * 시작 후 30분이 경과한 PLAYING 경기를 FINISHED로 자동 종료
+     *
+     * 목적:
+     * - humanusers:match:{matchId}가 0이 안된 예외상황 처리
+     * - ended_at이 null로 남는 문제 해결
+     * - 시작시간(started_at) 기준으로 30분 경과 시 강제 종료
+     *
+     * 처리 과정:
+     * 1. PLAYING 상태이면서 started_at + 30분을 초과한 경기 조회
+     * 2. 통계 데이터가 없으면 0으로 설정
+     * 3. DB 상태를 FINISHED로 변경, ended_at 설정
+     * 4. Redis 키 전체 삭제 (좌석, 상태, 카운터 등)
+     * 5. 룸 서버에 매치 종료 알림
+     */
+    @Transactional
+    public int finishTimeExpiredMatches() {
+        log.info("시작 후 {}분 경과한 PLAYING 경기 정리 시작", AUTO_FINISH_MINUTES);
+
+        // 현재 시간으로부터 30분 전
+        LocalDateTime threshold = LocalDateTime.now().minusMinutes(AUTO_FINISH_MINUTES);
+
+        // PLAYING 상태이면서 started_at이 threshold 이전인 경기들 조회
+        List<Match> playingMatches = matchRepository.findByStatus(MatchStatus.PLAYING);
+        int finishedCount = 0;
+
+        for (Match match : playingMatches) {
+            Long matchId = match.getMatchId();
+
+            try {
+                // started_at이 30분을 초과했는지 확인
+                if (match.getStartedAt() != null && match.getStartedAt().isBefore(threshold)) {
+                    log.warn("⚠️  시작 후 {}분 경과한 PLAYING 경기 발견 - 자동 종료 처리: matchId={}, startedAt={}",
+                            AUTO_FINISH_MINUTES, matchId, match.getStartedAt());
+
+                    // 통계 데이터 Redis에서 가져오기 (없으면 0)
+                    setMatchStatisticsFromRedis(matchId, match);
+
+                    // 경기 종료 처리
+                    match.setStatus(MatchStatus.FINISHED);
+                    match.setEndedAt(LocalDateTime.now());
+                    match.setUpdatedAt(LocalDateTime.now());
+                    matchRepository.save(match);
+
+                    // Redis 전체 정리
+                    cleanupAllMatchRedis(matchId);
+
+                    // 룸 서버 알림
+                    Long roomId = match.getRoomId();
+                    boolean notificationSuccess = roomServerClient.notifyMatchEnd(roomId);
+
+                    if (notificationSuccess) {
+                        log.info("✅ 시간 경과 경기 자동 종료 완료: matchId={}, roomId={}, startedAt={}, endedAt={}",
+                                matchId, roomId, match.getStartedAt(), match.getEndedAt());
+                    } else {
+                        log.warn("⚠️  시간 경과 경기 종료됨 (룸 서버 알림 실패): matchId={}, roomId={}", matchId, roomId);
+                    }
+
+                    finishedCount++;
+                }
+
+            } catch (Exception e) {
+                log.error("시간 경과 경기 자동 종료 처리 중 오류: matchId={}", matchId, e);
+            }
+        }
+
+        if (finishedCount > 0) {
+            log.info("시간 경과 PLAYING 경기 정리 완료: 종료 건수={}", finishedCount);
+        } else {
+            log.debug("시간 경과 PLAYING 경기 없음");
+        }
+
+        return finishedCount;
+    }
+
+    /**
+     * Redis에서 경기 통계 데이터 조회 및 Match 엔티티에 설정
+     */
+    private void setMatchStatisticsFromRedis(Long matchId, Match match) {
+        try {
+            // 1. successUserCount - Redis에서 조회
+            String confirmedHumanCountKey = "match:" + matchId + ":confirmed_human_count";
+            String confirmedHumanCountStr = redisTemplate.opsForValue().get(confirmedHumanCountKey);
+            Integer successUserCount = 0;
+            if (confirmedHumanCountStr != null) {
+                try {
+                    successUserCount = Integer.parseInt(confirmedHumanCountStr);
+                } catch (NumberFormatException e) {
+                    log.warn("successUserCount 파싱 실패: matchId={}, value={}", matchId, confirmedHumanCountStr);
+                }
+            }
+
+            // 2. successBotCount - 계산식 (total_rank_counter - human_rank_counter)
+            String totalRankCounterKey = "match:" + matchId + ":total_rank_counter";
+            String humanRankCounterKey = "match:" + matchId + ":human_rank_counter";
+
+            String totalRankStr = redisTemplate.opsForValue().get(totalRankCounterKey);
+            String humanRankStr = redisTemplate.opsForValue().get(humanRankCounterKey);
+
+            Integer totalRank = 0;
+            Integer humanRank = 0;
+
+            if (totalRankStr != null) {
+                try {
+                    totalRank = Integer.parseInt(totalRankStr);
+                } catch (NumberFormatException e) {
+                    log.warn("totalRank 파싱 실패: matchId={}, value={}", matchId, totalRankStr);
+                }
+            }
+
+            if (humanRankStr != null) {
+                try {
+                    humanRank = Integer.parseInt(humanRankStr);
+                } catch (NumberFormatException e) {
+                    log.warn("humanRank 파싱 실패: matchId={}, value={}", matchId, humanRankStr);
+                }
+            }
+
+            Integer successBotCount = totalRank - humanRank;
+
+            // Match 엔티티에 저장
+            match.setSuccessUserCount(successUserCount);
+            match.setSuccessBotCount(successBotCount);
+
+            log.info("경기 통계 설정: matchId={}, successUserCount={}, successBotCount={}",
+                    matchId, successUserCount, successBotCount);
+
+        } catch (Exception e) {
+            log.error("경기 통계 설정 중 오류 발생: matchId={}", matchId, e);
+            // 오류 발생 시 0으로 설정
+            match.setSuccessUserCount(0);
+            match.setSuccessBotCount(0);
+        }
+    }
+
+    /**
+     * 경기 종료 시 Redis 전체 정리
+     * - 좌석 키: seat:{matchId}:*
+     * - 상태 키: match:{matchId}:status
+     * - 카운트 키: match:{matchId}:reserved_count, confirmed_count, confirmed_human_count
+     * - 실제 유저 키: humanusers:match:{matchId}
+     * - 등수 카운터 키: match:{matchId}:human_rank_counter, total_rank_counter
+     * - 유저 등수 Hash 키: match:{matchId}:user:rank, match:{matchId}:user:totalRank
+     */
+    private void cleanupAllMatchRedis(Long matchId) {
+        log.info("경기 종료 - Redis 전체 정리 시작: matchId={}", matchId);
+
+        try {
+            // 1. 좌석 키 삭제
+            String seatPattern = "seat:" + matchId + ":*";
+            Set<String> seatKeys = redisTemplate.keys(seatPattern);
+            if (seatKeys != null && !seatKeys.isEmpty()) {
+                redisTemplate.delete(seatKeys);
+                log.info("좌석 키 삭제: matchId={}, count={}", matchId, seatKeys.size());
+            }
+
+            // 2. 상태 키 삭제
+            String statusKey = "match:" + matchId + ":status";
+            redisTemplate.delete(statusKey);
+
+            // 3. 카운트 키 삭제
+            String countKey = "match:" + matchId + ":reserved_count";
+            String confirmedCountKey = "match:" + matchId + ":confirmed_count";
+            String confirmedHumanCountKey = "match:" + matchId + ":confirmed_human_count";
+            redisTemplate.delete(countKey);
+            redisTemplate.delete(confirmedCountKey);
+            redisTemplate.delete(confirmedHumanCountKey);
+
+            // 4. 실제 유저 카운터 키 삭제
+            String humanUsersKey = "humanusers:match:" + matchId;
+            redisTemplate.delete(humanUsersKey);
+
+            // 5. 등수 카운터 키 삭제
+            String humanRankCounterKey = "match:" + matchId + ":human_rank_counter";
+            String totalRankCounterKey = "match:" + matchId + ":total_rank_counter";
+            redisTemplate.delete(humanRankCounterKey);
+            redisTemplate.delete(totalRankCounterKey);
+
+            // 6. 유저 등수 Hash 키 삭제 (개별 키 패턴 매칭 불필요!)
+            String userRankHashKey = "match:" + matchId + ":user:rank";
+            String userTotalRankHashKey = "match:" + matchId + ":user:totalRank";
+
+            Boolean deletedRankHash = redisTemplate.delete(userRankHashKey);
+            Boolean deletedTotalRankHash = redisTemplate.delete(userTotalRankHashKey);
+
+            log.info("유저 등수 Hash 키 삭제: matchId={}, rank={}, totalRank={}",
+                    matchId, deletedRankHash, deletedTotalRankHash);
+
+            log.info("유저 등수 Hash 키 삭제: matchId={}, rank={}, totalRank={}",
+                    matchId, deletedRankHash, deletedTotalRankHash);
+
+            log.info("경기 Redis 전체 정리 완료: matchId={}", matchId);
+
+        } catch (Exception e) {
+            log.error("경기 Redis 정리 중 오류 발생: matchId={}", matchId, e);
+        }
+    }
+
+    /**
      * 경기 종료 시 Redis 데이터 정리
      * 좌석 선점/확정 키, 상태 키, 카운트 키를 모두 삭제하여 메모리 최적화
      *
@@ -240,17 +446,11 @@ public class MatchStatusSyncService {
             redisTemplate.delete(humanRankCounterKey);
             redisTemplate.delete(totalRankCounterKey);
 
-            // 7. 개별 유저 등수 키 삭제
-            String userRankPattern = "user:*:match:" + matchId + ":rank";
-            String userTotalRankPattern = "user:*:match:" + matchId + ":totalRank";
-            Set<String> userRankKeys = redisTemplate.keys(userRankPattern);
-            Set<String> userTotalRankKeys = redisTemplate.keys(userTotalRankPattern);
-            if (userRankKeys != null && !userRankKeys.isEmpty()) {
-                redisTemplate.delete(userRankKeys);
-            }
-            if (userTotalRankKeys != null && !userTotalRankKeys.isEmpty()) {
-                redisTemplate.delete(userTotalRankKeys);
-            }
+            // 7. 유저 등수 Hash 키 삭제
+            String userRankHashKey = "match:" + matchId + ":user:rank";
+            String userTotalRankHashKey = "match:" + matchId + ":user:totalRank";
+            redisTemplate.delete(userRankHashKey);
+            redisTemplate.delete(userTotalRankHashKey);
 
             log.info("경기 종료 후 Redis 정리 완료: matchId={}, deletedKeys={}", matchId, deletedCount);
 
