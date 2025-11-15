@@ -20,7 +20,7 @@
 
   /* Custom Purple Palette */
   --color-c-purple-100: #f0e3ff;
-  --color-c-purple-150: #E2B4FF;
+  --color-c-purple-150: #e2b4ff;
   --color-c-purple-200: #ab6ee2;
   --color-c-purple-250: #bf5bfe;
   --color-c-purple-300: #9608ca;
@@ -38,6 +38,19 @@ body {
   background-color: white;
   margin: 0;
   padding: 0;
+}
+
+/* SVG polygon 요소의 탭 효과(아웃라인) 제거 */
+svg polygon {
+  outline: none;
+}
+
+svg polygon:focus {
+  outline: none;
+}
+
+svg polygon:focus-visible {
+  outline: none;
 }
 
 #root {

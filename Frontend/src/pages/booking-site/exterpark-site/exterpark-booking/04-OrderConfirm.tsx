@@ -207,7 +207,7 @@ export default function OrderConfirmPage() {
                 value={birthDate}
                 onChange={(e) => setBirthDate(e.target.value)}
               />
-              <div className="text-gray-600">예) 870201 (YYMMDD)</div>
+              <div className="text-gray-600">예) 900101 (YYMMDD)</div>
               <div />
 
               <div className="text-gray-600">연락처</div>
@@ -247,7 +247,7 @@ export default function OrderConfirmPage() {
             <div className="mt-4 border-t pt-3">
               <div className="flex items-center justify-between">
                 <h3 className="font-bold">배송지정보</h3>
-                <button className="text-[12px] text-gray-500">변경 ▾</button>
+                {/* <button className="text-[12px] text-gray-500">변경 ▾</button> */}
               </div>
               <div className="mt-2 space-y-1 text-sm">
                 <div>{deliveryName || "이름 없음"}</div>

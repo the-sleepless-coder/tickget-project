@@ -74,7 +74,7 @@ export default function CreateRoomModal({
   type SizeOption = "소형" | "중형" | "대형";
   const diffOptions = useMemo(() => ["초보", "평균", "뛰어남"] as const, []);
   const botOptions = useMemo(
-    () => [0, 100, 500, 1000, 2000, 5000, 10000, 20000] as const,
+    () => [0, 10, 50, 100, 500, 1000, 2000, 5000, 10000, 20000] as const,
     []
   );
   const sizeToVenues: Record<SizeOption, string[]> = useMemo(

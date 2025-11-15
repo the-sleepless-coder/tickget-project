@@ -24,6 +24,7 @@ export default function BookingWaitingPage() {
   const matchIdFromStore = useMatchStore((s) => s.matchId);
   const [rank, setRank] = useState<number>(0);
   const [totalQueue, setTotalQueue] = useState<number>(0);
+  const [positionAhead, setPositionAhead] = useState<number>(0);
   const hasDequeuedRef = useRef<boolean>(false);
   const wsClient = useWebSocketStore((s) => s.client);
   const roomId = useRoomStore((s) => s.roomInfo.roomId);
@@ -125,14 +126,17 @@ export default function BookingWaitingPage() {
           if (raw) {
             const ahead = Number(raw.ahead ?? 0);
             const behind = Number(raw.behind ?? 0);
-            const currentRank = ahead + 1;
-            const currentTotalQueue = ahead + 1 + behind;
+            const total = Number(raw.total ?? 0);
+            const currentRank = total; // totalNum
+            const currentTotalQueue = total + behind; // totalNum + positionBehind
             setRank(currentRank);
+            setPositionAhead(ahead); // positionAhead 업데이트
             setTotalQueue(currentTotalQueue);
             console.log("✅ [waiting][QUEUE] 대기열 갱신 성공:", {
               myUserId,
               ahead,
               behind,
+              total,
               currentRank,
               currentTotalQueue,
               now: Date.now(),
@@ -301,7 +305,19 @@ export default function BookingWaitingPage() {
           clickMiss,
           duration,
         });
-        console.log("[booking-site][queue.enqueue] 성공:", res);
+        console.log("[booking-site][queue.enqueue] API 응답:", res);
+
+        // API 응답으로 초기 상태 설정
+        if (res) {
+          // 나의 대기순서: totalNum
+          setRank(res.totalNum);
+          // positionAhead 저장 (게이지바 계산용)
+          setPositionAhead(res.positionAhead);
+          // 현재 대기인원: totalNum + positionBehind
+          setTotalQueue(res.totalNum + res.positionBehind);
+          // queue stage로 전환
+          setStage("queue");
+        }
       } catch (error) {
         console.error("[booking-site][queue.enqueue] 실패:", error);
       }
@@ -316,12 +332,23 @@ export default function BookingWaitingPage() {
 
   // queue stage
   if (stage === "queue") {
-    // 실데이터 기반 진행도(대략): rank/totalQueue 비율을 사용
+    // positionAhead 기반 게이지바 계산: 0에 가까울수록 오른쪽으로 진행
+    // positionAhead가 0이면 100%, positionAhead가 totalQueue와 같으면 0%
+    const widthPercent =
+      totalQueue > 0
+        ? Math.max(
+            0,
+            Math.min(100, ((totalQueue - positionAhead) / totalQueue) * 100)
+          )
+        : 100;
+    // percent는 임박 여부 판단용 (positionAhead가 작을수록 임박)
     const percent =
       totalQueue > 0
-        ? Math.max(0, Math.min(100, Math.round((rank / totalQueue) * 100)))
-        : 100;
-    const widthPercent = Math.max(0, Math.min(100, 100 - percent)); // 좌→우로 증가
+        ? Math.max(
+            0,
+            Math.min(100, Math.round((positionAhead / totalQueue) * 100))
+          )
+        : 0;
     const isImminent = percent <= 20; // 20% 이하이면 임박
 
     return (

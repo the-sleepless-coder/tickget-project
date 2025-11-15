@@ -156,9 +156,7 @@ export default function TsxPreview({ src, className }: TsxPreviewProps) {
 
           if (!DynamicComponent) {
             // 대안: eval 사용 (더 유연하지만 보안 주의)
-            console.warn(
-              "[TsxPreview] 모듈 래퍼로 컴포넌트를 찾지 못함, 대안 시도"
-            );
+            // console.warn은 제거 - 정상적인 폴백 동작이므로 경고 불필요
             try {
               const evalCode = `
                 (function(React) {

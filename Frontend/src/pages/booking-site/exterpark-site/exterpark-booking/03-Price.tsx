@@ -18,6 +18,7 @@ type SeatData = {
   grade: string;
   count: number;
   price: number;
+  seats?: Array<{ gradeLabel: string; label: string }>;
 };
 
 export default function PricePage() {
@@ -170,9 +171,21 @@ export default function PricePage() {
     return `${date.format("YYYY.MM.DD")} (${weekday}) ${time}`;
   }, [dateParam, timeParam]);
 
-  // 선택 좌석 요약 텍스트
+  // 선택 좌석 요약 텍스트 (개별 좌석 정보 표시)
   const selectedSeatsSummary = useMemo(() => {
-    return selectedSeats.map((s) => `${s.grade} ${s.count}석`).join(", ");
+    const seatLabels: string[] = [];
+    selectedSeats.forEach((s) => {
+      if (s.seats && s.seats.length > 0) {
+        // 개별 좌석 정보가 있으면 사용
+        s.seats.forEach((seat) => {
+          seatLabels.push(`${seat.gradeLabel} ${seat.label}`);
+        });
+      } else {
+        // 개별 좌석 정보가 없으면 등급과 개수만 표시 (하위 호환성)
+        seatLabels.push(`${s.grade} ${s.count}석`);
+      }
+    });
+    return seatLabels.join(", ");
   }, [selectedSeats]);
 
   const goPrev = async () => {
@@ -330,7 +343,7 @@ export default function PricePage() {
                   {roomInfo.hallName || "공연장 이름"}
                 </div>
                 <div className="text-[12px] text-gray-500">
-                  만 7세이상 • 120분
+                  Get your ticket!
                 </div>
               </div>
             </div>
