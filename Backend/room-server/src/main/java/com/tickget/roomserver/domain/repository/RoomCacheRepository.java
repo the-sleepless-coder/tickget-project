@@ -2,6 +2,7 @@ package com.tickget.roomserver.domain.repository;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tickget.roomserver.dto.cache.DisconnectInfo;
 import com.tickget.roomserver.dto.cache.GlobalSessionInfo;
 import com.tickget.roomserver.dto.cache.QueueStatus;
 import com.tickget.roomserver.dto.cache.RoomInfoUpdate;
@@ -415,6 +416,49 @@ public class RoomCacheRepository {
             log.error("대기열 상태 변환 실패: matchId={}, userId={}, error={}",
                     matchId, userId, e.getMessage());
             return null;
+        }
+    }
+
+    //재연결 정보 저장 (TTL 5초)
+    public void saveDisconnectInfo(Long userId, DisconnectInfo info) {
+        try {
+            String key = "reconnect:" + userId;
+            String json = mapper.writeValueAsString(info);
+
+            redisTemplate.opsForValue().set(key, json, 5, TimeUnit.SECONDS);
+
+            log.debug("재연결 정보 저장: userId={}, roomId={}", userId, info.getRoomId());
+        } catch (Exception e) {
+            log.error("재연결 정보 저장 실패: userId={}", userId, e);
+        }
+    }
+
+    //재연결 정보 조회
+    public DisconnectInfo getDisconnectInfo(Long userId) {
+        try {
+            String key = "reconnect:" + userId;
+            String json = (String) redisTemplate.opsForValue().get(key);
+
+            if (json == null) {
+                return null;
+            }
+
+            return mapper.readValue(json, DisconnectInfo.class);
+        } catch (Exception e) {
+            log.error("재연결 정보 조회 실패: userId={}", userId, e);
+            return null;
+        }
+    }
+
+    // 재연결 정보 삭제 (재연결 성공 시)
+    public void deleteDisconnectInfo(Long userId) {
+        try {
+            String key = "reconnect:" + userId;
+            redisTemplate.delete(key);
+
+            log.debug("재연결 정보 삭제: userId={}", userId);
+        } catch (Exception e) {
+            log.error("재연결 정보 삭제 실패: userId={}", userId, e);
         }
     }
 

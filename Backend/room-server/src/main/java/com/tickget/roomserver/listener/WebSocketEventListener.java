@@ -1,6 +1,7 @@
 package com.tickget.roomserver.listener;
 
 import com.tickget.roomserver.domain.repository.RoomCacheRepository;
+import com.tickget.roomserver.dto.cache.DisconnectInfo;
 import com.tickget.roomserver.dto.cache.GlobalSessionInfo;
 import com.tickget.roomserver.dto.request.ExitRoomRequest;
 import com.tickget.roomserver.event.SessionCloseEvent;
@@ -8,6 +9,12 @@ import com.tickget.roomserver.kafka.RoomEventProducer;
 import com.tickget.roomserver.service.RoomService;
 import com.tickget.roomserver.session.WebSocketSessionManager;
 import com.tickget.roomserver.util.ServerIdProvider;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
@@ -34,6 +41,11 @@ public class WebSocketEventListener {
     private final RoomEventProducer roomEventProducer;
     private final ServerIdProvider serverIdProvider;
 
+    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(10);
+    private final Map<Long, ScheduledFuture<?>> pendingCleanups = new ConcurrentHashMap<>();
+
+    private static final long GRACE_PERIOD_MS = 5000;
+
     //웹소켓 연결 이벤트 처리
     @EventListener
     public void handleWebSocketConnectEvent(SessionConnectedEvent event) {
@@ -57,7 +69,18 @@ public class WebSocketEventListener {
         String serverId = serverIdProvider.getServerId();
 
         try {
-            // 1. 기존 세션 확인 및 종료 처리
+
+            // 1. Redis에서 재연결 정보 조회
+            DisconnectInfo disconnectInfo = roomCacheRepository.getDisconnectInfo(userId);
+
+            if (disconnectInfo != null && disconnectInfo.isWithinGracePeriod(GRACE_PERIOD_MS)) {
+                // 5초 이내 재연결
+                handleReconnection(sessionId, userId, serverId, connectHeaders, disconnectInfo);
+                return;
+            }
+
+
+            // 2.기존 세션 확인 및 종료 처리 - 중복연결 처리
             boolean hadExistingSession = handleExistingSession(userId);
 
             // 기존 세션이 있었던 경우에만 대기
@@ -65,13 +88,13 @@ public class WebSocketEventListener {
                 Thread.sleep(200);
                 log.debug("기존 세션 종료 처리 대기 완료: userId={}", userId);
             }
-            // 2. WebSocketSession 객체 가져오기
+            // 3. WebSocketSession 객체 가져오기
             WebSocketSession webSocketSession = getWebSocketSession(connectHeaders);
 
-            // 3. 새 세션 등록 (로컬)
+            // 4. 새 세션 등록 (로컬)
             sessionManager.register(sessionId, userId, webSocketSession);
 
-            // 4. 전역 세션 등록 (Redis)
+            // 5. 전역 세션 등록 (Redis)
             roomCacheRepository.registerGlobalSession(userId, sessionId, serverId);
 
             log.info("WebSocket 연결 성립: sessionId={}, userId={}, serverId={}",
@@ -84,9 +107,60 @@ public class WebSocketEventListener {
         }
     }
 
+    // 재연결 처리
+    private void handleReconnection(
+            String newSessionId,
+            Long userId,
+            String newServerId,
+            StompHeaderAccessor connectHeaders,
+            DisconnectInfo oldInfo
+    ) {
+        log.info("재연결 감지! userId={}, 기존 서버={}, 새 서버={}, 기존 roomId={}, 경과시간={}ms",
+                userId, oldInfo.getOldServerId(), newServerId, oldInfo.getRoomId(),
+                System.currentTimeMillis() - oldInfo.getDisconnectTime());
+
+        try {
+            // 1. Redis에서 재연결 정보 삭제
+            roomCacheRepository.deleteDisconnectInfo(userId);
+
+            // 2. 정리 스케줄 취소 (같은 서버인 경우)
+            if (newServerId.equals(oldInfo.getOldServerId())) {
+                ScheduledFuture<?> pendingCleanup = pendingCleanups.remove(userId);
+                if (pendingCleanup != null) {
+                    pendingCleanup.cancel(false);
+                    log.debug("정리 스케줄 취소: userId={}", userId);
+                }
+            } else {
+                log.info("다른 서버로 재연결: {} → {}", oldInfo.getOldServerId(), newServerId);
+                // 다른 서버의 스케줄은 Redis 확인으로 자동 처리됨
+            }
+
+            // 3. WebSocketSession 객체 가져오기
+            WebSocketSession webSocketSession = getWebSocketSession(connectHeaders);
+
+            // 4. 새 세션 등록
+            sessionManager.register(newSessionId, userId, webSocketSession);
+
+            // 5. 기존 roomId 복구 ✅
+            if (oldInfo.getRoomId() != null) {
+                sessionManager.joinRoom(newSessionId, oldInfo.getRoomId());
+                log.info("방 정보 복구: userId={}, roomId={}", userId, oldInfo.getRoomId());
+            }
+
+            // 6. 전역 세션 업데이트 (Redis)
+            roomCacheRepository.registerGlobalSession(userId, newSessionId, newServerId);
+
+            log.info("재연결 완료! userId={}, newSessionId={}, newServerId={}, roomId={}",
+                    userId, newSessionId, newServerId, oldInfo.getRoomId());
+
+        } catch (Exception e) {
+            log.error("재연결 처리 중 오류: userId={}", userId, e);
+            cleanupFailedConnection(newSessionId, userId);
+        }
+    }
+
     /**
      * 기존 세션 확인 및 종료 처리
-     *
      * 핵심 변경사항:
      * - sessionManager.remove()를 호출하지 않음!
      * - close()만 호출하여 disconnect 이벤트가 자연스럽게 발생하도록 함
@@ -153,22 +227,84 @@ public class WebSocketEventListener {
         }
 
         Long roomId = sessionManager.getRoomBySessionId(sessionId);
+        String serverId = serverIdProvider.getServerId();
 
         log.info("WebSocket 연결 해제: sessionId={}, userId={}, roomId={}", sessionId, userId, roomId);
 
         try {
-            // 방 퇴장 처리 (예외 발생 가능)
+            // 1. Redis에 재연결 정보 저장
             if (roomId != null) {
-                log.info("연결 해제로 인한 자동 퇴장 처리: userId={}, roomId={}", userId, roomId);
                 String userName = roomCacheRepository.getUserName(roomId, userId);
-                roomService.exitRoom(new ExitRoomRequest(userId, userName), roomId);
+
+                DisconnectInfo disconnectInfo = DisconnectInfo.of( serverId, sessionId, roomId, userName);
+                roomCacheRepository.saveDisconnectInfo(userId, disconnectInfo);
+
+                log.info("재연결 정보 Redis 저장: userId={}, roomId={}", userId, roomId);
             }
+
+            // 2. 로컬 세션 제거
+            sessionManager.remove(sessionId);
+
+            // 3. Redis 전역 세션 제거
+            boolean removed = roomCacheRepository.removeGlobalSession(userId, sessionId);
+
+            if (removed) {
+                log.debug("Redis 전역 세션 제거: userId={}, sessionId={}", userId, sessionId);
+            }
+
+            // 4. 5초 후 정리 스케줄 예약 (로컬)
+            ScheduledFuture<?> cleanupFuture = scheduler.schedule(() -> {
+                performDelayedCleanup(userId, roomId);
+            }, GRACE_PERIOD_MS, TimeUnit.MILLISECONDS);
+
+            pendingCleanups.put(userId, cleanupFuture);
+
+            log.info("5초 후 정리 예약: userId={}, roomId={}", userId, roomId);
+
         } catch (Exception e) {
             log.error("방 퇴장 처리 중 오류: userId={}, roomId={}", userId, roomId, e);
             // 예외 발생해도 계속 진행 (세션 정리는 반드시 수행)
         } finally {
             // 세션 정리는 반드시 수행 (try-finally로 보장)
             cleanupSession(sessionId, userId);
+        }
+    }
+
+    private void performDelayedCleanup(Long userId, Long roomId) {
+        try {
+            pendingCleanups.remove(userId);
+
+            // 1. Redis에서 재연결 정보 확인
+            DisconnectInfo info = roomCacheRepository.getDisconnectInfo(userId);
+
+            if (info == null) {
+                log.info("이미 재연결되어 정리됨: userId={}", userId);
+                return;
+            }
+
+            // 2. TTL이 만료되지 않았다면 여전히 유효 (다른 서버에서 재연결 중일 수 있음)
+            if (info.isWithinGracePeriod(GRACE_PERIOD_MS)) {
+                log.debug("재연결 대기 중, 정리 생략: userId={}", userId);
+                return;
+            }
+
+            log.info("5초 경과, 방 퇴장 처리 시작: userId={}, roomId={}", userId, roomId);
+
+            // 3. Redis에서 재연결 정보 삭제
+            roomCacheRepository.deleteDisconnectInfo(userId);
+
+            // 4. 방 퇴장 처리
+            if (roomId != null) {
+                try {
+                    roomService.exitRoom(new ExitRoomRequest(userId, info.getUserName()), roomId);
+                    log.info("자동 퇴장 완료: userId={}, roomId={}", userId, roomId);
+                } catch (Exception e) {
+                    log.error("자동 퇴장 처리 실패: userId={}, roomId={}", userId, roomId, e);
+                }
+            }
+
+        } catch (Exception e) {
+            log.error("지연 정리 중 오류: userId={}, roomId={}", userId, roomId, e);
         }
     }
 
