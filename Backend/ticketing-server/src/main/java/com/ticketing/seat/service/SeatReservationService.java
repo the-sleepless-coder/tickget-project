@@ -1,5 +1,6 @@
 package com.ticketing.seat.service;
 
+import com.ticketing.entity.UserStats;
 import com.ticketing.seat.concurrency.LuaReservationExecutor;
 import com.ticketing.seat.dto.ReservedSeatInfoDto;
 import com.ticketing.seat.dto.SeatInfo;
@@ -50,6 +51,7 @@ public class SeatReservationService {
             throw new IllegalArgumentException("Total seats must be provided and greater than 0");
         }
 
+
         // 1-2. 각 좌석에 grade가 있는지 확인 (없으면 최상위 grade 사용)
         validateAndFillGrades(req);
 
@@ -97,17 +99,18 @@ public class SeatReservationService {
                 req.getTotalSeats()
         );
 
-        // 5-1. 성공 시 매치 Redis 키들에 TTL 설정 (첫 Hold 이후 자동 정리 보장)
-        if (result != null && result == 1L) {
-            setMatchRedisTTL(matchId);
-        }
-        //마지막 좌석 잡은 유저
-        if (result != null && result == 2L) {
+        // 5-1. 성공 시 (1L 또는 2L 모두) TTL 설정
+        if (result != null && (result == 1L || result == 2L)) {
             setMatchRedisTTL(matchId);
         }
 
         // 6. 결과 처리
-        if (result == null || result == 0L) {
+        if (result == null || result == 0L) { //좌석 선점 실패 시
+//            // 실제 유저만 user_stats 저장
+//            if (!isBot) {
+//                saveFailedUserStats(matchId, userId, req);
+//                log.info("Hold 실패 - user_stats 저장 완료");
+//            }
             return buildFailureResponse(matchId, req);
         }
 
@@ -162,11 +165,14 @@ public class SeatReservationService {
         }
     }
 
-
     /**
      * 실제 유저 등수 계산 및 전체 등수 계산 (Hold 시점)
      * - userRank: 실제 유저만 (봇 제외)
      * - totalRank: 봇 포함 전체 사용자
+     *
+     * Hash 사용으로 메모리 최적화:
+     * - match:{matchId}:user:rank 해시에 field: userId, value: rank
+     * - match:{matchId}:user:totalRank 해시에 field: userId, value: totalRank
      */
     private void calculateAndLogUserRank(Long matchId, Long userId) {
         boolean isBot = userId < 0;
@@ -175,17 +181,18 @@ public class SeatReservationService {
         // 1. userRank 계산 (실제 유저만)
         Integer userRank = null;
         if (!isBot) {
-            final String rankKey = "match:" + matchId + ":human_rank_counter";
+            final String rankCounterKey = "match:" + matchId + ":human_rank_counter";
             try {
-                Long rank = redisTemplate.opsForValue().increment(rankKey);
+                Long rank = redisTemplate.opsForValue().increment(rankCounterKey);
                 if (rank != null) {
                     userRank = rank.intValue();
 
-                    // Redis에 개별 유저 등수 저장 (Confirm 시 조회용)
-                    String userRankKey = "user:" + userId + ":match:" + matchId + ":rank";
-                    redisTemplate.opsForValue().set(userRankKey, String.valueOf(userRank), ttl);
+                    // Redis Hash에 유저 등수 저장 (Confirm 시 조회용)
+                    String userRankHashKey = "match:" + matchId + ":user:rank";
+                    redisTemplate.opsForHash().put(userRankHashKey, String.valueOf(userId), String.valueOf(userRank));
+                    redisTemplate.expire(userRankHashKey, ttl);
 
-                    log.info("Hold 시점 유저 등수 계산 (TTL 포함): userId={}, userRank={}", userId, rank);
+                    log.info("Hold 시점 유저 등수 계산 (Hash 저장): userId={}, userRank={}", userId, rank);
                 }
             } catch (Exception e) {
                 log.error("Hold 시점 등수 계산 중 오류: matchId={}, userId={}", matchId, userId, e);
@@ -193,21 +200,23 @@ public class SeatReservationService {
         }
 
         // 2. totalRank 계산 (봇 포함 전체)
-        final String totalRankKey = "match:" + matchId + ":total_rank_counter";
+        final String totalRankCounterKey = "match:" + matchId + ":total_rank_counter";
         try {
-            Long totalRank = redisTemplate.opsForValue().increment(totalRankKey);
+            Long totalRank = redisTemplate.opsForValue().increment(totalRankCounterKey);
             if (totalRank != null) {
-                // Redis에 개별 유저 전체 등수 저장 (Confirm 시 조회용)
-                String userTotalRankKey = "user:" + userId + ":match:" + matchId + ":totalRank";
-                redisTemplate.opsForValue().set(userTotalRankKey, String.valueOf(totalRank), ttl);
+                // Redis Hash에 유저 전체 등수 저장 (Confirm 시 조회용)
+                String userTotalRankHashKey = "match:" + matchId + ":user:totalRank";
+                redisTemplate.opsForHash().put(userTotalRankHashKey, String.valueOf(userId), String.valueOf(totalRank));
+                redisTemplate.expire(userTotalRankHashKey, ttl);
 
-                log.info("Hold 시점 전체 등수 계산 (TTL 포함): userId={}, totalRank={}, isBot={}",
+                log.info("Hold 시점 전체 등수 계산 (Hash 저장): userId={}, totalRank={}, isBot={}",
                         userId, totalRank, isBot);
             }
         } catch (Exception e) {
             log.error("Hold 시점 전체 등수 계산 중 오류: matchId={}, userId={}", matchId, userId, e);
         }
     }
+
 
     /**
      * 각 좌석에 grade가 있는지 확인하고, 없으면 최상위 grade 사용 (하위 호환성)
@@ -269,4 +278,31 @@ public class SeatReservationService {
                 .failedSeats(List.of())
                 .build();
     }
+
+
+//    private void saveFailedUserStats(Long matchId, Long userId, SeatReservationRequest request) {
+//        UserStats userStats = UserStats.builder()
+//                .userId(userId)
+//                .matchId(matchId)
+//                .isSuccess(false)           // 실패
+//                .selectedSection(selectedSection)
+//                .selectedSeat(selectedSeat)
+//                .dateSelectTime(request.getDateSelectTime())
+//                .dateMissCount(request.getDateMissCount() != null ? request.getDateMissCount() : 0)
+//                .seccodeSelectTime(request.getSeccodeSelectTime())
+//                .seccodeBackspaceCount(request.getSeccodeBackspaceCount() != null ? request.getSeccodeBackspaceCount() : 0)
+//                .seccodeTryCount(request.getSeccodeTryCount() != null ? request.getSeccodeTryCount() : 0)
+//                .seatSelectTime(request.getSeatSelectTime())
+//                .seatSelectTryCount(request.getSeatSelectTryCount() != null ? request.getSeatSelectTryCount() : 0)
+//                .seatSelectClickMissCount(request.getSeatSelectClickMissCount() != null ? request.getSeatSelectClickMissCount() : 0)
+//                .userRank(-1)               // 실패로 -1
+//                .totalRank(-1)              // 실패로 -1
+//                .createdAt(LocalDateTime.now())
+//                .updatedAt(LocalDateTime.now())
+//                .build();
+//
+//        userStatsRepository.save(userStats);
+//    }
+
 }
+

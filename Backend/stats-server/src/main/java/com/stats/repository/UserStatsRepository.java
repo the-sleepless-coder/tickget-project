@@ -1,7 +1,8 @@
 package com.stats.repository;
 
-import com.stats.dto.response.MatchInfoStatsDTO;
-import com.stats.dto.response.SpecificStatsDTO;
+import com.stats.dto.response.MatchData.MatchInfoStatsDTO;
+import com.stats.dto.response.MatchData.MatchSpecificsStatsDTO;
+import com.stats.dto.response.IndividualData.SpecificStatsDTO;
 import com.stats.entity.Room;
 import com.stats.entity.UserStats;
 import org.springframework.data.domain.Pageable;
@@ -23,7 +24,7 @@ public interface UserStatsRepository extends JpaRepository<UserStats, Long> {
     // 그냥 JPQL로 SQL문 때려박고 데이터 가져온다. -> specificsDTO활용
     // JPA스럽게 하려면 Lazy Fetch + Fetch Join을 활용한 한번의 쿼리로 데이터 가져오기. -> userStats활용
     @Query("""
-    select new com.stats.dto.response.SpecificStatsDTO(
+    select new com.stats.dto.response.IndividualData.SpecificStatsDTO(
         us.createdAt,
         r.roomType,
         us.userRank,
@@ -48,22 +49,23 @@ public interface UserStatsRepository extends JpaRepository<UserStats, Long> {
                                                      );
 
     @Query("""
-    select new com.stats.dto.response.MatchInfoStatsDTO(
+    select new com.stats.dto.response.MatchData.MatchInfoStatsDTO(
+        m.id,
         m.matchName,
-        r.roomType,                 
-        m.userCount,                 
-        h.name,                                  
-        r.isAIGenerated,    
-        m.difficulty,        
-        r.totalSeat,                 
-        m.usedBotCount,              
-        m.startedAt,                 
-        us.isSuccess                 
+        r.roomType,
+        m.userCount,
+        h.name,
+        r.isAIGenerated,
+        m.difficulty,
+        r.totalSeat,                
+        m.usedBotCount,
+        m.startedAt,
+        us.isSuccess
     )
     from UserStats us
-    join Match m on m.matchId = us.matchId
-    join Room r  on r.id = m.roomId
-    join PresetHall h on h.id = r.hallId
+    left join Match m on m.matchId = us.matchId
+    left join Room r  on r.id = m.roomId
+    left join PresetHall h on h.id = r.hallId
     where us.userId = :userId
     and r.roomType = :roomType
     order by m.startedAt desc
@@ -73,5 +75,35 @@ public interface UserStatsRepository extends JpaRepository<UserStats, Long> {
                                                        Pageable pageable);
 
 
-
+    @Query("""
+    select new com.stats.dto.response.MatchData.MatchSpecificsStatsDTO(
+        us.userId,
+        u.name,
+        r.hallId,
+        r.roomType,
+        us.selectedSection,
+        us.selectedSeat,
+        m.matchId,
+        us.dateMissCount,
+        us.dateSelectTime,
+        us.seccodeBackspaceCount,
+        us.seccodeSelectTime,
+        us.seccodeTryCount,
+        us.seatSelectClickMissCount,
+        us.seatSelectTime,
+        us.seatSelectTryCount,
+        us.totalRank
+    )
+    from UserStats us
+    left join Match m on m.matchId = us.matchId
+    left join Room r on r.id = m.roomId
+    left join User u on u.id = us.userId
+    where us.matchId = :matchId
+    and r.roomType = :roomType
+    order by m.startedAt desc
+""")
+    List<MatchSpecificsStatsDTO>findMatchSpecificInfoStatsByMatchId(@Param("matchId") Long matchId,
+                                                                    @Param("roomType") Room.RoomType roomType,
+                                                                   Pageable pageable
+                                                                   );
 }

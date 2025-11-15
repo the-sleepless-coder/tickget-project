@@ -1,4 +1,4 @@
-package com.stats.dto.response;
+package com.stats.dto.response.IndividualData;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

@@ -1,9 +1,8 @@
 package com.stats.controller;
 
-import com.stats.dto.response.ClickStatsDTO;
-import com.stats.dto.response.MyPageDTO;
-import com.stats.dto.response.SpecificStatsDTO;
-import com.stats.entity.User;
+import com.stats.dto.response.IndividualData.MyPageDTO;
+import com.stats.dto.response.IndividualData.SpecificStatsDTO;
+import com.stats.dto.response.MatchData.MatchDataDTO;
 import com.stats.service.StatsService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -14,12 +13,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.List;
-import java.util.Optional;
 
 @Controller
 @RequiredArgsConstructor
@@ -33,13 +30,13 @@ public class StatsController {
 
     @GetMapping("/mypage")
     @Operation(
-            summary = "",
-            description = ""
+            summary = "마이페이지에 대한 초기 정보를 가져옵니다.",
+            description = "각 단계별 소요 시간 데이터, 경기 상세 데이터"
     )
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "데이터 조회 생성 성공"),
             @ApiResponse(responseCode = "500", description = "데이터 조회 실패"),
-            @ApiResponse(responseCode = "404", description = "사용자의 잘못된 요청")
+            @ApiResponse(responseCode = "400", description = "사용자의 잘못된 요청")
     })
     public ResponseEntity<?> getMyPageInfo(HttpServletRequest request, @RequestParam(defaultValue = "0") int page){
         String userIdString =  request.getHeader("X-User-Id");
@@ -68,14 +65,27 @@ public class StatsController {
         return ResponseEntity.ok(specificsData);
     }
 
-
-
     /**
      * 경기 기록
      * */
-    // 타 유저 검색
-
     // 전체 경기 기록
+    // 각 페이지별 데이터 가져오기
+    // Default Value: page = 0, size = 5
+    @GetMapping("/mypage/matchData")
+    public ResponseEntity<?> getMatchInfo(HttpServletRequest request, @RequestParam("mode") String mode, @RequestParam(defaultValue="0") int page, @RequestParam(defaultValue="5") int size){
+        String userIdString = request.getHeader("X-User-Id");
+        if(userIdString == null){
+            ResponseEntity.badRequest().body("Wrong request");
+        }
+        Long userIdLong = Long.valueOf(userIdString);
+
+        List<MatchDataDTO> data = service.getMatchDataStats(userIdLong, mode, page, size);
+
+        return ResponseEntity.ok(data);
+
+    }
+
+
 
 
 }

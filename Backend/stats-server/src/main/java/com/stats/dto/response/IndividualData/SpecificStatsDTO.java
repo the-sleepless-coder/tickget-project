@@ -1,8 +1,7 @@
-package com.stats.dto.response;
+package com.stats.dto.response.IndividualData;
 
 import com.stats.entity.Room;
 import com.stats.entity.UserStats;
-import com.stats.repository.UserRepository;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -27,16 +26,23 @@ public class SpecificStatsDTO {
     private Float totalDuration;
 
     // Specific Stats Builder
-    /**
-    public static SpecificStatsDTO dtobuilder(UserStats userStats){
+
+    public static SpecificStatsDTO dtobuilder(UserStats userStats) {
+        float queue = userStats.getDateSelectTime();
+
+
         return SpecificStatsDTO.builder()
                 .date(userStats.getCreatedAt())
                 .totRank(userStats.getTotalRank())
                 .queueClickTime(userStats.getDateSelectTime())
                 .captchaClickTime(userStats.getSeccodeSelectTime())
                 .seatClickTime(userStats.getSeatSelectTime())
-                .totalDuration(userStats.getDateSelectTime()+ userStats.getSeccodeSelectTime()+ userStats.getSeatSelectTime())
+                .totalDuration(userStats.getDateSelectTime() + userStats.getSeccodeSelectTime() + userStats.getSeatSelectTime())
                 .build();
     }
-     */
+
+    public void setTotalDuration(Float totalDuration){
+        this.totalDuration = totalDuration;
+    }
+
 }

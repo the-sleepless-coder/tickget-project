@@ -186,6 +186,7 @@ public class SeatConfirmationService {
             }
             // =========================================
 
+
             // 9. 성공 응답 생성
             SeatConfirmationResponse response = SeatConfirmationResponse.builder()
                     .success(true)
@@ -241,6 +242,7 @@ public class SeatConfirmationService {
             Integer humanRank = 0;
 
             if (totalRankStr != null) {
+
                 try {
                     totalRank = Integer.parseInt(totalRankStr);
                 } catch (NumberFormatException e) {
@@ -270,19 +272,27 @@ public class SeatConfirmationService {
         }
     }
 
-    // 기존 getUserRankFromRedis() 메서드 수정 (라인 222-234)
+    /**
+     * SeatConfirmationService.java - getUserRankFromRedis, getTotalRankFromRedis, cleanupAllMatchRedis 메서드 수정
+     *
+     * 변경 사항:
+     * - Hash에서 등수 조회
+     * - Hash 키 삭제 (패턴 매칭 불필요)
+     */
+
     /**
      * Hold 시점에 저장된 등수 조회 (Confirm 시점)
+     * Hash에서 조회: match:{matchId}:user:rank
      */
     private Integer getUserRankFromRedis(Long matchId, Long userId) {
-        String userRankKey = "user:" + userId + ":match:" + matchId + ":rank";
-        String rankStr = redisTemplate.opsForValue().get(userRankKey);
+        String userRankHashKey = "match:" + matchId + ":user:rank";
+        Object rankObj = redisTemplate.opsForHash().get(userRankHashKey, String.valueOf(userId));
 
-        if (rankStr != null) {
+        if (rankObj != null) {
             try {
-                return Integer.parseInt(rankStr);
+                return Integer.parseInt(rankObj.toString());
             } catch (NumberFormatException e) {
-                log.warn("등수 파싱 실패: userId={}, matchId={}, rankStr={}", userId, matchId, rankStr);
+                log.warn("등수 파싱 실패: userId={}, matchId={}, rankObj={}", userId, matchId, rankObj);
             }
         }
 
@@ -291,17 +301,18 @@ public class SeatConfirmationService {
 
     /**
      * Hold 시점에 저장된 전체 등수 조회 (Confirm 시점)
+     * Hash에서 조회: match:{matchId}:user:totalRank
      */
     private Integer getTotalRankFromRedis(Long matchId, Long userId) {
-        String userTotalRankKey = "user:" + userId + ":match:" + matchId + ":totalRank";
-        String totalRankStr = redisTemplate.opsForValue().get(userTotalRankKey);
+        String userTotalRankHashKey = "match:" + matchId + ":user:totalRank";
+        Object totalRankObj = redisTemplate.opsForHash().get(userTotalRankHashKey, String.valueOf(userId));
 
-        if (totalRankStr != null) {
+        if (totalRankObj != null) {
             try {
-                return Integer.parseInt(totalRankStr);
+                return Integer.parseInt(totalRankObj.toString());
             } catch (NumberFormatException e) {
-                log.warn("전체 등수 파싱 실패: userId={}, matchId={}, totalRankStr={}",
-                        userId, matchId, totalRankStr);
+                log.warn("전체 등수 파싱 실패: userId={}, matchId={}, totalRankObj={}",
+                        userId, matchId, totalRankObj);
             }
         }
 
@@ -313,9 +324,9 @@ public class SeatConfirmationService {
      * - 좌석 키: seat:{matchId}:*
      * - 상태 키: match:{matchId}:status
      * - 카운트 키: match:{matchId}:reserved_count, match:{matchId}:confirmed_count
-     * - 실제 유저 키: humanusers:match:{matchId}, humanusers:match:{matchId}:initial
+     * - 실제 유저 키: humanusers:match:{matchId}
      * - 등수 카운터 키: match:{matchId}:human_rank_counter, match:{matchId}:total_rank_counter
-     * - 개별 유저 등수 키: user:*:match:{matchId}:rank, user:*:match:{matchId}:totalRank
+     * - 유저 등수 Hash 키: match:{matchId}:user:rank, match:{matchId}:user:totalRank
      */
     private void cleanupAllMatchRedis(Long matchId) {
         log.info("경기 종료 - Redis 전체 정리 시작: matchId={}", matchId);
@@ -341,7 +352,6 @@ public class SeatConfirmationService {
             redisTemplate.delete(confirmedCountKey);
             redisTemplate.delete(confirmedHumanCountKey);
 
-
             // 4. 실제 유저 카운터 키 삭제
             String humanUsersKey = "humanusers:match:" + matchId;
             redisTemplate.delete(humanUsersKey);
@@ -352,19 +362,18 @@ public class SeatConfirmationService {
             redisTemplate.delete(humanRankCounterKey);
             redisTemplate.delete(totalRankCounterKey);
 
-            // 6. 개별 유저 등수 키 삭제
-            String userRankPattern = "user:*:match:" + matchId + ":rank";
-            String userTotalRankPattern = "user:*:match:" + matchId + ":totalRank";
-            Set<String> userRankKeys = redisTemplate.keys(userRankPattern);
-            Set<String> userTotalRankKeys = redisTemplate.keys(userTotalRankPattern);
-            if (userRankKeys != null && !userRankKeys.isEmpty()) {
-                redisTemplate.delete(userRankKeys);
-                log.info("유저 등수 키 삭제: matchId={}, count={}", matchId, userRankKeys.size());
-            }
-            if (userTotalRankKeys != null && !userTotalRankKeys.isEmpty()) {
-                redisTemplate.delete(userTotalRankKeys);
-                log.info("유저 전체 등수 키 삭제: matchId={}, count={}", matchId, userTotalRankKeys.size());
-            }
+            // 6. 유저 등수 Hash 키 삭제 (개별 키 패턴 매칭 불필요!)
+            String userRankHashKey = "match:" + matchId + ":user:rank";
+            String userTotalRankHashKey = "match:" + matchId + ":user:totalRank";
+
+            Boolean deletedRankHash = redisTemplate.delete(userRankHashKey);
+            Boolean deletedTotalRankHash = redisTemplate.delete(userTotalRankHashKey);
+
+            log.info("유저 등수 Hash 키 삭제: matchId={}, rank={}, totalRank={}",
+                    matchId, deletedRankHash, deletedTotalRankHash);
+
+            log.info("유저 등수 Hash 키 삭제: matchId={}, rank={}, totalRank={}",
+                    matchId, deletedRankHash, deletedTotalRankHash);
 
             log.info("경기 Redis 전체 정리 완료: matchId={}", matchId);
 
@@ -372,7 +381,6 @@ public class SeatConfirmationService {
             log.error("경기 Redis 정리 중 오류 발생: matchId={}", matchId, e);
         }
     }
-
 
 
     /**

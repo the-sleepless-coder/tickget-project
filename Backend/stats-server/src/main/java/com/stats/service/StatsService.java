@@ -1,21 +1,28 @@
 package com.stats.service;
 
-import com.stats.dto.response.*;
+import com.stats.dto.response.IndividualData.*;
+import com.stats.dto.response.MatchData.MatchDataDTO;
+import com.stats.dto.response.MatchData.MatchInfoStatsDTO;
+import com.stats.dto.response.MatchData.MatchSpecificsStatsDTO;
+import com.stats.dto.response.MatchData.MatchSpecificsStatsDifferenceAddedDTO;
 import com.stats.entity.Room;
 import com.stats.entity.User;
 import com.stats.entity.UserStats;
+import com.stats.exception.RoomTypeException;
 import com.stats.repository.UserRepository;
 import com.stats.repository.UserStatsRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class StatsService {
@@ -23,7 +30,7 @@ public class StatsService {
     private final UserStatsRepository userStatsRepository;
 
     private static final Integer USER_SPECIFICS_PAGE_NUM = 5;
-    private static final Integer MATCH_DATA_PAGE_NUM = 25;
+    private static final Integer MATCH_DATA_PAGE_NUM = 5;
 
     // 사용자 정보를 가져온다.
     public Object getUserInfo(Long userIdLong){
@@ -33,6 +40,10 @@ public class StatsService {
         // UserDTO userDTO  = UserDTO.dtobuild();
 
         return user;
+    }
+
+    private static float roundTwoDigits(float value) {
+        return Math.round(value * 100) / 100.0f;
     }
 
     // User 랭킹 정보, 소요 시간 정보, 상세 기록 정보 가져오기.
@@ -97,10 +108,12 @@ public class StatsService {
         }
         // 개인/대결 5명씩 -> 총 10명
         for(SpecificStatsDTO solo: solodata){
+            solo.setTotalDuration(roundTwoDigits(solo.getTotalDuration()));
             resultdata.add(solo);
         }
 
         for(SpecificStatsDTO multi:multidata){
+            multi.setTotalDuration(roundTwoDigits(multi.getTotalDuration()));
             resultdata.add(multi);
         }
 
@@ -112,29 +125,448 @@ public class StatsService {
     /**
      * 경기 기록 관련 데이터
      * 캐싱 전략은 일단 코드 다 짜고 나서, 재도입
+     * 훨씬 더 큰 페이지, Max 단위로 받고
+     * 그 뒤에 Redis Cache Hit으로 가져오거나,
+     * 없으면 DB에서 가져와서 판단.
      * */
-    public List<MatchInfoStatsDTO> getMatchInfoStats(Long userId, int page){
-        Pageable top25 = PageRequest.of(page, MATCH_DATA_PAGE_NUM);
+    // Match 관련 정보를 가져온다.
+    public List<MatchDataDTO> getMatchDataStats(Long userId, String mode , int page, int size){
+        /**
+         * 1. 매치 데이터
+         * */
+        Pageable topN = PageRequest.of(page, size);
+
+        // RoomType 반영
+        Object roomType = null;
+
+        mode = mode.trim().toLowerCase();
+        // 1. RoomType Exception
+        /**
+         * Exception 1
+         * 모드 유형 존재 안함.
+         * */
+        if(mode.equals("solo")){
+            roomType = Room.RoomType.SOLO;
+        }else if(mode.equals("multi")){
+            roomType = Room.RoomType.MULTI;
+        }else if(mode.equals("all")){
+            roomType = "all";
+        }else{
+            throw new RoomTypeException(mode + "유형이 존재하지 않았습니다.");
+        }
 
         Room.RoomType SOLO = Room.RoomType.SOLO;
         Room.RoomType MULTI = Room.RoomType.MULTI;
-        List<MatchInfoStatsDTO> solodata =  userStatsRepository.findMatchInfoStatsByUserId(userId, SOLO, top25);
-        List<MatchInfoStatsDTO> multidata = userStatsRepository.findMatchInfoStatsByUserId(userId, MULTI, top25);
 
-        if( solodata.isEmpty() && multidata.isEmpty() ){
-            return null;
+        List<MatchDataDTO> matchResults = new ArrayList<>();
+
+        List<MatchInfoStatsDTO> matchData = new ArrayList<>();
+        // List<List<MatchSpecificsStatsDTO>> allMatchSpecifics = new ArrayList<>();
+        List<List<MatchSpecificsStatsDifferenceAddedDTO>> allMatchSpecificsDifferenceAdded = new ArrayList<>();
+
+        /**
+         * Solo, Multi 데이터 처리.
+         * */
+        if(roomType.equals(Room.RoomType.SOLO) || roomType.equals(Room.RoomType.MULTI)){
+            /**
+             * 1. 매치 데이터 처리
+             * */
+            Room.RoomType roomTypeCasted = (Room.RoomType) roomType;
+            List<MatchInfoStatsDTO> allMatchData = userStatsRepository.findMatchInfoStatsByUserId(userId, roomTypeCasted, topN);
+
+            /**
+             * 데이터 없음.
+             * */
+            if( allMatchData.isEmpty()){
+                return Collections.emptyList();
+            }
+
+            /**
+             * 2. Match Specifics 관련 데이터
+             * */
+            Long matchIdLong = 0L;
+            for(MatchInfoStatsDTO info: allMatchData){
+                matchIdLong = info.getMatchId();
+                break;
+            }
+
+            if(matchIdLong==0L){
+                return Collections.emptyList();
+            }
+
+            for(MatchInfoStatsDTO data: allMatchData){
+                matchIdLong = data.getMatchId();
+                List<MatchSpecificsStatsDTO> matchSpecifics = userStatsRepository.findMatchSpecificInfoStatsByMatchId(matchIdLong, roomTypeCasted, topN);
+
+                MatchSpecificsStatsDTO myData = null;
+                for(MatchSpecificsStatsDTO specifics: matchSpecifics){
+                    if(userId.equals(specifics.getUserId())){
+                        myData = specifics;
+                        break;
+                    }
+                }
+
+                /**
+                 * 3. 내 기록과 상대방 기록 차이 계산
+                 * */
+                // 내 정보.
+                Float myQueueSelectTime = myData.getQueueSelectTime();
+                Integer myQueueMissCount = myData.getQueueMissCount();
+
+                Float myCaptchaSelectTime = myData.getCaptchaSelectTime();
+                Integer myCaptchaBackspaceCount = myData.getCaptchaBackspaceCount();
+
+                Float mySeatSelectTime = myData.getSeatSelectTime();
+                Integer mySeatClickMissCount = myData.getSeatSelectClickMissCount();
+                Integer mySeatTrialCount = myData.getSeatSelectTrialCount();
+
+                // 다른 사람과의 차이 정보.
+                List<MatchSpecificsStatsDifferenceAddedDTO> specificsDiffAdded = new ArrayList<>();
+                for(MatchSpecificsStatsDTO specifics: matchSpecifics){
+                    Float otherQueueSelectTime = specifics.getQueueSelectTime();
+                    Integer otherQueueMissCount = specifics.getQueueMissCount();
+
+                    Float otherCaptchaSelectTime = specifics.getCaptchaSelectTime();
+                    Integer otherCaptchaBackspaceCount = specifics.getCaptchaBackspaceCount();
+
+                    Float otherSeatSelectTime = specifics.getSeatSelectTime();
+                    Integer otherSeatClickMissCount = specifics.getSeatSelectClickMissCount();
+                    Integer otherSeatTrialCount = specifics.getSeatSelectTrialCount();
+
+                    Float totalTime = roundTwoDigits(
+                            otherQueueSelectTime + otherCaptchaSelectTime + otherSeatSelectTime
+                    );
+
+                    Float queueTimeDifference = roundTwoDigits(otherQueueSelectTime - myQueueSelectTime);
+                    Integer queueMissCountDifference = otherQueueMissCount - myQueueMissCount;
+
+                    Float captchaTimeDifference = otherCaptchaSelectTime - myCaptchaSelectTime;
+                    Integer captchaBackSpaceCountDifference = otherCaptchaBackspaceCount - myCaptchaBackspaceCount;
+
+                    Float seatSelectTimeDifference = roundTwoDigits(otherSeatSelectTime - mySeatSelectTime);
+                    Integer seatClickMissDifference = otherSeatClickMissCount - mySeatClickMissCount;
+                    Integer seatTrialCountDifference = otherSeatTrialCount - mySeatTrialCount;
+
+                    MatchSpecificsStatsDifferenceAddedDTO dto =
+                            new MatchSpecificsStatsDifferenceAddedDTO(
+                                    specifics,                         // @JsonUnwrapped
+                                    totalTime,
+
+                                    queueTimeDifference,
+                                    queueMissCountDifference,
+
+                                    captchaBackSpaceCountDifference,
+                                    captchaTimeDifference,
+
+                                    seatClickMissDifference,
+                                    seatSelectTimeDifference,
+                                    seatTrialCountDifference
+                            );
+
+                    specificsDiffAdded.add(dto);
+                }
+
+                // allMatchSpecifics.add(matchSpecifics);
+                allMatchSpecificsDifferenceAdded.add(specificsDiffAdded);
+            }
+
+
+            // matchDataDTO안에 박아서, 리스트에 넣어준다.
+            for(int i=0; i < allMatchData.size(); i++){
+                MatchInfoStatsDTO info = allMatchData.get(i);
+                List<MatchSpecificsStatsDifferenceAddedDTO> specificsDiffAdded = allMatchSpecificsDifferenceAdded.get(i);
+
+                MatchDataDTO dto = MatchDataDTO.dtobuilder(info, specificsDiffAdded);
+
+                matchResults.add(dto);
+            }
+
+
+        }
+        else if (roomType.equals("all")) {
+            // 1. SOLO / MULTI 각각 가져오기
+            List<MatchInfoStatsDTO> soloData =
+                    userStatsRepository.findMatchInfoStatsByUserId(userId, SOLO, topN);
+            List<MatchInfoStatsDTO> multiData =
+                    userStatsRepository.findMatchInfoStatsByUserId(userId, MULTI, topN);
+
+            // 데이터 없음
+            if (soloData.isEmpty() && multiData.isEmpty()) {
+                return Collections.emptyList();
+            }
+
+            // 2. 하나의 리스트로 합치기
+            matchData.clear();
+            matchData.addAll(soloData);
+            matchData.addAll(multiData);
+
+            // 3. 시작 시간 기준 역순 정렬 (최근 경기 우선)
+            matchData.sort((m1, m2) -> m2.getStartedAt().compareTo(m1.getStartedAt()));
+
+            // 4. 최대 5개까지만 사용
+            if (matchData.size() > 5) {
+                matchData = matchData.subList(0, 5);
+            }
+
+            // 5. 매치별로 specifics 가져오고, 내 기록 기준으로 차이 계산
+            allMatchSpecificsDifferenceAdded.clear();
+
+            for (MatchInfoStatsDTO data : matchData) {
+                Long matchIdLong = data.getMatchId();
+                Room.RoomType type = data.getRoomType(); // 각 매치에 SOLO/MULTI 들어 있다고 가정
+
+                // 이 매치에 대한 모든 참가자 기록
+                List<MatchSpecificsStatsDTO> matchSpecifics =
+                        userStatsRepository.findMatchSpecificInfoStatsByMatchId(matchIdLong, type, topN);
+
+                if (matchSpecifics == null || matchSpecifics.isEmpty()) {
+                    // 참가자 정보 없으면 빈 리스트로 넣고 넘어감
+                    allMatchSpecificsDifferenceAdded.add(Collections.emptyList());
+                    continue;
+                }
+
+                // 5-1. 내 기록 찾기
+                MatchSpecificsStatsDTO myData = null;
+                for (MatchSpecificsStatsDTO specifics : matchSpecifics) {
+                    if (userId.equals(specifics.getUserId())) {
+                        myData = specifics;
+                        break;
+                    }
+                }
+
+                // 내 기록이 없으면 비교 기준이 없으니, 빈 리스트로 넣고 넘김
+                if (myData == null) {
+                    allMatchSpecificsDifferenceAdded.add(Collections.emptyList());
+                    continue;
+                }
+
+                // 5-2. 내 기록(기준값) 뽑기
+                Float myQueueSelectTime = myData.getQueueSelectTime();
+                Integer myQueueMissCount = myData.getQueueMissCount();
+
+                Float myCaptchaSelectTime = myData.getCaptchaSelectTime();
+                Integer myCaptchaBackspaceCount = myData.getCaptchaBackspaceCount();
+                // 필요하면 myCaptchaTrialCount도 추가
+
+                Float mySeatSelectTime = myData.getSeatSelectTime();
+                Integer mySeatClickMissCount = myData.getSeatSelectClickMissCount();
+                Integer mySeatTrialCount = myData.getSeatSelectTrialCount();
+
+                // 5-3. 다른 사람들과의 차이 계산
+                List<MatchSpecificsStatsDifferenceAddedDTO> specificsDiffAdded = new ArrayList<>();
+
+                for (MatchSpecificsStatsDTO specifics : matchSpecifics) {
+                    // 상대 raw 값
+                    Float otherQueueSelectTime = specifics.getQueueSelectTime();
+                    Integer otherQueueMissCount = specifics.getQueueMissCount();
+
+                    Float otherCaptchaSelectTime = specifics.getCaptchaSelectTime();
+                    Integer otherCaptchaBackspaceCount = specifics.getCaptchaBackspaceCount();
+
+                    Float otherSeatSelectTime = specifics.getSeatSelectTime();
+                    Integer otherSeatClickMissCount = specifics.getSeatSelectClickMissCount();
+                    Integer otherSeatTrialCount = specifics.getSeatSelectTrialCount();
+
+                    // total time (소수 둘째 자리)
+                    Float totalTime = roundTwoDigits(
+                            otherQueueSelectTime + otherCaptchaSelectTime + otherSeatSelectTime
+                    );
+
+                    // (상대 - 나) 기준 차이
+                    Float queueTimeDifference = roundTwoDigits(otherQueueSelectTime - myQueueSelectTime);
+                    Integer queueMissCountDifference = otherQueueMissCount - myQueueMissCount;
+
+                    // 캡차 시간/백스페이스 차이
+                    Float captchaTimeDifference = roundTwoDigits(otherCaptchaSelectTime - myCaptchaSelectTime);
+                    Integer captchaBackSpaceCountDifference = otherCaptchaBackspaceCount - myCaptchaBackspaceCount;
+
+                    // 좌석 선택 관련 차이
+                    Float seatSelectTimeDifference = roundTwoDigits(otherSeatSelectTime - mySeatSelectTime);
+                    Integer seatClickMissDifference = otherSeatClickMissCount - mySeatClickMissCount;
+                    Integer seatTrialCountDifference = otherSeatTrialCount - mySeatTrialCount;
+
+                    // DTO 생성 (생성자 파라미터 순서는 DTO 정의와 맞춰야 함)
+                    MatchSpecificsStatsDifferenceAddedDTO dto =
+                            new MatchSpecificsStatsDifferenceAddedDTO(
+                                    specifics,                 // @JsonUnwrapped
+                                    totalTime,
+
+                                    queueTimeDifference,
+                                    queueMissCountDifference,
+
+                                    captchaBackSpaceCountDifference,
+                                    captchaTimeDifference,
+
+                                    seatClickMissDifference,
+                                    seatSelectTimeDifference,
+                                    seatTrialCountDifference
+                            );
+
+                    specificsDiffAdded.add(dto);
+                }
+
+                allMatchSpecificsDifferenceAdded.add(specificsDiffAdded);
+            }
+
+            // 6. matchInfo + specificsDiffAdded 묶어서 MatchDataDTO로 변환
+            for (int i = 0; i < matchData.size(); i++) {
+                MatchInfoStatsDTO info = matchData.get(i);
+                List<MatchSpecificsStatsDifferenceAddedDTO> specificsDiffAdded =
+                        i < allMatchSpecificsDifferenceAdded.size()
+                                ? allMatchSpecificsDifferenceAdded.get(i)
+                                : Collections.emptyList();
+
+                MatchDataDTO dto = MatchDataDTO.dtobuilder(info, specificsDiffAdded);
+                matchResults.add(dto);
+            }
         }
 
-        List<MatchInfoStatsDTO> resultData = new ArrayList<>();
-        for(MatchInfoStatsDTO solo: solodata){
-            resultData.add(solo);
+
+        return matchResults;
+    }
+
+
+    // Match 관련 전체 정보를 가져온다.
+    public List<MatchInfoStatsDTO> getMatchInfoStats(Long userId, String mode , int page, int size){
+        Pageable topN = PageRequest.of(page, size);
+
+        // RoomType 반영
+        Object roomType = null;
+
+        mode = mode.trim().toLowerCase();
+        // 1. RoomType Exception
+        /**
+         * Exception 1
+         * 모드 유형 존재 안함.
+         * */
+        if(mode.equals("solo")){
+            roomType = Room.RoomType.SOLO;
+        }else if(mode.equals("multi")){
+            roomType = Room.RoomType.MULTI;
+        }else if(mode.equals("all")){
+            roomType = "all";
+        }else{
+            throw new RoomTypeException(mode + "유형이 존재하지 않았습니다.");
         }
 
-        for(MatchInfoStatsDTO multi:multidata){
-            resultData.add(multi);
+        Room.RoomType SOLO = Room.RoomType.SOLO;
+        Room.RoomType MULTI = Room.RoomType.MULTI;
+
+        List<Object> result = new ArrayList<>();
+
+        List<MatchInfoStatsDTO> matchData = new ArrayList<>();
+
+        // Solo, Multi 데이터 처리.
+        if(roomType.equals(Room.RoomType.SOLO) || roomType.equals(Room.RoomType.MULTI)){
+            Room.RoomType roomTypeCasted = (Room.RoomType) roomType;
+            List<MatchInfoStatsDTO> gameTypeData = userStatsRepository.findMatchInfoStatsByUserId(userId, roomTypeCasted, topN);
+
+            /**
+             * 데이터 없음.
+             * */
+            if( gameTypeData.isEmpty()){
+                return Collections.emptyList();
+            }
+
+            matchData = gameTypeData;
+
+        }// 전체 데이터 처리
+        else if(roomType.equals("all")){
+            List<MatchInfoStatsDTO> soloData =  userStatsRepository.findMatchInfoStatsByUserId(userId, SOLO, topN);
+            List<MatchInfoStatsDTO> multiData = userStatsRepository.findMatchInfoStatsByUserId(userId, MULTI, topN);
+
+            /**
+             * 데이터 없음.
+             * */
+            if( soloData.isEmpty() && multiData.isEmpty() ){
+                return Collections.emptyList();
+            }
+
+            for(MatchInfoStatsDTO solo: soloData ){
+                matchData.add(solo);
+            }
+            for(MatchInfoStatsDTO multi:multiData){
+                matchData.add(multi);
+            }
+            // 시간 역순 정렬
+            matchData.sort((MatchInfoStatsDTO m1, MatchInfoStatsDTO m2) -> m2.getStartedAt().compareTo(m1.getStartedAt()));
+
+            if(matchData.size() > 5){
+                matchData = matchData.subList(0,5);
+            }
+
         }
 
-        return resultData;
+        return matchData;
+    }
+
+    // Match 내 사람들 정보 가져오기.
+    public Object getMatchUserSpecificInfo(Long matchIdLong, Long userIdLong ,String mode, int page, int size){
+        Object roomType = null;
+
+        // solo, multi, all
+        if(mode.equals("solo")){
+            roomType = Room.RoomType.SOLO;
+        }else if(mode.equals("multi")){
+            roomType = Room.RoomType.MULTI;
+        }else if(mode.equals("all")){
+            roomType = "all";
+        }else{
+            throw new RoomTypeException(mode + "유형이 존재하지 않았습니다.");
+        }
+
+        // page offset 정보, 한 페이지당 최대 수 size, 최대 N개
+        Pageable topN = PageRequest.of(page, size);
+
+        // 결과 담을 객체.
+        List<Object> result = new ArrayList<>();
+
+        // 나의 정보, 다른 사람 정보 같이 담아준다.
+        List<MatchSpecificsStatsDTO> matchData = new ArrayList<>();
+
+        if( roomType.equals("solo") || roomType.equals("multi")){
+            Room.RoomType roomTypeCasted = (Room.RoomType) roomType;
+            System.out.println(roomTypeCasted);
+
+            // Match 내 사용자 정보 가져오기.
+            List<MatchSpecificsStatsDTO> matchSpecificsInfos = userStatsRepository.findMatchSpecificInfoStatsByMatchId(matchIdLong, roomTypeCasted, topN);
+            matchData = matchSpecificsInfos;
+
+            if(roomType.equals("multi")){
+                MatchSpecificsStatsDTO myData = null;
+                for(MatchSpecificsStatsDTO matchSpecificsInfo: matchSpecificsInfos){
+                    //해당 유저에 대한 정보는 따로 빼둔다.
+                    if(userIdLong.equals(matchSpecificsInfo.getUserId())) {
+                        myData = matchSpecificsInfo;
+                    }
+                }
+            }
+
+
+        }else{
+            List<MatchSpecificsStatsDTO> matchSoloData = userStatsRepository.findMatchSpecificInfoStatsByMatchId(userIdLong, Room.RoomType.SOLO, topN);
+            List<MatchSpecificsStatsDTO> matchMultiData = userStatsRepository.findMatchSpecificInfoStatsByMatchId(userIdLong, Room.RoomType.MULTI, topN);
+
+            MatchSpecificsStatsDTO myData = null;
+            for(MatchSpecificsStatsDTO solo: matchSoloData){
+                matchData.add(solo);
+
+            }
+
+            for(MatchSpecificsStatsDTO multi: matchMultiData){
+                matchData.add(multi);
+                //해당 유저에 대한 정보는 따로 빼둔다.
+                if(userIdLong.equals(multi.getUserId())) {
+                    myData = multi;
+                }
+            }
+
+        }
+
+        result.add(matchData);
+
+
+        return result;
     }
 
 }
