@@ -1498,32 +1498,61 @@ export default function ITicketPage() {
   );
 }
 
-function TopBanner({ onClose }: { onClose: (hideFor3Days: boolean) => void }) {
-  const [dontShow, setDontShow] = useState(false);
+function TopBanner({ onClose: _onClose }: { onClose: (hideFor3Days: boolean) => void }) {
+  const message1 = "Get your ticket, Tickget!";
+  const message2 = "본 경기는 티켓팅 연습용으로, 실제 티켓팅이 되지 않습니다.";
+  
   return (
-    <div className="bg-gradient-to-r from-[#104BB7] to-[#072151] text-white">
-      <div className="relative max-w-6xl mx-auto px-4 md:px-6 py-3 text-sm">
-        <p className="absolute inset-0 flex items-center justify-center font-semibold text-center pointer-events-none">
-          본 경기는 티켓팅 연습용으로, 실제 티켓팅이 되지 않습니다.
-        </p>
-        <div className="flex items-center gap-4 justify-end">
-          <label className="inline-flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={dontShow}
-              onChange={(e) => setDontShow(e.target.checked)}
-            />
-            <span>3일간 보지않기</span>
-          </label>
-          <button
-            aria-label="close-banner"
-            onClick={() => onClose(dontShow)}
-            className="text-xl leading-none"
+    <div className="bg-gradient-to-r from-[#104BB7] to-[#072151] text-white overflow-hidden">
+      <div className="relative py-3 md:py-4">
+        <div className="flex items-center whitespace-nowrap">
+          <div
+            className="flex items-center animate-scroll"
+            style={{
+              animation: "scroll 30s linear infinite",
+            }}
           >
-            ✕
-          </button>
+            {/* 텍스트를 여러 번 반복하여 무한 스크롤 효과 */}
+            {Array.from({ length: 5 }).map((_, idx) => (
+              <span
+                key={idx}
+                className="tracking-widest inline-block mx-8 font-semibold text-sm md:text-base"
+              >
+                {message1} <span className="mx-2"></span> {message2}
+              </span>
+            ))}
+          </div>
+          {/* 애니메이션을 위한 복제본 (seamless loop) */}
+          <div
+            className="flex items-center animate-scroll"
+            style={{
+              animation: "scroll 30s linear infinite",
+            }}
+          >
+            {Array.from({ length: 5 }).map((_, idx) => (
+              <span
+                key={idx}
+                className="inline-block mx-8 font-semibold text-sm md:text-base"
+              >
+                {message1} <span className="mx-4">•</span> {message2}
+              </span>
+            ))}
+          </div>
         </div>
       </div>
+      <style>{`
+        @keyframes scroll {
+          0% {
+            transform: translateX(0);
+          }
+          100% {
+            transform: translateX(-50%);
+          }
+        }
+        .animate-scroll {
+          animation: scroll 30s linear infinite;
+        }
+      `}</style>
     </div>
   );
 }
