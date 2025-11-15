@@ -18,6 +18,8 @@ interface MatchHistoryCardProps {
     rank: number;
     seatArea: string;
   }>;
+  userSuccess?: boolean;
+  totalTime?: number;
   isExpanded?: boolean;
   onExpand?: () => void;
   onUserClick?: (user: {
@@ -39,6 +41,8 @@ export default function MatchHistoryCard({
   mySeatArea,
   mySeatSection,
   users,
+  userSuccess,
+  totalTime,
   isExpanded = false,
   onExpand,
   onUserClick,
@@ -94,7 +98,13 @@ export default function MatchHistoryCard({
           )}
           <div className="text-neutral-500">
             <div className="font-medium text-neutral-900">경기 결과</div>
-            <div className="text-green-600">성공</div>
+            <div
+              className={
+                userSuccess === false ? "text-red-600" : "text-green-600"
+              }
+            >
+              {userSuccess === false ? "실패" : "성공"}
+            </div>
           </div>
           <div className="ml-4 text-neutral-400 hover:text-neutral-600">
             {isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
@@ -110,6 +120,7 @@ export default function MatchHistoryCard({
               mySeatArea={mySeatArea}
               mySeatSection={mySeatSection}
               users={users}
+              totalTime={totalTime}
               onUserClick={onUserClick}
             />
           ) : (

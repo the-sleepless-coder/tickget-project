@@ -18,12 +18,22 @@ interface UserRank {
       duplicateSeat?: number;
     };
   };
+  differenceMetrics?: {
+    bookingClick?: { reactionMs?: number; misclicks?: number };
+    captcha?: { durationMs?: number; backspaceCount?: number };
+    seatSelection?: {
+      durationMs?: number;
+      misclicks?: number;
+      duplicateSeat?: number;
+    };
+  };
 }
 
 interface MatchDetailContentProps {
   mySeatArea: string;
   mySeatSection: string;
   users: UserRank[];
+  totalTime?: number;
   date?: string;
   time?: string;
   onUserClick?: (user: UserRank) => void;
@@ -33,6 +43,7 @@ export default function MatchDetailContent({
   mySeatArea,
   mySeatSection,
   users,
+  totalTime,
   onUserClick,
 }: MatchDetailContentProps) {
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
@@ -66,6 +77,12 @@ export default function MatchDetailContent({
       .toString()
       .padStart(2, "0");
     return `${minutes}:${seconds}.${hundredths}`;
+  };
+
+  const formatSecondsToClock = (seconds?: number): string => {
+    if (!seconds || seconds < 0) return "00:00.00";
+    const totalMs = Math.round(seconds * 1000);
+    return formatMsToClock(totalMs);
   };
 
   const calculateTotalTime = (user: UserRank): number => {
@@ -199,63 +216,85 @@ export default function MatchDetailContent({
     const captcha = user.metrics?.captcha;
     const seat = user.metrics?.seatSelection;
 
-    const baseBooking = baseline?.metrics?.bookingClick;
-    const baseCaptcha = baseline?.metrics?.captcha;
-    const baseSeat = baseline?.metrics?.seatSelection;
+    // 차이 값은 differenceMetrics에서 가져오기 (다른 사용자일 때만 존재)
+    const diffBooking = user.differenceMetrics?.bookingClick;
+    const diffCaptcha = user.differenceMetrics?.captcha;
+    const diffSeat = user.differenceMetrics?.seatSelection;
+
+    // 차이 값 포맷팅 함수
+    const formatDiffMs = (ms?: number): string => {
+      if (ms === undefined || ms === 0) return "";
+      const sign = ms > 0 ? "+" : "-";
+      const absMs = Math.abs(ms);
+      return diffSec(absMs, 0).replace("±", sign);
+    };
+
+    const formatDiffCount = (count?: number, suffix: string = "번"): string => {
+      if (count === undefined || count === 0) return "";
+      const sign = count > 0 ? "+" : "-";
+      return `${sign} ${Math.abs(count)}${suffix}`;
+    };
 
     return (
-      <div className={`grid grid-cols-1 gap-4 md:grid-cols-3`}>
-        <StatCard
-          title="예매 버튼 클릭"
-          timeText={`${formatMsToClock(booking?.reactionMs ?? 2560)}`}
-          timeDiff={
-            baseline
-              ? diffSec(booking?.reactionMs, baseBooking?.reactionMs)
-              : undefined
-          }
-          misclicksText={`${booking?.misclicks ?? 3}번`}
-          misclicksDiff={
-            baseline
-              ? diffSignVal(booking?.misclicks, baseBooking?.misclicks, "번")
-              : undefined
-          }
-        />
-        <StatCard
-          title="보안 문자"
-          timeText={`${formatMsToClock(captcha?.durationMs ?? 23010)}`}
-          timeDiff={
-            baseline
-              ? diffSec(captcha?.durationMs, baseCaptcha?.durationMs)
-              : undefined
-          }
-          misclicksText={`${captcha?.wrongCount ?? 3}번`}
-          misclicksDiff={
-            baseline
-              ? diffSignVal(captcha?.wrongCount, baseCaptcha?.wrongCount, "번")
-              : undefined
-          }
-        />
-        <StatCard
-          title="좌석 선택"
-          timeText={`${formatMsToClock(seat?.durationMs ?? 63210)}`}
-          timeDiff={
-            baseline
-              ? diffSec(seat?.durationMs, baseSeat?.durationMs)
-              : undefined
-          }
-          misclicksText={`${seat?.misclicks ?? 3}번`}
-          misclicksDiff={
-            baseline
-              ? diffSignVal(seat?.misclicks, baseSeat?.misclicks, "번")
-              : undefined
-          }
-          extraText={`${seat?.duplicateSeat ?? 2}번`}
-          extraTextDiff={
-            baseline
-              ? diffSignVal(seat?.duplicateSeat, baseSeat?.duplicateSeat, "번")
-              : undefined
-          }
-        />
+      <div className="space-y-4">
+        {/* 총 소요시간 표시 */}
+        {totalTime !== undefined && (
+          <div className="rounded-xl border border-purple-200 bg-purple-50 px-6 py-4">
+            <div className="text-center">
+              <div className="text-sm font-medium text-purple-700">총 소요 시간</div>
+              <div className="mt-1 text-2xl font-bold text-purple-900">
+                {formatSecondsToClock(totalTime)}
+              </div>
+            </div>
+          </div>
+        )}
+        <div className={`grid grid-cols-1 gap-4 md:grid-cols-3`}>
+          <StatCard
+            title="예매 버튼 클릭"
+            timeText={`${formatMsToClock(booking?.reactionMs ?? 0)}`}
+            timeDiff={diffBooking?.reactionMs ? formatDiffMs(diffBooking.reactionMs) : undefined}
+            misclicksText={`${booking?.misclicks ?? 0}번`}
+            misclicksDiff={
+              diffBooking?.misclicks !== undefined
+                ? formatDiffCount(diffBooking.misclicks)
+                : undefined
+            }
+          />
+          <StatCard
+            title="보안 문자"
+            timeText={`${formatMsToClock(captcha?.durationMs ?? 0)}`}
+            timeDiff={diffCaptcha?.durationMs ? formatDiffMs(diffCaptcha.durationMs) : undefined}
+            misclicksText={`재시도 ${captcha?.wrongCount ?? 0}번`}
+            misclicksDiff={undefined}
+            extraText={
+              captcha?.backspaceCount !== undefined
+                ? `백스페이스 ${captcha.backspaceCount}번`
+                : undefined
+            }
+            extraTextDiff={
+              diffCaptcha?.backspaceCount !== undefined
+                ? formatDiffCount(diffCaptcha.backspaceCount)
+                : undefined
+            }
+          />
+          <StatCard
+            title="좌석 선택"
+            timeText={`${formatMsToClock(seat?.durationMs ?? 0)}`}
+            timeDiff={diffSeat?.durationMs ? formatDiffMs(diffSeat.durationMs) : undefined}
+            misclicksText={`${seat?.misclicks ?? 0}번`}
+            misclicksDiff={
+              diffSeat?.misclicks !== undefined
+                ? formatDiffCount(diffSeat.misclicks)
+                : undefined
+            }
+            extraText={`이선좌 ${seat?.duplicateSeat ?? 0}번`}
+            extraTextDiff={
+              diffSeat?.duplicateSeat !== undefined
+                ? formatDiffCount(diffSeat.duplicateSeat)
+                : undefined
+            }
+          />
+        </div>
       </div>
     );
   };
