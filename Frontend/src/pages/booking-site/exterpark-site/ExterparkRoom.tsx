@@ -383,13 +383,16 @@ export default function ITicketPage() {
                 const ahead = Number(raw.ahead ?? 0);
                 const behind = Number(raw.behind ?? 0);
                 const total = Number(raw.total ?? 0);
-                // totalNum으로 대기순서 설정
-                setQueueRank(total);
+                // ahead + 1로 대기순서 설정
+                setQueueRank(ahead + 1);
                 // positionAhead 업데이트
                 setPositionAhead(ahead);
-                // totalNum + positionBehind로 현재 대기인원 설정
-                setTotalQueue(total + behind);
-                if (total > 0) {
+                // ahead + 1 + behind로 현재 대기인원 설정
+                setTotalQueue(ahead + 1 + behind);
+                // 이미 queue stage에 있다면 그대로 유지, loading stage에 있다면 queue로 전환
+                if (bookingStageRef.current === "queue") {
+                  // queue stage에 있으면 값만 업데이트하고 stage는 변경하지 않음
+                } else if (total > 0) {
                   setBookingStage("queue");
                 } else {
                   setBookingStage("loading");
@@ -820,7 +823,7 @@ export default function ITicketPage() {
         if (!targetId) return;
         const data: RoomDetailResponse = await getRoomDetail(Number(targetId));
         // 상세 응답 상태 저장
-      
+
         setRoomDetail(data);
         // Room store에 방 정보 저장 (방 입장 시 captcha는 false로 초기화)
         useRoomStore.getState().setRoomInfo({
@@ -1282,12 +1285,12 @@ export default function ITicketPage() {
           positionAhead: res.positionAhead,
           positionBehind: res.positionBehind,
         });
-        // 나의 대기순서: totalNum
-        setQueueRank(res.totalNum);
+        // 나의 대기순서: ahead + 1
+        setQueueRank(res.positionAhead + 1);
         // positionAhead 저장 (게이지바 계산용)
         setPositionAhead(res.positionAhead);
-        // 현재 대기인원: totalNum + positionBehind
-        setTotalQueue(res.totalNum + res.positionBehind);
+        // 현재 대기인원: ahead + 1 + behind
+        setTotalQueue(res.positionAhead + 1 + res.positionBehind);
         // queue stage로 전환
         setBookingStage("queue");
         console.log("[booking] 상태 설정 완료, queue stage로 전환");
@@ -1439,11 +1442,14 @@ export default function ITicketPage() {
           <TagsRow
             difficulty={roomDetail?.difficulty}
             botCount={
-              roomDetail?.botCount !== undefined && roomDetail?.botCount !== null
+              roomDetail?.botCount !== undefined &&
+              roomDetail?.botCount !== null
                 ? roomDetail.botCount
-                : roomData?.botCount !== undefined && roomData?.botCount !== null
+                : roomData?.botCount !== undefined &&
+                    roomData?.botCount !== null
                   ? roomData.botCount
-                  : roomRequest?.botCount !== undefined && roomRequest?.botCount !== null
+                  : roomRequest?.botCount !== undefined &&
+                      roomRequest?.botCount !== null
                     ? roomRequest.botCount
                     : undefined
             }
@@ -1511,10 +1517,14 @@ export default function ITicketPage() {
   );
 }
 
-function TopBanner({ onClose: _onClose }: { onClose: (hideFor3Days: boolean) => void }) {
+function TopBanner({
+  onClose: _onClose,
+}: {
+  onClose: (hideFor3Days: boolean) => void;
+}) {
   const message1 = "Get your ticket, Tickget!";
   const message2 = "본 경기는 티켓팅 연습용으로, 실제 티켓팅이 되지 않습니다.";
-  
+
   return (
     <div className="bg-gradient-to-r from-[#104BB7] to-[#072151] text-white overflow-hidden">
       <div className="relative py-3 md:py-4">

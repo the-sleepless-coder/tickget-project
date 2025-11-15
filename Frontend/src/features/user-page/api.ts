@@ -1,5 +1,5 @@
 import { useAuthStore } from "@features/auth/store";
-import type { MyPageStatsResponse } from "./types";
+import type { MyPageStatsResponse, MatchDataResponse } from "./types";
 
 /**
  * 마이페이지 통계 데이터 조회
@@ -38,6 +38,42 @@ export async function getMyPageStats(
     throw new Error(
       `마이페이지 통계 조회 실패: ${response.status} ${errorText}`
     );
+  }
+
+  return response.json();
+}
+
+/**
+ * 경기 기록 데이터 조회
+ * @param mode 필터 모드: "all" | "solo" | "multi"
+ * @returns 경기 기록 응답 데이터 배열
+ */
+export async function getMatchHistory(
+  mode: "all" | "solo" | "multi" = "all"
+): Promise<MatchDataResponse[]> {
+  const { accessToken } = useAuthStore.getState();
+
+  // 상대 경로 사용 (Vite 프록시를 통해 요청)
+  const apiUrl = "/api/v1/dev/stats/mypage/matchData";
+  const url = `${apiUrl}?mode=${mode}`;
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+  };
+
+  if (accessToken) {
+    headers.Authorization = `Bearer ${accessToken}`;
+  }
+
+  const response = await fetch(url, {
+    method: "GET",
+    headers,
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => "");
+    throw new Error(`경기 기록 조회 실패: ${response.status} ${errorText}`);
   }
 
   return response.json();

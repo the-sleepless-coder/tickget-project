@@ -18,6 +18,15 @@ export interface UserRank {
       duplicateSeat?: number;
     };
   };
+  differenceMetrics?: {
+    bookingClick?: { reactionMs?: number; misclicks?: number };
+    captcha?: { durationMs?: number; backspaceCount?: number };
+    seatSelection?: {
+      durationMs?: number;
+      misclicks?: number;
+      duplicateSeat?: number;
+    };
+  };
 }
 
 export interface MatchHistory {
@@ -32,6 +41,8 @@ export interface MatchHistory {
   mySeatArea?: string;
   mySeatSection?: string; // 내 좌석 구역
   users?: UserRank[];
+  userSuccess?: boolean; // 경기 결과
+  totalTime?: number; // 총 소요 시간 (초)
 }
 
 export const mockMatchHistory: MatchHistory[] = [
