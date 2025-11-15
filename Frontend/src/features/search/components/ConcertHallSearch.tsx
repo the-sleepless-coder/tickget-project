@@ -25,7 +25,7 @@ export const ConcertHallSearch = ({
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedKeyword(keyword);
-    }, 500);
+    }, 200);
 
     return () => clearTimeout(timer); // Cleanup: 이전 타이머 취소
   }, [keyword]);
