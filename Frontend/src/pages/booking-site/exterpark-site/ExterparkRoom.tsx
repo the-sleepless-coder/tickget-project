@@ -590,6 +590,10 @@ export default function ITicketPage() {
       );
       console.log("📋 요청 데이터:", JSON.stringify(roomRequest, null, 2));
       console.log("🆔 Room ID:", roomId || "없음");
+      console.log("🤖 botCount 값:", {
+        roomData: roomData.botCount,
+        roomRequest: roomRequest?.botCount,
+      });
     } else if (roomId) {
       console.log("🆔 Room ID (URL 파라미터):", roomId);
       console.log(
@@ -816,6 +820,7 @@ export default function ITicketPage() {
         if (!targetId) return;
         const data: RoomDetailResponse = await getRoomDetail(Number(targetId));
         // 상세 응답 상태 저장
+      
         setRoomDetail(data);
         // Room store에 방 정보 저장 (방 입장 시 captcha는 false로 초기화)
         useRoomStore.getState().setRoomInfo({
@@ -1433,7 +1438,15 @@ export default function ITicketPage() {
         <div className="productWrapper max-w-[1280px] w-full mx-auto px-4 md:px-6">
           <TagsRow
             difficulty={roomDetail?.difficulty}
-            botCount={roomDetail?.botCount}
+            botCount={
+              roomDetail?.botCount !== undefined && roomDetail?.botCount !== null
+                ? roomDetail.botCount
+                : roomData?.botCount !== undefined && roomData?.botCount !== null
+                  ? roomData.botCount
+                  : roomRequest?.botCount !== undefined && roomRequest?.botCount !== null
+                    ? roomRequest.botCount
+                    : undefined
+            }
             totalSeat={
               roomDetail?.totalSeat ||
               roomData?.totalSeat ||
@@ -1590,7 +1603,10 @@ function TagsRow({
   const maxLabel = totalSeat
     ? `총 좌석수 ${totalSeat.toLocaleString()}명`
     : `총 좌석수 1,000명`;
-  const botLabel = botCount ? `봇 ${botCount.toLocaleString()}명` : "봇 3000명";
+  const botLabel =
+    botCount !== undefined && botCount !== null
+      ? `봇 ${botCount.toLocaleString()}명`
+      : "봇 3000명";
 
   return (
     <div className="flex items-center gap-3 py-4">
