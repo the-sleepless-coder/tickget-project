@@ -140,8 +140,9 @@ export default function MyPageIndex() {
       setEmail(storeEmail);
     }
     if (storeProfileImageUrl) {
+      // store의 profileImageUrl이 변경되면 캐시 무효화를 위해 cacheBust 적용
       setProfileImage(
-        normalizeProfileImageUrl(storeProfileImageUrl, storeUserId) || undefined
+        normalizeProfileImageUrl(storeProfileImageUrl, storeUserId, true) || undefined
       );
     }
   }, [storeNickname, storeEmail, storeProfileImageUrl, storeUserId]);
@@ -321,6 +322,24 @@ export default function MyPageIndex() {
 
               const imageData = await imageResponse.json().catch(() => ({}));
               newProfileImageUrl = imageData.profileImageUrl || null;
+              
+              // 프로필 이미지 업로드 성공 시 즉시 store 업데이트 및 헤더 캐시 무효화 트리거
+              if (newProfileImageUrl !== null) {
+                const { setAuth: setAuthImmediate, triggerProfileImageRefresh } = useAuthStore.getState();
+                const currentAuthImmediate = useAuthStore.getState();
+                setAuthImmediate({
+                  accessToken: currentAuthImmediate.accessToken || "",
+                  refreshToken: currentAuthImmediate.refreshToken,
+                  userId: currentAuthImmediate.userId || 0,
+                  email: currentAuthImmediate.email || "",
+                  nickname: currentAuthImmediate.nickname || "",
+                  name: currentAuthImmediate.name || "",
+                  profileImageUrl: newProfileImageUrl,
+                  message: "프로필 이미지 업로드 완료",
+                });
+                // 헤더의 프로필 이미지 캐시 무효화 트리거
+                triggerProfileImageRefresh();
+              }
             }
 
             // 닉네임/생년월일 수정
