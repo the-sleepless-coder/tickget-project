@@ -192,7 +192,7 @@ public class SeatReservationService {
                     redisTemplate.opsForHash().put(userRankHashKey, String.valueOf(userId), String.valueOf(userRank));
                     redisTemplate.expire(userRankHashKey, ttl);
 
-                    log.info("Hold 시점 유저 등수 계산 (Hash 저장): userId={}, userRank={}", userId, rank);
+                    log.info("Hold 시점 유저 등수 계산 (Hash 저장): matchId={}, userId={}, userRank={}", matchId, userId, rank);
                 }
             } catch (Exception e) {
                 log.error("Hold 시점 등수 계산 중 오류: matchId={}, userId={}", matchId, userId, e);

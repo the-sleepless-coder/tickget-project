@@ -148,7 +148,7 @@ public class SeatConfirmationService {
             String confirmedCountKey = "match:" + matchId + ":confirmed_count";
             Long confirmedCount = redisTemplate.opsForValue().increment(confirmedCountKey, seatIds.size());
 
-            // 7. reserved_count 조회
+            // 7. reserved_count 조회 (좌석 수만큼)
             String reservedCountKey = "match:" + matchId + ":reserved_count";
             String reservedCountStr = redisTemplate.opsForValue().get(reservedCountKey);
 
