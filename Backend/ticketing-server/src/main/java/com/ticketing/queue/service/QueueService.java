@@ -155,7 +155,7 @@ public class QueueService {
             match.setMatchName(dto.getMatchName());
             match.setMaxUser(dto.getMaxUserCount());
             match.setUsedBotCount(dto.getBotCount());
-            match.setTotalSeats(dto.getTotalSeats());
+            //match.setTotalSeats(dto.getTotalSeats());
             match.setDifficulty(dto.getDifficulty());
             match.setStartedAt(dto.getStartedAt());
             match.setCreatedAt(LocalDateTime.now());
