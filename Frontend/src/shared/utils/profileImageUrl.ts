@@ -18,13 +18,6 @@ export function normalizeProfileImageUrl(
     if (cacheBust) {
       generatedUrl += `?t=${Date.now()}`;
     }
-    if (import.meta.env.DEV) {
-      console.log("🔍 [프로필 이미지 URL 생성]:", {
-        userId,
-        generatedUrl,
-        cacheBust,
-      });
-    }
     return generatedUrl;
   }
 
@@ -35,11 +28,6 @@ export function normalizeProfileImageUrl(
 
   // data URL인 경우 (data:image/..., data:text/... 등) 그대로 반환
   if (/^data:/i.test(url)) {
-    if (import.meta.env.DEV) {
-      console.log("🔍 [프로필 이미지 URL 정규화]: data URL 감지, 그대로 반환", {
-        original: url.substring(0, 50) + "...",
-      });
-    }
     return url;
   }
 
@@ -52,14 +40,6 @@ export function normalizeProfileImageUrl(
       processedUrl = urlObj.toString();
     }
     // 이미 완전한 URL이면 그대로 반환 (tickget-dev 포함)
-    if (import.meta.env.DEV) {
-      console.log("🔍 [프로필 이미지 URL 정규화]:", {
-        original: url,
-        normalized: processedUrl,
-        cacheBust,
-      });
-    }
-
     return processedUrl;
   }
 
@@ -75,15 +55,6 @@ export function normalizeProfileImageUrl(
   // 캐시 무효화를 위해 타임스탬프 추가
   if (cacheBust) {
     normalized += `?t=${Date.now()}`;
-  }
-
-  // 디버깅: 개발 환경에서 URL 확인
-  if (import.meta.env.DEV) {
-    console.log("🔍 [프로필 이미지 URL 정규화]:", {
-      original: url,
-      normalized: normalized,
-      cacheBust,
-    });
   }
 
   return normalized;
