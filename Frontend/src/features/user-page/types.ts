@@ -41,3 +41,50 @@ export interface MyPageStatsResponse {
   clickStats: ClickStats;
   specificsList: SpecificsListItem[];
 }
+
+// 경기 기록 API 응답 타입
+export interface MatchInfo {
+  matchId: number;
+  matchName: string;
+  roomType: "SOLO" | "MULTI";
+  userTotCount: number | null;
+  hallName: string;
+  isAIGenerated: boolean;
+  difficulty: "EASY" | "MEDIUM" | "HARD";
+  totalSeat: number;
+  botCount: number;
+  startedAt: string; // ISO 8601 형식
+  userSuccess: boolean;
+}
+
+export interface MatchSpecifics {
+  userId: number;
+  userName: string;
+  hallId: number;
+  roomType: "SOLO" | "MULTI";
+  selectedSection: string;
+  selectedSeat: string;
+  matchId: number;
+  queueMissCount: number;
+  queueSelectTime: number;
+  captchaBackspaceCount: number;
+  captchaSelectTime: number;
+  captchaTrialCount: number;
+  seatSelectClickMissCount: number;
+  seatSelectTime: number;
+  seatSelectTrialCount: number;
+  totalRank: number;
+  totalTime: number;
+  queueTimeDifference: number;
+  queueMissCountDifference: number;
+  captchaBackSpaceCountDifference: number;
+  captchaTimeDifference: number;
+  seatClickMissDifference: number;
+  seatSelectTimeDifference: number;
+  seatTrialCountDifference: number;
+}
+
+export interface MatchDataResponse {
+  matchInfo: MatchInfo;
+  specifics: MatchSpecifics[];
+}

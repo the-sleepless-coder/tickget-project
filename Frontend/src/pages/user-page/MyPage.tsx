@@ -6,10 +6,13 @@ import TabNavigation from "../../shared/ui/common/TabNavigation";
 import MatchHistoryCard from "./_components/MatchHistoryCard";
 import PersonalStats from "./_components/PersonalStats";
 import UserStats from "./_components/UserStats";
-import { mockMatchHistory, type UserRank, type MatchHistory } from "./mockData";
+import { type UserRank, type MatchHistory } from "./mockData";
 import { useAuthStore } from "@features/auth/store";
 import { compressImage } from "@shared/utils/imageCompression";
 import { normalizeProfileImageUrl } from "@shared/utils/profileImageUrl";
+import { getMatchHistory } from "@features/user-page/api";
+import type { MatchDataResponse } from "@features/user-page/types";
+import dayjs from "dayjs";
 
 export default function MyPageIndex() {
   const [activePrimaryTab, setActivePrimaryTab] = useState("stats");
@@ -60,43 +63,215 @@ export default function MyPageIndex() {
     return value;
   };
 
+  // hallName을 한글로 변환하는 함수
+  const convertHallNameToKorean = (hallName: string): string => {
+    const hallNameMap: Record<string, string> = {
+      InspireArena: "인스파이어 아레나",
+      CharlotteTheater: "샤롯데씨어터",
+      OlympicHall: "올림픽공원 올림픽홀",
+    };
+    return hallNameMap[hallName] || hallName;
+  };
+
+  // difficulty를 한글로 변환하는 함수
+  const convertDifficultyToKorean = (difficulty: string): string => {
+    const difficultyMap: Record<string, string> = {
+      EASY: "쉬움",
+      MEDIUM: "보통",
+      HARD: "어려움",
+    };
+    return difficultyMap[difficulty] || difficulty;
+  };
+
+  // selectedSeat을 파싱하여 section, row, col 추출
+  const parseSeat = (
+    selectedSeat: string
+  ): {
+    section: string;
+    row: number;
+    col: number;
+  } | null => {
+    // 형식: "1-19-44" -> section: "1", row: 19, col: 44
+    const parts = selectedSeat.split("-");
+    if (parts.length >= 3) {
+      return {
+        section: parts[0],
+        row: parseInt(parts[1], 10),
+        col: parseInt(parts[2], 10),
+      };
+    }
+    return null;
+  };
+
+  // API 응답을 MatchHistory 형식으로 변환
+  const convertMatchDataToMatchHistory = (
+    matchData: MatchDataResponse,
+    currentUserId: number
+  ): MatchHistory | null => {
+    const { matchInfo, specifics } = matchData;
+
+    // 내 정보 찾기
+    const mySpecifics = specifics.find((s) => s.userId === currentUserId);
+    if (!mySpecifics) return null; // 내가 참가하지 않은 경기는 제외
+
+    // 날짜와 시간 파싱
+    const startedAt = dayjs(matchInfo.startedAt);
+    const date = startedAt.format("YYYY-MM-DD");
+    const time = startedAt.format("HH:mm");
+
+    // 좌석 정보 파싱
+    const seatInfo = parseSeat(mySpecifics.selectedSeat);
+    const mySeatArea = seatInfo
+      ? `${seatInfo.row}-${seatInfo.col}`
+      : mySpecifics.selectedSeat;
+    const mySeatSection = seatInfo
+      ? seatInfo.section
+      : mySpecifics.selectedSection;
+
+    // 공연장 이름과 AI 생성 여부
+    const hallNameKorean = convertHallNameToKorean(matchInfo.hallName);
+    const venueType = matchInfo.isAIGenerated ? "AI 생성" : "프리셋";
+
+    // 태그 생성
+    const tags = [
+      {
+        label: convertDifficultyToKorean(matchInfo.difficulty),
+        color: matchInfo.difficulty === "HARD" ? "red" : "blue",
+      },
+      {
+        label: `총 좌석수 ${matchInfo.totalSeat.toLocaleString()}명`,
+        color: "blue",
+      },
+      {
+        label: `봇 ${matchInfo.botCount}명`,
+        color: "blue",
+      },
+    ];
+
+    // 사용자 정보 변환
+    const users: UserRank[] = specifics.map((spec) => {
+      const seatInfo = parseSeat(spec.selectedSeat);
+      const isMe = spec.userId === currentUserId;
+
+      return {
+        id: isMe ? 0 : spec.userId,
+        nickname: spec.userName,
+        rank: spec.totalRank,
+        seatArea: seatInfo
+          ? `${seatInfo.row}-${seatInfo.col}`
+          : spec.selectedSeat,
+        seatSection: seatInfo ? seatInfo.section : spec.selectedSection,
+        seatRow: seatInfo?.row,
+        seatCol: seatInfo?.col,
+        time: spec.totalTime.toFixed(2),
+        metrics: {
+          bookingClick: {
+            reactionMs: Math.round(spec.queueSelectTime * 1000),
+            misclicks: spec.queueMissCount,
+          },
+          captcha: {
+            durationMs: Math.round(spec.captchaSelectTime * 1000),
+            wrongCount: spec.captchaTrialCount,
+            backspaceCount: spec.captchaBackspaceCount,
+          },
+          seatSelection: {
+            durationMs: Math.round(spec.seatSelectTime * 1000),
+            misclicks: spec.seatSelectClickMissCount,
+            duplicateSeat: spec.seatSelectTrialCount,
+          },
+        },
+        // 차이 값은 다른 사용자일 때만 추가
+        ...(isMe
+          ? {}
+          : {
+              differenceMetrics: {
+                bookingClick: {
+                  reactionMs: Math.round(spec.queueTimeDifference * 1000),
+                  misclicks: spec.queueMissCountDifference,
+                },
+                captcha: {
+                  durationMs: Math.round(spec.captchaTimeDifference * 1000),
+                  backspaceCount: spec.captchaBackSpaceCountDifference,
+                },
+                seatSelection: {
+                  durationMs: Math.round(spec.seatSelectTimeDifference * 1000),
+                  misclicks: spec.seatClickMissDifference,
+                  duplicateSeat: spec.seatTrialCountDifference,
+                },
+              },
+            }),
+      };
+    });
+
+    return {
+      id: matchInfo.matchId,
+      title: matchInfo.matchName,
+      participants: `참가인원 ${specifics.length}명`,
+      venue: hallNameKorean,
+      venueType,
+      tags,
+      date,
+      time,
+      mySeatArea,
+      mySeatSection,
+      users,
+      userSuccess: matchInfo.userSuccess,
+      totalTime: mySpecifics.totalTime,
+    };
+  };
+
   // 경기 기록 필터링 및 페이지네이션
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
+  const [matchHistoryData, setMatchHistoryData] = useState<MatchHistory[]>([]);
+  const [isLoadingMatchHistory, setIsLoadingMatchHistory] = useState(false);
 
-  // 필터링된 경기 기록
-  const filteredMatchHistory = useMemo(() => {
-    let filtered = mockMatchHistory.filter((match) => {
-      // 내가 참가한 경기만 필터링 (users 배열에 id: 0인 사용자가 있는 경우)
-      const hasMyParticipation = match.users?.some((user) => user.id === 0);
-      if (!hasMyParticipation) return false;
-
-      // Secondary 탭에 따른 필터링
-      if (activeSecondaryTab === "solo") {
-        const participantsMatch =
-          match.participants.match(/참가인원\s+(\d+)명/);
-        const humanCount = participantsMatch
-          ? parseInt(participantsMatch[1], 10)
-          : 0;
-        return humanCount === 1;
-      } else if (activeSecondaryTab === "match") {
-        const participantsMatch =
-          match.participants.match(/참가인원\s+(\d+)명/);
-        const humanCount = participantsMatch
-          ? parseInt(participantsMatch[1], 10)
-          : 0;
-        return humanCount > 1;
+  // API에서 경기 기록 가져오기
+  useEffect(() => {
+    let cancelled = false;
+    setIsLoadingMatchHistory(true);
+    (async () => {
+      try {
+        const mode =
+          activeSecondaryTab === "solo"
+            ? "solo"
+            : activeSecondaryTab === "match"
+              ? "multi"
+              : "all";
+        const data = await getMatchHistory(mode);
+        if (!cancelled && storeUserId) {
+          const converted = data
+            .map((matchData) =>
+              convertMatchDataToMatchHistory(matchData, storeUserId)
+            )
+            .filter((match): match is MatchHistory => match !== null)
+            .sort((a, b) => {
+              // 날짜순으로 정렬 (최신순)
+              const dateA = new Date(a.date).getTime();
+              const dateB = new Date(b.date).getTime();
+              return dateB - dateA;
+            });
+          setMatchHistoryData(converted);
+        }
+      } catch (error) {
+        console.error("경기 기록 불러오기 실패:", error);
+        if (!cancelled) {
+          setMatchHistoryData([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingMatchHistory(false);
+        }
       }
-      return true; // "all"인 경우
-    });
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSecondaryTab, storeUserId]);
 
-    // 날짜순으로 정렬 (최신순)
-    return filtered.sort((a, b) => {
-      const dateA = new Date(a.date).getTime();
-      const dateB = new Date(b.date).getTime();
-      return dateB - dateA;
-    });
-  }, [activeSecondaryTab]);
+  // 필터링된 경기 기록 (이미 API에서 필터링됨)
+  const filteredMatchHistory = matchHistoryData;
 
   // 페이지네이션 계산
   const totalPages = Math.ceil(filteredMatchHistory.length / itemsPerPage);
@@ -219,6 +394,7 @@ export default function MyPageIndex() {
     };
 
     fetchProfile();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accessToken, storeProfileImageUrl]);
 
   return (
@@ -630,46 +806,56 @@ export default function MyPageIndex() {
                 <UserStats
                   userId={selectedUser.id}
                   userNickname={selectedUser.nickname}
-                  matchHistory={mockMatchHistory}
+                  matchHistory={matchHistoryData}
                 />
               </>
             ) : activePrimaryTab === "match-history" ? (
               <>
-                {visibleItems.map((match: MatchHistory, index: number) => (
-                  <div
-                    key={match.id}
-                    ref={(el) => {
-                      cardRefs.current[index] = el;
-                    }}
-                  >
-                    <MatchHistoryCard
-                      title={match.title}
-                      participants={match.participants}
-                      venue={match.venue}
-                      venueType={match.venueType}
-                      tags={match.tags}
-                      date={match.date}
-                      time={match.time}
-                      mySeatArea={match.mySeatArea}
-                      mySeatSection={match.mySeatSection}
-                      users={match.users}
-                      isExpanded={expandedCardIndex === index}
-                      onExpand={() =>
-                        setExpandedCardIndex(
-                          expandedCardIndex === index ? null : index
-                        )
-                      }
-                      onUserClick={(user) => setSelectedUser(user)}
-                    />
-                  </div>
-                ))}
-
-                {visibleItems.length === 0 && (
+                {isLoadingMatchHistory ? (
                   <div className="flex items-center justify-center rounded-lg border border-neutral-200 bg-white p-8">
-                    <div className="text-neutral-400">
-                      표시할 항목이 없습니다.
-                    </div>
+                    <div className="text-neutral-400">로딩 중...</div>
                   </div>
+                ) : (
+                  <>
+                    {visibleItems.map((match: MatchHistory, index: number) => (
+                      <div
+                        key={match.id}
+                        ref={(el) => {
+                          cardRefs.current[index] = el;
+                        }}
+                      >
+                        <MatchHistoryCard
+                          title={match.title}
+                          participants={match.participants}
+                          venue={match.venue}
+                          venueType={match.venueType}
+                          tags={match.tags}
+                          date={match.date}
+                          time={match.time}
+                          mySeatArea={match.mySeatArea}
+                          mySeatSection={match.mySeatSection}
+                          users={match.users}
+                          userSuccess={match.userSuccess}
+                          totalTime={match.totalTime}
+                          isExpanded={expandedCardIndex === index}
+                          onExpand={() =>
+                            setExpandedCardIndex(
+                              expandedCardIndex === index ? null : index
+                            )
+                          }
+                          onUserClick={(user) => setSelectedUser(user)}
+                        />
+                      </div>
+                    ))}
+
+                    {visibleItems.length === 0 && (
+                      <div className="flex items-center justify-center rounded-lg border border-neutral-200 bg-white p-8">
+                        <div className="text-neutral-400">
+                          표시할 항목이 없습니다.
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
 
                 {totalPages > 1 && (
@@ -731,7 +917,7 @@ export default function MyPageIndex() {
                 <UserStats
                   userId={selectedUser.id}
                   userNickname={selectedUser.nickname}
-                  matchHistory={mockMatchHistory}
+                  matchHistory={matchHistoryData}
                 />
               </>
             ) : (
