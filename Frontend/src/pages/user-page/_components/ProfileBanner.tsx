@@ -56,7 +56,7 @@ export default function ProfileBanner({
     <div
       className="relative z-0 h-96 w-full overflow-hidden"
       style={{
-        backgroundImage: `url('/mypage_banner.png')`,
+        backgroundImage: `url('/mypage_banner.webp')`,
         backgroundSize: "cover",
         backgroundPosition: "center",
       }}
@@ -70,46 +70,45 @@ export default function ProfileBanner({
         <div className="flex flex-col items-center gap-3">
           <div className="flex h-32 w-32 items-center justify-center rounded-full bg-white">
             {isEditing ? (
-              tempProfileImage || profileImage ? (
-                <img
-                  src={
-                    tempProfileImage ||
-                    normalizeProfileImageUrl(profileImage, userId) ||
-                    undefined
-                  }
-                  alt="Profile"
-                  className="h-full w-full rounded-full object-cover"
-                />
-              ) : (
-                <svg
-                  className="h-20 w-20 text-purple-500"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
-                </svg>
-              )
+              (() => {
+                const imageUrl =
+                  tempProfileImage ||
+                  normalizeProfileImageUrl(profileImage, userId) ||
+                  "/profile.png";
+                return (
+                  <img
+                    src={imageUrl}
+                    alt="Profile"
+                    className="h-full w-full rounded-full object-cover"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      if (target.src !== "/profile.png") {
+                        target.src = "/profile.png";
+                      }
+                    }}
+                  />
+                );
+              })()
             ) : (
               (() => {
                 // profileImage가 없으면 userId로 S3 경로 생성
                 const imageUrl = profileImage
                   ? normalizeProfileImageUrl(profileImage, userId)
                   : normalizeProfileImageUrl(null, userId);
-                return imageUrl ? (
+                const finalImageUrl = imageUrl || "/profile.png";
+                return (
                   <img
-                    key={imageUrl}
-                    src={imageUrl}
+                    key={finalImageUrl}
+                    src={finalImageUrl}
                     alt="Profile"
                     className="h-full w-full rounded-full object-cover"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      if (target.src !== "/profile.png") {
+                        target.src = "/profile.png";
+                      }
+                    }}
                   />
-                ) : (
-                  <svg
-                    className="h-20 w-20 text-purple-500"
-                    fill="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
-                  </svg>
                 );
               })()
             )}
