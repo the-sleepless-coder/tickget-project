@@ -148,6 +148,7 @@ export default function ITicketPage() {
   );
   const [queueRank, setQueueRank] = useState<number>(0);
   const [totalQueue, setTotalQueue] = useState<number>(0);
+  const [positionAhead, setPositionAhead] = useState<number>(0);
   const [hasEnqueued, setHasEnqueued] = useState<boolean>(false);
   const [hasDequeuedInPage, setHasDequeuedInPage] = useState<boolean>(false);
   const subscriptionRef = useRef<Subscription | null>(null);
@@ -379,9 +380,14 @@ export default function ITicketPage() {
 
               // 현재 페이지에서 경기 진행 중인 경우 대기열 상태 업데이트
               if (bookingStageRef.current !== null) {
-                const total = Number(raw.total ?? 0);
+                const ahead = Number(raw.ahead ?? 0);
                 const behind = Number(raw.behind ?? 0);
+                const total = Number(raw.total ?? 0);
+                // totalNum으로 대기순서 설정
                 setQueueRank(total);
+                // positionAhead 업데이트
+                setPositionAhead(ahead);
+                // totalNum + positionBehind로 현재 대기인원 설정
                 setTotalQueue(total + behind);
                 if (total > 0) {
                   setBookingStage("queue");
@@ -1257,11 +1263,23 @@ export default function ITicketPage() {
         clickMiss,
         duration,
       });
-      await enqueueTicketingQueue(matchId, {
+      const res = await enqueueTicketingQueue(matchId, {
         clickMiss,
         duration,
       });
-      console.log("[booking] 대기열 진입 성공");
+      console.log("[booking] 대기열 진입 성공, API 응답:", res);
+
+      // API 응답으로 초기 상태 설정
+      if (res) {
+        // 나의 대기순서: totalNum
+        setQueueRank(res.totalNum);
+        // positionAhead 저장 (게이지바 계산용)
+        setPositionAhead(res.positionAhead);
+        // 현재 대기인원: totalNum + positionBehind
+        setTotalQueue(res.totalNum + res.positionBehind);
+        // queue stage로 전환
+        setBookingStage("queue");
+      }
     } catch (error) {
       console.error("[booking] 대기열 진입 실패:", error);
       setBookingStage(null);
@@ -1302,11 +1320,23 @@ export default function ITicketPage() {
   }
 
   if (bookingStage === "queue") {
+    // positionAhead 기반 게이지바 계산: 0에 가까울수록 오른쪽으로 진행
+    // positionAhead가 0이면 100%, positionAhead가 totalQueue와 같으면 0%
+    const widthPercent =
+      totalQueue > 0
+        ? Math.max(
+            0,
+            Math.min(100, ((totalQueue - positionAhead) / totalQueue) * 100)
+          )
+        : 100;
+    // percent는 임박 여부 판단용 (positionAhead가 작을수록 임박)
     const percent =
       totalQueue > 0
-        ? Math.max(0, Math.min(100, Math.round((queueRank / totalQueue) * 100)))
-        : 100;
-    const widthPercent = Math.max(0, Math.min(100, 100 - percent));
+        ? Math.max(
+            0,
+            Math.min(100, Math.round((positionAhead / totalQueue) * 100))
+          )
+        : 0;
     const isImminent = percent <= 20;
 
     return (

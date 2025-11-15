@@ -270,7 +270,13 @@ export default function BookingWaitingPage() {
   }, [roomId, wsClient]);
 
   // 대기열 진입 시 큐 등록 API 호출 (matchId가 있을 때만)
+  // stage가 "loading"일 때만 API 호출 (초기 로드 시 한 번만)
   useEffect(() => {
+    // stage가 "loading"이 아니면 실행하지 않음
+    if (stage !== "loading") {
+      return;
+    }
+
     // matchId 결정: store 우선, 없으면 URL 파라미터에서 가져오기
     const matchId =
       matchIdFromStore != null
