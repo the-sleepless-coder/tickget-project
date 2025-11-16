@@ -514,15 +514,7 @@ export default function MatchDetailContent({
 
   // 좌석 배치도 렌더링
   const renderSeatMap = () => {
-    // 디버깅: 현재 상태 확인
-    console.log("[MatchDetailContent] 좌석 배치도 렌더링 조건:", {
-      isAIGenerated,
-      tsxUrl,
-      hallId,
-      hasValidTsxUrl: tsxUrl && tsxUrl !== "default" && tsxUrl !== null && tsxUrl.trim() !== "",
-      tsxUrlType: typeof tsxUrl,
-      tsxUrlLength: tsxUrl?.length,
-    });
+   
 
     // AI 생성인 경우 - 우선순위 1
     // tsxUrl이 있고 "default"가 아니고 빈 문자열이 아닌 경우 렌더링
@@ -541,12 +533,7 @@ export default function MatchDetailContent({
     );
     
     if (shouldRenderAI) {
-      console.log("[MatchDetailContent] AI 생성 좌석 배치도 렌더링:", { 
-        tsxUrl, 
-        isAIGenerated,
-        isValidTsxUrl,
-        shouldRenderAI,
-      });
+  
       // AI 생성 좌석 배치도에 선택된 좌석 정보 전달
       // selectedSeatIds는 section-row-col 형식
       // 호버 시: 해당 유저의 좌석만 색상 유지, 나머지 회색 처리
@@ -584,21 +571,7 @@ export default function MatchDetailContent({
         ? [mySeatId, ...selectedSeatIds.filter(id => id !== mySeatId)]
         : selectedSeatIds;
       
-      // 디버깅: 좌석 ID 확인
-      console.log("[MatchDetailContent] 좌석 ID 변환 결과:", {
-        hallId,
-        users: users.map(u => ({
-          id: u.id,
-          name: u.nickname,
-          seatSection: u.seatSection,
-          seatRow: u.seatRow,
-          seatCol: u.seatCol,
-        })),
-        selectedSeatIds,
-        mySeatId,
-        allSeatIds,
-      });
-      
+  
       // hallId 2: 샤롯데씨어터 (SmallVenue)
       // 호버 시: 해당 유저의 좌석만 색상 유지, 나머지 회색 처리
       // 호버 없을 때: 모든 좌석 원래 색상으로 표시

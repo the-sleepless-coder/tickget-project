@@ -188,7 +188,7 @@ export default function RoomCard({
                     });
                   }
                 } catch (e) {
-                  console.log("Pixel read error:", e);
+                 
                 }
               }
             }
@@ -312,18 +312,12 @@ export default function RoomCard({
 
     setIsJoining(true);
     try {
-      console.log("🚪 방 입장 요청 시작:", {
-        roomId,
-        userId,
-        userName: nickname,
-      });
-
+     
       const response = await joinRoom(roomId, {
         userId,
         userName: nickname,
       });
 
-      console.log("✅ 방 입장 성공:", JSON.stringify(response, null, 2));
       console.log("📋 방 멤버 목록:", response.roomMembers);
       // Match Store에 matchId 저장 (다른 경기 API에서 재사용)
       // 주의: matchId는 티켓팅 시스템에서 생성되는 별도의 ID입니다.

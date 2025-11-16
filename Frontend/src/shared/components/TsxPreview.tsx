@@ -81,10 +81,7 @@ export default function TsxPreview({
       return;
     }
 
-    console.log("[TsxPreview] 좌석 색상 처리 시작:", { 
-      selectedSeatIds, 
-      readOnly,
-    });
+
 
     let isProcessing = false;
     let processedElements = new WeakSet();
@@ -117,10 +114,7 @@ export default function TsxPreview({
         }
       });
       
-      console.log("[TsxPreview] 섹션 매칭 정보:", {
-        selectedSeatIds,
-        selectedSections: Array.from(selectedSections),
-      });
+   
       
       let processedCount = 0;
       let selectedCount = 0;
@@ -219,27 +213,7 @@ export default function TsxPreview({
           (normalizedSeatSection !== null && selectedSections.has(normalizedSeatSection));
         const isSelected = exactMatch || sectionMatch;
         
-        // 디버깅: 첫 번째 요소의 속성 정보 출력 (polygon인 경우만)
-        if (processedCount === 0 && selectedCount === 0 && el.tagName === "polygon") {
-          console.log("[TsxPreview] 첫 번째 polygon 요소 속성:", {
-            tagName: el.tagName,
-            seatId,
-            dataSection,
-            sectionAttr,
-            title,
-            className,
-            finalSeatId,
-            seatSection,
-            normalizedSeatSection,
-            extractedSeatId,
-            sectionFromClass,
-            allAttributes: el instanceof Element ? Array.from(el.attributes).map(attr => ({ name: attr.name, value: attr.value })) : [],
-            selectedSections: Array.from(selectedSections),
-            sectionMatch,
-            exactMatch,
-            isSelected,
-          });
-        }
+
         
         // 섹션별 요소 추적 (섹션이 있는 경우 - 원본과 정규화된 버전 모두)
         if (seatSection) {
@@ -363,13 +337,7 @@ export default function TsxPreview({
         }
       });
 
-      console.log("[TsxPreview] 좌석 색상 처리 완료:", { 
-        processedCount, 
-        selectedCount,
-        totalElements: allElements.length,
-        selectedSections: Array.from(selectedSections),
-        sectionElementsCount: Array.from(sectionElements.entries()).map(([k, v]) => [k, v.size]),
-      });
+ 
       
       isProcessing = false;
     };
@@ -393,7 +361,7 @@ export default function TsxPreview({
 
         // URL 인코딩 (공백 등) 처리
         const encoded = src.includes(" ") ? encodeURI(src) : src;
-        console.log("[TsxPreview] Fetch TSX", { src, encoded });
+       
 
         const res = await fetch(encoded, {
           credentials: "omit",
@@ -408,7 +376,7 @@ export default function TsxPreview({
         }
 
         const tsxCode = await res.text();
-        console.log("[TsxPreview] TSX length", tsxCode.length);
+       
 
         if (cancelled) return;
 
@@ -426,11 +394,7 @@ export default function TsxPreview({
             sourceType: "module",
           }).code || "";
 
-        console.log("[TsxPreview] Transformed length", transformed.length);
-        console.log(
-          "[TsxPreview] Transformed code preview:",
-          transformed.slice(0, 500)
-        );
+      
 
         // export default를 변수로 변환
         let processedCode = transformed;
@@ -460,11 +424,7 @@ export default function TsxPreview({
         let DynamicComponent: React.ComponentType | null = null;
 
         try {
-          console.log("[TsxPreview] 컴포넌트 이름:", componentName);
-          console.log(
-            "[TsxPreview] Processed code preview:",
-            processedCode.slice(0, 500)
-          );
+       
 
           // 모듈 래퍼 함수 생성
           const moduleCode = `
@@ -565,7 +525,7 @@ export default function TsxPreview({
 
         if (cancelled) return;
 
-        console.log("[TsxPreview] Component created successfully");
+       
         setComponent(() => DynamicComponent);
         setLoading(false);
       } catch (e) {

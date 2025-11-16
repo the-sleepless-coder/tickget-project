@@ -45,15 +45,11 @@ export const useRoomStore = create<RoomState>()(
             ...info,
           },
         }));
-        if (import.meta.env.DEV) {
-          console.log("[RoomStore] 방 정보 업데이트:", info);
-        }
+       
       },
       clearRoomInfo: () => {
         set({ roomInfo: initialRoomInfo });
-        if (import.meta.env.DEV) {
-          console.log("[RoomStore] 방 정보 초기화");
-        }
+       
       },
       setCaptchaPassed: (passed) => {
         set((state) => ({
@@ -62,9 +58,7 @@ export const useRoomStore = create<RoomState>()(
             captchaPassed: passed,
           },
         }));
-        if (import.meta.env.DEV) {
-          console.log("[RoomStore] 캡챠 통과 상태 업데이트:", passed);
-        }
+       
       },
     }),
     {

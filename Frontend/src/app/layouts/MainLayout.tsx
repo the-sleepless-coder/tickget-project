@@ -31,9 +31,7 @@ export default function MainLayout() {
 
       // 이미 구독되어 있으면 스킵
       if (userSubscriptionRef.current) {
-        if (import.meta.env.DEV) {
-          console.log("ℹ️ [개인 메시지] 이미 구독되어 있음");
-        }
+       
         return;
       }
 
@@ -133,9 +131,7 @@ export default function MainLayout() {
             useAuthStore.getState().clearAuth();
             navigate("/", { replace: true });
           } else {
-            if (import.meta.env.DEV) {
-              console.log("ℹ️ 이미 로그아웃 상태 - 자동 로그아웃 스킵");
-            }
+          
           }
         },
         onError: (err) => {

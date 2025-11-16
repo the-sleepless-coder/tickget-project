@@ -348,17 +348,10 @@ export default function SocialLogin() {
     setIsLoading("test");
     try {
       const data = await testAccountLogin();
-      console.log("API 응답 데이터:", data);
+      
       setAuth(data);
       const storeState = useAuthStore.getState();
-      console.log("저장된 Store 상태:", {
-        accessToken: storeState.accessToken
-          ? `${storeState.accessToken.substring(0, 20)}...`
-          : null,
-        nickname: storeState.nickname,
-        email: storeState.email,
-        userId: storeState.userId,
-      });
+      
       openSnackbar("테스트 계정이 생성되었습니다!", "success");
       const from =
         (location.state as { from?: { pathname?: string } })?.from?.pathname ||
@@ -387,7 +380,7 @@ export default function SocialLogin() {
     setAdminModalOpen(false);
     try {
       const data = await adminAccountLoginByName(name);
-      console.log(`${name} 관리자 계정 API 응답 데이터:`, data);
+      
       setAuth(data);
 
       // 프로필 이미지 조회 및 auth store 업데이트
@@ -421,19 +414,12 @@ export default function SocialLogin() {
           nickname: current.nickname || data.nickname,
           name: current.name || data.name,
           profileImageUrl: profileImageUrl,
+          message: data.message || "프로필 이미지 업데이트",
         });
       }
 
       const storeState = useAuthStore.getState();
-      console.log("저장된 Store 상태:", {
-        accessToken: storeState.accessToken
-          ? `${storeState.accessToken.substring(0, 20)}...`
-          : null,
-        nickname: storeState.nickname,
-        email: storeState.email,
-        userId: storeState.userId,
-        profileImageUrl: storeState.profileImageUrl,
-      });
+      
       openSnackbar(`${name} 관리자 계정으로 로그인되었습니다!`, "success");
       const from =
         (location.state as { from?: { pathname?: string } })?.from?.pathname ||

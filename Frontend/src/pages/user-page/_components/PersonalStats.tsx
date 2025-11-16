@@ -36,8 +36,7 @@ export default function PersonalStats() {
         setHasMorePages(true);
         
         const data = await getMyPageStats(1);
-        console.log("API 응답 데이터:", data);
-        console.log("specificsList:", data?.specificsList);
+
         
         setAllStatsData([data]);
         // 다음 페이지가 있는지 확인 (specificsList가 비어있으면 더 이상 없음)
@@ -183,12 +182,7 @@ export default function PersonalStats() {
 
   // 디버깅: 데이터 확인
   useEffect(() => {
-    console.log("statsData:", statsData);
-    console.log("specificsData length:", specificsData.length);
-    console.log("specificsData:", specificsData);
-    console.log("filteredSpecificsData length:", filteredSpecificsData.length);
-    console.log("filteredSpecificsData:", filteredSpecificsData);
-    console.log("matchFilter:", matchFilter);
+  
   }, [statsData, specificsData, filteredSpecificsData, matchFilter]);
 
 
