@@ -71,10 +71,12 @@ export default function LargeVenue({
   onBackToOverview,
   selectedIds = [],
   onToggleSeat,
+  readOnly = false, // 읽기 전용 모드: 선택된 좌석만 색상 표시, 나머지는 회색
 }: {
   onBackToOverview?: React.MutableRefObject<LargeVenueRef | null>;
   selectedIds?: string[];
   onToggleSeat?: (seat: LargeVenueSeat) => void;
+  readOnly?: boolean; // 읽기 전용 모드
 } = {}) {
   // 외부에서 전체 보기로 돌아가기 위한 함수 노출
   useEffect(() => {
@@ -125,6 +127,19 @@ export default function LargeVenue({
     if (showDetailView) return; // only applies to overview SVG
     const svg = containerRef.current?.querySelector("svg");
     if (!svg) return;
+    
+    // readOnly 모드일 때 사용자가 선택한 좌석이 있는 섹션 ID 추출
+    const sectionsWithSeats = new Set<string>();
+    if (readOnly && selectedIds.length > 0) {
+      selectedIds.forEach((seatId) => {
+        // seatId 형식: ${section}-${row}-${seat}
+        const parts = seatId.split("-");
+        if (parts.length >= 1) {
+          sectionsWithSeats.add(parts[0]);
+        }
+      });
+    }
+    
     const vipPolygons = Array.from(
       svg.querySelectorAll('polygon[data-seat-level="VIP"]')
     ) as SVGPolygonElement[];
@@ -166,6 +181,22 @@ export default function LargeVenue({
         // 브라우저 기본 툴팁 설정 (전체 뷰)
         const idAttr = p.getAttribute("data-id") || "";
         const level = p.getAttribute("data-seat-level") || "";
+        
+        // readOnly 모드일 때 사용자가 선택한 좌석이 없는 섹션은 회색 처리
+        if (readOnly && idAttr !== "0" && sectionsWithSeats.size > 0) {
+          if (!sectionsWithSeats.has(idAttr)) {
+            const grayFill = "#9ca3af";
+            p.setAttribute("fill", grayFill);
+            p.setAttribute("data-fill", grayFill);
+            const existingStyle = p.getAttribute("style") || "";
+            const styleWithoutFill = existingStyle
+              .split(";")
+              .filter((s) => s.trim() && !s.trim().startsWith("fill:"))
+              .join(";");
+            p.setAttribute("style", `fill:${grayFill};${styleWithoutFill}`);
+          }
+        }
+        
         if (idAttr && idAttr !== "0" && level) {
           const gradeLabel = level === "STANDING" ? "스탠딩석" : `${level}석`;
           p.setAttribute("title", `[${gradeLabel}] ${idAttr}구역`);
@@ -185,7 +216,7 @@ export default function LargeVenue({
         svg.setAttribute("viewBox", `${vbX} ${vbY} ${vbW} ${vbH}`);
       }
     }
-  }, [showDetailView]);
+  }, [showDetailView, readOnly, selectedIds]);
 
   // 패턴 크기 계산 함수
   const calculatePatternSize = (
@@ -498,6 +529,18 @@ export default function LargeVenue({
           el.style.cursor = "not-allowed";
           el.style.opacity = "0.6";
           el.setAttribute("data-taken", "true");
+        } else if (readOnly) {
+          // 읽기 전용 모드: 선택된 좌석만 색상 표시, 나머지는 회색
+          if (isSelected) {
+            el.style.backgroundColor = detailViewColor; // 원래 색상
+            el.style.cursor = "default";
+            el.style.opacity = "1";
+          } else {
+            el.style.backgroundColor = "#9ca3af"; // 회색
+            el.style.cursor = "default";
+            el.style.opacity = "0.5";
+          }
+          el.removeAttribute("data-taken");
         } else if (isSelected) {
           el.style.backgroundColor = "#4a4a4a"; // 선택된 좌석은 어두운 회색
           el.style.cursor = "pointer";
@@ -657,6 +700,7 @@ export default function LargeVenue({
     detailViewColor,
     onToggleSeat,
     takenSeats,
+    readOnly,
   ]);
 
   return (
