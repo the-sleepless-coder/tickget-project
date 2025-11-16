@@ -135,6 +135,7 @@ export const router = createBrowserRouter([
       { path: "cancel-fee", element: withSuspense(<CancelFeePage />) },
       { path: "complete", element: withSuspense(<CompletePage />) },
       { path: "payment", element: withSuspense(<PaymentPage />) },
+      { path: "game-result", element: withSuspense(<GameResultPage />) },
     ],
   },
   {
