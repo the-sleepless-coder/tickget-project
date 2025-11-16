@@ -1,9 +1,8 @@
-import { Dayjs } from "dayjs";
+import dayjs, { Dayjs } from "dayjs";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { TimePicker } from "@mui/x-date-pickers/TimePicker";
-import dayjs from "dayjs";
-import { useMemo, useCallback, useEffect } from "react";
+import { useCallback, useMemo } from "react";
 
 export default function Step1BasicForm({
   title,
@@ -48,42 +47,7 @@ export default function Step1BasicForm({
   //   return { minTime: min, maxTime: max };
   // }, []);
 
-  // 현재 시간 기준으로 1분 단위로 설정 가능
-  const { minTime, maxTime } = useMemo(() => {
-    const now = dayjs(); // 한국 시간 (dayjs는 기본적으로 로컬 시간 사용)
-
-    // 현재 시간 + 1분을 최소 시간으로 설정
-    const min = now.add(1, "minute").second(0).millisecond(0);
-
-    // 최소 시간 + 1시간을 최대 시간으로 설정
-    const max = min.add(1, "hour");
-
-    return { minTime: min, maxTime: max };
-  }, []);
-
-  // 5분 간격이 아닌 시간을 비활성화하는 함수 (주석 처리됨 - 1분 단위로 변경)
-  // const shouldDisableTime = (
-  //   value: Dayjs,
-  //   view: "hours" | "minutes" | "seconds"
-  // ) => {
-  //   if (view === "minutes") {
-  //     const minute = value.minute();
-  //     // 5분 간격이 아닌 분은 비활성화
-  //     return minute % 5 !== 0;
-  //   }
-  //   return false;
-  // };
-
-  // 모든 분을 활성화하는 함수 (1분 단위 선택을 위해) - timeSteps 사용으로 불필요
-  // const shouldDisableTime = (
-  //   value: Dayjs,
-  //   view: "hours" | "minutes" | "seconds"
-  // ) => {
-  //   // 모든 시간과 분을 활성화 (비활성화하지 않음)
-  //   return false;
-  // };
-
-  // 시간 변경 핸들러: 범위를 벗어나면 자동으로 조정
+  // 시간 변경 핸들러 (초/밀리초만 0으로 맞추고 나머지는 그대로 사용)
   const handleTimeChange = useCallback(
     (value: Dayjs | null) => {
       if (!value) {
@@ -91,46 +55,15 @@ export default function Step1BasicForm({
         return;
       }
 
-      // 최소 시간보다 작으면 최소 시간으로 설정
-      if (value.isBefore(minTime)) {
-        setStartTime(minTime);
-        return;
-      }
-
-      // 최대 시간보다 크면 최대 시간으로 설정
-      if (value.isAfter(maxTime)) {
-        setStartTime(maxTime);
-        return;
-      }
-
-      // 5분 간격으로 조정
-      // const minute = value.minute();
-      // const adjustedMinute = Math.round(minute / 5) * 5;
-      // const adjustedTime = value
-      //   .minute(adjustedMinute)
-      //   .second(0)
-      //   .millisecond(0);
-
-      // 1분 단위로 설정 (초와 밀리초만 0으로 설정)
+      // 초와 밀리초만 0으로 설정
       const adjustedTime = value.second(0).millisecond(0);
-
       setStartTime(adjustedTime);
     },
-    [minTime, maxTime, setStartTime]
+    [setStartTime]
   );
 
-  // 처음 세팅 시 가능한 첫 번째 시간으로 자동 설정
-  useEffect(() => {
-    // startTime이 null이거나 범위를 벗어나면 minTime으로 설정
-    if (
-      !startTime ||
-      startTime.isBefore(minTime, "minute") ||
-      startTime.isAfter(maxTime, "minute")
-    ) {
-      setStartTime(minTime);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [minTime, maxTime]);
+
+  // 추가 제약 없이 부모에서 내려준 startTime을 그대로 사용
   return (
     <div className="flex-1 space-y-6">
       <div className="relative">
@@ -214,8 +147,6 @@ export default function Step1BasicForm({
                 format="HH:mm"
                 value={startTime}
                 onChange={handleTimeChange}
-                minTime={minTime}
-                maxTime={maxTime}
                 views={["hours", "minutes"]}
                 timeSteps={{ hours: 1, minutes: 1 }}
                 slotProps={{
