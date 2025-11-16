@@ -391,68 +391,103 @@ export default function MatchDetailContent({
   // SVG 자동 크기 조정을 위한 ref
   const seatMapContainerRef = useRef<HTMLDivElement>(null);
 
-  // SVG 요소를 찾아서 자동 크기 조정
+  // SVG 또는 SmallVenue 요소를 찾아서 자동 크기 조정
   useEffect(() => {
-    const adjustSvg = () => {
+    const adjustSize = () => {
       const container = seatMapContainerRef.current;
       if (!container) return;
       
+      // SVG 요소 찾기 (MediumVenue, LargeVenue, TsxPreview)
       const svg = container.querySelector('svg');
-      if (!svg) return;
-
-      // SVG의 고정 width/height 속성 제거
-      svg.removeAttribute('width');
-      svg.removeAttribute('height');
-      
-      // 컨테이너 크기 가져오기 (패딩 제외)
-      const containerWidth = container.clientWidth;
-      const containerHeight = container.clientHeight;
-      
-      // viewBox 가져오기
-      const viewBox = svg.getAttribute('viewBox');
-      if (viewBox) {
-        const [, , vbWidth, vbHeight] = viewBox.split(' ').map(Number);
-        const aspectRatio = vbWidth / vbHeight;
-        const containerAspectRatio = containerWidth / containerHeight;
+      if (svg) {
+        // SVG의 고정 width/height 속성 제거
+        svg.removeAttribute('width');
+        svg.removeAttribute('height');
         
-        // 컨테이너에 맞게 스케일 계산 (약간의 여유 공간을 두기 위해 0.98 배율 적용)
-        let scale: number;
-        if (aspectRatio > containerAspectRatio) {
-          // 너비가 더 넓은 경우
-          scale = (containerWidth * 0.98) / vbWidth;
+        // 컨테이너 크기 가져오기 (패딩 제외)
+        const containerWidth = container.clientWidth;
+        const containerHeight = container.clientHeight;
+        
+        // viewBox 가져오기
+        const viewBox = svg.getAttribute('viewBox');
+        if (viewBox) {
+          const [, , vbWidth, vbHeight] = viewBox.split(' ').map(Number);
+          const aspectRatio = vbWidth / vbHeight;
+          const containerAspectRatio = containerWidth / containerHeight;
+          
+          // 컨테이너에 맞게 스케일 계산 (약간의 여유 공간을 두기 위해 0.98 배율 적용)
+          let scale: number;
+          if (aspectRatio > containerAspectRatio) {
+            // 너비가 더 넓은 경우
+            scale = (containerWidth * 0.98) / vbWidth;
+          } else {
+            // 높이가 더 높은 경우
+            scale = (containerHeight * 0.98) / vbHeight;
+          }
+          
+          // SVG 크기 설정
+          const svgWidth = vbWidth * scale;
+          const svgHeight = vbHeight * scale;
+          svg.style.width = `${svgWidth}px`;
+          svg.style.height = `${svgHeight}px`;
+          svg.style.maxWidth = `${containerWidth}px`;
+          svg.style.maxHeight = `${containerHeight}px`;
+          svg.style.display = 'block';
+          svg.style.margin = 'auto';
         } else {
-          // 높이가 더 높은 경우
-          scale = (containerHeight * 0.98) / vbHeight;
+          // viewBox가 없으면 기본 CSS 사용
+          svg.style.width = '100%';
+          svg.style.height = '100%';
+          svg.style.maxWidth = '100%';
+          svg.style.maxHeight = '100%';
+          svg.style.display = 'block';
+          svg.style.margin = 'auto';
         }
         
-        // SVG 크기 설정
-        const svgWidth = vbWidth * scale;
-        const svgHeight = vbHeight * scale;
-        svg.style.width = `${svgWidth}px`;
-        svg.style.height = `${svgHeight}px`;
-        svg.style.maxWidth = `${containerWidth}px`;
-        svg.style.maxHeight = `${containerHeight}px`;
-        svg.style.display = 'block';
-        svg.style.margin = 'auto';
-      } else {
-        // viewBox가 없으면 기본 CSS 사용
-        svg.style.width = '100%';
-        svg.style.height = '100%';
-        svg.style.maxWidth = '100%';
-        svg.style.maxHeight = '100%';
-        svg.style.display = 'block';
-        svg.style.margin = 'auto';
+        svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+        return;
       }
       
-      svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+      // SmallVenue의 경우 (div 기반)
+      const smallVenueContainer = container.querySelector('div[class*="grid"]');
+      if (smallVenueContainer) {
+        const containerWidth = container.clientWidth;
+        const containerHeight = container.clientHeight;
+        
+        // SmallVenue의 실제 크기 측정
+        const venueElement = smallVenueContainer as HTMLElement;
+        const venueWidth = venueElement.scrollWidth;
+        const venueHeight = venueElement.scrollHeight;
+        
+        if (venueWidth > 0 && venueHeight > 0) {
+          const aspectRatio = venueWidth / venueHeight;
+          const containerAspectRatio = containerWidth / containerHeight;
+          
+          // 컨테이너에 맞게 스케일 계산 (약간의 여유 공간을 두기 위해 0.98 배율 적용)
+          let scale: number;
+          if (aspectRatio > containerAspectRatio) {
+            // 너비가 더 넓은 경우
+            scale = (containerWidth * 0.98) / venueWidth;
+          } else {
+            // 높이가 더 높은 경우
+            scale = (containerHeight * 0.98) / venueHeight;
+          }
+          
+          // transform scale 적용
+          venueElement.style.transform = `scale(${scale})`;
+          venueElement.style.transformOrigin = 'center center';
+          venueElement.style.width = `${venueWidth}px`;
+          venueElement.style.height = `${venueHeight}px`;
+        }
+      }
     };
 
     // 초기 조정 (약간의 지연을 두어 DOM이 완전히 렌더링된 후 실행)
-    const timeoutId = setTimeout(adjustSvg, 0);
+    const timeoutId = setTimeout(adjustSize, 100);
 
-    // MutationObserver로 SVG가 추가될 때 감지
+    // MutationObserver로 SVG 또는 SmallVenue가 추가될 때 감지
     const observer = new MutationObserver(() => {
-      setTimeout(adjustSvg, 0);
+      setTimeout(adjustSize, 100);
     });
     
     if (seatMapContainerRef.current) {
@@ -460,12 +495,12 @@ export default function MatchDetailContent({
         childList: true,
         subtree: true,
         attributes: true,
-        attributeFilter: ['width', 'height', 'viewBox'],
+        attributeFilter: ['width', 'height', 'viewBox', 'style'],
       });
     }
 
     // ResizeObserver로 컨테이너 크기 변경 감지
-    const resizeObserver = new ResizeObserver(adjustSvg);
+    const resizeObserver = new ResizeObserver(adjustSize);
     if (seatMapContainerRef.current) {
       resizeObserver.observe(seatMapContainerRef.current);
     }

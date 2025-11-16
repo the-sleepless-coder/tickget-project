@@ -231,7 +231,7 @@ export default function MyPageIndex() {
 
   // 경기 기록 필터링 및 페이지네이션
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5;
+  const itemsPerPage = 10; // 한 페이지에 보여줄 항목 수 증가
   const [matchHistoryData, setMatchHistoryData] = useState<MatchHistory[]>([]);
   const [isLoadingMatchHistory, setIsLoadingMatchHistory] = useState(false);
 
@@ -890,40 +890,43 @@ export default function MyPageIndex() {
                   </>
                 )}
 
-                {totalPages > 1 && (
-                  <div className="flex justify-center gap-2 pt-6">
+                {/* 페이지네이션 - 항상 표시 (경기 기록이 있을 때만) */}
+                {filteredMatchHistory.length > 0 && (
+                  <div className="flex justify-center items-center gap-2 pt-6 pb-4">
                     <button
                       onClick={() =>
                         setCurrentPage((prev) => Math.max(prev - 1, 1))
                       }
                       disabled={currentPage === 1}
-                      className="rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-700 transition-colors disabled:cursor-not-allowed disabled:opacity-50 hover:bg-neutral-50"
+                      className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-colors disabled:cursor-not-allowed disabled:opacity-50 hover:bg-neutral-50 disabled:hover:bg-white"
                     >
                       이전
                     </button>
 
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                      (page) => (
-                        <button
-                          key={page}
-                          onClick={() => setCurrentPage(page)}
-                          className={`rounded-lg border px-3 py-2 text-sm transition-colors ${
-                            currentPage === page
-                              ? "border-purple-500 bg-purple-500 text-white"
-                              : "border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50"
-                          }`}
-                        >
-                          {page}
-                        </button>
-                      )
-                    )}
+                    <div className="flex gap-1">
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                        (page) => (
+                          <button
+                            key={page}
+                            onClick={() => setCurrentPage(page)}
+                            className={`rounded-lg border px-4 py-2 text-sm font-medium transition-colors min-w-[40px] ${
+                              currentPage === page
+                                ? "border-purple-500 bg-purple-500 text-white"
+                                : "border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50"
+                            }`}
+                          >
+                            {page}
+                          </button>
+                        )
+                      )}
+                    </div>
 
                     <button
                       onClick={() =>
                         setCurrentPage((prev) => Math.min(prev + 1, totalPages))
                       }
                       disabled={currentPage === totalPages}
-                      className="rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-700 transition-colors disabled:cursor-not-allowed disabled:opacity-50 hover:bg-neutral-50"
+                      className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-colors disabled:cursor-not-allowed disabled:opacity-50 hover:bg-neutral-50 disabled:hover:bg-white"
                     >
                       다음
                     </button>
