@@ -358,8 +358,13 @@ export default function SelectSeatPage() {
 
       const sectionId = target.getAttribute("section");
       const grade = target.getAttribute("grade") || "";
-      const totalRowsStr = target.getAttribute("totalRows");
-      const totalColsStr = target.getAttribute("totalCols");
+      // React는 DOM 요소에 커스텀 prop을 허용하지 않으므로 data- 접두사나 소문자 속성도 시도
+      const totalRowsStr = target.getAttribute("totalRows") || 
+                          target.getAttribute("data-total-rows") || 
+                          target.getAttribute("totalrows");
+      const totalColsStr = target.getAttribute("totalCols") || 
+                           target.getAttribute("data-total-cols") || 
+                           target.getAttribute("totalcols");
       const fillColor = target.getAttribute("fill") || "#CF0098";
 
       console.log("[AI-section-click] polygon 속성:", {
