@@ -15,25 +15,32 @@ import { getMyPageStats } from "@features/user-page/api";
 import type { MyPageStatsResponse } from "@features/user-page/types";
 
 export default function PersonalStats() {
-  const [visibleRows, setVisibleRows] = useState(5);
   const [matchFilter, setMatchFilter] = useState<"all" | "match" | "solo">(
     "all"
   );
-  const [statsData, setStatsData] = useState<MyPageStatsResponse | null>(null);
+  const [allStatsData, setAllStatsData] = useState<MyPageStatsResponse[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
+  const [hasMorePages, setHasMorePages] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // API 데이터 로드
+  // API 데이터 로드 (초기 로드)
   useEffect(() => {
     const fetchStats = async () => {
       try {
         setLoading(true);
         setError(null);
-        const data = await getMyPageStats(currentPage);
-        console.log("API 응답 데이터:", data);
-        console.log("specificsList:", data?.specificsList);
-        setStatsData(data);
+        setAllStatsData([]);
+        setCurrentPage(1);
+        setHasMorePages(true);
+        
+        const data = await getMyPageStats(1);
+
+        
+        setAllStatsData([data]);
+        // 다음 페이지가 있는지 확인 (specificsList가 비어있으면 더 이상 없음)
+        setHasMorePages(data?.specificsList && data.specificsList.length > 0);
       } catch (err) {
         console.error("통계 데이터 로드 실패:", err);
         setError(
@@ -47,7 +54,40 @@ export default function PersonalStats() {
     };
 
     fetchStats();
-  }, [currentPage]);
+  }, [matchFilter]);
+
+  // 더보기 버튼 클릭 시 다음 페이지 데이터 로드
+  const handleLoadMore = async () => {
+    if (loadingMore || !hasMorePages) return;
+    
+    setLoadingMore(true);
+    try {
+      const nextPage = currentPage + 1;
+      const data = await getMyPageStats(nextPage);
+      
+      if (data?.specificsList && data.specificsList.length > 0) {
+        setAllStatsData((prev) => [...prev, data]);
+        setCurrentPage(nextPage);
+        // 다음 페이지가 있는지 확인
+        setHasMorePages(data.specificsList.length > 0);
+      } else {
+        setHasMorePages(false);
+      }
+    } catch (err) {
+      console.error("통계 데이터 더 불러오기 실패:", err);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  // 모든 페이지의 데이터를 합쳐서 사용
+  const statsData: MyPageStatsResponse | null = allStatsData.length > 0
+    ? {
+        userId: allStatsData[0].userId,
+        clickStats: allStatsData[0].clickStats, // 첫 페이지의 클릭 통계 사용
+        specificsList: allStatsData.flatMap((data) => data.specificsList || []),
+      }
+    : null;
 
   // 날짜 포맷팅 함수
   const formatDate = (dateString: string): { date: string; time: string } => {
@@ -142,19 +182,9 @@ export default function PersonalStats() {
 
   // 디버깅: 데이터 확인
   useEffect(() => {
-    console.log("statsData:", statsData);
-    console.log("specificsData length:", specificsData.length);
-    console.log("specificsData:", specificsData);
-    console.log("filteredSpecificsData length:", filteredSpecificsData.length);
-    console.log("filteredSpecificsData:", filteredSpecificsData);
-    console.log("matchFilter:", matchFilter);
+  
   }, [statsData, specificsData, filteredSpecificsData, matchFilter]);
 
-  // 필터 변경 시 페이지 및 visibleRows 리셋
-  useEffect(() => {
-    setCurrentPage(1);
-    setVisibleRows(5);
-  }, [matchFilter]);
 
   // 평균 상위 비율 계산
   const averageTopPercentile =
@@ -468,9 +498,8 @@ export default function PersonalStats() {
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-200">
-              {filteredSpecificsData.slice(0, visibleRows).length > 0 ? (
+              {filteredSpecificsData.length > 0 ? (
                 filteredSpecificsData
-                  .slice(0, visibleRows)
                   .map((data, index) => (
                     <tr key={index} className="hover:bg-neutral-50">
                       <td className="px-6 py-4 text-sm text-neutral-900">
@@ -530,44 +559,18 @@ export default function PersonalStats() {
           </table>
         </div>
 
-        {/* 더보기 버튼 및 페이지네이션 */}
-        <div className="flex items-center justify-between border-t border-neutral-200 px-6 py-4">
-          {visibleRows < filteredSpecificsData.length ? (
+        {/* 더보기 버튼 */}
+        {hasMorePages && (
+          <div className="flex justify-center border-t border-neutral-200 px-6 py-4">
             <button
-              onClick={() =>
-                setVisibleRows((prev) =>
-                  Math.min(prev + 5, filteredSpecificsData.length)
-                )
-              }
-              className="rounded-md border border-neutral-300 bg-white px-6 py-2 text-sm text-neutral-700 transition-colors hover:bg-neutral-50"
+              onClick={handleLoadMore}
+              disabled={loadingMore}
+              className="rounded-lg border border-purple-500 bg-white px-6 py-2 text-sm font-medium text-purple-500 transition-colors disabled:cursor-not-allowed disabled:opacity-50 hover:bg-purple-500 hover:text-white disabled:hover:bg-white disabled:hover:text-purple-500"
             >
-              더보기
-            </button>
-          ) : (
-            <div></div>
-          )}
-
-          {/* 페이지네이션 */}
-          <div className="flex gap-2">
-            <button
-              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
-              className="rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-700 transition-colors disabled:cursor-not-allowed disabled:opacity-50 hover:bg-neutral-50"
-            >
-              이전
-            </button>
-            <span className="flex items-center px-3 py-2 text-sm text-neutral-700">
-              {currentPage}페이지
-            </span>
-            <button
-              onClick={() => setCurrentPage((prev) => prev + 1)}
-              disabled={filteredSpecificsData.length === 0}
-              className="rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-700 transition-colors disabled:cursor-not-allowed disabled:opacity-50 hover:bg-neutral-50"
-            >
-              다음
+              {loadingMore ? "로딩 중..." : "더보기"}
             </button>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

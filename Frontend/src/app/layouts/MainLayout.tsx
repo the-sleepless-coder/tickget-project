@@ -31,9 +31,7 @@ export default function MainLayout() {
 
       // 이미 구독되어 있으면 스킵
       if (userSubscriptionRef.current) {
-        if (import.meta.env.DEV) {
-          console.log("ℹ️ [개인 메시지] 이미 구독되어 있음");
-        }
+       
         return;
       }
 
@@ -116,16 +114,25 @@ export default function MainLayout() {
         },
         onDisconnect: () => {
           if (import.meta.env.DEV) {
-            console.log("⚠️ WebSocket 연결 끊김 - 자동 로그아웃");
+            console.log("⚠️ WebSocket 연결 끊김");
           }
           // 구독 해제
           if (userSubscriptionRef.current) {
             userSubscriptionRef.current.unsubscribe();
             userSubscriptionRef.current = null;
           }
-          // 웹소켓 연결이 끊기면 자동 로그아웃
-          useAuthStore.getState().clearAuth();
-          navigate("/", { replace: true });
+          // 이미 로그아웃 상태면 자동 로그아웃을 하지 않음 (의도적인 로그아웃인 경우)
+          const currentAccessToken = useAuthStore.getState().accessToken;
+          if (currentAccessToken) {
+            // 로그인 상태인데 연결이 끊긴 경우에만 자동 로그아웃
+            if (import.meta.env.DEV) {
+              console.log("⚠️ WebSocket 연결 끊김 - 자동 로그아웃");
+            }
+            useAuthStore.getState().clearAuth();
+            navigate("/", { replace: true });
+          } else {
+          
+          }
         },
         onError: (err) => {
           if (import.meta.env.DEV) {
@@ -136,9 +143,13 @@ export default function MainLayout() {
             userSubscriptionRef.current.unsubscribe();
             userSubscriptionRef.current = null;
           }
-          // 웹소켓 에러 발생 시에도 자동 로그아웃
-          useAuthStore.getState().clearAuth();
-          navigate("/", { replace: true });
+          // 이미 로그아웃 상태면 자동 로그아웃을 하지 않음
+          const currentAccessToken = useAuthStore.getState().accessToken;
+          if (currentAccessToken) {
+            // 로그인 상태인데 에러가 발생한 경우에만 자동 로그아웃
+            useAuthStore.getState().clearAuth();
+            navigate("/", { replace: true });
+          }
         },
       });
       clientRef.current = client;

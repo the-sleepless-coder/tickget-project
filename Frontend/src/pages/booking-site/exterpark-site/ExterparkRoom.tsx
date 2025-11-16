@@ -326,7 +326,7 @@ export default function ITicketPage() {
               }
             } else {
               // 타인 성공
-              console.log("ℹ️ [DEQUEUE] 다른 유저 티켓팅 성공:", {
+              console.log("ℹ️ [DEQUEUE] 다른 유저 대기열 통과:", {
                 dequeuedUserId: p.userId,
                 myUserId,
                 timestamp: p.timestamp ?? event.timestamp ?? Date.now(),

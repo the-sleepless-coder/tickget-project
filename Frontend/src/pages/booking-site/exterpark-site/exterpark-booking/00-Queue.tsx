@@ -25,6 +25,7 @@ export default function BookingWaitingPage() {
   const [rank, setRank] = useState<number>(0);
   const [totalQueue, setTotalQueue] = useState<number>(0);
   const [positionAhead, setPositionAhead] = useState<number>(0);
+  const initialTotalQueueRef = useRef<number | null>(null);
   const hasDequeuedRef = useRef<boolean>(false);
   const wsClient = useWebSocketStore((s) => s.client);
   const roomId = useRoomStore((s) => s.roomInfo.roomId);
@@ -132,6 +133,10 @@ export default function BookingWaitingPage() {
             setRank(currentRank);
             setPositionAhead(ahead); // positionAhead 업데이트
             setTotalQueue(currentTotalQueue);
+            // 초기 totalQueue 값 고정 (처음 한 번만 설정)
+            if (initialTotalQueueRef.current === null && currentTotalQueue > 0) {
+              initialTotalQueueRef.current = currentTotalQueue;
+            }
             console.log("✅ [waiting][QUEUE] 대기열 갱신 성공:", {
               myUserId,
               ahead,
@@ -320,7 +325,12 @@ export default function BookingWaitingPage() {
           // positionAhead 저장 (게이지바 계산용)
           setPositionAhead(res.positionAhead);
           // 현재 대기인원: totalNum + positionBehind
-          setTotalQueue(res.totalNum + res.positionBehind);
+          const initialTotalQueue = res.totalNum + res.positionBehind;
+          setTotalQueue(initialTotalQueue);
+          // 초기 totalQueue 값 고정 (처음 한 번만 설정)
+          if (initialTotalQueueRef.current === null && initialTotalQueue > 0) {
+            initialTotalQueueRef.current = initialTotalQueue;
+          }
           // queue stage로 전환
           setStage("queue");
         }
@@ -339,20 +349,23 @@ export default function BookingWaitingPage() {
   // queue stage
   if (stage === "queue") {
     // positionAhead 기반 게이지바 계산: 0에 가까울수록 오른쪽으로 진행
-    // positionAhead가 0이면 100%, positionAhead가 totalQueue와 같으면 0%
+    // 초기 totalQueue 값을 기준으로 사용 (고정값)
+    const baseTotalQueue = initialTotalQueueRef.current ?? totalQueue;
+    // positionAhead가 0이면 100%, positionAhead가 baseTotalQueue와 같으면 0%
     const widthPercent =
-      totalQueue > 0
+      baseTotalQueue > 0
         ? Math.max(
             0,
-            Math.min(100, ((totalQueue - positionAhead) / totalQueue) * 100)
+            Math.min(100, ((baseTotalQueue - positionAhead) / baseTotalQueue) * 100)
           )
         : 100;
     // percent는 임박 여부 판단용 (positionAhead가 작을수록 임박)
+    // 초기 totalQueue 값을 기준으로 사용 (고정값)
     const percent =
-      totalQueue > 0
+      baseTotalQueue > 0
         ? Math.max(
             0,
-            Math.min(100, Math.round((positionAhead / totalQueue) * 100))
+            Math.min(100, Math.round((positionAhead / baseTotalQueue) * 100))
           )
         : 0;
     const isImminent = percent <= 20; // 20% 이하이면 임박

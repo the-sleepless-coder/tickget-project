@@ -68,9 +68,7 @@ export const useAuthStore = create<AuthState>()(
           profileImageUrl: null,
           profileImageUploaded: 0,
         });
-        if (import.meta.env.DEV) {
-          console.log("✅ Auth Store 초기화됨");
-        }
+      
       },
 
       getAuthHeaders: (): Record<string, string> => {
@@ -108,7 +106,4 @@ export const useAuthStore = create<AuthState>()(
 // 개발 환경에서 브라우저 콘솔에서 store 확인 가능하도록
 if (import.meta.env.DEV && typeof window !== "undefined") {
   (window as any).authStore = useAuthStore;
-  console.log(
-    "개발자 도구에서 store 확인: window.authStore.getState() 또는 window.authStore"
-  );
 }

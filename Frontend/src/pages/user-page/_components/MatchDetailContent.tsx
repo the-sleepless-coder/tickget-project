@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import TsxPreview from "../../../shared/components/TsxPreview";
 import SmallVenue from "../../performance-halls/small-venue/CharlotteTheater";
 import MediumVenue from "../../performance-halls/medium-venue/OlympicHall";
@@ -144,7 +144,7 @@ export default function MatchDetailContent({
     extraTextDiff?: string;
     extraLabel?: string;
   }) => (
-    <div className="rounded-xl border border-neutral-200 bg-white shadow-sm">
+    <div className="flex flex-col rounded-xl border border-neutral-200 bg-white shadow-sm">
       <div className="rounded-t-xl bg-blue-50 px-4 py-3 text-center text-sm font-semibold text-blue-600">
         {title}
       </div>
@@ -388,17 +388,133 @@ export default function MatchDetailContent({
     return [`${hoveredUser.seatSection}-0-0`];
   }, [hoveredUserId, users]);
 
+  // SVG 자동 크기 조정을 위한 ref
+  const seatMapContainerRef = useRef<HTMLDivElement>(null);
+
+  // SVG 또는 SmallVenue 요소를 찾아서 자동 크기 조정
+  useEffect(() => {
+    const adjustSize = () => {
+      const container = seatMapContainerRef.current;
+      if (!container) return;
+      
+      // SVG 요소 찾기 (MediumVenue, LargeVenue, TsxPreview)
+      const svg = container.querySelector('svg');
+      if (svg) {
+        // SVG의 고정 width/height 속성 제거
+        svg.removeAttribute('width');
+        svg.removeAttribute('height');
+        
+        // 컨테이너 크기 가져오기 (패딩 제외)
+        const containerWidth = container.clientWidth;
+        const containerHeight = container.clientHeight;
+        
+        // viewBox 가져오기
+        const viewBox = svg.getAttribute('viewBox');
+        if (viewBox) {
+          const [, , vbWidth, vbHeight] = viewBox.split(' ').map(Number);
+          const aspectRatio = vbWidth / vbHeight;
+          const containerAspectRatio = containerWidth / containerHeight;
+          
+          // 컨테이너에 맞게 스케일 계산 (약간의 여유 공간을 두기 위해 0.98 배율 적용)
+          let scale: number;
+          if (aspectRatio > containerAspectRatio) {
+            // 너비가 더 넓은 경우
+            scale = (containerWidth * 0.98) / vbWidth;
+          } else {
+            // 높이가 더 높은 경우
+            scale = (containerHeight * 0.98) / vbHeight;
+          }
+          
+          // SVG 크기 설정
+          const svgWidth = vbWidth * scale;
+          const svgHeight = vbHeight * scale;
+          svg.style.width = `${svgWidth}px`;
+          svg.style.height = `${svgHeight}px`;
+          svg.style.maxWidth = `${containerWidth}px`;
+          svg.style.maxHeight = `${containerHeight}px`;
+          svg.style.display = 'block';
+          svg.style.margin = 'auto';
+        } else {
+          // viewBox가 없으면 기본 CSS 사용
+          svg.style.width = '100%';
+          svg.style.height = '100%';
+          svg.style.maxWidth = '100%';
+          svg.style.maxHeight = '100%';
+          svg.style.display = 'block';
+          svg.style.margin = 'auto';
+        }
+        
+        svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+        return;
+      }
+      
+      // SmallVenue의 경우 (div 기반)
+      const smallVenueContainer = container.querySelector('div[class*="grid"]');
+      if (smallVenueContainer) {
+        const containerWidth = container.clientWidth;
+        const containerHeight = container.clientHeight;
+        
+        // SmallVenue의 실제 크기 측정
+        const venueElement = smallVenueContainer as HTMLElement;
+        const venueWidth = venueElement.scrollWidth;
+        const venueHeight = venueElement.scrollHeight;
+        
+        if (venueWidth > 0 && venueHeight > 0) {
+          const aspectRatio = venueWidth / venueHeight;
+          const containerAspectRatio = containerWidth / containerHeight;
+          
+          // 컨테이너에 맞게 스케일 계산 (약간의 여유 공간을 두기 위해 0.98 배율 적용)
+          let scale: number;
+          if (aspectRatio > containerAspectRatio) {
+            // 너비가 더 넓은 경우
+            scale = (containerWidth * 0.98) / venueWidth;
+          } else {
+            // 높이가 더 높은 경우
+            scale = (containerHeight * 0.98) / venueHeight;
+          }
+          
+          // transform scale 적용
+          venueElement.style.transform = `scale(${scale})`;
+          venueElement.style.transformOrigin = 'center center';
+          venueElement.style.width = `${venueWidth}px`;
+          venueElement.style.height = `${venueHeight}px`;
+        }
+      }
+    };
+
+    // 초기 조정 (약간의 지연을 두어 DOM이 완전히 렌더링된 후 실행)
+    const timeoutId = setTimeout(adjustSize, 100);
+
+    // MutationObserver로 SVG 또는 SmallVenue가 추가될 때 감지
+    const observer = new MutationObserver(() => {
+      setTimeout(adjustSize, 100);
+    });
+    
+    if (seatMapContainerRef.current) {
+      observer.observe(seatMapContainerRef.current, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['width', 'height', 'viewBox', 'style'],
+      });
+    }
+
+    // ResizeObserver로 컨테이너 크기 변경 감지
+    const resizeObserver = new ResizeObserver(adjustSize);
+    if (seatMapContainerRef.current) {
+      resizeObserver.observe(seatMapContainerRef.current);
+    }
+
+    return () => {
+      clearTimeout(timeoutId);
+      observer.disconnect();
+      resizeObserver.disconnect();
+    };
+  }, [selectedUserId, hoveredUserId, hallId, tsxUrl]);
+
   // 좌석 배치도 렌더링
   const renderSeatMap = () => {
-    // 디버깅: 현재 상태 확인
-    console.log("[MatchDetailContent] 좌석 배치도 렌더링 조건:", {
-      isAIGenerated,
-      tsxUrl,
-      hallId,
-      hasValidTsxUrl: tsxUrl && tsxUrl !== "default" && tsxUrl !== null && tsxUrl.trim() !== "",
-      tsxUrlType: typeof tsxUrl,
-      tsxUrlLength: tsxUrl?.length,
-    });
+   
 
     // AI 생성인 경우 - 우선순위 1
     // tsxUrl이 있고 "default"가 아니고 빈 문자열이 아닌 경우 렌더링
@@ -417,29 +533,24 @@ export default function MatchDetailContent({
     );
     
     if (shouldRenderAI) {
-      console.log("[MatchDetailContent] AI 생성 좌석 배치도 렌더링:", { 
-        tsxUrl, 
-        isAIGenerated,
-        isValidTsxUrl,
-        shouldRenderAI,
-      });
+  
       // AI 생성 좌석 배치도에 선택된 좌석 정보 전달
       // selectedSeatIds는 section-row-col 형식
       // 호버 시: 해당 유저의 좌석만 색상 유지, 나머지 회색 처리
       // 호버 없을 때: 모든 좌석 원래 색상으로 표시
       // hoveredUserSeatIds는 컴포넌트 최상단에서 이미 계산됨
-      return (
-        <div className="w-full flex justify-center items-center bg-white rounded-lg p-4 overflow-auto">
-          <div className="scale-75 origin-center" style={{ width: '1000px', height: '800px' }}>
-            <TsxPreview 
-              src={tsxUrl} 
-              className="w-full h-full"
-              selectedSeatIds={hoveredUserSeatIds}
-              readOnly={hoveredUserId !== null}
-            />
+        return (
+          <div className="w-full h-[400px] flex justify-center items-center bg-white rounded-lg p-4">
+            <div ref={seatMapContainerRef} className="w-full h-full flex items-center justify-center">
+              <TsxPreview 
+                src={tsxUrl} 
+                className="w-full h-full"
+                selectedSeatIds={hoveredUserSeatIds}
+                readOnly={hoveredUserId !== null}
+              />
+            </div>
           </div>
-        </div>
-      );
+        );
     }
 
     // AI 생성이지만 tsxUrl이 없는 경우 디버깅
@@ -460,21 +571,7 @@ export default function MatchDetailContent({
         ? [mySeatId, ...selectedSeatIds.filter(id => id !== mySeatId)]
         : selectedSeatIds;
       
-      // 디버깅: 좌석 ID 확인
-      console.log("[MatchDetailContent] 좌석 ID 변환 결과:", {
-        hallId,
-        users: users.map(u => ({
-          id: u.id,
-          name: u.nickname,
-          seatSection: u.seatSection,
-          seatRow: u.seatRow,
-          seatCol: u.seatCol,
-        })),
-        selectedSeatIds,
-        mySeatId,
-        allSeatIds,
-      });
-      
+  
       // hallId 2: 샤롯데씨어터 (SmallVenue)
       // 호버 시: 해당 유저의 좌석만 색상 유지, 나머지 회색 처리
       // 호버 없을 때: 모든 좌석 원래 색상으로 표시
@@ -490,8 +587,8 @@ export default function MatchDetailContent({
           : allSeatIds;
         
         return (
-          <div className="w-full flex justify-center items-center bg-white rounded-lg p-4 overflow-auto">
-            <div className="scale-75 origin-center">
+          <div className="w-full h-[400px] flex justify-center items-center bg-white rounded-lg p-4">
+            <div ref={seatMapContainerRef} className="w-full h-full flex items-center justify-center">
               <SmallVenue
                 selectedIds={hoveredUserSeatIds}
                 takenSeats={new Set(hoveredUserSeatIds)}
@@ -518,12 +615,12 @@ export default function MatchDetailContent({
           : [];
         
         return (
-          <div className="w-full flex justify-center items-center bg-white rounded-lg p-4 overflow-auto">
-            <div className="scale-75 origin-center">
+          <div className="w-full h-[400px] flex justify-center items-center bg-white rounded-lg p-4">
+            <div ref={seatMapContainerRef} className="w-full h-full flex items-center justify-center">
               <MediumVenue
                 selectedIds={hoveredUserSeatIds}
                 onToggleSeat={undefined}
-                readOnly={hoveredUserId !== null}
+                readOnly={true}
               />
             </div>
           </div>
@@ -545,12 +642,12 @@ export default function MatchDetailContent({
           : allSeatIds;
         
         return (
-          <div className="w-full flex justify-center items-center bg-white rounded-lg p-4 overflow-auto">
-            <div className="scale-75 origin-center">
+          <div className="w-full h-[400px] flex justify-center items-center bg-white rounded-lg p-4">
+            <div ref={seatMapContainerRef} className="w-full h-full flex items-center justify-center">
               <LargeVenue
                 selectedIds={hoveredUserSeatIds}
                 onToggleSeat={undefined}
-                readOnly={hoveredUserId !== null}
+                readOnly={true}
               />
             </div>
           </div>

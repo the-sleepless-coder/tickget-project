@@ -457,15 +457,7 @@ export default function CreateRoomModal({
                     return;
                   }
                   try {
-                    console.log("[CreateRoom] TSX 요청 시작", {
-                      file: {
-                        name: fileToSend.name,
-                        size: fileToSend.size,
-                        type: fileToSend.type,
-                      },
-                      hall: selectedHall,
-                      totalSeat: selectedHall.totalSeat,
-                    });
+                  
                     setIsGenerating(true);
                     setCanFinalize(false);
                     const resp = await processSeatmapTsx(
@@ -473,7 +465,7 @@ export default function CreateRoomModal({
                       selectedHall.totalSeat
                     );
                     if (resp.ok) {
-                      console.log("[CreateRoom] TSX 응답 성공", resp);
+                     
                       setAITsxUrl(resp.minio.tsx.url);
                       // setAIMetaUrl(resp.minio.meta.url);
                       setAIHallId(resp.hallId);
@@ -648,12 +640,7 @@ export default function CreateRoomModal({
                     const selectedTime = `${String(selectedHour).padStart(2, "0")}:${String(selectedMinute).padStart(2, "0")}:${String(selectedSecond).padStart(2, "0")}`;
                     const gameStartTime = `${dayjs().tz("Asia/Seoul").format("YYYY-MM-DD")}T${selectedTime}`;
 
-                    console.log("⏰ 시간 정보:", {
-                      startTime: startTime?.format("YYYY-MM-DD HH:mm:ss"),
-                      selectedTime,
-                      gameStartTime,
-                      reservationDay,
-                    });
+                 
 
                     // thumbnailType 및 thumbnailValue
                     const isUploaded =
@@ -729,31 +716,8 @@ export default function CreateRoomModal({
                       "📦 요청 바디:",
                       JSON.stringify(payload, null, 2)
                     );
-                    console.log("🔍 필드 검증:", {
-                      userId: typeof userId === "number" && userId > 0,
-                      username:
-                        typeof username === "string" && username.length > 0,
-                      hallId: typeof hallId === "number" && hallId > 0,
-                      difficulty: difficultyValue,
-                      botCount:
-                        typeof payload.botCount === "number" &&
-                        payload.botCount >= 0,
-                      gameStartTime:
-                        typeof gameStartTime === "string" &&
-                        gameStartTime.length > 0,
-                      reservationDay:
-                        typeof reservationDay === "string" &&
-                        reservationDay.length > 0,
-                      thumbnailType,
-                      thumbnailValue,
-                    });
-                    if (thumbnailFile) {
-                      console.log("📎 썸네일 파일:", {
-                        name: thumbnailFile.name,
-                        size: thumbnailFile.size,
-                        type: thumbnailFile.type,
-                      });
-                    }
+                   
+                   
 
                     const response = await createRoom(
                       payload,
@@ -836,7 +800,7 @@ export default function CreateRoomModal({
                       }
 
                       const roomPath = paths.iTicketRoom(response.roomId);
-                      console.log(`📍 방으로 이동: ${roomPath}`);
+                    
                       onClose();
                       navigate(roomPath, {
                         state: {
@@ -860,7 +824,7 @@ export default function CreateRoomModal({
                     );
                   } finally {
                     setIsCreating(false);
-                    console.log("🏁 방 생성 프로세스 종료");
+                  
                   }
                 }}
                 className={`px-4 py-1.5 rounded-md font-semibold ${

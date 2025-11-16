@@ -7,7 +7,7 @@ const AUTH_BASE_URL = `${import.meta.env.VITE_API_ORIGIN ?? ""}/api/v1/dev/auth`
 const authApi = createHttpClient(AUTH_BASE_URL);
 
 export const testAccountLogin = async (): Promise<TestAccountLoginResponse> => {
-  console.log("Request URL:", `${AUTH_BASE_URL}/test/login`);
+  
   try {
     const result =
       await authApi.postJson<TestAccountLoginResponse>("/test/login");
@@ -20,7 +20,7 @@ export const testAccountLogin = async (): Promise<TestAccountLoginResponse> => {
 
 export const adminAccountLogin =
   async (): Promise<TestAccountLoginResponse> => {
-    console.log("Request URL:", `${AUTH_BASE_URL}/test/admin/login`);
+    
     try {
       const result =
         await authApi.postJson<TestAccountLoginResponse>("/test/admin/login");
@@ -34,8 +34,7 @@ export const adminAccountLogin =
 export const adminAccountLoginByName = async (
   nickname: string
 ): Promise<TestAccountLoginResponse> => {
-  console.log("Request URL:", `${AUTH_BASE_URL}/test/admin/login`);
-  console.log("Request Body:", { nickname });
+ 
   try {
     const result = await authApi.postJson<TestAccountLoginResponse>(
       "/test/admin/login",

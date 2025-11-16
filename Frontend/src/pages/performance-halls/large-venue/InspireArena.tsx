@@ -251,6 +251,9 @@ export default function LargeVenue({
   const [takenSeats, setTakenSeats] = useState<Set<string>>(new Set());
 
   const handlePolygonClick = async (polygon: SVGPolygonElement) => {
+    // readOnly 모드일 때는 클릭 이벤트 무시
+    if (readOnly) return;
+    
     const data: PolygonData = {
       id: polygon.dataset.id || "",
       level: polygon.dataset.seatLevel || "",

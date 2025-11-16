@@ -83,6 +83,7 @@ export interface MatchSpecifics {
   seatClickMissDifference: number;
   seatSelectTimeDifference: number;
   seatTrialCountDifference: number;
+  tsxUrl?: string | null; // AI 생성된 경우 TSX URL
 }
 
 export interface MatchDataResponse {

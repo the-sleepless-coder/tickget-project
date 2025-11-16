@@ -46,16 +46,18 @@ export async function getMyPageStats(
 /**
  * 경기 기록 데이터 조회
  * @param mode 필터 모드: "all" | "solo" | "multi"
+ * @param page 페이지 번호 (0-based, 백엔드 기준)
  * @returns 경기 기록 응답 데이터 배열
  */
 export async function getMatchHistory(
-  mode: "all" | "solo" | "multi" = "all"
+  mode: "all" | "solo" | "multi" = "all",
+  page: number = 0
 ): Promise<MatchDataResponse[]> {
   const { accessToken } = useAuthStore.getState();
 
   // 상대 경로 사용 (Vite 프록시를 통해 요청)
   const apiUrl = "/api/v1/dev/stats/mypage/matchData";
-  const url = `${apiUrl}?mode=${mode}`;
+  const url = `${apiUrl}?mode=${mode}&page=${page}`;
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
