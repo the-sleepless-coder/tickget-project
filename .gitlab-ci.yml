@@ -335,3 +335,25 @@ build:stats-server:
     - *update_manifest
   tags:
     - docker
+
+build:analyst-server:
+  stage: build
+  image: docker:24-dind
+  services:
+    - docker:24-dind
+  only:
+    refs:
+      - dev
+    changes:
+      - AI/AI_analyst/**/*
+  before_script:
+    - *docker_buildx_setup
+  script:
+    - export SERVICE_NAME="analyst-server"
+    - cd AI/AI_analyst
+    - IMAGE_TAG="dev-${CI_COMMIT_SHORT_SHA}"
+    - echo "Building analysis-server with tag $IMAGE_TAG"
+    - docker buildx build --platform linux/arm64 -t kkaebu/analyst-server:$IMAGE_TAG --push .
+    - *update_manifest
+  tags:
+    - docker
