@@ -203,10 +203,10 @@ export default function MyPageIndex() {
       };
     });
 
-    // hallId는 첫 번째 specifics에서 가져오기 (모든 사용자가 같은 hallId를 가짐)
+    // hallId와 tsxUrl은 첫 번째 specifics에서 가져오기 (모든 사용자가 같은 hallId와 tsxUrl을 가짐)
     const hallId = specifics[0]?.hallId;
-    // tsxUrl은 matchInfo에서 가져오기
-    const tsxUrl = matchInfo.tsxUrl;
+    // tsxUrl은 specifics에 있거나 matchInfo에 있을 수 있음
+    const tsxUrl = specifics[0]?.tsxUrl || matchInfo.tsxUrl;
 
     return {
       id: matchInfo.matchId,
