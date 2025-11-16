@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useAuthStore } from "@features/auth/store";
 import { exitRoom } from "@features/room/api";
 import { normalizeProfileImageUrl } from "@shared/utils/profileImageUrl";
+import { useWebSocketStore } from "@shared/lib/websocket-store";
+import { disconnectStompClient } from "@shared/lib/websocket";
 
 export default function Header() {
   const location = useLocation();
@@ -98,8 +100,29 @@ export default function Header() {
   const handleLogout = async () => {
     const proceed = await confirmAndExitIfInRoom();
     if (!proceed) return;
+    
+    // WebSocket 연결을 먼저 정리
+    const wsClient = useWebSocketStore.getState().client;
+    if (wsClient) {
+      disconnectStompClient(wsClient);
+      useWebSocketStore.getState().setClient(null);
+    }
+    
+    // 인증 상태 초기화
     useAuthStore.getState().clearAuth();
+    // 상태 업데이트가 완료되도록 다음 이벤트 루프까지 대기
+    await new Promise((resolve) => setTimeout(resolve, 0));
     navigate("/", { replace: true });
+  };
+
+  const handleLoginClick: React.MouseEventHandler<HTMLButtonElement> = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // 현재 상태를 직접 확인하여 로그아웃 상태라면 무조건 로그인 페이지로 이동
+    const currentAccessToken = useAuthStore.getState().accessToken;
+    if (!currentAccessToken) {
+      navigate("/auth/login", { replace: false });
+    }
   };
 
   return (
@@ -219,12 +242,14 @@ export default function Header() {
                 </button>
               </>
             ) : (
-              <Link
-                to="/auth/login"
+              <button
+                type="button"
+                onClick={handleLoginClick}
                 className="text-md font-bold text-neutral-700 hover:text-neutral-900 mr-4"
+                style={{ display: "block" }}
               >
                 로그인
-              </Link>
+              </button>
             )}
           </div>
         </div>
