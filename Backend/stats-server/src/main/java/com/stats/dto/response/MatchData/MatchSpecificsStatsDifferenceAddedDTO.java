@@ -22,6 +22,7 @@ public class MatchSpecificsStatsDifferenceAddedDTO {
 
     private Integer captchaBackSpaceCountDifference;
     private Float captchaTimeDifference;
+    private Integer captchaTrialDifference;
 
     private Integer seatClickMissDifference;
     private Float seatSelectTimeDifference;
@@ -36,6 +37,7 @@ public class MatchSpecificsStatsDifferenceAddedDTO {
 
             Float captchaTimeDifference,
             Integer captchaBackSpaceCountDifference,
+            Integer captchaTrialDifference,
 
             Float seatSelectTimeDifference,
             Integer seatClickMissDifference,
@@ -46,10 +48,13 @@ public class MatchSpecificsStatsDifferenceAddedDTO {
                 .totalTime(totalTime)
                 .queueTimeDifference(queueTimeDifference)
                 .queueMissCountDifference(queueMissCountDifference)
-                .captchaBackSpaceCountDifference(captchaBackSpaceCountDifference)
+
                 .captchaTimeDifference(captchaTimeDifference)
-                .seatClickMissDifference(seatClickMissDifference)
+                .captchaBackSpaceCountDifference(captchaBackSpaceCountDifference)
+                .captchaTrialDifference(captchaTrialDifference)
+
                 .seatSelectTimeDifference(seatSelectTimeDifference)
+                .seatClickMissDifference(seatClickMissDifference)
                 .seatTrialCountDifference(seatTrialCountDifference)
                 .build();
     }

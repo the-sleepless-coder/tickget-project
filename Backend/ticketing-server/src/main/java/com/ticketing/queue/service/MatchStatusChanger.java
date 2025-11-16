@@ -72,7 +72,7 @@ public class MatchStatusChanger {
             redis.opsForValue().set(userNumKey, userNumString);
             redis.expire(userNumKey, Duration.ofMinutes(EXPIRE_MINUTES));
 
-            log.info("현재 사용자의 수 {}", userNum);
+            log.info("방ID : {}, 매치ID : {}, 사용자 수 : {}", roomId, matchId, userNum);
         }else{
             log.info("사용자 수를 못 가져왔습니다.");
         }

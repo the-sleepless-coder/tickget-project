@@ -14,7 +14,11 @@ import java.util.List;
 import java.util.Optional;
 
 public interface UserStatsRepository extends JpaRepository<UserStats, Long> {
+    // userId를 이용한 userStat 찾기.
     Optional<UserStats> findByUserId(Long userId);
+
+    // matchId를 이용한 userStat 찾기.
+    List<UserStats> findByMatchId(Long matchId);
 
     List<UserStats> findTop12ByUserIdOrderByCreatedAtDesc(Long userId);
 
@@ -83,6 +87,9 @@ public interface UserStatsRepository extends JpaRepository<UserStats, Long> {
         r.roomType,
         us.selectedSection,
         us.selectedSeat,
+        us.totalRank,
+        r.hallSize,
+        r.tsxUrl,
         m.matchId,
         us.dateMissCount,
         us.dateSelectTime,
@@ -91,8 +98,7 @@ public interface UserStatsRepository extends JpaRepository<UserStats, Long> {
         us.seccodeTryCount,
         us.seatSelectClickMissCount,
         us.seatSelectTime,
-        us.seatSelectTryCount,
-        us.totalRank
+        us.seatSelectTryCount
     )
     from UserStats us
     left join Match m on m.matchId = us.matchId
@@ -106,4 +112,20 @@ public interface UserStatsRepository extends JpaRepository<UserStats, Long> {
                                                                     @Param("roomType") Room.RoomType roomType,
                                                                    Pageable pageable
                                                                    );
+
+    // 중복되지 않는 matchId, 내림차순.
+    @Query("SELECT DISTINCT us.matchId FROM UserStats us ORDER BY us.matchId DESC")
+    List<Long> findDistinctMatchIds();
+
+    // 아직 집계 안된 matchId 확인.
+//    @Query("""
+//        SELECT DISTINCT us.matchId
+//        FROM UserStats us
+//        WHERE us.matchId NOT IN (
+//            SELECT ms.matchId FROM MatchStats ms
+//        )
+//        ORDER BY us.matchId DESC
+//        """)
+//    List<Long> findMatchIdsWithoutStats();
+
 }

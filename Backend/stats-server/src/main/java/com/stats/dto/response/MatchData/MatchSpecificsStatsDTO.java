@@ -18,6 +18,10 @@ public class MatchSpecificsStatsDTO {
     private String selectedSection;
     private String selectedSeat;
 
+    private Integer totalRank;
+    private Room.HallSize hallSize;
+    private String tsxUrl;
+
     private Long matchId;
     private Integer queueMissCount;
     private Float queueSelectTime;
@@ -27,7 +31,7 @@ public class MatchSpecificsStatsDTO {
     private Integer seatSelectClickMissCount;
     private Float seatSelectTime;
     private Integer seatSelectTrialCount;
-    private Integer totalRank;
+
 
 }
 

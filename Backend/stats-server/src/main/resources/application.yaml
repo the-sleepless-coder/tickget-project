@@ -47,9 +47,9 @@ spring:
 
 logging:
   level:
-    org.hibernate.SQL: ${LOG_SQL_LEVEL:info}
+    org.hibernate.SQL: ${LOG_SQL_LEVEL:error}
     com.ticketing: ${LOG_APP_LEVEL:info}
-    org.springframework.data.mongodb.core.MongoTemplate: ${LOG_MONGO_LEVEL:info}
+    org.springframework.data.mongodb.core.MongoTemplate: ${LOG_MONGO_LEVEL:error}
     org.springframework.kafka: ${LOG_KAFKA_LEVEL:info}
 
 

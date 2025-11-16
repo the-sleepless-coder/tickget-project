@@ -23,11 +23,11 @@ import java.util.List;
 @Tag(name = "Stats", description = "Stat 관련 API")
 public class StatsController {
     private final StatsService service;
+    // private final StatsBatchService statsBatchService;
 
     /**
      * 개인 통계
      */
-
     @GetMapping("/mypage")
     @Operation(
             summary = "마이페이지에 대한 초기 정보를 가져옵니다.",
@@ -85,7 +85,20 @@ public class StatsController {
 
     }
 
-
+    /**
+     * Batch 단위로 데이터 수집
+     * */
+//    // 게임 끝났을 때 집계 작업 수행.
+//    @GetMapping("/")
+//    public void onGameEnd(Long matchId) {
+//        // 1. UserStats 저장 (기존 로직)
+//        saveUserStats(matchId);
+//
+//        // 2. 즉시 매치 통계 계산
+//        statsBatchService.updateMatchStats(matchId);
+//
+//        log.info("Game ended and stats updated for matchId: {}", matchId);
+//    }
 
 
 }

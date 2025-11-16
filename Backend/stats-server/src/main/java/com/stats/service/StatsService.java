@@ -215,6 +215,7 @@ public class StatsService {
 
                 Float myCaptchaSelectTime = myData.getCaptchaSelectTime();
                 Integer myCaptchaBackspaceCount = myData.getCaptchaBackspaceCount();
+                Integer myCaptchaTrialCount = myData.getCaptchaTrialCount();
 
                 Float mySeatSelectTime = myData.getSeatSelectTime();
                 Integer mySeatClickMissCount = myData.getSeatSelectClickMissCount();
@@ -228,6 +229,7 @@ public class StatsService {
 
                     Float otherCaptchaSelectTime = specifics.getCaptchaSelectTime();
                     Integer otherCaptchaBackspaceCount = specifics.getCaptchaBackspaceCount();
+                    Integer otherCaptchaTrialCount = specifics.getCaptchaTrialCount();
 
                     Float otherSeatSelectTime = specifics.getSeatSelectTime();
                     Integer otherSeatClickMissCount = specifics.getSeatSelectClickMissCount();
@@ -242,24 +244,26 @@ public class StatsService {
 
                     Float captchaTimeDifference = otherCaptchaSelectTime - myCaptchaSelectTime;
                     Integer captchaBackSpaceCountDifference = otherCaptchaBackspaceCount - myCaptchaBackspaceCount;
+                    Integer captchaTrialCountDifference = otherCaptchaTrialCount - myCaptchaTrialCount;
 
                     Float seatSelectTimeDifference = roundTwoDigits(otherSeatSelectTime - mySeatSelectTime);
                     Integer seatClickMissDifference = otherSeatClickMissCount - mySeatClickMissCount;
                     Integer seatTrialCountDifference = otherSeatTrialCount - mySeatTrialCount;
 
                     MatchSpecificsStatsDifferenceAddedDTO dto =
-                            new MatchSpecificsStatsDifferenceAddedDTO(
+                            MatchSpecificsStatsDifferenceAddedDTO.dtobuilder(
                                     specifics,                         // @JsonUnwrapped
                                     totalTime,
 
                                     queueTimeDifference,
                                     queueMissCountDifference,
 
-                                    captchaBackSpaceCountDifference,
                                     captchaTimeDifference,
+                                    captchaBackSpaceCountDifference,
+                                    captchaTrialCountDifference,
 
-                                    seatClickMissDifference,
                                     seatSelectTimeDifference,
+                                    seatClickMissDifference,
                                     seatTrialCountDifference
                             );
 
@@ -269,7 +273,6 @@ public class StatsService {
                 // allMatchSpecifics.add(matchSpecifics);
                 allMatchSpecificsDifferenceAdded.add(specificsDiffAdded);
             }
-
 
             // matchDataDTO안에 박아서, 리스트에 넣어준다.
             for(int i=0; i < allMatchData.size(); i++){
@@ -346,7 +349,7 @@ public class StatsService {
 
                 Float myCaptchaSelectTime = myData.getCaptchaSelectTime();
                 Integer myCaptchaBackspaceCount = myData.getCaptchaBackspaceCount();
-                // 필요하면 myCaptchaTrialCount도 추가
+                Integer myCaptchaTrialCount = myData.getCaptchaTrialCount();
 
                 Float mySeatSelectTime = myData.getSeatSelectTime();
                 Integer mySeatClickMissCount = myData.getSeatSelectClickMissCount();
@@ -362,6 +365,7 @@ public class StatsService {
 
                     Float otherCaptchaSelectTime = specifics.getCaptchaSelectTime();
                     Integer otherCaptchaBackspaceCount = specifics.getCaptchaBackspaceCount();
+                    Integer otherCaptchaTrialCount = specifics.getCaptchaTrialCount();
 
                     Float otherSeatSelectTime = specifics.getSeatSelectTime();
                     Integer otherSeatClickMissCount = specifics.getSeatSelectClickMissCount();
@@ -379,6 +383,7 @@ public class StatsService {
                     // 캡차 시간/백스페이스 차이
                     Float captchaTimeDifference = roundTwoDigits(otherCaptchaSelectTime - myCaptchaSelectTime);
                     Integer captchaBackSpaceCountDifference = otherCaptchaBackspaceCount - myCaptchaBackspaceCount;
+                    Integer captchaTrialCountDifference = otherCaptchaTrialCount - myCaptchaTrialCount;
 
                     // 좌석 선택 관련 차이
                     Float seatSelectTimeDifference = roundTwoDigits(otherSeatSelectTime - mySeatSelectTime);
@@ -387,24 +392,24 @@ public class StatsService {
 
                     // DTO 생성 (생성자 파라미터 순서는 DTO 정의와 맞춰야 함)
                     MatchSpecificsStatsDifferenceAddedDTO dto =
-                            new MatchSpecificsStatsDifferenceAddedDTO(
+                            MatchSpecificsStatsDifferenceAddedDTO.dtobuilder(
                                     specifics,                 // @JsonUnwrapped
                                     totalTime,
 
                                     queueTimeDifference,
                                     queueMissCountDifference,
 
-                                    captchaBackSpaceCountDifference,
                                     captchaTimeDifference,
+                                    captchaBackSpaceCountDifference,
+                                    captchaTrialCountDifference,
 
-                                    seatClickMissDifference,
                                     seatSelectTimeDifference,
+                                    seatClickMissDifference,
                                     seatTrialCountDifference
                             );
 
                     specificsDiffAdded.add(dto);
                 }
-
                 allMatchSpecificsDifferenceAdded.add(specificsDiffAdded);
             }
 
@@ -420,7 +425,6 @@ public class StatsService {
                 matchResults.add(dto);
             }
         }
-
 
         return matchResults;
     }
