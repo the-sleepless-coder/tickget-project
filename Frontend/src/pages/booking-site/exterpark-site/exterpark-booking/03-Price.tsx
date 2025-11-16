@@ -244,8 +244,15 @@ export default function PricePage() {
             {selectedSeatsText || "좌석을 선택해주세요."}
           </div>
           <div className="divide-y">
-            {selectedSeats.map((seat) => (
-              <div key={seat.grade}>
+            {selectedSeats.map((seat, seatIndex) => (
+              <div key={seat.grade} className={seatIndex > 0 ? "border-t-2 border-gray-300" : ""}>
+                {/* 등급별 헤더 */}
+                <div className="px-3 py-3 bg-gray-50 border-b">
+                  <div className="font-semibold text-base text-gray-800">
+                    {seat.grade} {seat.count}매
+                  </div>
+                </div>
+                
                 {/* 기본가 */}
                 <Row
                   label={`기본가 (${seat.grade})`}

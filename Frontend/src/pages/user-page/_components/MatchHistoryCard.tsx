@@ -28,6 +28,10 @@ interface MatchHistoryCardProps {
     rank: number;
     seatArea: string;
   }) => void;
+  isAIGenerated?: boolean;
+  tsxUrl?: string | null;
+  hallId?: number;
+  roomType?: "SOLO" | "MULTI";
 }
 
 export default function MatchHistoryCard({
@@ -46,6 +50,10 @@ export default function MatchHistoryCard({
   isExpanded = false,
   onExpand,
   onUserClick,
+  isAIGenerated,
+  tsxUrl,
+  hallId,
+  roomType,
 }: MatchHistoryCardProps) {
   const getTagColorClass = (color: string) => {
     switch (color) {
@@ -122,6 +130,10 @@ export default function MatchHistoryCard({
               users={users}
               totalTime={totalTime}
               onUserClick={onUserClick}
+              isAIGenerated={isAIGenerated}
+              tsxUrl={tsxUrl}
+              hallId={hallId}
+              roomType={roomType}
             />
           ) : (
             <div className="space-y-3 text-sm text-neutral-700">
