@@ -1,7 +1,10 @@
+import { useNavigate } from "react-router-dom";
 import { paths } from "../../../../app/routes/paths";
 import { buildMetricsQueryFromStorage } from "../../../../shared/utils/reserveMetrics";
 
 export default function BookingCompletePage() {
+  const navigate = useNavigate();
+
   return (
       <div className="max-w-[860px] mx-auto grid grid-cols-[1fr_260px] gap-3 p-3">
         {/* 좌측 본문 카드 */}
@@ -84,17 +87,28 @@ export default function BookingCompletePage() {
           <button
             onClick={() => {
               const qs = buildMetricsQueryFromStorage();
-              const target = paths.gameResult + qs;
+              // 경로 수정: paths.booking.gameResult 사용 (실제 게임 결과 페이지 경로)
+              const target = paths.booking.gameResult + qs;
+              
+              // window.opener가 있어도 현재 창에서 navigate 사용 (세션 유지)
+              // 부모 창이 있으면 postMessage로 알림 (선택사항)
               try {
                 if (window.opener && !window.opener.closed) {
-                  window.opener.location.href = target;
-                  window.close();
-                } else {
-                  window.location.href = target;
+                  // 부모 창에 결과 페이지로 이동하라는 메시지 전달
+                  window.opener.postMessage(
+                    {
+                      type: "booking-complete",
+                      targetUrl: target,
+                    },
+                    window.location.origin
+                  );
                 }
-              } catch {
-                window.location.href = target;
+              } catch (error) {
+                console.warn("[Complete] 부모 창에 메시지 전달 실패:", error);
               }
+              
+              // 현재 창에서 결과 페이지로 이동 (세션 유지)
+              navigate(target);
             }}
             className="w-full py-4 bg-[#c62828] hover:bg-[#b71c1c] text-white rounded-md font-semibold tracking-wide shadow"
           >

@@ -49,6 +49,17 @@ export default function MainLayout() {
             });
           }
 
+          // 결과 페이지에서는 USER_LEFT 이벤트 무시
+          const currentPath = window.location.pathname;
+          const isGameResultPage = currentPath.includes("/game-result");
+          
+          if (isGameResultPage && (event.eventType === "USER_LEFT" || event.eventType === "USER_EXITED")) {
+            if (import.meta.env.DEV) {
+              console.log("ℹ️ [개인 메시지] 결과 페이지에서 USER_LEFT 이벤트 무시:", event);
+            }
+            return; // 결과 페이지에서는 퇴장 알림 무시
+          }
+
           if (event.eventType === "FORCE_DISCONNECT") {
             const payload = event.payload as
               | {
