@@ -312,6 +312,9 @@ export default function MediumVenue({
 
     // Click delegation to open inline detail view for supported blocks
     const handleClick = async (e: MouseEvent) => {
+      // readOnly 모드일 때는 클릭 이벤트 무시
+      if (readOnly) return;
+      
       const target = e.target as Element | null;
       if (!target) return;
       const polygon = (target as Element).closest?.("polygon");
