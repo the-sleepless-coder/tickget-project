@@ -11,7 +11,7 @@
 #  - 색상 그룹별 ‘평균 거리’로 가까운 그룹이 상위 등급
 
 from __future__ import annotations
-from fastapi import FastAPI, APIRouter, UploadFile, File, Form, Response, HTTPException
+from fastapi import FastAPI, APIRouter, UploadFile, File, Form, Response, HTTPException, Request
 from pathlib import Path
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -21,8 +21,6 @@ from s3_client import S3Client
 import os, re, json, math, io, logging
 import numpy as np
 import cv2
-from minio import Minio
-from minio.error import S3Error
 from dotenv import load_dotenv
 
 load_dotenv(override=False)  # 이미 셸에 있으면 .env가 덮어쓰지 않음
@@ -53,7 +51,7 @@ from utils_stage import (
 import httpx
 from httpx import HTTPStatusError
 
-OCR_AVAILABLE = httpx is not None
+# OCR support removed
 
 # ----------------------------
 # Paths / Dirs
@@ -88,24 +86,6 @@ def _get_api_client() -> httpx.Client:
         "Accept": "application/json",
     }
     return httpx.Client(base_url=API_BASE, headers=headers, timeout=20.0)
-
-# def _raise_with_context(resp: httpx.Response, context: str):
-#     try:
-#         detail = resp.json()
-#     except Exception:
-#         detail = resp.text
-#     raise HTTPException(
-#         status_code=502,
-#         detail=f"{context} failed (upstream {resp.status_code}). body={detail}"
-#     )
-
-def _ensure_bucket(bucket: str = MINIO_BUCKET) -> None:
-    from minio.error import S3Error
-    try:
-        if not _minio_client.bucket_exists(bucket):
-            _minio_client.make_bucket(bucket)
-    except S3Error:
-        pass
 
 # --- 그대로 사용(주석만 추가) ---
 def post_hall_and_get_id(*, name: str, total_seat: int) -> str:
@@ -174,38 +154,6 @@ def post_hall_and_get_id(*, name: str, total_seat: int) -> str:
 
     # 두 주소 모두 실패하면 상세 에러 표시
     raise RuntimeError(f"Halls register failed at {urls_to_try}: {last_err}")
-
-# def _put_minio_with_retry(
-#     bucket: str,
-#     object_name: str,
-#     content: bytes,
-#     content_type: str,
-#     *,
-#     max_attempts: int = 4,
-#     base_delay: float = 0.6,
-# ) -> Tuple[bool, str]:
-#     """
-#     MinIO put_object with exponential backoff.
-#     Returns (ok, err_msg)
-#     """
-#     _ensure_bucket(bucket)  # ensure bucket exists :contentReference[oaicite:4]{index=4}
-#     attempt = 0
-#     while True:
-#         attempt += 1
-#         try:
-#             _minio_client.put_object(
-#                 bucket,
-#                 object_name.lstrip("/"),
-#                 io.BytesIO(content),
-#                 length=len(content),
-#                 content_type=content_type
-#             )
-#             return True, ""
-#         except Exception as e:
-#             if attempt >= max_attempts:
-#                 return False, f"{type(e).__name__}: {e}"
-#             time.sleep(base_delay * (2 ** (attempt - 1)))
-
 
 def _halls_auth_headers() -> dict:
     raw = os.getenv("TICKGET_API_TOKEN") or os.getenv("HALLS_API_TOKEN")
@@ -348,12 +296,29 @@ async def _finalize_and_publish(
 # App & Routers
 # ----------------------------
 
-app = FastAPI(title="STH_v1 Modular FastAPI (B-plan + OCR overlay + stage-fallback)")
+app = FastAPI(title="STH_v1 Modular FastAPI (B-plan + stage-fallback)")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"], allow_credentials=True,
     allow_methods=["*"], allow_headers=["*"],
 )
+
+@app.middleware("http")
+async def log_request_timing(request: Request, call_next):
+    start = time.perf_counter()
+    start_ts = datetime.now().isoformat()
+    logger.info("[REQ] %s %s start=%s", request.method, request.url.path, start_ts)
+    response = None
+    try:
+        response = await call_next(request)
+        return response
+    finally:
+        end_ts = datetime.now().isoformat()
+        elapsed = (time.perf_counter() - start) * 1000
+        status = response.status_code if response is not None else "error"
+        logger.info("[REQ] %s %s done=%s elapsed=%.1fms status=%s",
+                    request.method, request.url.path, end_ts, elapsed, status)
+
 fg_router      = APIRouter(prefix="/fg", tags=["1. Foreground / Background"])
 text_router    = APIRouter(prefix="/text", tags=["2. Text removal / Stage text"])
 seg_router     = APIRouter(prefix="/segment", tags=["3. Segmentation"])
@@ -382,8 +347,7 @@ TEXT_ASPECT_MIN     = 2.4
 
 
 # OCR → STAGE 검출
-OCR_ENDPOINT      = os.environ.get("OCR_ENDPOINT", "http://localhost:8100/ocr/extract")
-OCR_MIN_SCORE     = float(os.environ.get("OCR_MIN_SCORE", "0.35"))
+# OCR configs removed
 STAGE_KEYWORDS    = ["stage", "무대", "스테이지"]  # 정규화 후 포함 매칭
 STAGE_OVERLAP_IOU = max(0.02, float(os.environ.get("STAGE_OVERLAP_IOU", "0.005")))  # 살짝만 겹쳐도 무대 강제 렌더
 STAGE_DELE_THR    = 12.0    # ΔE 임계 (무대색 유사)
@@ -409,11 +373,7 @@ PIPELINE_DEFAULTS = {
     "gray_exclude_ratio": 0.55,
     "gray_chroma_quantile": LAB_GRAY_Q,
     "strong_gray_exclude": True,
-    "use_external_ocr": False,
-    "ocr_min_score": 0.5,
-    "ocr_mask_dilate": 2,
     "min_render_area": DEFAULT_MIN_RENDER_AREA,
-    "use_ocr_for_stage": False,
 }
 
 # ----------------------------
@@ -532,7 +492,7 @@ def build_sections_json(img_name: str, regions: list[dict], total_attendees: int
         section_num = int(_re.sub(r"[^0-9]", "", rid) or "0")
 
         out_sections.append({
-            "section": str(section_num),
+            "section": section_num,
             "grade": str(r.get("seat_grade","")),
             "totalRows": int(totalRows),
             "totalCols": int(totalCols),
@@ -607,40 +567,6 @@ def deltaE_lab(a, b):
     b = np.array(b, dtype=np.float32)
     d = a - b
     return float(np.sqrt(np.sum(d * d)))
-
-def upload_text_to_minio(*, hall_id: str, stem: str, text: str, suffix: str, content_type: str) -> str:
-    """
-    hall_id/<stem>.<suffix> 로 업로드. text를 bytes로 변환해서 put_object.
-    반환: 'bucket/key' 문자열
-    """
-    _ensure_bucket(MINIO_BUCKET)
-    key = f"{str(hall_id).strip()}/{stem}.{suffix.lstrip('.')}"
-    data = text.encode("utf-8")
-    _minio_client.put_object(
-        MINIO_BUCKET,
-        key,
-        io.BytesIO(data),
-        length=len(data),
-        content_type=content_type,
-    )
-    return f"{MINIO_BUCKET}/{key}"
-
-def upload_bytes_to_minio(*, hall_id: str, object_name: str, content: bytes, content_type: str):
-    """
-    기존 함수 유지해도 되지만, object_name엔 파일명만 넣고
-    hall_id/ 접두는 여기서 붙이도록 고정.
-    """
-    _ensure_bucket(MINIO_BUCKET)
-    key = f"{str(hall_id).strip()}/{object_name.lstrip('/')}"
-    _minio_client.put_object(
-        MINIO_BUCKET,
-        key,
-        io.BytesIO(content),
-        length=len(content),
-        content_type=content_type
-    )
-    return f"{MINIO_BUCKET}/{key}"
-
 
 def _resolve_primary_stage_region(
     regions: List[Dict[str, Any]],
@@ -759,7 +685,7 @@ def stage_reference_point(stage_union_xywh, fallback_center):
 
 def _ocr_base_url() -> str:
     # 환경변수로 바꿀 수 있게: OCR_URL=http://localhost:8100
-    return os.environ.get("OCR_URL", "http://localhost:8100").rstrip("/")
+    return ""
 
 def call_ocr_extract_bgr(bgr: np.ndarray, *, min_score: float = 0.5, mask_dilate: int = 2) -> List[Dict[str, Any]]:
     """
@@ -767,8 +693,7 @@ def call_ocr_extract_bgr(bgr: np.ndarray, *, min_score: float = 0.5, mask_dilate
     반환: [{ "text", "score", "poly": [[x,y],...], "bbox":[x1,y1,x2,y2], "center":[cx,cy] }, ...]
     파이프라인에서는 normalize_ocr_lines()에 넘겨 poly→bbox/cx,cy로 정규화해서 쓴다.
     """
-    if httpx is None:
-        return []
+    return []
 
     ok, buf = cv2.imencode(".png", bgr)
     if not ok:
@@ -801,8 +726,7 @@ def call_ocr_extract_path(path: str, *, min_score: float = 0.5, mask_dilate: int
     """
     파일 경로를 받아 /ocr/extract 호출. 텍스트 마스크 경로 등 메타를 그대로 반환.
     """
-    if httpx is None:
-        return {}
+    return {}
     url = _ocr_base_url() + "/ocr/extract"
     try:
         with open(path, "rb") as f:
@@ -1086,7 +1010,6 @@ def _ring_mask_around_box(H,W, x,y,w,h, inner=2, outer=8) -> np.ndarray:
 
 def sample_stage_bg_color(
     bgr: np.ndarray,
-    ocr_lines_norm: Optional[List[Dict[str,Any]]],
     stage_union_xywh: Optional[Tuple[int,int,int,int]],
 ) -> Optional[Dict[str,Any]]:
     """
@@ -1095,9 +1018,9 @@ def sample_stage_bg_color(
       2) (1)이 없으면 stage_union 박스 주변 링에서 샘플
     반환: {"lab_med": np.array([L,a,b],float32), "hex": "#RRGGBB"}
     """
-    H,W = bgr.shape[:2]
+    return None
     cand_boxes = []
-    if ocr_lines_norm:
+    if False:
         for ln in ocr_lines_norm:
             txt = str(ln.get("text","")).lower()
             if any(k in txt for k in ("stage","무대","스테이지")):
@@ -1816,7 +1739,7 @@ def union_bbox_xywh(bbs: List[Tuple[int, int, int, int]]) -> Optional[Tuple[int,
     return (x0, y0, x1 - x0, y1 - y0)
 
 def normalize_ocr_lines(lines_raw: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    out = []
+    return []
     for ln in lines_raw:
         poly = ln.get("poly") or []
         if not poly:
@@ -2031,16 +1954,15 @@ def maybe_inject_stage_after_mark(
     bgr: np.ndarray,
     *,
     primary_stage_id: Optional[str],
-    ocr_lines_norm: Optional[List[Dict[str, Any]]],
     stage_only: bool
 ) -> None:
     allow_placeholder = False
-    if ocr_lines_norm:
+    if False:
         joined = " ".join(str(it.get("text", "")).lower() for it in ocr_lines_norm)
         allow_placeholder = any(k in joined for k in ["stage","무대","스테이지"])
 
     # 🔴 stage_only면 키워드 없이도 허용. 일반 모드는 키워드 있을 때만.
-    if (stage_only or allow_placeholder) and (not primary_stage_id) and (stage_union is not None):
+    if stage_only and (not primary_stage_id) and (stage_union is not None):
         _inject_synthetic_stage_region(regions, stage_union)
         _add_stage_placeholder_if_missing(regions, stage_union, bgr)
 
@@ -2082,7 +2004,6 @@ def write_svg_html(
     color_summary: Optional[List[Dict[str, Any]]] = None,
     debug_imgs: Optional[List[np.ndarray]] = None,
     min_render_area: int = DEFAULT_MIN_RENDER_AREA,
-    ocr_lines: Optional[List[Dict[str, Any]]] = None,
     stage_only: bool = False,   # A안에서도 파라미터는 유지(디버그용), 저장만 안함
 ):
     h, w = img_bgr.shape[:2]
@@ -2204,7 +2125,7 @@ def write_svg_html(
         )
 
     svg_parts = [
-        f'    <svg viewBox="0 0 {w} {h}" width="{w}" height="{h}" xmlns="http://www.w3.org/2000/svg">',
+        f'    <svg viewBox="0 0 {w} {h}" width="620" height="620" tabindex="-1" focusable="false" style="outline:none;" xmlns="http://www.w3.org/2000/svg">',
         defs_html if defs_html else "",
         *polys_html,
         "    </svg>",
@@ -2220,17 +2141,8 @@ def write_svg_html(
     # legend_html = _legend_html(color_summary or [], legend_note)
     legend_html = ""
     # --- OCR 라벨 ---
-    ocr_divs = []
-    if ocr_lines:
-        for ln in ocr_lines:
-            cx, cy = int(ln.get("cx", 0)), int(ln.get("cy", 0))
-            txt = _escape_html(str(ln.get("text", "")))
-            ocr_divs.append(f'      <div class="ocr-label" style="left:{cx}px; top:{cy}px;">{txt}</div>')
-    ocr_layer_html = "\n".join([
-        '    <div class="ocr-layer">',
-        *ocr_divs,
-        '    </div>'
-    ]) if ocr_divs else ""
+    # OCR overlay removed
+    ocr_layer_html = ""
 
     # --- 스크립트/스타일 ---
     script = "\n".join([
@@ -2286,11 +2198,6 @@ def write_svg_html(
         "      .legend .note{margin-top:6px;color:#666}",
         "      .dbg-note{position:fixed;left:12px;bottom:12px;color:#666;font:12px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial}",
         "      .canvas-wrap{position:relative;display:inline-block}",
-        "      .ocr-layer{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none}",
-        "      .ocr-label{position:absolute;transform:translate(-50%,-50%);",
-        '        font:700 13px/1.1 "Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",sans-serif;',
-        "        color:#111;background:#fff;padding:2px 4px;border-radius:4px;",
-        "        border:1px solid rgba(0,0,0,.12);white-space:nowrap;pointer-events:none}",
         "    </style>",
     ])
 
@@ -2309,7 +2216,7 @@ def write_svg_html(
         "      <div class='card'>",
         f"        <div class='canvas-wrap' style='width:{w}px;height:{h}px'>",
         f"{svg}",
-        f"{ocr_layer_html}",
+        "",
         "        </div>",
         "      </div>",
         "    </div>",
@@ -2474,8 +2381,16 @@ const {component_name}: React.FC<Props> = ({{ onSectionClick }}) => {{
   }};
 
   return (
-    <svg viewBox="0 0 {img_w} {img_h}" width={{{img_w}}} height={{{img_h}}}
-         xmlns="http://www.w3.org/2000/svg" onClick={{onClick}}>
+    <svg
+      viewBox="0 0 {img_w} {img_h}"
+      width={{620}}
+      height={{620}}
+      tabIndex={{-1}}
+      focusable="false"
+      style={{{{ outline: "none" }}}}
+      xmlns="http://www.w3.org/2000/svg"
+      onClick={{onClick}}
+    >
       {"".join(poly_lines)}
     </svg>
   );
@@ -2489,194 +2404,19 @@ export default {component_name};
 # ----------------------------
 # Debug HTML (폴리곤/스테이지/OCR 간단 시각화)
 # ----------------------------
+
 import base64 as _b64
 import html as _py_html
-
-def _bgr_to_data_url_png(img_bgr: np.ndarray) -> str:
-    ok, buf = cv2.imencode(".png", img_bgr)
-    if not ok:
-        return ""
-    b64 = _b64.b64encode(buf.tobytes()).decode("ascii")
-    return f"data:image/png;base64,{b64}"
-
-def _build_regions_debug_html(
-    *,
-    img_bgr: np.ndarray,
-    regions: List[Dict[str, Any]],
-    stage_center: Optional[Tuple[int,int]],
-    stage_union_xywh: Optional[Tuple[int,int,int,int]],
-    ocr_lines_norm: Optional[List[Dict[str,Any]]],
-    title: str = "Seatmap Regions Debug",
-) -> str:
-    h, w = img_bgr.shape[:2]
-    data_url = _bgr_to_data_url_png(img_bgr)
-
-    svg_polys = []
-    for r in regions:
-        pts = " ".join(f"{int(x)},{int(y)}" for x, y in r.get("polygon", []))
-        if not pts:
-            continue
-        cls = []
-        if r.get("non_interactive_stage"): cls.append("noninter")
-        if r.get("force_render_stage"):    cls.append("force")
-        if r.get("is_gray"):               cls.append("gray")
-        if r.get("is_black"):              cls.append("black")
-        if r.get("is_textish"):            cls.append("textish")
-        if r.get("like_stage_color"):      cls.append("like-stage")
-        gr = r.get("seat_grade","")
-        if gr: cls.append(f"gr-{gr}")
-        cstr = " ".join(cls) if cls else "poly"
-        svg_polys.append(
-            f'<polygon class="poly {cstr}" points="{pts}" '
-            f'data-id="{_escape_html(r.get("id",""))}" '
-            f'data-grade="{_escape_html(gr)}" '
-            f'data-group="{_escape_html(str(r.get("color_group","")))}" '
-            f'data-area="{_escape_html(str(int(r.get("area",0))))}" '
-            f'style="fill:{r.get("fill","#9ecbff")}; fill-opacity:0.18; stroke:#7ec8ff; stroke-width:1" />'
-        )
-
-    stage_overlay = []
-    if stage_center:
-        cx, cy = stage_center
-        stage_overlay.append(f'<circle cx="{cx}" cy="{cy}" r="8" class="stage-center"/>')
-    if stage_union_xywh:
-        x, y, sw, sh = [int(v) for v in stage_union_xywh]
-        stage_overlay.append(f'<rect x="{x}" y="{y}" width="{sw}" height="{sh}" class="stage-bbox"/>')
-
-    ocr_divs = []
-    if ocr_lines_norm:
-        for it in ocr_lines_norm:
-            cx, cy = int(it.get("cx",0)), int(it.get("cy",0))
-            txt = _escape_html(str(it.get("text","")))
-            ocr_divs.append(f'<div class="ocr" style="left:{cx}px;top:{cy}px">{txt}</div>')
-
-    head = "<tr><th>#</th><th>id</th><th>grade</th><th>area</th><th>non-inter</th><th>gray</th><th>black</th><th>textish</th><th>like-stage</th></tr>"
-    rows = []
-    for i, r in enumerate(regions):
-        rows.append(
-            "<tr>"
-            f"<td>{i}</td>"
-            f"<td>{_escape_html(r.get('id',''))}</td>"
-            f"<td>{_escape_html(r.get('seat_grade',''))}</td>"
-            f"<td>{int(r.get('area',0))}</td>"
-            f"<td>{'✅' if r.get('non_interactive_stage') else ''}</td>"
-            f"<td>{'✅' if r.get('is_gray') else ''}</td>"
-            f"<td>{'✅' if r.get('is_black') else ''}</td>"
-            f"<td>{'✅' if r.get('is_textish') else ''}</td>"
-            f"<td>{'✅' if r.get('like_stage_color') else ''}</td>"
-            "</tr>"
-        )
-    json_dump = json.dumps(
-        {
-            "image_size": {"w": w, "h": h},
-            "stage_center": stage_center,
-            "stage_union_xywh": stage_union_xywh,
-            "ocr_lines": ocr_lines_norm,
-            "regions": regions,
-        },
-        ensure_ascii=False, indent=2
-    )
-
-    return f"""<!doctype html>
-<html lang="ko">
-<head>
-  <meta charset="utf-8" />
-  <title>{_py_html.escape(title)}</title>
-  <style>
-    body {{ margin:0; background:#0b1020; color:#eaf2ff; font:13px/1.35 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,"Noto Sans KR"; }}
-    .wrap {{ display:flex; gap:16px; padding:16px; }}
-    .canvas {{ position:relative; width:{w}px; height:{h}px; border:1px solid #26325e; border-radius:10px; overflow:hidden; }}
-    .canvas img {{ position:absolute; inset:0; width:100%; height:100%; object-fit:contain; }}
-    .canvas svg {{ position:absolute; inset:0; width:100%; height:100%; }}
-    .poly {{ fill-opacity:.18; stroke-width:1; }}
-    .poly.noninter {{ stroke:#ffa2a2; }}
-    .poly.force    {{ fill-opacity:.28; stroke:#fff1a2; }}
-    .poly.gray     {{ stroke:#8fa0b7; }}
-    .poly.black    {{ stroke:#666; }}
-    .poly.textish  {{ stroke:#ffaa44; stroke-dasharray:5 4; }}
-    .poly.like-stage {{ stroke:#ff7f9f; }}
-    .stage-center {{ fill:#ff5577; stroke:#ffd5de; stroke-width:2; opacity:.95; }}
-    .stage-bbox {{ fill:none; stroke:#ffb2c0; stroke-width:2; stroke-dasharray:6 4; }}
-    .ocr {{ position:absolute; transform:translate(-50%,-120%); padding:2px 6px; background:rgba(0,0,0,.55);
-            border:1px solid #3a4b7a; border-radius:6px; font-size:12px; white-space:nowrap; pointer-events:none; }}
-    .panel {{ min-width:440px; max-width:560px; background:#0f1630; border:1px solid #26325e; border-radius:12px; padding:12px; }}
-    .panel h2 {{ margin:6px 0 10px; font-size:16px; color:#cfe2ff; }}
-    table {{ border-collapse:collapse; width:100%; font-size:12px; }}
-    th,td {{ border:1px solid #2a335a; padding:6px 8px; }}
-    pre {{ max-height:420px; overflow:auto; background:#0b1020; border:1px solid #1c2446; padding:10px; border-radius:8px; }}
-    .controls {{ display:flex; gap:8px; margin-bottom:8px; }}
-    button {{ background:#1a2448; color:#eaf2ff; border:1px solid #2a335a; border-radius:8px; padding:6px 10px; cursor:pointer; }}
-    button:hover {{ background:#263263; }}
-    .hidden {{ display:none; }}
-  </style>
-</head>
-<body>
-  <div class="wrap">
-    <div class="canvas" id="canvas">
-      <img src="{data_url}" alt="image"/>
-      <svg viewBox="0 0 {w} {h}" xmlns="http://www.w3.org/2000/svg">
-        {"".join(svg_polys)}
-        {"".join(stage_overlay)}
-      </svg>
-      {"".join(ocr_divs)}
-    </div>
-    <div class="panel">
-      <h2>폴리곤 인식 디버그</h2>
-      <div class="controls">
-        <button onclick="togJson()">JSON 보기/숨기기</button>
-        <button onclick="togOCR()">OCR 토글</button>
-        <button onclick="togStage()">Stage 토글</button>
-      </div>
-      <table>{head}{"".join(rows)}</table>
-      <pre id="json" class="hidden">{_py_html.escape(json_dump)}</pre>
-    </div>
-  </div>
-  <script>
-    function togJson(){{ const el=document.getElementById('json'); el.classList.toggle('hidden'); }}
-    function togOCR(){{ document.querySelectorAll('.ocr').forEach(e=>{{ e.style.display=(e.style.display==='none')?'':'none'; }}); }}
-    function togStage(){{
-      document.querySelectorAll('.stage-center,.stage-bbox').forEach(e=>{{ e.style.display=(e.style.display==='none')?'':'none'; }});
-    }}
-  </script>
-</body>
-</html>
-"""
-
-def write_regions_debug_html(
-    out_path: Path,
-    *,
-    img_bgr: np.ndarray,
-    regions: List[Dict[str,Any]],
-    stage_center: Optional[Tuple[int,int]],
-    stage_union_xywh: Optional[Tuple[int,int,int,int]],
-    ocr_lines_norm: Optional[List[Dict[str,Any]]]
-) -> str:
-    html_text = _build_regions_debug_html(
-        img_bgr=img_bgr,
-        regions=regions,
-        stage_center=stage_center,
-        stage_union_xywh=stage_union_xywh,
-        ocr_lines_norm=ocr_lines_norm,
-        title=f"Seatmap Regions Debug · {out_path.stem}"
-    )
-    out_path.write_text(html_text, encoding="utf-8")
-    return html_text
 
 # ----------------------------
 # (Optional) External OCR hook
 # ----------------------------
-OCR_API_URL = os.environ.get("OCR_API_URL", "http://localhost:8100")
+
+OCR_API_URL = ""
 
 def call_ocr_extract_path(img_path: str, min_score: float = 0.5, mask_dilate: int = 2):
-    if httpx is None:
-        raise RuntimeError("httpx not installed. Install httpx to use external OCR.")
-    url = f"{OCR_API_URL}/ocr/extract"
-    with open(img_path, "rb") as f:
-        files = {"file": (Path(img_path).name, f, "image/png")}
-        data  = {"min_score": str(min_score), "return_mask": "true", "mask_dilate": str(mask_dilate)}
-        r = httpx.post(url, files=files, data=data, timeout=60)
-        r.raise_for_status()
-        return r.json()
+    # OCR removed
+    return {}
 
 def inpaint_with_mask(bgr: np.ndarray, mask_path: Optional[str]) -> np.ndarray:
     if not mask_path or not Path(mask_path).exists():
@@ -2893,8 +2633,7 @@ async def api_render_html(
     regions_json: str = Form(...),
     color_summary_json: str = Form("[]"),
     opacity: float = Form(0.95),
-    min_render_area: int = Form(0),
-    ocr_lines_json: str = Form("[]")
+    min_render_area: int = Form(0)
 ):
     in_path = DATA_DIR / file.filename
     with open(in_path, "wb") as f:
@@ -2904,12 +2643,11 @@ async def api_render_html(
         return JSONResponse({"ok": False, "error": "invalid image"}, status_code=400)
     regions = json.loads(regions_json)
     color_summary = json.loads(color_summary_json)
-    ocr_lines = json.loads(ocr_lines_json)
     out_html_path = with_ts(RESULT_DIR, in_path.stem, "_stage.html")
     html_text = write_svg_html(
         bgr, regions, out_html_path,
         opacity=opacity, color_summary=color_summary, debug_imgs=None,
-        min_render_area=int(min_render_area), ocr_lines=ocr_lines
+        min_render_area=int(min_render_area)
     )
     return {"ok": True, "html_path": str(out_html_path)}
 
@@ -2982,17 +2720,15 @@ def _process_image_pipeline(
     gray_exclude_ratio: float = 0.25,
     gray_chroma_quantile: float = LAB_GRAY_Q,
     strong_gray_exclude: bool = True,
-    use_external_ocr: bool = False,
-    ocr_min_score: float = 0.5,
-    ocr_mask_dilate: int = 2,
     min_render_area: int = DEFAULT_MIN_RENDER_AREA,
-    use_ocr_for_stage: bool = False,
     stage_only: bool = False,
 ):
     """
     결과: TSX만 생성 (디버그/메타/HTML 저장 없음)
     반환 튜플(고정 4개): (tsx_path, meta_json_path=None, tsx_text, sections_json_path=None)
     """
+    pipeline_start = time.perf_counter()
+    logger.info("image_pipeline start path=%s", img_path)
     bgr = cv2.imread(str(img_path), cv2.IMREAD_COLOR)
     if bgr is None:
         raise FileNotFoundError(str(img_path))
@@ -3051,7 +2787,7 @@ def _process_image_pipeline(
     )
 
     # OCR 기반 스테이지 바운딩 비활성
-    ocr_lines_norm: List[Dict[str, Any]] = []
+    # OCR lines removed
     stage_union = None
 
     # 휴리스틱 추정
@@ -3090,7 +2826,6 @@ def _process_image_pipeline(
     maybe_inject_stage_after_mark(
         regions, stage_union, bgr,
         primary_stage_id=primary_stage_id,
-        ocr_lines_norm=ocr_lines_norm,
         stage_only=stage_only
     )
 
@@ -3174,6 +2909,10 @@ def _process_image_pipeline(
         print("[WARN] meta write failed:", e)
 
     # 고정 리턴 4-튜플(엔드포인트와 일관)
+    pipeline_elapsed = (time.perf_counter() - pipeline_start) * 1000.0
+    region_count = len(regions) if "regions" in locals() else 0
+    logger.info("image_pipeline done path=%s elapsed=%.1fms regions=%d",
+                img_path, pipeline_elapsed, region_count)
     return out_tsx_path, str(meta_path) if 'meta_path' in locals() else None, tsx_text, None
 
 
@@ -3260,30 +2999,43 @@ async def process_html(
     업로드된 이미지 처리 → 내부 파이프라인 실행(TSX + meta 생성) → /halls → MinIO 업로드
     리턴: { ok, hallId, minio: { tsx, meta }, local: { tsx, meta }, warn?: [] }
     """
+    total_start = time.perf_counter()
+    stage_times: list[tuple[str, float]] = []
+
+    def _mark(name: str, started: float) -> None:
+        stage_times.append((name, (time.perf_counter() - started) * 1000.0))
+
     try:
         # 0) 업로드 저장(원본)
         data_dir = Path(os.environ.get("OUT_DATA_DIR", "/mnt/data/STH_v1/data"))
         data_dir.mkdir(parents=True, exist_ok=True)
         stem = os.path.splitext(file.filename)[0]
         tmp_img_path = data_dir / file.filename
+        t = time.perf_counter()
         tmp_bytes = await file.read()
         tmp_img_path.write_bytes(tmp_bytes)
+        _mark("write_upload", t)
 
         # 1) 파이프라인 실행 → TSX, meta.json 생성
+        t = time.perf_counter()
         tsx_path, meta_path, tsx_text, _ = _process_image_pipeline(
             tmp_img_path,
             total_attendees=capacity if capacity is not None else None
         )
+        _mark("image_pipeline", t)
 
         # 2) TSX 바이트 확보
+        t = time.perf_counter()
         tsx_bytes = (
             tsx_text.encode("utf-8") if isinstance(tsx_text, str)
             else (Path(tsx_path).read_bytes() if tsx_path else b"")
         )
         if not tsx_bytes:
             raise HTTPException(status_code=500, detail="Empty TSX output")
+        _mark("prepare_tsx_bytes", t)
 
         # 3) meta.json 로드 (없으면 최소 메타)
+        t = time.perf_counter()
         if meta_path and Path(meta_path).exists():
             meta_dict = json.loads(Path(meta_path).read_text(encoding="utf-8"))
         else:
@@ -3295,14 +3047,17 @@ async def process_html(
                 "stageBBox": None,
                 "note": "fallback meta (no sections)"
             }
+        _mark("load_meta", t)
 
         # 4) 퍼블리시: Halls 등록 → MinIO 업로드(재시도+폴백)
+        t = time.perf_counter()
         publish_info = await _finalize_and_publish(
             src_filename=file.filename,
             capacity=capacity,
             tsx_bytes=tsx_bytes,
             meta_dict=meta_dict,
         )
+        _mark("finalize_publish", t)
 
         # 5) 응답
         resp = {
@@ -3313,6 +3068,10 @@ async def process_html(
         }
         if publish_info.get("warn"):
             resp["warn"] = publish_info["warn"]
+
+        total_elapsed = (time.perf_counter() - total_start) * 1000.0
+        summary = ", ".join(f"{name}={elapsed:.1f}ms" for name, elapsed in stage_times)
+        logger.info("process_tsx done file=%s total=%.1fms stages=[%s]", file.filename, total_elapsed, summary)
         return resp
 
     except HTTPException:
@@ -3327,7 +3086,7 @@ async def process_html(
 @app.get("/")
 def root():
     return {
-        "app": "STH_v1 Modular FastAPI (B-plan + OCR overlay + stage-fallback)",
+        "app": "STH_v1 Modular FastAPI (B-plan + stage-fallback)",
         "data_dir": str(DATA_DIR),
         "result_dir": str(RESULT_DIR),
         "meta_dir": str(META_DIR),
@@ -3346,6 +3105,6 @@ app.include_router(pipe_router)
 app.include_router(files_router)
 
 # Run:
-#   uvicorn main_modular:app --host 0.0.0.0 --port 8000
+#   uvicorn main_modular:app --host 0.0.0.0 --port 8000 --reload
 # Swagger:
 #   http://localhost:8000/docs
