@@ -32,12 +32,12 @@ public class LuaReservationExecutor {
                     local seatCount = tonumber(ARGV[1])
                     local totalSeats = tonumber(ARGV[2])
                     local userId = ARGV[3]
-                    local ttl = tonumber(ARGV[4])  -- TTL 추가
+                    local ttl = tonumber(ARGV[4])
                     
                     -- check phase: 모든 좌석이 비어있는지 확인
                     for i = 1, seatCount do
                         if redis.call('EXISTS', KEYS[i]) == 1 then
-                            return 0
+                            return 0  -- 좌석이 이미 선점됨
                         end
                     end
                     
@@ -49,16 +49,21 @@ public class LuaReservationExecutor {
                         redis.call('EXPIRE', KEYS[i], ttl)  -- 좌석 키에 TTL 설정 (10분)
                     end
                     
-                            -- 만석 체크: 전체 좌석에 도달하면 상태를 CLOSED로 자동 변경
-                                    if newCount >= totalSeats then
-                                        redis.call('SET', KEYS[seatCount + 2], 'CLOSED')
-                                        redis.call('EXPIRE', KEYS[seatCount + 2], ttl)  -- CLOSED TTL
-                                        return 2  -- 성공 + 만석으로 CLOSED 처리됨
-                                    else
-                                        -- ⭐ OPEN 상태일 때도 TTL 설정 추가!
-                                        redis.call('SET', KEYS[seatCount + 2], 'OPEN')
-                                        redis.call('EXPIRE', KEYS[seatCount + 2], ttl)  -- OPEN TTL
-                                    end
+                    -- count phase: reserved_count 증가 및 TTL 설정
+                    local newCount = redis.call('INCRBY', KEYS[seatCount + 1], seatCount)
+                    redis.call('EXPIRE', KEYS[seatCount + 1], ttl)  -- reserved_count TTL
+                    
+                    -- 만석 체크: 전체 좌석에 도달하면 상태를 CLOSED로 자동 변경
+                    if newCount >= totalSeats then
+                        redis.call('SET', KEYS[seatCount + 2], 'CLOSED')
+                        redis.call('EXPIRE', KEYS[seatCount + 2], ttl)  -- CLOSED TTL
+                        return 2  -- 성공 + 만석으로 CLOSED 처리됨
+                    else
+                        -- OPEN 상태일 때도 TTL 설정
+                        redis.call('SET', KEYS[seatCount + 2], 'OPEN')
+                        redis.call('EXPIRE', KEYS[seatCount + 2], ttl)  -- OPEN TTL
+                    end
+                    
                     return 1  -- 일반 성공
                     """,
             Long.class
