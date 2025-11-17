@@ -144,38 +144,20 @@ export default function MainLayout() {
             if (import.meta.env.DEV) {
               console.log("⚠️ WebSocket 연결 끊김");
             }
-            // 구독 해제
+            // 구독만 해제하고, 인증 상태는 유지
             if (userSubscriptionRef.current) {
               userSubscriptionRef.current.unsubscribe();
               userSubscriptionRef.current = null;
-            }
-            // 이미 로그아웃 상태면 자동 로그아웃을 하지 않음 (의도적인 로그아웃인 경우)
-            const currentAccessToken = useAuthStore.getState().accessToken;
-            if (currentAccessToken) {
-              // 로그인 상태인데 연결이 끊긴 경우에만 자동 로그아웃
-              if (import.meta.env.DEV) {
-                console.log("⚠️ WebSocket 연결 끊김 - 자동 로그아웃");
-              }
-              useAuthStore.getState().clearAuth();
-              navigate("/", { replace: true });
-            } else {
             }
           },
           onError: (err) => {
             if (import.meta.env.DEV) {
               console.error("❌ WebSocket 에러:", err);
             }
-            // 구독 해제
+            // 에러 발생 시에도 구독만 해제하고, 인증 상태는 유지
             if (userSubscriptionRef.current) {
               userSubscriptionRef.current.unsubscribe();
               userSubscriptionRef.current = null;
-            }
-            // 이미 로그아웃 상태면 자동 로그아웃을 하지 않음
-            const currentAccessToken = useAuthStore.getState().accessToken;
-            if (currentAccessToken) {
-              // 로그인 상태인데 에러가 발생한 경우에만 자동 로그아웃
-              useAuthStore.getState().clearAuth();
-              navigate("/", { replace: true });
             }
           },
         });
