@@ -79,6 +79,8 @@ public class RoomCacheRepository {
             redisTemplate.opsForHash().put(infoKey, "startTime", String.valueOf(startTimeMillis));
         }
 
+        redisTemplate.expire(infoKey, 24, TimeUnit.HOURS);
+
         log.info("방 정보 업데이트: roomId={}, title={},difficulty={}, maxUserCount={}, startTime={}",
                 update.getRoomId(),update.getMatchName(), update.getDifficulty(), update.getMaxUserCount(), update.getStartTime());
     }
@@ -92,6 +94,9 @@ public class RoomCacheRepository {
                     .toInstant()
                     .toEpochMilli();
             redisTemplate.opsForHash().put(infoKey, "startTime", String.valueOf(startTimeMillis));
+
+            redisTemplate.expire(infoKey, 24, TimeUnit.HOURS);
+
             log.debug("방 {}의 startTime 업데이트: {}", roomId, startTime);
         }
     }
@@ -101,7 +106,9 @@ public class RoomCacheRepository {
 
         RoomMember roomMember = new RoomMember(userId, username, System.currentTimeMillis(), profileImageUrl);
         String json = mapper.writeValueAsString(roomMember);
+
         redisTemplate.opsForHash().put(memberKey, String.valueOf(userId), json);
+        redisTemplate.expire(memberKey, 24, TimeUnit.HOURS);
 
         return Math.toIntExact(redisTemplate.opsForHash().size(memberKey));
     }
@@ -191,6 +198,7 @@ public class RoomCacheRepository {
 
         // 3. Redis 업데이트
         redisTemplate.opsForHash().put(infoKey, "host", newHostId);
+        redisTemplate.expire(memberKey, 24, TimeUnit.HOURS);
 
         return newHostId;
     }
@@ -235,6 +243,8 @@ public class RoomCacheRepository {
                     sessionId,    // ARGV[1]
                     serverId      // ARGV[2]
             );
+            String key = GLOBAL_SESSION_PREFIX +userId;
+            redisTemplate.expire(key, 24, TimeUnit.HOURS);
 
             log.info("전역 세션 등록 완료 (Lua): userId={}, sessionId={}, serverId={}, version={}",
                     userId, sessionId, serverId, newVersion);
