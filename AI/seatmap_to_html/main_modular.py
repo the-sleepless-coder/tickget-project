@@ -9,6 +9,7 @@
 #      1개=R / 2개=VIP,R / 3개=VIP,R,S / 4개 이상=STANDING,VIP,R,S
 #  - 거리 기준: “STAGE 폴리곤 중앙-하단(bottom-center)”과 각 폴리곤 중심 사이 거리
 #  - 색상 그룹별 ‘평균 거리’로 가까운 그룹이 상위 등급
+#  - git test 중
 
 from __future__ import annotations
 from fastapi import FastAPI, APIRouter, UploadFile, File, Form, Response, HTTPException, Request
@@ -502,7 +503,12 @@ def _nearest_square_grid(n: int) -> tuple[int, int]:
     rows = (n + cols - 1) // cols
     return int(rows), int(cols)
 
-def build_sections_json(img_name: str, regions: list[dict], total_attendees: int | None) -> dict:
+def build_sections_json(
+    img_name: str,
+    regions: list[dict],
+    total_attendees: int | None,
+    hall_name: str | None = None,
+) -> dict:
     """
     요구사항:
       - 좌석 등급이 지정된(= grade가 있는) 폴리곤들의 넓이 합을 all_section_area_sum
@@ -547,14 +553,14 @@ def build_sections_json(img_name: str, regions: list[dict], total_attendees: int
         section_num = int(_re.sub(r"[^0-9]", "", rid) or "0")
 
         out_sections.append({
-            "section": section_num,
+            "section": str(section_num),
             "grade": str(r.get("seat_grade","")),
             "totalRows": int(totalRows),
             "totalCols": int(totalCols),
             "seats": []
         })
 
-    return {"name": img_name, "sections": out_sections}
+    return {"name": hall_name or img_name, "sections": out_sections}
 
 def kmeans_colors(X: np.ndarray, k: int = 2, attempts: int = 3):
     X = np.float32(X.reshape(-1, 3))
@@ -2677,6 +2683,7 @@ def _process_image_pipeline(
     strong_gray_exclude: bool = True,
     min_render_area: int = DEFAULT_MIN_RENDER_AREA,
     stage_only: bool = False,
+    hall_name: str | None = None,
 ):
     """
     결과: TSX만 생성 (디버그/메타/HTML 저장 없음)
@@ -2849,20 +2856,19 @@ def _process_image_pipeline(
 
     # --- 8) 메타 생성/저장: sections JSON (프론트 소비용)
     try:
-        meta_sections = build_sections_json(img_path.name, regions, total_attendees)
-        meta_sections["imageSize"]   = {"w": int(w), "h": int(h)}
-        meta_sections["stageCenter"] = {"cx": int(stage_ref[0]), "cy": int(stage_ref[1])}
-        if stage_union is not None:
-            sx, sy, sw, sh = stage_union
-            meta_sections["stageBBox"] = {"x": int(sx), "y": int(sy), "w": int(sw), "h": int(sh)}
-        else:
-            meta_sections["stageBBox"] = None
+        meta_sections = build_sections_json(
+            img_path.name,
+            regions,
+            total_attendees,
+            hall_name=hall_name,
+        )
 
         meta_path = (META_DIR / f"{img_path.stem}.json")
         meta_path.write_text(json.dumps(meta_sections, ensure_ascii=False, indent=2), encoding="utf-8")
     except Exception as e:
         # 메타 저장 실패는 파이프라인 실패로 보고 싶다면 raise로 바꿔도 됨
         print("[WARN] meta write failed:", e)
+
 
     # 고정 리턴 4-튜플(엔드포인트와 일관)
     pipeline_elapsed = (time.perf_counter() - pipeline_start) * 1000.0
@@ -2982,7 +2988,8 @@ async def process_html(
         t = time.perf_counter()
         tsx_path, meta_path, tsx_text, _ = _process_image_pipeline(
             tmp_img_path,
-            total_attendees=capacity if capacity is not None else None
+            total_attendees=capacity if capacity is not None else None,
+            hall_name=raw_hall_name or safe_hall_stem,
         )
         _mark("image_pipeline", t)
 
