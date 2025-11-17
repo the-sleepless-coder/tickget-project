@@ -3,6 +3,7 @@ package com.stats.controller;
 import com.stats.dto.response.IndividualData.MyPageDTO;
 import com.stats.dto.response.IndividualData.SpecificStatsDTO;
 import com.stats.dto.response.MatchData.MatchDataDTO;
+import com.stats.service.StatsBatchService;
 import com.stats.service.StatsService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -10,20 +11,24 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.List;
 
+@Slf4j
 @Controller
 @RequiredArgsConstructor
 @Tag(name = "Stats", description = "Stat 관련 API")
 public class StatsController {
     private final StatsService service;
-    // private final StatsBatchService statsBatchService;
+    private final StatsBatchService statsBatchService;
 
     /**
      * 개인 통계
@@ -88,17 +93,30 @@ public class StatsController {
     /**
      * Batch 단위로 데이터 수집
      * */
-//    // 게임 끝났을 때 집계 작업 수행.
-//    @GetMapping("/")
-//    public void onGameEnd(Long matchId) {
-//        // 1. UserStats 저장 (기존 로직)
-//        saveUserStats(matchId);
-//
-//        // 2. 즉시 매치 통계 계산
-//        statsBatchService.updateMatchStats(matchId);
-//
-//        log.info("Game ended and stats updated for matchId: {}", matchId);
-//    }
+    // 게임 끝났을 때 집계 작업 수행.
+    @GetMapping("/stats/matches/{matchId}")
+    public ResponseEntity<?> onGameEnd(@PathVariable("matchId")Long matchId) {
 
+        // 1. 경기 종료 시 즉시 매치 통계 계산
+        boolean updateState = statsBatchService.updateMatchStats(matchId);
+
+        if(updateState){
+            String message = "Match Updated for %s".formatted(matchId);
+            log.info("Game ended and stats updated for matchId: {}", matchId);
+            return ResponseEntity.ok(message);
+        }else{
+            String errorMsg = "No UserStats found for matchId: %d".formatted(matchId);
+            log.warn(errorMsg);
+
+            return ResponseEntity
+                    .status(HttpStatus.NOT_FOUND)
+                    .body(errorMsg);
+        }
+
+    }
+
+
+    // 매치 관련 데이터 가져오기
+    // 해당 userId에 맞게 한 페이지에 5개씩 가져오기
 
 }

@@ -32,6 +32,37 @@ public class MatchSpecificsStatsDTO {
     private Float seatSelectTime;
     private Integer seatSelectTrialCount;
 
+    public Integer getQueueMissCountSafe() {
+        return queueMissCount != null ? queueMissCount : 0;
+    }
+
+    public Float getQueueSelectTimeSafe() {
+        return queueSelectTime != null ? queueSelectTime : 0f;
+    }
+
+    public Integer getCaptchaBackspaceCountSafe() {
+        return captchaBackspaceCount != null ? captchaBackspaceCount : 0;
+    }
+
+    public Float getCaptchaSelectTimeSafe() {
+        return captchaSelectTime != null ? captchaSelectTime : 0f;
+    }
+
+    public Integer getCaptchaTrialCountSafe() {
+        return captchaTrialCount != null ? captchaTrialCount : 0;
+    }
+
+    public Integer getSeatSelectClickMissCountSafe() {
+        return seatSelectClickMissCount != null ? seatSelectClickMissCount : 0;
+    }
+
+    public Float getSeatSelectTimeSafe() {
+        return seatSelectTime != null ? seatSelectTime : 0f;
+    }
+
+    public Integer getSeatSelectTrialCountSafe() {
+        return seatSelectTrialCount != null ? seatSelectTrialCount : 0;
+    }
 
 }
 

@@ -118,14 +118,14 @@ public interface UserStatsRepository extends JpaRepository<UserStats, Long> {
     List<Long> findDistinctMatchIds();
 
     // 아직 집계 안된 matchId 확인.
-//    @Query("""
-//        SELECT DISTINCT us.matchId
-//        FROM UserStats us
-//        WHERE us.matchId NOT IN (
-//            SELECT ms.matchId FROM MatchStats ms
-//        )
-//        ORDER BY us.matchId DESC
-//        """)
-//    List<Long> findMatchIdsWithoutStats();
+    @Query("""
+        SELECT DISTINCT us.matchId
+        FROM UserStats us
+        WHERE us.matchId NOT IN (
+            SELECT ms.matchId FROM MatchStats ms
+        )
+        ORDER BY us.matchId DESC
+        """)
+    List<Long> findMatchIdsWithoutStats();
 
 }

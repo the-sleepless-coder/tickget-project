@@ -11,6 +11,7 @@ import com.stats.entity.UserStats;
 import com.stats.exception.RoomTypeException;
 import com.stats.repository.UserRepository;
 import com.stats.repository.UserStatsRepository;
+import com.stats.util.StatsCalculator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
@@ -198,6 +199,7 @@ public class StatsService {
                 matchIdLong = data.getMatchId();
                 List<MatchSpecificsStatsDTO> matchSpecifics = userStatsRepository.findMatchSpecificInfoStatsByMatchId(matchIdLong, roomTypeCasted, topN);
 
+                // myData 조회.
                 MatchSpecificsStatsDTO myData = null;
                 for(MatchSpecificsStatsDTO specifics: matchSpecifics){
                     if(userId.equals(specifics.getUserId())){
@@ -206,34 +208,43 @@ public class StatsService {
                     }
                 }
 
+                // myData 없을 시 넘어감.
+                if (myData == null) {
+                    // 로그 남기고
+                    log.warn("No stats found for userId {} in match {}", userId, matchIdLong);
+                    // 나의 데이터가 없다면 넘어간다.
+                    return Collections.emptyList();
+                }
+
                 /**
-                 * 3. 내 기록과 상대방 기록 차이 계산
+                 * 3. 내 기록 존재할 시,
+                 *    내 기록과 상대방 기록 차이 계산
                  * */
                 // 내 정보.
-                Float myQueueSelectTime = myData.getQueueSelectTime();
-                Integer myQueueMissCount = myData.getQueueMissCount();
+                Float myQueueSelectTime = myData.getQueueSelectTimeSafe();
+                Integer myQueueMissCount = myData.getQueueMissCountSafe();
 
-                Float myCaptchaSelectTime = myData.getCaptchaSelectTime();
-                Integer myCaptchaBackspaceCount = myData.getCaptchaBackspaceCount();
-                Integer myCaptchaTrialCount = myData.getCaptchaTrialCount();
+                Float myCaptchaSelectTime = myData.getCaptchaSelectTimeSafe();
+                Integer myCaptchaBackspaceCount = myData.getCaptchaBackspaceCountSafe();
+                Integer myCaptchaTrialCount = myData.getCaptchaTrialCountSafe();
 
-                Float mySeatSelectTime = myData.getSeatSelectTime();
-                Integer mySeatClickMissCount = myData.getSeatSelectClickMissCount();
-                Integer mySeatTrialCount = myData.getSeatSelectTrialCount();
+                Float mySeatSelectTime = myData.getSeatSelectTimeSafe();
+                Integer mySeatClickMissCount = myData.getSeatSelectClickMissCountSafe();
+                Integer mySeatTrialCount = myData.getSeatSelectTrialCountSafe();
 
                 // 다른 사람과의 차이 정보.
                 List<MatchSpecificsStatsDifferenceAddedDTO> specificsDiffAdded = new ArrayList<>();
                 for(MatchSpecificsStatsDTO specifics: matchSpecifics){
-                    Float otherQueueSelectTime = specifics.getQueueSelectTime();
-                    Integer otherQueueMissCount = specifics.getQueueMissCount();
+                    Float otherQueueSelectTime = specifics.getQueueSelectTimeSafe();
+                    Integer otherQueueMissCount = specifics.getQueueMissCountSafe();
 
-                    Float otherCaptchaSelectTime = specifics.getCaptchaSelectTime();
-                    Integer otherCaptchaBackspaceCount = specifics.getCaptchaBackspaceCount();
-                    Integer otherCaptchaTrialCount = specifics.getCaptchaTrialCount();
+                    Float otherCaptchaSelectTime = specifics.getCaptchaSelectTimeSafe();
+                    Integer otherCaptchaBackspaceCount = specifics.getCaptchaBackspaceCountSafe();
+                    Integer otherCaptchaTrialCount = specifics.getCaptchaTrialCountSafe();
 
-                    Float otherSeatSelectTime = specifics.getSeatSelectTime();
-                    Integer otherSeatClickMissCount = specifics.getSeatSelectClickMissCount();
-                    Integer otherSeatTrialCount = specifics.getSeatSelectTrialCount();
+                    Float otherSeatSelectTime = specifics.getSeatSelectTimeSafe();
+                    Integer otherSeatClickMissCount = specifics.getSeatSelectClickMissCountSafe();
+                    Integer otherSeatTrialCount = specifics.getSeatSelectTrialCountSafe();
 
                     Float totalTime = roundTwoDigits(
                             otherQueueSelectTime + otherCaptchaSelectTime + otherSeatSelectTime
@@ -344,32 +355,32 @@ public class StatsService {
                 }
 
                 // 5-2. 내 기록(기준값) 뽑기
-                Float myQueueSelectTime = myData.getQueueSelectTime();
-                Integer myQueueMissCount = myData.getQueueMissCount();
+                Float myQueueSelectTime = myData.getQueueSelectTimeSafe();
+                Integer myQueueMissCount = myData.getQueueMissCountSafe();
 
-                Float myCaptchaSelectTime = myData.getCaptchaSelectTime();
-                Integer myCaptchaBackspaceCount = myData.getCaptchaBackspaceCount();
-                Integer myCaptchaTrialCount = myData.getCaptchaTrialCount();
+                Float myCaptchaSelectTime = myData.getCaptchaSelectTimeSafe();
+                Integer myCaptchaBackspaceCount = myData.getCaptchaBackspaceCountSafe();
+                Integer myCaptchaTrialCount = myData.getCaptchaTrialCountSafe();
 
-                Float mySeatSelectTime = myData.getSeatSelectTime();
-                Integer mySeatClickMissCount = myData.getSeatSelectClickMissCount();
-                Integer mySeatTrialCount = myData.getSeatSelectTrialCount();
+                Float mySeatSelectTime = myData.getSeatSelectTimeSafe();
+                Integer mySeatClickMissCount = myData.getSeatSelectClickMissCountSafe();
+                Integer mySeatTrialCount = myData.getSeatSelectTrialCountSafe();
 
                 // 5-3. 다른 사람들과의 차이 계산
                 List<MatchSpecificsStatsDifferenceAddedDTO> specificsDiffAdded = new ArrayList<>();
 
                 for (MatchSpecificsStatsDTO specifics : matchSpecifics) {
                     // 상대 raw 값
-                    Float otherQueueSelectTime = specifics.getQueueSelectTime();
-                    Integer otherQueueMissCount = specifics.getQueueMissCount();
+                    Float otherQueueSelectTime = specifics.getQueueSelectTimeSafe();
+                    Integer otherQueueMissCount = specifics.getQueueMissCountSafe();
 
-                    Float otherCaptchaSelectTime = specifics.getCaptchaSelectTime();
-                    Integer otherCaptchaBackspaceCount = specifics.getCaptchaBackspaceCount();
-                    Integer otherCaptchaTrialCount = specifics.getCaptchaTrialCount();
+                    Float otherCaptchaSelectTime = specifics.getCaptchaSelectTimeSafe();
+                    Integer otherCaptchaBackspaceCount = specifics.getCaptchaBackspaceCountSafe();
+                    Integer otherCaptchaTrialCount = specifics.getCaptchaTrialCountSafe();
 
-                    Float otherSeatSelectTime = specifics.getSeatSelectTime();
-                    Integer otherSeatClickMissCount = specifics.getSeatSelectClickMissCount();
-                    Integer otherSeatTrialCount = specifics.getSeatSelectTrialCount();
+                    Float otherSeatSelectTime = specifics.getSeatSelectTimeSafe();
+                    Integer otherSeatClickMissCount = specifics.getSeatSelectClickMissCountSafe();
+                    Integer otherSeatTrialCount = specifics.getSeatSelectTrialCountSafe();
 
                     // total time (소수 둘째 자리)
                     Float totalTime = roundTwoDigits(
@@ -430,6 +441,9 @@ public class StatsService {
     }
 
 
+    /**
+     * 기존 메서드
+     * */
     // Match 관련 전체 정보를 가져온다.
     public List<MatchInfoStatsDTO> getMatchInfoStats(Long userId, String mode , int page, int size){
         Pageable topN = PageRequest.of(page, size);

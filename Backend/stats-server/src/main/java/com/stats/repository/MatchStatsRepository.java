@@ -7,7 +7,6 @@ import java.util.Optional;
 
 public interface MatchStatsRepository extends JpaRepository<MatchStats, Long> {
     // matchId를 이용한 매치 검색.
-    MatchStats findByMatchId(Long matchId);
-
+    Optional<MatchStats> findByMatchId(Long matchId);
 
 }
