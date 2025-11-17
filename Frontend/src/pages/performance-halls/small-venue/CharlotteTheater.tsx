@@ -1,3 +1,7 @@
+import { useEffect, useState } from "react";
+import { getSectionSeatsStatus } from "@features/booking-site/api";
+import { useAuthStore } from "@features/auth/store";
+
 type SmallVenueSeat = {
   id: string;
   gradeLabel: string;
@@ -11,13 +15,75 @@ export default function SmallVenue({
   takenSeats = new Set<string>(),
   isPreset = false,
   readOnly = false, // 읽기 전용 모드: 선택된 좌석만 색상 표시, 나머지는 회색
+  matchId,
+  onTakenSeatsUpdate,
 }: {
   selectedIds?: string[];
   onToggleSeat?: (seat: SmallVenueSeat) => void;
   takenSeats?: Set<string>; // section-row-col 형식의 TAKEN 또는 MY_RESERVED 좌석 ID Set
   isPreset?: boolean; // 프리셋 모드일 때 section을 모두 1로 설정
   readOnly?: boolean; // 읽기 전용 모드
+  matchId?: number | null; // matchId가 있으면 섹션 좌석 상태 조회
+  onTakenSeatsUpdate?: (takenSeats: Set<string>) => void; // TAKEN 좌석 업데이트 콜백
 }) {
+  const currentUserId = useAuthStore((s) => s.userId);
+  const [internalTakenSeats, setInternalTakenSeats] =
+    useState<Set<string>>(takenSeats);
+
+  // takenSeats prop이 변경되면 내부 상태 업데이트
+  useEffect(() => {
+    setInternalTakenSeats(takenSeats);
+  }, [takenSeats]);
+
+  // 컴포넌트가 렌더링될 때마다 섹션 좌석 상태 조회
+  useEffect(() => {
+    if (!matchId || !currentUserId) return;
+
+    const fetchAllSections = async () => {
+      const allTaken = new Set<string>();
+      // SmallVenue의 섹션: 1, 2, 3 (1층), 4, 5, 6 (2층)
+      const sections = ["1", "2", "3", "4", "5", "6"];
+
+      for (const sectionId of sections) {
+        try {
+          const response = await getSectionSeatsStatus(
+            matchId,
+            sectionId,
+            currentUserId
+          );
+          if (response.seats) {
+            response.seats.forEach((seat) => {
+              // TAKEN 또는 MY_RESERVED 상태인 좌석은 선택할 수 없음
+              if (seat.status === "TAKEN" || seat.status === "MY_RESERVED") {
+                allTaken.add(seat.seatId);
+              }
+            });
+          }
+        } catch (error) {
+          console.error(
+            `[CharlotteTheater] 섹션 ${sectionId} 좌석 현황 조회 실패:`,
+            error
+          );
+        }
+      }
+
+      setInternalTakenSeats(allTaken);
+      // 부모 컴포넌트에 업데이트된 TAKEN 좌석 전달
+      if (onTakenSeatsUpdate) {
+        onTakenSeatsUpdate(allTaken);
+      }
+      console.log(
+        "[CharlotteTheater] 섹션 좌석 상태 조회 완료:",
+        Array.from(allTaken),
+        `(총 ${allTaken.size}개)`
+      );
+    };
+
+    fetchAllSections();
+  }, [matchId, currentUserId, onTakenSeatsUpdate]);
+
+  // 내부 상태를 사용하도록 변경
+  const effectiveTakenSeats = internalTakenSeats;
   // 좌석 정사각형 크기와 간격은 Tailwind + 인라인 스타일로 조절
   const seatStyle: React.CSSProperties = {
     width: 7.5,
@@ -188,7 +254,7 @@ export default function SmallVenue({
           // TAKEN 또는 MY_RESERVED 좌석 확인 (API 응답은 section-row-col 형식)
           // MY_RESERVED는 다른 사용자가 예약한 좌석이므로 선택할 수 없음
           const takenSeatId = `${displaySection}-${displayRowInSection}-${col}`;
-          const isTaken = takenSeats.has(takenSeatId);
+          const isTaken = effectiveTakenSeats.has(takenSeatId);
 
           const opacityVal = (() => {
             if (isOpSeat) return 0;

@@ -26,6 +26,8 @@ import type {
   SeatCancelResponse,
   SeatConfirmRequest,
   SeatConfirmResponse,
+  SessionToastLLMRequest,
+  SessionToastLLMResponse,
 } from "./types";
 
 export async function getRooms(params?: { page?: number; size?: number }) {
@@ -295,4 +297,41 @@ export async function confirmSeat(
     // 본문이 없거나 JSON 파싱 실패 시 기본값 유지
   }
   return { status: res.status, body };
+}
+
+// ----- Session Toast LLM (AST) -----
+// POST /api/v1/dev/ast/session-toast-llm
+export async function getSessionToastLLM(
+  payload: SessionToastLLMRequest
+): Promise<SessionToastLLMResponse> {
+  const { getAuthHeaders } = useAuthStore.getState();
+  const headers: Record<string, string> = {
+    ...getAuthHeaders(),
+    "Content-Type": "application/json",
+  };
+
+  const API_ORIGIN = import.meta.env.VITE_API_ORIGIN ?? "";
+  const API_PREFIX = "/api/v1/dev";
+  const base = `${API_ORIGIN}${API_PREFIX}/ast`;
+  const path = "session-toast-llm";
+  let url: string;
+  if (base.startsWith("/")) {
+    const fullPath = base.replace(/\/$/, "") + "/" + path.replace(/^\//, "");
+    url = new URL(fullPath, window.location.origin).toString();
+  } else {
+    url = new URL(path, base).toString();
+  }
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Session Toast LLM API 실패: ${res.status} ${text}`);
+  }
+
+  return (await res.json()) as SessionToastLLMResponse;
 }

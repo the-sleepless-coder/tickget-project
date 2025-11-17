@@ -134,9 +134,27 @@ export default function BookingWaitingPage() {
             setPositionAhead(ahead); // positionAhead 업데이트
             setTotalQueue(currentTotalQueue);
             // 초기 totalQueue 값 고정 (처음 한 번만 설정)
-            if (initialTotalQueueRef.current === null && currentTotalQueue > 0) {
+            if (
+              initialTotalQueueRef.current === null &&
+              currentTotalQueue > 0
+            ) {
               initialTotalQueueRef.current = currentTotalQueue;
             }
+            // 게이지바 계산 (디버깅용)
+            const baseTotalQueueForLog =
+              initialTotalQueueRef.current ?? currentTotalQueue;
+            const widthPercentForLog =
+              baseTotalQueueForLog > 0
+                ? Math.max(
+                    0,
+                    Math.min(
+                      100,
+                      ((baseTotalQueueForLog - ahead) / baseTotalQueueForLog) *
+                        100
+                    )
+                  )
+                : 100;
+
             console.log("✅ [waiting][QUEUE] 대기열 갱신 성공:", {
               myUserId,
               ahead,
@@ -144,6 +162,8 @@ export default function BookingWaitingPage() {
               total,
               currentRank,
               currentTotalQueue,
+              baseTotalQueue: baseTotalQueueForLog,
+              widthPercent: `${widthPercentForLog.toFixed(1)}%`,
               now: Date.now(),
               wsDestination: destination,
             });
@@ -276,6 +296,7 @@ export default function BookingWaitingPage() {
 
   // 대기열 진입 시 큐 등록 API 호출 (matchId가 있을 때만)
   // stage가 "loading"일 때만 API 호출 (초기 로드 시 한 번만)
+  // HTTP 응답으로 상태를 설정하지 않고, QUEUE_STATUS_UPDATE 이벤트만 사용
   useEffect(() => {
     // stage가 "loading"이 아니면 실행하지 않음
     if (stage !== "loading") {
@@ -312,28 +333,14 @@ export default function BookingWaitingPage() {
           clickMiss,
           duration,
         });
-        const res = await enqueueTicketingQueue(matchId, {
+        // API 호출만 수행 (응답으로 상태 설정하지 않음)
+        await enqueueTicketingQueue(matchId, {
           clickMiss,
           duration,
         });
-        console.log("[booking-site][queue.enqueue] API 응답:", res);
-
-        // API 응답으로 초기 상태 설정
-        if (res) {
-          // 나의 대기순서: totalNum
-          setRank(res.totalNum);
-          // positionAhead 저장 (게이지바 계산용)
-          setPositionAhead(res.positionAhead);
-          // 현재 대기인원: totalNum + positionBehind
-          const initialTotalQueue = res.totalNum + res.positionBehind;
-          setTotalQueue(initialTotalQueue);
-          // 초기 totalQueue 값 고정 (처음 한 번만 설정)
-          if (initialTotalQueueRef.current === null && initialTotalQueue > 0) {
-            initialTotalQueueRef.current = initialTotalQueue;
-          }
-          // queue stage로 전환
-          setStage("queue");
-        }
+        console.log(
+          "[booking-site][queue.enqueue] API 호출 완료 (상태는 QUEUE_STATUS_UPDATE 이벤트에서 설정)"
+        );
       } catch (error) {
         console.error("[booking-site][queue.enqueue] 실패:", error);
       }
@@ -356,7 +363,10 @@ export default function BookingWaitingPage() {
       baseTotalQueue > 0
         ? Math.max(
             0,
-            Math.min(100, ((baseTotalQueue - positionAhead) / baseTotalQueue) * 100)
+            Math.min(
+              100,
+              ((baseTotalQueue - positionAhead) / baseTotalQueue) * 100
+            )
           )
         : 100;
     // percent는 임박 여부 판단용 (positionAhead가 작을수록 임박)
