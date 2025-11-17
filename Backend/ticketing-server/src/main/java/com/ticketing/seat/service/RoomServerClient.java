@@ -99,31 +99,28 @@ public class RoomServerClient {
 
     /**
      * Room의 전체 좌석 수 조회
-     * GET /rooms/{roomId}/totalSeats
+     * GET /rooms/{roomId}/totalSeat
      *
      * @param roomId 방 ID
      * @return 전체 좌석 수 (null이면 실패)
      */
     public Integer getTotalSeats(Long roomId) {
-        String url = roomServerUrl + "/rooms/" + roomId + "/totalSeats";
+        String url = roomServerUrl + "/rooms/" + roomId + "/totalSeat";
 
         try {
             log.info("룸 서버에서 전체 좌석 수 조회: roomId={}, url={}", roomId, url);
 
-            ResponseEntity<Map> response = restTemplate.exchange(
+            ResponseEntity<Integer> response = restTemplate.exchange(
                     url,
                     HttpMethod.GET,
                     null,
-                    Map.class
+                    Integer.class  //  Integer로 직접 받음
             );
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                Object totalSeatObj = response.getBody().get("totalSeat");
-                if (totalSeatObj != null) {
-                    Integer totalSeats = ((Number) totalSeatObj).intValue();
-                    log.info("룸 서버 전체 좌석 수 조회 성공: roomId={}, totalSeats={}", roomId, totalSeats);
-                    return totalSeats;
-                }
+                Integer totalSeats = response.getBody();
+                log.info("룸 서버 전체 좌석 수 조회 성공: roomId={}, totalSeats={}", roomId, totalSeats);
+                return totalSeats;
             }
 
             log.warn("룸 서버 전체 좌석 수 조회 실패: roomId={}, status={}", roomId, response.getStatusCode());
