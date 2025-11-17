@@ -15,16 +15,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
 
-/**
- * DB와 Redis 상태 동기화 및 자가치유 서비스
- *
- * 주요 기능:
- * 1. DB 기준 Redis 상태 교정 (PLAYING → OPEN, FINISHED → CLOSED)
- * 2. Redis 키가 없는 PLAYING 경기 자동 종료
- * 3. 시작 후 30분 경과한 PLAYING 경기 자동 종료
- * 4. 경기 종료 시 Redis 정리
- * 5. 스케줄러로 주기적 실행
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -150,7 +140,7 @@ public class MatchStatusSyncService {
                         && (seatKeys == null || seatKeys.isEmpty());
 
                 if (noRedisKeys) {
-                    log.warn("⚠️  Redis 키 없는 PLAYING 경기 발견 - 자동 종료 처리: matchId={}", matchId);
+                    log.warn("⚠️ Redis 키 없는 PLAYING 경기 발견 - 자동 종료 처리: matchId={}", matchId);
 
                     // 통계 데이터가 있으면 설정 (없으면 0으로)
                     if (match.getSuccessUserCount() == null) {
@@ -166,7 +156,7 @@ public class MatchStatusSyncService {
                     match.setUpdatedAt(LocalDateTime.now());
                     matchRepository.save(match);
 
-                    // Stats 서버 알림 추가
+                    // Stats 서버 알림
                     boolean statsNotificationSuccess = statsServerClient.notifyMatchEnd(matchId);
                     if (statsNotificationSuccess) {
                         log.info("Stats 서버 매치 종료 알림 성공: matchId={}", matchId);
@@ -181,8 +171,10 @@ public class MatchStatusSyncService {
                     if (notificationSuccess) {
                         log.info("✅ 자동 경기 종료 완료: matchId={}, roomId={}", matchId, roomId);
                     } else {
-                        log.warn("⚠️  자동 경기 종료됨 (룸 서버 알림 실패): matchId={}, roomId={}", matchId, roomId);
+                        log.warn("⚠️ 자동 경기 종료됨 (룸 서버 알림 실패): matchId={}, roomId={}", matchId, roomId);
                     }
+
+                    log.info("ℹ️ 미확정 유저는 클라이언트에서 FailedStatsController API 호출 필요");
 
                     finishedCount++;
                 }
@@ -233,7 +225,7 @@ public class MatchStatusSyncService {
             try {
                 // started_at이 30분을 초과했는지 확인
                 if (match.getStartedAt() != null && match.getStartedAt().isBefore(threshold)) {
-                    log.warn("⚠️  시작 후 {}분 경과한 PLAYING 경기 발견 - 자동 종료 처리: matchId={}, startedAt={}",
+                    log.warn("⚠️ 시작 후 {}분 경과한 PLAYING 경기 발견 - 자동 종료 처리: matchId={}, startedAt={}",
                             AUTO_FINISH_MINUTES, matchId, match.getStartedAt());
 
                     // 통계 데이터 Redis에서 가져오기 (없으면 0)
@@ -248,7 +240,7 @@ public class MatchStatusSyncService {
                     // Redis 전체 정리
                     cleanupAllMatchRedis(matchId);
 
-                    // Stats 서버 알림 추가
+                    // Stats 서버 알림
                     boolean statsNotificationSuccess = statsServerClient.notifyMatchEnd(matchId);
                     if (statsNotificationSuccess) {
                         log.info("Stats 서버 매치 종료 알림 성공: matchId={}", matchId);
@@ -264,8 +256,10 @@ public class MatchStatusSyncService {
                         log.info("✅ 시간 경과 경기 자동 종료 완료: matchId={}, roomId={}, startedAt={}, endedAt={}",
                                 matchId, roomId, match.getStartedAt(), match.getEndedAt());
                     } else {
-                        log.warn("⚠️  시간 경과 경기 종료됨 (룸 서버 알림 실패): matchId={}, roomId={}", matchId, roomId);
+                        log.warn("⚠️ 시간 경과 경기 종료됨 (룸 서버 알림 실패): matchId={}, roomId={}", matchId, roomId);
                     }
+
+                    log.info("ℹ️ 미확정 유저는 클라이언트에서 FailedStatsController API 호출 필요");
 
                     finishedCount++;
                 }
@@ -286,55 +280,23 @@ public class MatchStatusSyncService {
 
     /**
      * Redis에서 경기 통계 데이터 조회 및 Match 엔티티에 설정
+     *
+     * success_user_count와 success_bot_count는 Confirm 시점에 이미 증가되어 있음
+     * 여기서는 최종 확인만 수행
      */
     private void setMatchStatisticsFromRedis(Long matchId, Match match) {
         try {
-            // 1. successUserCount - Redis에서 조회
-            String confirmedHumanCountKey = "match:" + matchId + ":confirmed_human_count";
-            String confirmedHumanCountStr = redisTemplate.opsForValue().get(confirmedHumanCountKey);
-            Integer successUserCount = 0;
-            if (confirmedHumanCountStr != null) {
-                try {
-                    successUserCount = Integer.parseInt(confirmedHumanCountStr);
-                } catch (NumberFormatException e) {
-                    log.warn("successUserCount 파싱 실패: matchId={}, value={}", matchId, confirmedHumanCountStr);
-                }
+            // success_user_count, success_bot_count는 Confirm 시 이미 설정됨
+            // 값이 없으면 0으로 설정
+            if (match.getSuccessUserCount() == null) {
+                match.setSuccessUserCount(0);
             }
-
-            // 2. successBotCount - 계산식 (total_rank_counter - human_rank_counter)
-            String totalRankCounterKey = "match:" + matchId + ":total_rank_counter";
-            String humanRankCounterKey = "match:" + matchId + ":human_rank_counter";
-
-            String totalRankStr = redisTemplate.opsForValue().get(totalRankCounterKey);
-            String humanRankStr = redisTemplate.opsForValue().get(humanRankCounterKey);
-
-            Integer totalRank = 0;
-            Integer humanRank = 0;
-
-            if (totalRankStr != null) {
-                try {
-                    totalRank = Integer.parseInt(totalRankStr);
-                } catch (NumberFormatException e) {
-                    log.warn("totalRank 파싱 실패: matchId={}, value={}", matchId, totalRankStr);
-                }
+            if (match.getSuccessBotCount() == null) {
+                match.setSuccessBotCount(0);
             }
-
-            if (humanRankStr != null) {
-                try {
-                    humanRank = Integer.parseInt(humanRankStr);
-                } catch (NumberFormatException e) {
-                    log.warn("humanRank 파싱 실패: matchId={}, value={}", matchId, humanRankStr);
-                }
-            }
-
-            Integer successBotCount = totalRank - humanRank;
-
-            // Match 엔티티에 저장
-            match.setSuccessUserCount(successUserCount);
-            match.setSuccessBotCount(successBotCount);
 
             log.info("경기 통계 설정: matchId={}, successUserCount={}, successBotCount={}",
-                    matchId, successUserCount, successBotCount);
+                    matchId, match.getSuccessUserCount(), match.getSuccessBotCount());
 
         } catch (Exception e) {
             log.error("경기 통계 설정 중 오류 발생: matchId={}", matchId, e);
@@ -348,10 +310,9 @@ public class MatchStatusSyncService {
      * 경기 종료 시 Redis 전체 정리
      * - 좌석 키: seat:{matchId}:*
      * - 상태 키: match:{matchId}:status
-     * - 카운트 키: match:{matchId}:reserved_count, confirmed_count, confirmed_human_count
+     * - 카운트 키: match:{matchId}:reserved_count
      * - 실제 유저 키: humanusers:match:{matchId}
      * - 등수 카운터 키: match:{matchId}:human_rank_counter, total_rank_counter
-     * - 유저 등수 Hash 키: match:{matchId}:user:rank, match:{matchId}:user:totalRank
      */
     private void cleanupAllMatchRedis(Long matchId) {
         log.info("경기 종료 - Redis 전체 정리 시작: matchId={}", matchId);
@@ -369,13 +330,9 @@ public class MatchStatusSyncService {
             String statusKey = "match:" + matchId + ":status";
             redisTemplate.delete(statusKey);
 
-            // 3. 카운트 키 삭제
-            String countKey = "match:" + matchId + ":reserved_count";
-            String confirmedCountKey = "match:" + matchId + ":confirmed_count";
-            String confirmedHumanCountKey = "match:" + matchId + ":confirmed_human_count";
-            redisTemplate.delete(countKey);
-            redisTemplate.delete(confirmedCountKey);
-            redisTemplate.delete(confirmedHumanCountKey);
+            // 3. reserved_count 키 삭제
+            String reservedCountKey = "match:" + matchId + ":reserved_count";
+            redisTemplate.delete(reservedCountKey);
 
             // 4. 실제 유저 카운터 키 삭제
             String humanUsersKey = "humanusers:match:" + matchId;
@@ -387,95 +344,11 @@ public class MatchStatusSyncService {
             redisTemplate.delete(humanRankCounterKey);
             redisTemplate.delete(totalRankCounterKey);
 
-            // 6. 유저 등수 Hash 키 삭제 (개별 키 패턴 매칭 불필요!)
-            String userRankHashKey = "match:" + matchId + ":user:rank";
-            String userTotalRankHashKey = "match:" + matchId + ":user:totalRank";
-
-            Boolean deletedRankHash = redisTemplate.delete(userRankHashKey);
-            Boolean deletedTotalRankHash = redisTemplate.delete(userTotalRankHashKey);
-
-            log.info("유저 등수 Hash 키 삭제: matchId={}, rank={}, totalRank={}",
-                    matchId, deletedRankHash, deletedTotalRankHash);
-
-            log.info("유저 등수 Hash 키 삭제: matchId={}, rank={}, totalRank={}",
-                    matchId, deletedRankHash, deletedTotalRankHash);
-
-            log.info("경기 Redis 전체 정리 완료: matchId={}", matchId);
+            log.info("경기 종료 - Redis 전체 정리 완료: matchId={}", matchId);
 
         } catch (Exception e) {
             log.error("경기 Redis 정리 중 오류 발생: matchId={}", matchId, e);
         }
-    }
-
-    /**
-     * 경기 종료 시 Redis 데이터 정리
-     * 좌석 선점/확정 키, 상태 키, 카운트 키를 모두 삭제하여 메모리 최적화
-     *
-     * ⚠️  주의: SeatConfirmationService.cleanupAllMatchRedis()와 중복
-     * 향후 리팩토링 필요
-     *
-     * @param matchId 정리할 경기 ID
-     * @return 삭제된 키 개수
-     */
-    @Deprecated
-    public int cleanupMatchRedis(Long matchId) {
-        log.info("경기 종료 후 Redis 정리 시작: matchId={}", matchId);
-
-        int deletedCount = 0;
-
-        try {
-            // 1. 좌석 선점/확정 키 삭제: seat:{matchId}:*
-            String seatPattern = "seat:" + matchId + ":*";
-            Set<String> seatKeys = redisTemplate.keys(seatPattern);
-            if (seatKeys != null && !seatKeys.isEmpty()) {
-                Long deleted = redisTemplate.delete(seatKeys);
-                deletedCount += (deleted != null ? deleted.intValue() : 0);
-                log.info("좌석 키 삭제: matchId={}, count={}", matchId, deleted);
-            }
-
-            // 2. 경기 상태 키 삭제: match:{matchId}:status
-            String statusKey = "match:" + matchId + ":status";
-            if (Boolean.TRUE.equals(redisTemplate.delete(statusKey))) {
-                deletedCount++;
-                log.info("경기 상태 키 삭제: matchId={}", matchId);
-            }
-
-            // 3. 예약 카운트 키 삭제: match:{matchId}:reserved_count
-            String countKey = "match:" + matchId + ":reserved_count";
-            if (Boolean.TRUE.equals(redisTemplate.delete(countKey))) {
-                deletedCount++;
-                log.info("예약 카운트 키 삭제: matchId={}", matchId);
-            }
-
-            // 4. 확정 카운트 키 삭제
-            String confirmedCountKey = "match:" + matchId + ":confirmed_count";
-            String confirmedHumanCountKey = "match:" + matchId + ":confirmed_human_count";
-            redisTemplate.delete(confirmedCountKey);
-            redisTemplate.delete(confirmedHumanCountKey);
-
-            // 5. 실제 유저 카운터 키 삭제
-            String humanUsersKey = "humanusers:match:" + matchId;
-            redisTemplate.delete(humanUsersKey);
-
-            // 6. 등수 카운터 키 삭제
-            String humanRankCounterKey = "match:" + matchId + ":human_rank_counter";
-            String totalRankCounterKey = "match:" + matchId + ":total_rank_counter";
-            redisTemplate.delete(humanRankCounterKey);
-            redisTemplate.delete(totalRankCounterKey);
-
-            // 7. 유저 등수 Hash 키 삭제
-            String userRankHashKey = "match:" + matchId + ":user:rank";
-            String userTotalRankHashKey = "match:" + matchId + ":user:totalRank";
-            redisTemplate.delete(userRankHashKey);
-            redisTemplate.delete(userTotalRankHashKey);
-
-            log.info("경기 종료 후 Redis 정리 완료: matchId={}, deletedKeys={}", matchId, deletedCount);
-
-        } catch (Exception e) {
-            log.error("경기 Redis 정리 중 오류 발생: matchId={}", matchId, e);
-        }
-
-        return deletedCount;
     }
 
     /**

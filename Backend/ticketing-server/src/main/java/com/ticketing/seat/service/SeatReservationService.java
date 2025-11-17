@@ -1,6 +1,5 @@
 package com.ticketing.seat.service;
 
-import com.ticketing.entity.UserStats;
 import com.ticketing.seat.concurrency.LuaReservationExecutor;
 import com.ticketing.seat.dto.ReservedSeatInfoDto;
 import com.ticketing.seat.dto.SeatInfo;
@@ -18,7 +17,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -102,6 +100,10 @@ public class SeatReservationService {
                 .toList();
 
         // 5. Redis 원자적 선점 시도 (각 좌석별 grade 전달)
+        // Hold 시점:
+        // - 좌석 키만 저장
+        // - reserved_count 변경 없음
+        // - humanusers 변경 없음
         Long result = luaReservationExecutor.tryReserveSeatsAtomically(
                 matchId,
                 sectionId,  // String 타입 (Redis 키)
@@ -111,13 +113,20 @@ public class SeatReservationService {
                 totalSeats
         );
 
-        // 5-1. 성공 시 TTL 설정
-        if (result != null && result == 1L) {
-            setMatchRedisTTL(matchId);
+        // 5-1. 실패 처리 (이미 선점된 좌석)
+        if (result == null || result == 0L) {
+            log.warn("좌석 선점 실패 (이미 선점됨): matchId={}, userId={}, seats={}",
+                    matchId, userId, rowNumbers);
+
+            //  실패 통계 저장하지 않음 (단순 충돌)
+            return buildFailureResponse(matchId, req);
         }
 
-        // 5-2. Hold 시점에는 만석 체크 안 함 (Confirm 시점에 체크)
-        // result는 0 (실패) 또는 1 (성공)만 반환됨
+        // 5-2. 성공 시 TTL 설정
+        setMatchRedisTTL(matchId);
+
+        log.info("좌석 선점 성공: matchId={}, userId={}, seats={}",
+                matchId, userId, rowNumbers);
 
         return buildSuccessResponse(matchId, req);
     }
@@ -134,11 +143,9 @@ public class SeatReservationService {
             String statusKey = "match:" + matchId + ":status";
             redisTemplate.expire(statusKey, ttl);
 
-            // 2. 카운트 키들
+            // 2. reserved_count 키 (Confirm된 좌석 수)
             String reservedCountKey = "match:" + matchId + ":reserved_count";
-            String confirmedCountKey = "match:" + matchId + ":confirmed_count";
             redisTemplate.expire(reservedCountKey, ttl);
-            redisTemplate.expire(confirmedCountKey, ttl);
 
             // 3. 실제 유저 카운터
             String humanUsersKey = "humanusers:match:" + matchId;
@@ -194,6 +201,7 @@ public class SeatReservationService {
                 .success(false)
                 .heldSeats(List.of())
                 .failedSeats(failed)
+                .message("좌석 선점 실패: 이미 다른 사용자가 선점했습니다.")
                 .build();
     }
 
@@ -215,6 +223,7 @@ public class SeatReservationService {
                 .success(true)
                 .heldSeats(held)
                 .failedSeats(List.of())
+                .message("좌석 선점 성공")
                 .build();
     }
 }
