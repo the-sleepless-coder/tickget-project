@@ -46,6 +46,7 @@ spring:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
       properties:
+        spring.json.add.type.headers: true
         spring.jackson.date-format: ${JACKSON_DATE_FORMAT:yyyy-MM-dd HH:mm:ss}
 
     consumer:
@@ -54,8 +55,9 @@ spring:
       auto-offset-reset: ${KAFKA_CONSUMER_AUTO_OFFSET_RESET:latest}
       enable-auto-commit: ${KAFKA_ENABLE_AUTO_COMMIT:false}
       properties:
-        spring.json.trusted.packages: ${KAFKA_TRUSTED_PACKAGES:com.ticketing.seat.event}
-        spring.json.value.default.type: ${KAFKA_VALUE_DEFAULT_TYPE:com.ticketing.seat.event.SeatConfirmationEvent}
+        spring.json.trusted.packages: "*"
+        #spring.json.trusted.packages: ${KAFKA_TRUSTED_PACKAGES:com.ticketing.seat.event}
+        #spring.json.value.default.type: ${KAFKA_VALUE_DEFAULT_TYPE:com.ticketing.seat.event.SeatConfirmationEvent}
 
     listener:
       ack-mode: ${KAFKA_ACK_MODE:MANUAL_IMMEDIATE}
