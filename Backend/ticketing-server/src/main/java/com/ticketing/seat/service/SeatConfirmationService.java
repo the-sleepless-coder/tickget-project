@@ -79,8 +79,8 @@ public class SeatConfirmationService {
     /**
      * 봇 Confirm 처리
      * - 좌석 키 조회 필요 (좌석 수 확인용)
-     * - UserStats 저장 안 함 (통계 데이터 없음)
-     * - total_rank_counter만 증가
+     * - UserStats 저장 (봇도 통계에 포함)
+     * - total_rank_counter 증가
      * - confirmed_count 증가 (좌석 수만큼)
      */
     private SeatConfirmationResponse handleBotConfirm(Long matchId, Long userId,
@@ -97,26 +97,69 @@ public class SeatConfirmationService {
 
         int seatCount = seatIds.size();
 
-        // 2. total_rank_counter만 증가 (봇도 전체 등수에 포함)
+        // 2. total_rank_counter 증가 (봇도 전체 등수에 포함)
         String totalRankCounterKey = "match:" + matchId + ":total_rank_counter";
-        Long totalRank = redisTemplate.opsForValue().increment(totalRankCounterKey);
+        Long totalRankLong = redisTemplate.opsForValue().increment(totalRankCounterKey);
+        Integer totalRank = (totalRankLong != null) ? totalRankLong.intValue() : null;
 
-        // 3. confirmed_count 증가 (좌석 수만큼!)
+        // 3. confirmed_count 증가 (좌석 수만큼)
         String confirmedCountKey = "match:" + matchId + ":confirmed_count";
         Long confirmedCount = redisTemplate.opsForValue().increment(confirmedCountKey, seatCount);
 
         log.info("봇 Confirm 완료: matchId={}, botId={}, totalRank={}, confirmedCount={}, seatCount={}",
                 matchId, userId, totalRank, confirmedCount, seatCount);
 
-        // 4. 성공 응답
+        // 4. UserStats 저장 (봇도 통계에 포함)
+        //    - 좌석/섹션 정보는 실제 유저와 동일한 형식으로 기록
+        //    - 상세 입력 정보는 봇이 없으므로 0 또는 null로 처리
+        List<String> allSectionIds = new ArrayList<>();
+        List<String> allSeatIds = new ArrayList<>();
+
+        for (String seatId : seatIds) {
+            String sectionId = extractSection(seatId);  // "8-9-15" -> "8"
+            allSectionIds.add(sectionId);
+            allSeatIds.add(seatId);
+        }
+
+        String selectedSections = String.join(",", allSectionIds);  // 예: "8" 또는 "8,8"
+        String selectedSeats = String.join(",", allSeatIds);        // 예: "8-9-15,8-9-16"
+
+        UserStats botStats = UserStats.builder()
+                .userId(userId)                     // 음수 ID 그대로 저장 (봇 식별용)
+                .matchId(matchId)
+                .isSuccess(true)
+                .selectedSection(selectedSections)
+                .selectedSeat(selectedSeats)
+                // 봇은 입력 과정이 없으므로 시간/카운트 계열은 기본값 사용
+                .dateSelectTime(0)
+                .dateMissCount(0)
+                .seccodeSelectTime(0)
+                .seccodeBackspaceCount(0)
+                .seccodeTryCount(0)
+                .seatSelectTime(0)
+                .seatSelectTryCount(0)
+                .seatSelectClickMissCount(0)
+                // 봇은 별도의 userRank는 없고 전체 등수만 기록 (필요하면 정책에 맞게 조정 가능)
+                .userRank(null)
+                .totalRank(totalRank)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+
+        userStatsRepository.save(botStats);
+        log.info("봇 통계 저장 완료: matchId={}, botId={}, seatCount={}, selectedSeats={}, totalRank={}",
+                matchId, userId, seatCount, selectedSeats, totalRank);
+
+        // 5. 성공 응답
         return SeatConfirmationResponse.builder()
                 .success(true)
                 .message("봇 확정 완료")
-                .userRank(-1)  // 봇은 userRank 없음
+                .userRank(-1)  // 봇은 응답에서는 userRank 없음으로 표기
                 .matchId(matchId)
                 .userId(userId)
                 .build();
     }
+
 
     /**
      * 실제 유저 Confirm 처리
