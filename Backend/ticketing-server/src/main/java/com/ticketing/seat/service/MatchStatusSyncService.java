@@ -34,6 +34,7 @@ public class MatchStatusSyncService {
     private final MatchStatusRepository matchStatusRepository;
     private final StringRedisTemplate redisTemplate;
     private final RoomServerClient roomServerClient;
+    private final StatsServerClient statsServerClient;
 
     // 경기 시작 후 자동 종료 시간 (분)
     private static final int AUTO_FINISH_MINUTES = 30;
@@ -165,6 +166,14 @@ public class MatchStatusSyncService {
                     match.setUpdatedAt(LocalDateTime.now());
                     matchRepository.save(match);
 
+                    // Stats 서버 알림 추가
+                    boolean statsNotificationSuccess = statsServerClient.notifyMatchEnd(matchId);
+                    if (statsNotificationSuccess) {
+                        log.info("Stats 서버 매치 종료 알림 성공: matchId={}", matchId);
+                    } else {
+                        log.warn("Stats 서버 매치 종료 알림 실패: matchId={}", matchId);
+                    }
+
                     // 룸 서버 알림
                     Long roomId = match.getRoomId();
                     boolean notificationSuccess = roomServerClient.notifyMatchEnd(roomId);
@@ -238,6 +247,14 @@ public class MatchStatusSyncService {
 
                     // Redis 전체 정리
                     cleanupAllMatchRedis(matchId);
+
+                    // Stats 서버 알림 추가
+                    boolean statsNotificationSuccess = statsServerClient.notifyMatchEnd(matchId);
+                    if (statsNotificationSuccess) {
+                        log.info("Stats 서버 매치 종료 알림 성공: matchId={}", matchId);
+                    } else {
+                        log.warn("Stats 서버 매치 종료 알림 실패: matchId={}", matchId);
+                    }
 
                     // 룸 서버 알림
                     Long roomId = match.getRoomId();
