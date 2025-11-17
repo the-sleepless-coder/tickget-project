@@ -2,10 +2,7 @@ package com.stats.dto.response.MatchData;
 
 import com.stats.entity.Match;
 import com.stats.entity.Room;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.time.LocalDateTime;
 
@@ -13,6 +10,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@ToString
 public class MatchInfoStatsDTO {
 
     private Long matchId;

@@ -200,8 +200,9 @@ public class StatsService {
 
             for(MatchInfoStatsDTO data: allMatchData){
                 matchIdLong = data.getMatchId();
+                log.info("MatchInfoStats matchId:{}", matchIdLong);
                 List<MatchSpecificsStatsDTO> matchSpecifics = userStatsRepository.findMatchSpecificInfoStatsByMatchId(matchIdLong, roomTypeCasted, topN);
-                log.info(matchSpecifics.toString());
+                log.info("MatchSpecifics: {}", matchSpecifics.toString());
 
                 // myData 조회.
                 MatchSpecificsStatsDTO myData = null;
