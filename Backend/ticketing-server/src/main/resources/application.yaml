@@ -9,7 +9,7 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: ${DB_URL:jdbc:mysql://localhost:3306/ticketing_db?serverTimezone=Asia/Seoul&characterEncoding=UTF-8}
     username: ${DB_USERNAME:root}
-    password: ${DB_PASSWORD:jsonsvalue!}
+    password: ${DB_PASSWORD}
 
   data:
     # Redis
@@ -46,7 +46,6 @@ spring:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
       properties:
-        spring.json.add.type.headers: true
         spring.jackson.date-format: ${JACKSON_DATE_FORMAT:yyyy-MM-dd HH:mm:ss}
 
     consumer:
@@ -55,9 +54,8 @@ spring:
       auto-offset-reset: ${KAFKA_CONSUMER_AUTO_OFFSET_RESET:latest}
       enable-auto-commit: ${KAFKA_ENABLE_AUTO_COMMIT:false}
       properties:
-        spring.json.trusted.packages: "*"
-        #spring.json.trusted.packages: ${KAFKA_TRUSTED_PACKAGES:com.ticketing.seat.event}
-        #spring.json.value.default.type: ${KAFKA_VALUE_DEFAULT_TYPE:com.ticketing.seat.event.SeatConfirmationEvent}
+        spring.json.trusted.packages: ${KAFKA_TRUSTED_PACKAGES:com.ticketing.seat.event}
+        spring.json.value.default.type: ${KAFKA_VALUE_DEFAULT_TYPE:com.ticketing.seat.event.SeatConfirmationEvent}
 
     listener:
       ack-mode: ${KAFKA_ACK_MODE:MANUAL_IMMEDIATE}
@@ -71,7 +69,7 @@ logging:
   level:
     org.hibernate.SQL: ${LOG_SQL_LEVEL:info}
     com.ticketing: ${LOG_APP_LEVEL:info}
-    org.springframework.data.mongodb.core.MongoTemplate: ${LOG_MONGO_LEVEL:error}
+    org.springframework.data.mongodb.core.MongoTemplate: ${LOG_MONGO_LEVEL:info}
     org.springframework.kafka: ${LOG_KAFKA_LEVEL:info}
 
 app:
@@ -109,5 +107,6 @@ bot-server:
 room-server:
   url: ${ROOM_SERVICE_URL:http://localhost:8083}
 
-#expire:
-#  time:
+
+stats-server:
+   url: ${STATS_SERVICE_URL:http://localhost:8084}
