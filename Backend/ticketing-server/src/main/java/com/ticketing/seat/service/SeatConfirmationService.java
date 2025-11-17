@@ -49,6 +49,11 @@ public class SeatConfirmationService {
             Match match = matchRepository.findById(matchId)
                     .orElseThrow(() -> new MatchNotFoundException(matchId));
 
+            // DB 상태가 PLAYING일 때만 진행
+            if (match.getStatus() != Match.MatchStatus.PLAYING) {
+                return buildErrorResponse("경기가 이미 종료되었거나 대기 중입니다.");
+            }
+
             // ===== 봇과 실제 유저 분기 처리 =====
 
             if (isBot) {
