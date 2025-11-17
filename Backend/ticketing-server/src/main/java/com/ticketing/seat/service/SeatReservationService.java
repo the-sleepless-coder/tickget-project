@@ -65,19 +65,20 @@ public class SeatReservationService {
         }
 
 
-        // 2. Redis 경기 상태 확인 (OPEN이면 예약 가능)
-        boolean redisOpen = matchStatusRepository.isOpen(matchId);
-        if (!redisOpen) {
-            throw new MatchClosedException(matchId);
-        }
-
-        // 3. DB에서 경기 정보 조회
+        // 2. DB에서 경기 정보 조회
         Match match = matchRepository.findById(matchId)
                 .orElseThrow(() -> new IllegalArgumentException("Match not found: " + matchId));
 
         if (match.getStatus() != Match.MatchStatus.PLAYING) {
             throw new MatchClosedException(matchId);
         }
+
+        // 3. Redis 경기 상태 확인 (OPEN이면 예약 가능)
+        boolean redisOpen = matchStatusRepository.isOpen(matchId);
+        if (!redisOpen) {
+            throw new MatchClosedException(matchId);
+        }
+
 
         // 4. SeatInfo -> rowNumber, grade 변환
         String sectionId = req.extractSectionId();  // Long → String 변환 (Redis 키용)

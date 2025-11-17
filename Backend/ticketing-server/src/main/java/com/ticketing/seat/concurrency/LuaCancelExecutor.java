@@ -23,11 +23,14 @@ public class LuaCancelExecutor {
 
     private final StringRedisTemplate redisTemplate;
 
+    private static final int MATCH_REDIS_TTL_SECONDS = 600; // 10분
+
     private final DefaultRedisScript<Long> cancelSeatsLuaScript = new DefaultRedisScript<>(
             """
                     local seatCount = tonumber(ARGV[1])
                     local totalSeats = tonumber(ARGV[2])
                     local userId = ARGV[3]
+                    local ttl = tonumber(ARGV[4])
                     
                     -- 소유권 확인: 모든 좌석이 해당 userId 소유인지 확인
                     for i = 1, seatCount do
@@ -48,20 +51,20 @@ public class LuaCancelExecutor {
                         redis.call('DEL', KEYS[i])
                     end
                     
-                            -- 카운터 감소 및 TTL 설정
-                                       local newCount = redis.call('DECRBY', KEYS[seatCount + 1], seatCount)
-                                       redis.call('EXPIRE', KEYS[seatCount + 1], ttl)  -- reserved_count TTL
+                    -- 카운터 감소 및 TTL 설정
+                    local newCount = redis.call('DECRBY', KEYS[seatCount + 1], seatCount)
+                    redis.call('EXPIRE', KEYS[seatCount + 1], ttl)  -- reserved_count TTL
                     
-                                       -- CLOSED 상태였는데 totalSeats 미만이 되면 OPEN으로 변경
-                                       local status = redis.call('GET', KEYS[seatCount + 2])
-                                       if status == 'CLOSED' and newCount < totalSeats then
-                                           redis.call('SET', KEYS[seatCount + 2], 'OPEN')
-                                           redis.call('EXPIRE', KEYS[seatCount + 2], ttl)  --  OPEN TTL
-                                           return 2  -- 성공 + OPEN으로 복구
-                                       else
-                                           --  이미 OPEN 상태여도 TTL 갱신
-                                           redis.call('EXPIRE', KEYS[seatCount + 2], ttl)
-                                       end
+                    -- CLOSED 상태였는데 totalSeats 미만이 되면 OPEN으로 변경
+                    local status = redis.call('GET', KEYS[seatCount + 2])
+                    if status == 'CLOSED' and newCount < totalSeats then
+                        redis.call('SET', KEYS[seatCount + 2], 'OPEN')
+                        redis.call('EXPIRE', KEYS[seatCount + 2], ttl)  -- OPEN TTL
+                        return 2  -- 성공 + OPEN으로 복구
+                    else
+                        -- 이미 OPEN 상태여도 TTL 갱신
+                        redis.call('EXPIRE', KEYS[seatCount + 2], ttl)
+                    end
                     
                     return 1  -- 일반 성공
                     """,
@@ -92,11 +95,12 @@ public class LuaCancelExecutor {
                 Stream.of("match:" + matchId + ":status")
         ).flatMap(s -> s).toList();
 
-        // ARGV: [seatCount, totalSeats, userId]
+        // ARGV: [seatCount, totalSeats, userId, ttl]
         List<String> args = new ArrayList<>();
-        args.add(String.valueOf(rowNumbers.size()));  // ARGV[1]: seatCount
-        args.add(String.valueOf(totalSeats));         // ARGV[2]: totalSeats
-        args.add(String.valueOf(userId));             // ARGV[3]: userId
+        args.add(String.valueOf(rowNumbers.size()));       // ARGV[1]: seatCount
+        args.add(String.valueOf(totalSeats));              // ARGV[2]: totalSeats
+        args.add(String.valueOf(userId));                  // ARGV[3]: userId
+        args.add(String.valueOf(MATCH_REDIS_TTL_SECONDS)); // ARGV[4]: ttl (10분)
 
         Long result = redisTemplate.execute(
                 cancelSeatsLuaScript,
