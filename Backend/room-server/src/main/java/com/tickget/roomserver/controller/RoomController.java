@@ -11,6 +11,7 @@ import com.tickget.roomserver.dto.response.JoinRoomResponse;
 import com.tickget.roomserver.dto.response.RoomDetailResponse;
 import com.tickget.roomserver.dto.response.RoomResponse;
 import com.tickget.roomserver.service.RoomService;
+import jakarta.persistence.criteria.CriteriaBuilder.In;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
@@ -106,6 +107,13 @@ public class RoomController {
         ExitRoomResponse exitRoomResponse = roomService.exitRoom(exitRoomResuest, roomId);
         return ResponseEntity.ok()
                 .body(exitRoomResponse);
+    }
+
+    @GetMapping("/{roomId}/totalSeat")
+    public ResponseEntity<Integer> getTotalSeat(@PathVariable("roomId") Long roomId){
+       Integer totalSeat =  roomService.getTotalSeat(roomId);
+
+       return ResponseEntity.ok().body(totalSeat);
     }
 
 

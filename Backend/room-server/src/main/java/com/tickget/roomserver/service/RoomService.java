@@ -306,4 +306,13 @@ public class RoomService {
                     request.getRoomId(), e.getMessage(), e);
         }
     }
+
+    public Integer getTotalSeat(Long roomId) {
+        log.debug("방의 총 좌석수 반환: 방 ={}",roomId);
+
+        Room room = roomRepository.findById(roomId).orElseThrow(
+                () -> new RoomNotFoundException(roomId));
+
+        return room.getTotalSeat();
+    }
 }
