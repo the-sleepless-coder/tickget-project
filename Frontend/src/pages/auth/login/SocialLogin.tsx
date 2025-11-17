@@ -348,10 +348,10 @@ export default function SocialLogin() {
     setIsLoading("test");
     try {
       const data = await testAccountLogin();
-      
+
       setAuth(data);
       const storeState = useAuthStore.getState();
-      
+
       openSnackbar("테스트 계정이 생성되었습니다!", "success");
       const from =
         (location.state as { from?: { pathname?: string } })?.from?.pathname ||
@@ -380,7 +380,7 @@ export default function SocialLogin() {
     setAdminModalOpen(false);
     try {
       const data = await adminAccountLoginByName(name);
-      
+
       setAuth(data);
 
       // 프로필 이미지 조회 및 auth store 업데이트
@@ -419,7 +419,7 @@ export default function SocialLogin() {
       }
 
       const storeState = useAuthStore.getState();
-      
+
       openSnackbar(`${name} 관리자 계정으로 로그인되었습니다!`, "success");
       const from =
         (location.state as { from?: { pathname?: string } })?.from?.pathname ||
@@ -571,10 +571,7 @@ export default function SocialLogin() {
           <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-sm md:max-w-md">
             {/* 로고와 제목 */}
             <div className="text-center mb-8">
-              <div
-                className="flex justify-center items-center mb-4 cursor-pointer"
-                onClick={handleLogoClick}
-              >
+              <div className="flex justify-center items-center mb-4">
                 <img
                   src="/header-logo-violet.svg"
                   alt="Tickget Logo"
@@ -629,7 +626,7 @@ export default function SocialLogin() {
               <button
                 onClick={() => handleSocialSignup("google")}
                 disabled={isLoading !== null}
-                className="text-sm text-gray-600 hover:text-gray-800 underline transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="text-sm text-gray-600 hover:text-gray-800 underline transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 회원가입 하러가기
               </button>

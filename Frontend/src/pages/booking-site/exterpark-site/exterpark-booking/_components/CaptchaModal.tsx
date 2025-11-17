@@ -199,7 +199,7 @@ export default function CaptchaModal({ open, onVerify, onReselect }: Props) {
                 <div className="absolute top-2 right-2 flex flex-col gap-1 items-center">
                   <button
                     type="button"
-                    className="h-[30px] w-[30px] rounded-full bg-black text-white opacity-60 hover:cursor-pointer"
+                    className="h-[30px] w-[30px] rounded-full bg-black text-white opacity-60 cursor-pointer hover:opacity-80"
                     onClick={() => setSeed((s) => s + 1)}
                     aria-label="새로고침"
                   >

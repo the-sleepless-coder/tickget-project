@@ -32,7 +32,7 @@ export default function TabNavigation({
         <button
           key={tab.id}
           onClick={() => onTabChange(tab.id)}
-          className={`${baseStyles} whitespace-nowrap ${
+          className={`${baseStyles} whitespace-nowrap cursor-pointer ${
             activeTab === tab.id ? activeStyles : inactiveStyles
           }`}
         >
