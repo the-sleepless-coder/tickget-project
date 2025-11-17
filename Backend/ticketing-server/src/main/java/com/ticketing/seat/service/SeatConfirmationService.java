@@ -56,11 +56,9 @@ public class SeatConfirmationService {
             }
 
             // ===== 봇과 실제 유저 분기 처리 =====
-
             if (isBot) {
                 // ========== 봇 Confirm 처리 ==========
                 return handleBotConfirm(matchId, userId, match, startTime);
-
             } else {
                 // ========== 실제 유저 Confirm 처리 ==========
                 return handleUserConfirm(matchId, request, match, startTime);
@@ -80,9 +78,9 @@ public class SeatConfirmationService {
     /**
      * 봇 Confirm 처리
      * - 좌석 키 조회 필요 (좌석 수 확인용)
-     * - UserStats 저장 (봇도 통계에 포함)
      * - total_rank_counter 증가
      * - confirmed_count 증가 (좌석 수만큼)
+     * - 봇은 user_stats에 저장하지 않음
      */
     private SeatConfirmationResponse handleBotConfirm(Long matchId, Long userId,
                                                       Match match, long startTime) {
@@ -120,14 +118,13 @@ public class SeatConfirmationService {
                 .build();
     }
 
-
     /**
      * 실제 유저 Confirm 처리
      * - 좌석 키 조회 (없으면 실패)
      * - UserStats 저장 (통계 데이터 포함)
      * - Confirm 시점에 등수 계산
      * - humanusers 감소
-     * - 경기 종료 체크
+     * - 만석 또는 모든 실제 유저 Confirm 시 경기 종료
      */
     private SeatConfirmationResponse handleUserConfirm(Long matchId,
                                                        SeatConfirmationRequest request,
@@ -202,8 +199,8 @@ public class SeatConfirmationService {
         redisTemplate.expire(confirmedHumanCountKey, Duration.ofSeconds(600));
 
         // 8. UserStats 저장 (좌석 정보를 콤마로 연결하여 1개 레코드로 저장)
-        String selectedSections = String.join(",", allSectionIds);  // 예: "A,A" 또는 "A,B"
-        String selectedSeats = String.join(",", allSeatIds);       // 예: "seat:1:A:5,seat:1:A:6"
+        String selectedSections = String.join(",", allSectionIds);  // 예: "8,8" 또는 "8,9"
+        String selectedSeats = String.join(",", allSeatIds);        // 예: "8-9-15,8-9-16"
 
         UserStats userStats = UserStats.builder()
                 .userId(userId)
@@ -235,44 +232,25 @@ public class SeatConfirmationService {
         log.info("실제 유저 Confirm: matchId={}, userId={}, 남은 실제 유저={}",
                 matchId, userId, remainingHumanUsers);
 
+        // 9-1. 룸 총 좌석 수 조회 후 만석 여부 계산
+        Long roomId = match.getRoomId();
+        Integer totalSeats = roomServerClient.getTotalSeats(roomId);
+        boolean isFull = confirmedCount != null && totalSeats != null && confirmedCount >= totalSeats;
+
         // 10. 경기 종료 조건 체크
-        // 조건: humanusers == 0 (모든 실제 유저가 confirm 완료)
-        // 단, 이미 FINISHED 상태면 중복 처리 방지
-        if (remainingHumanUsers != null && remainingHumanUsers <= 0
+        // 조건 1: 모든 실제 유저 confirm 완료 (remainingHumanUsers <= 0)
+        // 조건 2: 만석(isFull == true)
+        // + 현재 상태가 PLAYING 일 때만
+        if ((remainingHumanUsers != null && remainingHumanUsers <= 0 || isFull)
                 && match.getStatus() == Match.MatchStatus.PLAYING) {
-            log.info("모든 실제 유저 Confirm 완료 - 경기 종료 처리: matchId={}, remainingHumanUsers={}",
-                    matchId, remainingHumanUsers);
 
-            saveMatchStatistics(matchId, match);
-            // DB 상태를 FINISHED로 변경
-            match.setStatus(Match.MatchStatus.FINISHED);
-            match.setEndedAt(LocalDateTime.now());
-            matchRepository.save(match);
+            log.info("경기 종료 조건 만족 (모든 유저 확정 또는 만석): matchId={}, remainingHumanUsers={}, confirmedCount={}, totalSeats={}",
+                    matchId, remainingHumanUsers, confirmedCount, totalSeats);
 
-            // Redis 전체 정리
-            cleanupAllMatchRedis(matchId);
-
-            // Stats 서버에 매치 종료 알림
-            boolean statsNotificationSuccess = statsServerClient.notifyMatchEnd(matchId);
-            if (statsNotificationSuccess) {
-                log.info("Stats 서버 매치 종료 알림 성공: matchId={}", matchId);
-            } else {
-                log.warn("Stats 서버 매치 종료 알림 실패: matchId={}", matchId);
-            }
-
-            // 룸 서버에 매치 종료 알림
-            Long roomId = match.getRoomId();
-            boolean notificationSuccess = roomServerClient.notifyMatchEnd(roomId);
-
-            if (notificationSuccess) {
-                log.info("경기 자동 종료 및 룸 서버 알림 완료: matchId={}, roomId={}, status=FINISHED, endedAt={}",
-                        matchId, roomId, match.getEndedAt());
-            } else {
-                log.warn("경기는 종료되었으나 룸 서버 알림 실패: matchId={}, roomId={}", matchId, roomId);
-            }
+            handleFullMatchAtConfirm(matchId, match);
         } else {
-            log.debug("아직 실제 유저 Confirm 대기 중: matchId={}, remainingHumanUsers={}",
-                    matchId, remainingHumanUsers);
+            log.debug("아직 경기 계속 진행: matchId={}, remainingHumanUsers={}, confirmedCount={}, totalSeats={}",
+                    matchId, remainingHumanUsers, confirmedCount, totalSeats);
         }
 
         // 11. 성공 응답 생성
@@ -290,6 +268,44 @@ public class SeatConfirmationService {
                 true, "개인 경기 종료", startTime);
 
         return response;
+    }
+
+    /**
+     * Confirm 시점에서 만석 또는 모든 유저 Confirm으로 경기 종료 처리
+     */
+    private void handleFullMatchAtConfirm(Long matchId, Match match) {
+        try {
+            // 1. 통계 수집
+            saveMatchStatistics(matchId, match);
+
+            // 2. DB 상태 변경
+            match.setStatus(Match.MatchStatus.FINISHED);
+            match.setEndedAt(LocalDateTime.now());
+            matchRepository.save(match);
+
+            // 2-1. Redis 상태를 CLOSED로 설정 (10분 유지 예시)
+            String statusKey = "match:" + matchId + ":status";
+            redisTemplate.opsForValue().set(statusKey, "CLOSED");
+            redisTemplate.expire(statusKey, Duration.ofSeconds(600));
+
+            // 3. Redis 정리
+            cleanupAllMatchRedis(matchId);
+
+            // 4. Stats 서버 알림
+            boolean statsSuccess = statsServerClient.notifyMatchEnd(matchId);
+            if (statsSuccess) {
+                log.info("Stats 서버 만석 알림 성공: matchId={}", matchId);
+            }
+
+            // 5. 룸 서버 알림
+            boolean roomSuccess = roomServerClient.notifyMatchEnd(match.getRoomId());
+            if (roomSuccess) {
+                log.info("룸 서버 만석 알림 성공: matchId={}, roomId={}", matchId, match.getRoomId());
+            }
+
+        } catch (Exception e) {
+            log.error("Confirm 시점 만석 처리 중 오류: matchId={}", matchId, e);
+        }
     }
 
     /**

@@ -10,14 +10,15 @@ import java.util.List;
 import java.util.stream.Stream;
 
 /**
- * 여러 좌석을 한 번에 선점(확정) 처리하고, 동시에 카운트를 원자적으로 증가시킨다.
+ * 여러 좌석을 한 번에 선점(Hold) 처리하고, 동시에 카운트를 원자적으로 증가시킨다.
  * Redis 키: seat:{matchId}:{sectionId}:{row-number}
  * Redis 값: {userId}:{grade}
  * <p>
  * 반환값:
  * - 0: 실패 (좌석 이미 선점됨)
  * - 1: 성공 (일반)
- * - 2: 성공 + 만석으로 CLOSED 처리됨
+ *
+ * 주의: Hold 시점에는 만석 체크를 하지 않음 (Confirm 시점에 체크)
  */
 @Component
 @RequiredArgsConstructor
@@ -30,9 +31,8 @@ public class LuaReservationExecutor {
     private final DefaultRedisScript<Long> reserveSeatsLuaScript = new DefaultRedisScript<>(
             """
                     local seatCount = tonumber(ARGV[1])
-                    local totalSeats = tonumber(ARGV[2])
-                    local userId = ARGV[3]
-                    local ttl = tonumber(ARGV[4])
+                    local userId = ARGV[2]
+                    local ttl = tonumber(ARGV[3])
                     
                     -- check phase: 모든 좌석이 비어있는지 확인
                     for i = 1, seatCount do
@@ -43,7 +43,7 @@ public class LuaReservationExecutor {
                     
                     -- assign phase: 각 좌석을 userId:grade로 할당하고 TTL 설정
                     for i = 1, seatCount do
-                        local grade = ARGV[4 + i]  -- ARGV[5]부터 각 좌석의 grade
+                        local grade = ARGV[3 + i]  -- ARGV[4]부터 각 좌석의 grade
                         local userIdGrade = userId .. ':' .. grade
                         redis.call('SET', KEYS[i], userIdGrade)
                         redis.call('EXPIRE', KEYS[i], ttl)  -- 좌석 키에 TTL 설정 (10분)
@@ -53,18 +53,11 @@ public class LuaReservationExecutor {
                     local newCount = redis.call('INCRBY', KEYS[seatCount + 1], seatCount)
                     redis.call('EXPIRE', KEYS[seatCount + 1], ttl)  -- reserved_count TTL
                     
-                    -- 만석 체크: 전체 좌석에 도달하면 상태를 CLOSED로 자동 변경
-                    if newCount >= totalSeats then
-                        redis.call('SET', KEYS[seatCount + 2], 'CLOSED')
-                        redis.call('EXPIRE', KEYS[seatCount + 2], ttl)  -- CLOSED TTL
-                        return 2  -- 성공 + 만석으로 CLOSED 처리됨
-                    else
-                        -- OPEN 상태일 때도 TTL 설정
-                        redis.call('SET', KEYS[seatCount + 2], 'OPEN')
-                        redis.call('EXPIRE', KEYS[seatCount + 2], ttl)  -- OPEN TTL
-                    end
+                    -- status 키 TTL 설정 (OPEN 상태 유지)
+                    redis.call('SET', KEYS[seatCount + 2], 'OPEN')
+                    redis.call('EXPIRE', KEYS[seatCount + 2], ttl)  -- status TTL
                     
-                    return 1  -- 일반 성공
+                    return 1  -- 성공
                     """,
             Long.class
     );
@@ -72,13 +65,16 @@ public class LuaReservationExecutor {
     /**
      * 좌석 원자적 선점 처리 (각 좌석마다 다른 grade 가능)
      *
+     * Hold 시점에는 만석 체크를 하지 않음
+     * reserved_count만 증가시키고 항상 1 반환
+     *
      * @param matchId    경기 ID
      * @param sectionId  섹션 ID (String - Redis 키용)
      * @param rowNumbers 행-번호 리스트 (예: ["9-15", "9-16"])
      * @param userId     사용자 ID
      * @param grades     각 좌석의 등급 리스트 (예: ["R석", "VIP"])
-     * @param totalSeats 전체 좌석 수
-     * @return 0: 실패, 1: 성공, 2: 성공+만석
+     * @param totalSeats 전체 좌석 수 (사용 안 함 - 하위 호환성 유지)
+     * @return 0: 실패, 1: 성공
      */
     public Long tryReserveSeatsAtomically(Long matchId,
                                           String sectionId,
@@ -99,13 +95,12 @@ public class LuaReservationExecutor {
                 Stream.of("match:" + matchId + ":status")
         ).flatMap(s -> s).toList();
 
-        // ARGV: [seatCount, totalSeats, userId, ttl, grade1, grade2, ...]
+        // ARGV: [seatCount, userId, ttl, grade1, grade2, ...]
         List<String> args = new ArrayList<>();
         args.add(String.valueOf(rowNumbers.size()));       // ARGV[1]: seatCount
-        args.add(String.valueOf(totalSeats));              // ARGV[2]: totalSeats
-        args.add(String.valueOf(userId));                  // ARGV[3]: userId
-        args.add(String.valueOf(MATCH_REDIS_TTL_SECONDS)); // ARGV[4]: ttl (10분)
-        args.addAll(grades);                               // ARGV[5]~: 각 좌석의 grade
+        args.add(String.valueOf(userId));                  // ARGV[2]: userId
+        args.add(String.valueOf(MATCH_REDIS_TTL_SECONDS)); // ARGV[3]: ttl (10분)
+        args.addAll(grades);                               // ARGV[4]~: 각 좌석의 grade
 
         Long result = redisTemplate.execute(
                 reserveSeatsLuaScript,

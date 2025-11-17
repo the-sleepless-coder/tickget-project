@@ -26,6 +26,7 @@ public class SeatCancelService {
     private final UserStatsRepository userStatsRepository;
     private final LuaCancelExecutor luaCancelExecutor;
     private final StringRedisTemplate redisTemplate;
+    private final RoomServerClient roomServerClient; // ✅ Confirm 서비스와 동일하게 주입
 
     @Transactional
     public SeatCancelResponse cancelSeats(Long matchId, Long userId) {
@@ -65,22 +66,37 @@ public class SeatCancelService {
                         .build();
             }
 
-            // 4. 좌석 정보 추출
+            // 4. 좌석 정보 추출 (현재 설계: 한 번의 Hold/Cancel은 한 섹션 기준)
             String sectionId = userSeats.get(0).getSectionId().toString();
             List<String> rowNumbers = userSeats.stream()
                     .map(SeatInfo::toRowNumber)
                     .toList();
 
-            // 5. Lua 스크립트로 원자적 취소
+            // 5. 룸 서버에서 전체 좌석 수 조회 (Confirm 로직과 동일 기준)
+            Long roomId = match.getRoomId();
+            Integer totalSeats = roomServerClient.getTotalSeats(roomId);
+
+            if (totalSeats == null) {
+                log.warn("룸 서버에서 totalSeats를 가져오지 못했습니다. matchId={}, roomId={}", matchId, roomId);
+                return SeatCancelResponse.builder()
+                        .success(false)
+                        .message("좌석 정보 조회에 실패했습니다.")
+                        .matchId(matchId)
+                        .userId(userId)
+                        .cancelledSeatCount(0)
+                        .build();
+            }
+
+            // 6. Lua 스크립트로 원자적 취소
             Long result = luaCancelExecutor.tryCancelSeatsAtomically(
                     matchId,
                     sectionId,
                     rowNumbers,
                     userId,
-                    match.getMaxUser()
+                    totalSeats //  인원 수가 아니라, "전체 좌석 수"
             );
 
-            // 6. 결과 처리
+            // 7. 결과 처리
             if (result == null || result == 0L) {
                 log.error("좌석 취소 실패: matchId={}, userId={}", matchId, userId);
                 return SeatCancelResponse.builder()
@@ -92,7 +108,6 @@ public class SeatCancelService {
                         .build();
             }
 
-            // 7. 성공 응답
             String message;
             if (result == 2L) {
                 message = "좌석 취소 완료 (만석 해제됨)";
@@ -143,8 +158,7 @@ public class SeatCancelService {
                         String grade = parts[1];
 
                         if (ownerId.equals(userId)) {
-                            // key 형식: seat:100:8:9-15
-                            // sectionId = 8, row = 9, col = 15
+                            // key 형식: seat:{matchId}:{sectionId}:{row}-{col}
                             SeatInfo seatInfo = extractSeatInfoFromKey(key, grade);
                             if (seatInfo != null) {
                                 userSeats.add(seatInfo);
