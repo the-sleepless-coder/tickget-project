@@ -205,6 +205,16 @@ export interface SeatConfirmResponse {
   status: string | null; // null=경기 진행중, CLOSED이면 전체 경기 종료
 }
 
+// ----- Seat Stats Failed (Ticketing) -----
+// POST /api/v1/dev/ticketing/matches/{matchId}/stats/failed
+// SeatConfirmRequest와 동일한 페이로드를 사용하되,
+// 아직 측정되지 않은 값은 0으로 전송한다.
+export type SeatStatsFailedRequest = SeatConfirmRequest;
+
+export interface SeatStatsFailedResponse {
+  success: boolean;
+}
+
 // ----- Seat Cancel (Ticketing) -----
 export interface SeatCancelResponse {
   success: boolean;
