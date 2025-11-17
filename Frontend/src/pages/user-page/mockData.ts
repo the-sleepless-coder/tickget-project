@@ -43,6 +43,10 @@ export interface MatchHistory {
   users?: UserRank[];
   userSuccess?: boolean; // 경기 결과
   totalTime?: number; // 총 소요 시간 (초)
+  isAIGenerated?: boolean; // AI 생성 여부
+  tsxUrl?: string | null; // AI 생성된 경우 TSX URL
+  hallId?: number; // 프리셋인 경우 hallId
+  roomType?: "SOLO" | "MULTI"; // 경기 타입
 }
 
 export const mockMatchHistory: MatchHistory[] = [

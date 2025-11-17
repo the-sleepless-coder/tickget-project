@@ -116,17 +116,28 @@ export default function PaymentPage() {
     const finalQs = userRank
       ? qs + (qs ? "&" : "?") + `userRank=${encodeURIComponent(userRank)}`
       : qs;
-    const target = paths.gameResult + finalQs;
+    // 경로 수정: paths.booking.gameResult 사용 (실제 게임 결과 페이지 경로)
+    const target = paths.booking.gameResult + finalQs;
+    
+    // window.opener가 있어도 현재 창에서 navigate 사용 (세션 유지)
+    // 부모 창이 있으면 postMessage로 알림 (선택사항)
     try {
       if (window.opener && !window.opener.closed) {
-        window.opener.location.href = target;
-        window.close();
-      } else {
-        navigate(target);
+        // 부모 창에 결과 페이지로 이동하라는 메시지 전달
+        window.opener.postMessage(
+          {
+            type: "booking-complete",
+            targetUrl: target,
+          },
+          window.location.origin
+        );
       }
-    } catch {
-      navigate(target);
+    } catch (error) {
+      console.warn("[Payment] 부모 창에 메시지 전달 실패:", error);
     }
+    
+    // 현재 창에서 결과 페이지로 이동 (세션 유지)
+    navigate(target);
   };
 
   // URL에서 선택 좌석 정보 가져오기

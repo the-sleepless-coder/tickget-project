@@ -55,6 +55,7 @@ export interface MatchInfo {
   botCount: number;
   startedAt: string; // ISO 8601 형식
   userSuccess: boolean;
+  tsxUrl?: string | null; // AI 생성된 경우 TSX URL
 }
 
 export interface MatchSpecifics {
@@ -82,6 +83,7 @@ export interface MatchSpecifics {
   seatClickMissDifference: number;
   seatSelectTimeDifference: number;
   seatTrialCountDifference: number;
+  tsxUrl?: string | null; // AI 생성된 경우 TSX URL
 }
 
 export interface MatchDataResponse {

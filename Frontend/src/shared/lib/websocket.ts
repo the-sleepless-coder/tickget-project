@@ -27,8 +27,7 @@ export function buildWebSocketUrl(baseUrl: string): string {
 // 최종 WebSocket 엔드포인트
 const WS_URL = buildWebSocketUrl(ROOM_SERVER_BASE_URL);
 if (import.meta.env.DEV) {
-  // 개발 중 실제 연결 URL 확인용
-  console.log("WebSocket URL:", WS_URL);
+
 }
 
 // 타입 별칭
@@ -66,9 +65,7 @@ export function createStompClient(options: WebSocketOptions = {}): Client {
 
   // SockJS 소켓 생성
   const socketFactory = () => {
-    if (import.meta.env.DEV) {
-      console.log("SockJS 연결 시도:", WS_URL);
-    }
+    
     return new SockJS(WS_URL);
   };
 
@@ -77,10 +74,7 @@ export function createStompClient(options: WebSocketOptions = {}): Client {
   if (accessToken) {
     connectHeaders.Authorization = `Bearer ${accessToken}`;
     if (import.meta.env.DEV) {
-      console.log(
-        "STOMP CONNECT Authorization 헤더 준비:",
-        `Bearer ${accessToken.substring(0, 12)}...`
-      );
+  
     }
   }
   // userId: 옵션 > 스토어 순으로 설정
@@ -88,9 +82,7 @@ export function createStompClient(options: WebSocketOptions = {}): Client {
     userId ?? (storeUserId != null ? String(storeUserId) : undefined);
   if (resolvedUserId != null) {
     connectHeaders.userId = String(resolvedUserId);
-    if (import.meta.env.DEV) {
-      console.log("STOMP CONNECT userId 헤더 준비:", connectHeaders.userId);
-    }
+    
   }
 
   const client = new Client({

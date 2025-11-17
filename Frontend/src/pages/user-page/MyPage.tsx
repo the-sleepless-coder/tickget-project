@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect } from "react";
 import ProfileBanner from "./_components/ProfileBanner";
 import ProfileInfoModal from "./_components/ProfileInfoModal";
 import TabNavigation from "../../shared/ui/common/TabNavigation";
@@ -203,6 +203,11 @@ export default function MyPageIndex() {
       };
     });
 
+    // hallId와 tsxUrl은 첫 번째 specifics에서 가져오기 (모든 사용자가 같은 hallId와 tsxUrl을 가짐)
+    const hallId = specifics[0]?.hallId;
+    // tsxUrl은 specifics에 있거나 matchInfo에 있을 수 있음
+    const tsxUrl = specifics[0]?.tsxUrl || matchInfo.tsxUrl;
+
     return {
       id: matchInfo.matchId,
       title: matchInfo.matchName,
@@ -217,16 +222,20 @@ export default function MyPageIndex() {
       users,
       userSuccess: matchInfo.userSuccess,
       totalTime: mySpecifics.totalTime,
+      isAIGenerated: matchInfo.isAIGenerated,
+      tsxUrl: tsxUrl && tsxUrl !== "default" ? tsxUrl : null,
+      hallId: hallId,
+      roomType: matchInfo.roomType,
     };
   };
 
   // 경기 기록 필터링 및 페이지네이션
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5;
+  const [currentPage, setCurrentPage] = useState(1); // 프론트엔드는 1-based로 관리
   const [matchHistoryData, setMatchHistoryData] = useState<MatchHistory[]>([]);
   const [isLoadingMatchHistory, setIsLoadingMatchHistory] = useState(false);
   const [analysisText, setAnalysisText] = useState<string>("");
   const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(false);
+  const [hasMorePages, setHasMorePages] = useState(true); // 다음 페이지 존재 여부
 
   // API에서 경기 기록 가져오기
   useEffect(() => {
@@ -240,7 +249,9 @@ export default function MyPageIndex() {
             : activeSecondaryTab === "match"
               ? "multi"
               : "all";
-        const data = await getMatchHistory(mode);
+        // 프론트엔드는 1-based, API는 0-based이므로 변환 (1 -> 0, 2 -> 1, ...)
+        const backendPage = currentPage - 1;
+        const data = await getMatchHistory(mode, backendPage);
         if (!cancelled && storeUserId) {
           const converted = data
             .map((matchData) =>
@@ -254,11 +265,14 @@ export default function MyPageIndex() {
               return dateB - dateA;
             });
           setMatchHistoryData(converted);
+          // 다음 페이지가 있는지 확인 (데이터가 비어있으면 더 이상 없음)
+          setHasMorePages(converted.length > 0);
         }
       } catch (error) {
         console.error("경기 기록 불러오기 실패:", error);
         if (!cancelled) {
           setMatchHistoryData([]);
+          setHasMorePages(false);
         }
       } finally {
         if (!cancelled) {
@@ -270,18 +284,11 @@ export default function MyPageIndex() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeSecondaryTab, storeUserId]);
+  }, [activeSecondaryTab, storeUserId, currentPage]);
 
   // 필터링된 경기 기록 (이미 API에서 필터링됨)
   const filteredMatchHistory = matchHistoryData;
-
-  // 페이지네이션 계산
-  const totalPages = Math.ceil(filteredMatchHistory.length / itemsPerPage);
-  const visibleItems = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    return filteredMatchHistory.slice(startIndex, endIndex);
-  }, [filteredMatchHistory, currentPage, itemsPerPage]);
+  const visibleItems = filteredMatchHistory;
 
   // 마크다운 텍스트를 파싱하여 렌더링 가능한 요소로 변환
   const parseAnalysisText = (text: string) => {
@@ -387,8 +394,10 @@ export default function MyPageIndex() {
       setEmail(storeEmail);
     }
     if (storeProfileImageUrl) {
+      // store의 profileImageUrl이 변경되면 캐시 무효화를 위해 cacheBust 적용
       setProfileImage(
-        normalizeProfileImageUrl(storeProfileImageUrl, storeUserId) || undefined
+        normalizeProfileImageUrl(storeProfileImageUrl, storeUserId, true) ||
+          undefined
       );
     }
   }, [storeNickname, storeEmail, storeProfileImageUrl, storeUserId]);
@@ -569,6 +578,27 @@ export default function MyPageIndex() {
 
               const imageData = await imageResponse.json().catch(() => ({}));
               newProfileImageUrl = imageData.profileImageUrl || null;
+
+              // 프로필 이미지 업로드 성공 시 즉시 store 업데이트 및 헤더 캐시 무효화 트리거
+              if (newProfileImageUrl !== null) {
+                const {
+                  setAuth: setAuthImmediate,
+                  triggerProfileImageRefresh,
+                } = useAuthStore.getState();
+                const currentAuthImmediate = useAuthStore.getState();
+                setAuthImmediate({
+                  accessToken: currentAuthImmediate.accessToken || "",
+                  refreshToken: currentAuthImmediate.refreshToken,
+                  userId: currentAuthImmediate.userId || 0,
+                  email: currentAuthImmediate.email || "",
+                  nickname: currentAuthImmediate.nickname || "",
+                  name: currentAuthImmediate.name || "",
+                  profileImageUrl: newProfileImageUrl,
+                  message: "프로필 이미지 업로드 완료",
+                });
+                // 헤더의 프로필 이미지 캐시 무효화 트리거
+                triggerProfileImageRefresh();
+              }
             }
 
             // 닉네임/생년월일 수정
@@ -917,6 +947,10 @@ export default function MyPageIndex() {
                             )
                           }
                           onUserClick={(user) => setSelectedUser(user)}
+                          isAIGenerated={match.isAIGenerated}
+                          tsxUrl={match.tsxUrl}
+                          hallId={match.hallId}
+                          roomType={match.roomType}
                         />
                       </div>
                     ))}
@@ -931,40 +965,27 @@ export default function MyPageIndex() {
                   </>
                 )}
 
-                {totalPages > 1 && (
-                  <div className="flex justify-center gap-2 pt-6">
+                {/* 페이지네이션 - 항상 표시 (경기 기록이 있을 때만) */}
+                {filteredMatchHistory.length > 0 && (
+                  <div className="flex justify-center items-center gap-2 pt-6 pb-4">
                     <button
                       onClick={() =>
                         setCurrentPage((prev) => Math.max(prev - 1, 1))
                       }
-                      disabled={currentPage === 1}
-                      className="rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-700 transition-colors disabled:cursor-not-allowed disabled:opacity-50 hover:bg-neutral-50"
+                      disabled={currentPage === 1 || isLoadingMatchHistory}
+                      className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-colors disabled:cursor-not-allowed disabled:opacity-50 hover:bg-neutral-50 disabled:hover:bg-white"
                     >
                       이전
                     </button>
 
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                      (page) => (
-                        <button
-                          key={page}
-                          onClick={() => setCurrentPage(page)}
-                          className={`rounded-lg border px-3 py-2 text-sm transition-colors ${
-                            currentPage === page
-                              ? "border-purple-500 bg-purple-500 text-white"
-                              : "border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50"
-                          }`}
-                        >
-                          {page}
-                        </button>
-                      )
-                    )}
+                    <span className="px-4 py-2 text-sm font-medium text-neutral-700">
+                      {currentPage}페이지
+                    </span>
 
                     <button
-                      onClick={() =>
-                        setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-                      }
-                      disabled={currentPage === totalPages}
-                      className="rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-700 transition-colors disabled:cursor-not-allowed disabled:opacity-50 hover:bg-neutral-50"
+                      onClick={() => setCurrentPage((prev) => prev + 1)}
+                      disabled={!hasMorePages || isLoadingMatchHistory}
+                      className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-colors disabled:cursor-not-allowed disabled:opacity-50 hover:bg-neutral-50 disabled:hover:bg-white"
                     >
                       다음
                     </button>

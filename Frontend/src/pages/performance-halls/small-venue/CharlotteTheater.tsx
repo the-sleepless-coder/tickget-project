@@ -10,11 +10,13 @@ export default function SmallVenue({
   onToggleSeat,
   takenSeats = new Set<string>(),
   isPreset = false,
+  readOnly = false, // 읽기 전용 모드: 선택된 좌석만 색상 표시, 나머지는 회색
 }: {
   selectedIds?: string[];
   onToggleSeat?: (seat: SmallVenueSeat) => void;
   takenSeats?: Set<string>; // section-row-col 형식의 TAKEN 또는 MY_RESERVED 좌석 ID Set
   isPreset?: boolean; // 프리셋 모드일 때 section을 모두 1로 설정
+  readOnly?: boolean; // 읽기 전용 모드
 }) {
   // 좌석 정사각형 크기와 간격은 Tailwind + 인라인 스타일로 조절
   const seatStyle: React.CSSProperties = {
@@ -228,10 +230,16 @@ export default function SmallVenue({
               {...(customSeatProps as Record<string, string>)}
               style={{
                 ...seatStyle,
-                backgroundColor: isSelected ? "#4a4a4a" : seatColor,
-                cursor: opacityVal === 0 ? "default" : "pointer",
+                backgroundColor: readOnly
+                  ? isSelected
+                    ? seatColor
+                    : "#9ca3af" // 회색
+                  : isSelected
+                    ? "#4a4a4a"
+                    : seatColor,
+                cursor: opacityVal === 0 || readOnly ? "default" : "pointer",
                 opacity: opacityVal,
-                pointerEvents: opacityVal === 0 ? "none" : "auto",
+                pointerEvents: opacityVal === 0 || readOnly ? "none" : "auto",
               }}
               onClick={() => {
                 if (opacityVal === 0) return;

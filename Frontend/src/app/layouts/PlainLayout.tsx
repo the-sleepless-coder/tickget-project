@@ -27,9 +27,7 @@ export default function PlainLayout() {
 
       // 이미 구독되어 있으면 스킵
       if (userSubscriptionRef.current) {
-        if (import.meta.env.DEV) {
-          console.log("ℹ️ [개인 메시지] 이미 구독되어 있음");
-        }
+       
         return;
       }
 
@@ -43,6 +41,15 @@ export default function PlainLayout() {
               eventType: event.eventType,
               body: event,
             });
+          }
+
+          // 결과 페이지에서는 USER_LEFT 이벤트 무시
+          const currentPath = window.location.pathname;
+          const isGameResultPage = currentPath.includes("/game-result");
+          
+          if (isGameResultPage && (event.eventType === "USER_LEFT" || event.eventType === "USER_EXITED")) {
+           
+            return; // 결과 페이지에서는 퇴장 알림 무시
           }
 
           if (event.eventType === "FORCE_DISCONNECT") {

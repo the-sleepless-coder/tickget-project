@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
-import AccountCircleOutlinedIcon from "@mui/icons-material/AccountCircleOutlined";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useAuthStore } from "@features/auth/store";
 import { exitRoom } from "@features/room/api";
 import { normalizeProfileImageUrl } from "@shared/utils/profileImageUrl";
+import { useWebSocketStore } from "@shared/lib/websocket-store";
+import { disconnectStompClient } from "@shared/lib/websocket";
 
 export default function Header() {
   const location = useLocation();
@@ -13,41 +14,31 @@ export default function Header() {
   const accessToken = useAuthStore((state) => state.accessToken);
   const userId = useAuthStore((state) => state.userId);
   const rawProfileImageUrl = useAuthStore((state) => state.profileImageUrl);
-  const [imageKey, setImageKey] = useState(0);
-  const [cacheBustTimestamp, setCacheBustTimestamp] = useState<number | null>(
-    null
-  );
+  const profileImageUploaded = useAuthStore((state) => state.profileImageUploaded);
   // rawProfileImageUrl이 없어도 userId로 S3 경로 생성
-  // rawProfileImageUrl이 변경될 때마다 새로운 타임스탬프를 추가하여 캐시 무효화
-  // cacheBustTimestamp가 있으면 항상 새로운 타임스탬프 추가
-  const profileImageUrl = normalizeProfileImageUrl(
+  // 타임스탬프 없이 원래 경로 그대로 사용
+  const baseProfileImageUrl = normalizeProfileImageUrl(
     rawProfileImageUrl || null,
     userId,
-    cacheBustTimestamp !== null // cacheBustTimestamp가 있으면 cacheBust 적용
+    false // 타임스탬프 추가하지 않음
   );
+  
+  // profileImageUploaded가 변경되면 src에 _refresh 쿼리 파라미터를 추가하여 브라우저 캐시 무효화
+  // 타임스탬프가 아닌 _refresh 파라미터를 사용하여 원래 경로는 유지하되 캐시만 무효화
+  const profileImageUrl = baseProfileImageUrl && profileImageUploaded > 0
+    ? `${baseProfileImageUrl}${baseProfileImageUrl.includes('?') ? '&' : '?'}_refresh=${profileImageUploaded}`
+    : baseProfileImageUrl;
+  
+  // 마이페이지와 동일하게 URL을 key로 사용
+  // profileImageUrl이 변경되면 (profileImageUploaded가 변경되면 _refresh 파라미터가 추가됨) key도 변경
+  const imageKey = profileImageUrl || `default-${profileImageUploaded}`;
   const isLoggedIn = !!accessToken;
   const [imageError, setImageError] = useState(false);
 
-  // 디버깅: 프로필 이미지 URL 확인
-  useEffect(() => {
-    if (import.meta.env.DEV && isLoggedIn) {
-      console.log("🔍 [Header] 프로필 이미지 URL:", {
-        raw: rawProfileImageUrl,
-        normalized: profileImageUrl,
-      });
-    }
-  }, [rawProfileImageUrl, profileImageUrl, isLoggedIn]);
-
-  // 프로필 이미지 URL이 변경되면 에러 상태 리셋 및 이미지 강제 리렌더링
+  // 프로필 이미지 URL이 변경되면 에러 상태 리셋
   useEffect(() => {
     setImageError(false);
-    // rawProfileImageUrl이 변경되면 새로운 타임스탬프를 생성하여 캐시 무효화
-    // store의 profileImageUrl이 변경되면 무조건 이미지를 다시 로드해야 함
-    if (rawProfileImageUrl !== null && rawProfileImageUrl !== undefined) {
-      setCacheBustTimestamp(Date.now());
-      setImageKey((prev) => prev + 1);
-    }
-  }, [rawProfileImageUrl]);
+  }, [rawProfileImageUrl, profileImageUploaded]);
 
   const resolveRoomIdFromLocation = (): number | undefined => {
     // 1) /i-ticket/:roomId 패턴
@@ -109,8 +100,29 @@ export default function Header() {
   const handleLogout = async () => {
     const proceed = await confirmAndExitIfInRoom();
     if (!proceed) return;
+    
+    // WebSocket 연결을 먼저 정리
+    const wsClient = useWebSocketStore.getState().client;
+    if (wsClient) {
+      disconnectStompClient(wsClient);
+      useWebSocketStore.getState().setClient(null);
+    }
+    
+    // 인증 상태 초기화
     useAuthStore.getState().clearAuth();
+    // 상태 업데이트가 완료되도록 다음 이벤트 루프까지 대기
+    await new Promise((resolve) => setTimeout(resolve, 0));
     navigate("/", { replace: true });
+  };
+
+  const handleLoginClick: React.MouseEventHandler<HTMLButtonElement> = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // 현재 상태를 직접 확인하여 로그아웃 상태라면 무조건 로그인 페이지로 이동
+    const currentAccessToken = useAuthStore.getState().accessToken;
+    if (!currentAccessToken) {
+      navigate("/auth/login", { replace: false });
+    }
   };
 
   return (
@@ -156,12 +168,6 @@ export default function Header() {
                           alt="프로필"
                           className="w-full h-full object-cover"
                           onError={(e) => {
-                            if (import.meta.env.DEV) {
-                              console.error(
-                                "❌ [Header] 프로필 이미지 로드 실패:",
-                                profileImageUrl
-                              );
-                            }
                             // profile.png로 대체
                             const target = e.target as HTMLImageElement;
                             if (target.src !== "/profile.png") {
@@ -197,12 +203,6 @@ export default function Header() {
                         alt="프로필"
                         className="w-full h-full object-cover"
                         onError={(e) => {
-                          if (import.meta.env.DEV) {
-                            console.error(
-                              "❌ [Header] 프로필 이미지 로드 실패:",
-                              profileImageUrl
-                            );
-                          }
                           // profile.png로 대체
                           const target = e.target as HTMLImageElement;
                           if (target.src !== "/profile.png") {
@@ -242,12 +242,14 @@ export default function Header() {
                 </button>
               </>
             ) : (
-              <Link
-                to="/auth/login"
+              <button
+                type="button"
+                onClick={handleLoginClick}
                 className="text-md font-bold text-neutral-700 hover:text-neutral-900 mr-4"
+                style={{ display: "block" }}
               >
                 로그인
-              </Link>
+              </button>
             )}
           </div>
         </div>

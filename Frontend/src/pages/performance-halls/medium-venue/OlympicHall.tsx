@@ -32,10 +32,12 @@ export default function MediumVenue({
   onBackToOverview,
   selectedIds = [],
   onToggleSeat,
+  readOnly = false, // 읽기 전용 모드: 선택된 좌석만 색상 표시, 나머지는 회색
 }: {
   onBackToOverview?: React.MutableRefObject<MediumVenueRef | null>;
   selectedIds?: string[];
   onToggleSeat?: (seat: MediumVenueSeat) => void;
+  readOnly?: boolean; // 읽기 전용 모드
 } = {}) {
   // 외부에서 전체 보기로 돌아가기 위한 함수 노출
   useEffect(() => {
@@ -105,16 +107,46 @@ export default function MediumVenue({
       const polygons = Array.from(
         svg.querySelectorAll("polygon")
       ) as SVGPolygonElement[];
+      
+      // readOnly 모드일 때 사용자가 선택한 좌석이 있는 섹션 ID 추출
+      const sectionsWithSeats = new Set<string>();
+      if (readOnly && selectedIds.length > 0) {
+        selectedIds.forEach((seatId) => {
+          // seatId 형식: ${section}-${row}-${seat}
+          const parts = seatId.split("-");
+          if (parts.length >= 1) {
+            sectionsWithSeats.add(parts[0]);
+          }
+        });
+      }
+      
       polygons.forEach((p) => {
         const level = p.getAttribute("data-seat-level") || "";
         const idAttr = p.getAttribute("data-id") || "";
         let fill: string | null = null;
-        if (level === "STANDING") fill = "#FE4AB9";
-        else if (level === "VIP") fill = "#7C50E4";
-        else if (level === "R") fill = "#4CA0FF";
-        else if (level === "S") fill = "#FFCC10";
+        
+        // readOnly 모드이고 사용자가 선택한 좌석이 없는 섹션은 회색 처리
+        if (readOnly && idAttr !== "0" && sectionsWithSeats.size > 0) {
+          if (!sectionsWithSeats.has(idAttr)) {
+            fill = "#9ca3af"; // 회색
+          } else {
+            // 원래 색상 유지
+            if (level === "STANDING") fill = "#FE4AB9";
+            else if (level === "VIP") fill = "#7C50E4";
+            else if (level === "R") fill = "#4CA0FF";
+            else if (level === "S") fill = "#FFCC10";
+          }
+        } else {
+          // 일반 모드: 원래 색상
+          if (level === "STANDING") fill = "#FE4AB9";
+          else if (level === "VIP") fill = "#7C50E4";
+          else if (level === "R") fill = "#4CA0FF";
+          else if (level === "S") fill = "#FFCC10";
+        }
+        
         // id=0 areas (e.g., STAGE/CONSOLE) should be black
         if (idAttr === "0") fill = "#949494";
+        
         if (fill) {
           p.setAttribute("fill", fill);
           p.setAttribute("data-fill", fill);
@@ -280,6 +312,9 @@ export default function MediumVenue({
 
     // Click delegation to open inline detail view for supported blocks
     const handleClick = async (e: MouseEvent) => {
+      // readOnly 모드일 때는 클릭 이벤트 무시
+      if (readOnly) return;
+      
       const target = e.target as Element | null;
       if (!target) return;
       const polygon = (target as Element).closest?.("polygon");
@@ -610,7 +645,7 @@ export default function MediumVenue({
       observer.disconnect();
       root?.removeEventListener("click", handleClick);
     };
-  }, [showDetailView, searchParams, matchIdFromStore, currentUserId]);
+  }, [showDetailView, searchParams, matchIdFromStore, currentUserId, readOnly, selectedIds]);
 
   const content = `
 <div class='wrapper'>
@@ -811,6 +846,18 @@ export default function MediumVenue({
           el.style.cursor = "not-allowed";
           el.style.opacity = "0.6";
           el.setAttribute("data-taken", "true");
+        } else if (readOnly) {
+          // 읽기 전용 모드: 선택된 좌석만 색상 표시, 나머지는 회색
+          if (isSelected) {
+            el.style.backgroundColor = detailViewColor; // 원래 색상
+            el.style.cursor = "default";
+            el.style.opacity = "1";
+          } else {
+            el.style.backgroundColor = "#9ca3af"; // 회색
+            el.style.cursor = "default";
+            el.style.opacity = "0.5";
+          }
+          el.removeAttribute("data-taken");
         } else if (isSelected) {
           el.style.backgroundColor = "#4a4a4a"; // 선택된 좌석은 어두운 회색
           el.style.cursor = "pointer";
@@ -928,6 +975,7 @@ export default function MediumVenue({
     detailViewColor,
     onToggleSeat,
     takenSeats,
+    readOnly,
   ]);
 
   // Analyze grid after render to determine fully empty rows

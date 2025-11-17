@@ -10,9 +10,11 @@ interface AuthState {
   nickname: string | null;
   name: string | null;
   profileImageUrl: string | null;
+  profileImageUploaded: number; // 프로필 이미지 업로드 완료 시각 (타임스탬프)
   setAuth: (data: TestAccountLoginResponse) => void;
   clearAuth: () => void;
   getAuthHeaders: () => Record<string, string>;
+  triggerProfileImageRefresh: () => void; // 프로필 이미지 캐시 무효화 트리거
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -25,6 +27,7 @@ export const useAuthStore = create<AuthState>()(
       nickname: null,
       name: null,
       profileImageUrl: null,
+      profileImageUploaded: 0,
 
       setAuth: (data) => {
         set({
@@ -63,26 +66,39 @@ export const useAuthStore = create<AuthState>()(
           nickname: null,
           name: null,
           profileImageUrl: null,
+          profileImageUploaded: 0,
         });
-        if (import.meta.env.DEV) {
-          console.log("✅ Auth Store 초기화됨");
-        }
+      
       },
 
-      getAuthHeaders: () => {
+      getAuthHeaders: (): Record<string, string> => {
         const { accessToken } = get();
         if (!accessToken) {
-          return {};
+          return {} as Record<string, string>;
         }
         return {
           Authorization: `Bearer ${accessToken}`,
         };
+      },
+
+      triggerProfileImageRefresh: () => {
+        set({ profileImageUploaded: Date.now() });
       },
     }),
     {
       name: "auth-storage", // localStorage에 저장될 키 이름
       // accessToken만 저장하고 refreshToken은 쿠키에 있으므로 제외할 수도 있지만,
       // 일단 모두 저장하도록 설정
+      partialize: (state) => ({
+        accessToken: state.accessToken,
+        refreshToken: state.refreshToken,
+        userId: state.userId,
+        email: state.email,
+        nickname: state.nickname,
+        name: state.name,
+        profileImageUrl: state.profileImageUrl,
+        // profileImageUploaded는 세션 동안만 유지되므로 제외
+      }),
     }
   )
 );
@@ -90,7 +106,4 @@ export const useAuthStore = create<AuthState>()(
 // 개발 환경에서 브라우저 콘솔에서 store 확인 가능하도록
 if (import.meta.env.DEV && typeof window !== "undefined") {
   (window as any).authStore = useAuthStore;
-  console.log(
-    "개발자 도구에서 store 확인: window.authStore.getState() 또는 window.authStore"
-  );
 }
