@@ -1,9 +1,10 @@
 import RoomCard from "./_components/RoomCard";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import dayjs from "dayjs";
 import Tooltip from "@mui/material/Tooltip";
 import InfoOutlined from "@mui/icons-material/InfoOutlined";
 import SearchIcon from "@mui/icons-material/Search";
+import RefreshIcon from "@mui/icons-material/Refresh";
 import CreateRoomModal from "../room/create-room/CreateRoomModal";
 import { getRooms } from "@features/booking-site/api";
 import type { RoomResponse } from "@features/booking-site/types";
@@ -46,6 +47,7 @@ export default function RoomsPage() {
 
   const [rooms, setRooms] = useState<UiRoom[]>([]);
   const [availableOnly, setAvailableOnly] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // hallName을 한글로 변환하는 함수 (hallType이 AI_GENERATED면 "AI" 반환)
   const convertHallNameToKorean = (
@@ -115,68 +117,74 @@ export default function RoomsPage() {
     return `${difficultyLabel}  |  ${maxUserLabel}  |  ${botLabel}`;
   };
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const slice = await getRooms({ page: 0, size: 12 });
-        const mapped: UiRoom[] = (slice.content ?? []).map(
-          (r: RoomResponse): UiRoom => {
-            const size =
-              (r.hallSize?.toLowerCase() as UiRoom["size"]) ?? undefined;
-            const createdAtMs = r.createdAt ? dayjs(r.createdAt).valueOf() : 0;
-            const startAtMs =
-              r.startTime && dayjs(r.startTime).isValid()
-                ? dayjs(r.startTime).valueOf()
-                : undefined;
-            const startTime =
-              r.startTime && r.startTime.length >= 16
-                ? r.startTime.substring(11, 16)
-                : undefined;
-            const normalizeS3Url = (value: string): string => {
-              return /^https?:\/\//i.test(value)
-                ? value
-                : `https://s3.tickget.kr/${value}`;
-            };
-            const thumbnailImageSrc =
-              getThumbnailImagePath(r.thumbnailType, r.thumbnailValue) ||
-              (r.thumbnailType === "UPLOADED" && r.thumbnailValue
-                ? normalizeS3Url(r.thumbnailValue)
-                : undefined);
-            return {
-              id: r.roomId,
-              title: r.roomName,
-              variant: "blue",
-              size,
-              venueName: convertHallNameToKorean(r.hallName, r.hallType),
-              imageSrc: thumbnailImageSrc,
-              participants: {
-                current: r.currentUserCount,
-                capacity: r.maxUserCount,
-              },
-              startTime,
-              startAtMs,
-              ongoing: r.status === "PLAYING",
-              createdAtMs,
-              difficulty: r.difficulty,
-              maxUserCount: r.maxUserCount,
-              botCount: r.botCount,
-              totalSeat: r.totalSeat,
-            };
-          }
-        );
-        // 기본 최신순 정렬
-        mapped.sort((a, b) => (b.createdAtMs ?? 0) - (a.createdAtMs ?? 0));
-        if (!cancelled) setRooms(mapped);
-      } catch (e) {
-        console.error("방 목록 불러오기 실패:", e);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
+  // 방 목록 불러오기 함수
+  const fetchRooms = useCallback(async () => {
+    try {
+      const slice = await getRooms({ page: 0, size: 12 });
+      const mapped: UiRoom[] = (slice.content ?? []).map(
+        (r: RoomResponse): UiRoom => {
+          const size =
+            (r.hallSize?.toLowerCase() as UiRoom["size"]) ?? undefined;
+          const createdAtMs = r.createdAt ? dayjs(r.createdAt).valueOf() : 0;
+          const startAtMs =
+            r.startTime && dayjs(r.startTime).isValid()
+              ? dayjs(r.startTime).valueOf()
+              : undefined;
+          const startTime =
+            r.startTime && r.startTime.length >= 16
+              ? r.startTime.substring(11, 16)
+              : undefined;
+          const normalizeS3Url = (value: string): string => {
+            return /^https?:\/\//i.test(value)
+              ? value
+              : `https://s3.tickget.kr/${value}`;
+          };
+          const thumbnailImageSrc =
+            getThumbnailImagePath(r.thumbnailType, r.thumbnailValue) ||
+            (r.thumbnailType === "UPLOADED" && r.thumbnailValue
+              ? normalizeS3Url(r.thumbnailValue)
+              : undefined);
+          return {
+            id: r.roomId,
+            title: r.roomName,
+            variant: "blue",
+            size,
+            venueName: convertHallNameToKorean(r.hallName, r.hallType),
+            imageSrc: thumbnailImageSrc,
+            participants: {
+              current: r.currentUserCount,
+              capacity: r.maxUserCount,
+            },
+            startTime,
+            startAtMs,
+            ongoing: r.status === "PLAYING",
+            createdAtMs,
+            difficulty: r.difficulty,
+            maxUserCount: r.maxUserCount,
+            botCount: r.botCount,
+            totalSeat: r.totalSeat,
+          };
+        }
+      );
+      // 기본 최신순 정렬
+      mapped.sort((a, b) => (b.createdAtMs ?? 0) - (a.createdAtMs ?? 0));
+      setRooms(mapped);
+    } catch (e) {
+      console.error("방 목록 불러오기 실패:", e);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [availableOnly]);
+  }, []);
+
+  useEffect(() => {
+    fetchRooms();
+  }, [fetchRooms, availableOnly]);
+
+  // 새로고침 핸들러
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    await fetchRooms();
+    setIsRefreshing(false);
+  }, [fetchRooms]);
   const normalizedQuery = query.trim().toLowerCase();
   const filteredRooms = rooms
     .filter((r) =>
@@ -280,11 +288,27 @@ export default function RoomsPage() {
             입장 가능
           </button>
         </div>
-        <div className="flex items-center gap-2 text-sm shrink-0">
+        <div className="flex items-center gap-3 text-sm shrink-0">
           <RoomSortControls
             activeSort={activeSort === "latest" ? "latest" : "start"}
             onChange={(k) => setActiveSort(k)}
           />
+          <button
+            type="button"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="group flex items-center justify-center rounded-full p-2 text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            aria-label="새로고침"
+          >
+            <RefreshIcon
+              className={
+                isRefreshing
+                  ? "animate-spin"
+                  : "group-hover:animate-spin transition-transform"
+              }
+              sx={{ fontSize: 20 }}
+            />
+          </button>
         </div>
       </div>
 
