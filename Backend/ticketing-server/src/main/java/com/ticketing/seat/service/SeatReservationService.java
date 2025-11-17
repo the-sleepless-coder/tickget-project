@@ -30,6 +30,7 @@ public class SeatReservationService {
     private static final int MAX_SEATS_PER_REQUEST = 2;
     private static final int MATCH_REDIS_TTL_SECONDS = 600; // 10분
     private final StringRedisTemplate redisTemplate;
+    private final RoomServerClient roomServerClient;
 
     private final MatchRepository matchRepository;
     private final MatchStatusRepository matchStatusRepository;
@@ -73,6 +74,19 @@ public class SeatReservationService {
             throw new MatchClosedException(matchId);
         }
 
+        // 2-1. Room 서버에서 totalSeats 조회
+        Long roomId = match.getRoomId();
+        Integer totalSeats = roomServerClient.getTotalSeats(roomId);
+
+        if (totalSeats == null || totalSeats <= 0) {
+            log.error("전체 좌석 수 조회 실패: matchId={}, roomId={}", matchId, roomId);
+            throw new IllegalStateException("전체 좌석 수를 조회할 수 없습니다.");
+        }
+
+        log.info("전체 좌석 수 조회 성공: matchId={}, roomId={}, totalSeats={}",
+                matchId, roomId, totalSeats);
+
+
         // 3. Redis 경기 상태 확인 (OPEN이면 예약 가능)
         boolean redisOpen = matchStatusRepository.isOpen(matchId);
         if (!redisOpen) {
@@ -98,7 +112,7 @@ public class SeatReservationService {
                 rowNumbers,
                 userId,
                 grades,     // 각 좌석의 grade 리스트
-                req.getTotalSeats()
+                totalSeats
         );
 
         // 5-1. 성공 시 (1L 또는 2L 모두) TTL 설정
