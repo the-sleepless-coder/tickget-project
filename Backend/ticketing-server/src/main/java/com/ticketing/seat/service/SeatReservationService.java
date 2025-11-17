@@ -21,7 +21,6 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
 @Slf4j
 @Service
@@ -32,7 +31,6 @@ public class SeatReservationService {
     private static final int MATCH_REDIS_TTL_SECONDS = 600; // 10분
     private final StringRedisTemplate redisTemplate;
     private final RoomServerClient roomServerClient;
-    private final StatsServerClient statsServerClient;
 
     private final MatchRepository matchRepository;
     private final MatchStatusRepository matchStatusRepository;
@@ -54,7 +52,6 @@ public class SeatReservationService {
             throw new IllegalArgumentException("Total seats must be provided and greater than 0");
         }
 
-
         // 1-2. 각 좌석에 grade가 있는지 확인 (없으면 최상위 grade 사용)
         validateAndFillGrades(req);
 
@@ -66,7 +63,6 @@ public class SeatReservationService {
                     Duration.ofSeconds(MATCH_REDIS_TTL_SECONDS));
             log.info("매치 status 키 초기화: matchId={}, status=OPEN", matchId);
         }
-
 
         // 2. DB에서 경기 정보 조회
         Match match = matchRepository.findById(matchId)
@@ -88,13 +84,11 @@ public class SeatReservationService {
         log.info("전체 좌석 수 조회 성공: matchId={}, roomId={}, totalSeats={}",
                 matchId, roomId, totalSeats);
 
-
         // 3. Redis 경기 상태 확인 (OPEN이면 예약 가능)
         boolean redisOpen = matchStatusRepository.isOpen(matchId);
         if (!redisOpen) {
             throw new MatchClosedException(matchId);
         }
-
 
         // 4. SeatInfo -> rowNumber, grade 변환
         String sectionId = req.extractSectionId();  // Long → String 변환 (Redis 키용)
@@ -117,54 +111,16 @@ public class SeatReservationService {
                 totalSeats
         );
 
-        // 5-1. 성공 시 (1L 또는 2L 모두) TTL 설정
-        if (result != null && (result == 1L || result == 2L)) {
+        // 5-1. 성공 시 TTL 설정
+        if (result != null && result == 1L) {
             setMatchRedisTTL(matchId);
         }
 
-        // 5-2. 만석 감지 (result == 2L): DB 상태를 FINISHED로 변경하고 알림 전송
-        if (result == 2L) {
-            log.info("⚠️ 만석 감지: matchId={}, Redis는 CLOSED 처리됨. DB를 FINISHED로 변경하고 서버들에 알림", matchId);
-
-            try {
-                // Match 상태를 FINISHED로 변경
-                match.setStatus(Match.MatchStatus.FINISHED);
-                match.setEndedAt(LocalDateTime.now());
-                match.setUpdatedAt(LocalDateTime.now());
-
-                // 통계 데이터 설정 (Redis에서 가져오기)
-                setMatchStatisticsFromRedis(matchId, match);
-
-                matchRepository.save(match);
-                log.info("✅ 만석으로 인한 경기 종료: matchId={}, status=FINISHED", matchId);
-
-                // Redis 전체 정리
-                cleanupAllMatchRedis(matchId);
-
-                // Stats 서버 알림
-                boolean statsNotificationSuccess = statsServerClient.notifyMatchEnd(matchId);
-                if (statsNotificationSuccess) {
-                    log.info("Stats 서버 매치 종료 알림 성공: matchId={}", matchId);
-                } else {
-                    log.warn("Stats 서버 매치 종료 알림 실패: matchId={}", matchId);
-                }
-
-                // 룸 서버 알림
-                boolean roomNotificationSuccess = roomServerClient.notifyMatchEnd(roomId);
-                if (roomNotificationSuccess) {
-                    log.info("✅ 룸 서버 매치 종료 알림 성공: matchId={}, roomId={}", matchId, roomId);
-                } else {
-                    log.warn("⚠️ 룸 서버 매치 종료 알림 실패: matchId={}, roomId={}", matchId, roomId);
-                }
-
-            } catch (Exception e) {
-                log.error("만석 처리 중 오류 발생: matchId={}", matchId, e);
-            }
-        }
+        // 5-2. Hold 시점에는 만석 체크 안 함 (Confirm 시점에 체크)
+        // result는 0 (실패) 또는 1 (성공)만 반환됨
 
         return buildSuccessResponse(matchId, req);
     }
-
 
     /**
      * 매치 관련 Redis 키에 TTL 설정 (10분)
@@ -217,115 +173,6 @@ public class SeatReservationService {
         if (!hasGradeInSeats && req.getGrade() != null) {
             log.debug("하위 호환성: 최상위 grade({})를 모든 좌석에 적용합니다.", req.getGrade());
             req.getSeats().forEach(seat -> seat.setGrade(req.getGrade()));
-        }
-    }
-
-    /**
-     * Redis에서 경기 통계 데이터 조회 및 Match 엔티티에 설정
-     */
-    private void setMatchStatisticsFromRedis(Long matchId, Match match) {
-        try {
-            // 1. successUserCount - Redis에서 조회
-            String confirmedHumanCountKey = "match:" + matchId + ":confirmed_human_count";
-            String confirmedHumanCountStr = redisTemplate.opsForValue().get(confirmedHumanCountKey);
-            Integer successUserCount = 0;
-            if (confirmedHumanCountStr != null) {
-                try {
-                    successUserCount = Integer.parseInt(confirmedHumanCountStr);
-                } catch (NumberFormatException e) {
-                    log.warn("successUserCount 파싱 실패: matchId={}, value={}", matchId, confirmedHumanCountStr);
-                }
-            }
-
-            // 2. successBotCount - 계산식 (total_rank_counter - human_rank_counter)
-            String totalRankCounterKey = "match:" + matchId + ":total_rank_counter";
-            String humanRankCounterKey = "match:" + matchId + ":human_rank_counter";
-
-            String totalRankStr = redisTemplate.opsForValue().get(totalRankCounterKey);
-            String humanRankStr = redisTemplate.opsForValue().get(humanRankCounterKey);
-
-            Integer totalRank = 0;
-            Integer humanRank = 0;
-
-            if (totalRankStr != null) {
-                try {
-                    totalRank = Integer.parseInt(totalRankStr);
-                } catch (NumberFormatException e) {
-                    log.warn("totalRank 파싱 실패: matchId={}, value={}", matchId, totalRankStr);
-                }
-            }
-
-            if (humanRankStr != null) {
-                try {
-                    humanRank = Integer.parseInt(humanRankStr);
-                } catch (NumberFormatException e) {
-                    log.warn("humanRank 파싱 실패: matchId={}, value={}", matchId, humanRankStr);
-                }
-            }
-
-            Integer successBotCount = totalRank - humanRank;
-
-            // Match 엔티티에 저장
-            match.setSuccessUserCount(successUserCount);
-            match.setSuccessBotCount(successBotCount);
-
-            log.info("경기 통계 설정: matchId={}, successUserCount={}, successBotCount={}",
-                    matchId, successUserCount, successBotCount);
-
-        } catch (Exception e) {
-            log.error("경기 통계 설정 중 오류 발생: matchId={}", matchId, e);
-            // 오류 발생 시 0으로 설정
-            match.setSuccessUserCount(0);
-            match.setSuccessBotCount(0);
-        }
-    }
-
-    /**
-     * 경기 종료 시 Redis 전체 정리
-     * - 좌석 키: seat:{matchId}:*
-     * - 상태 키: match:{matchId}:status
-     * - 카운트 키: match:{matchId}:reserved_count, confirmed_count, confirmed_human_count
-     * - 실제 유저 키: humanusers:match:{matchId}
-     * - 등수 카운터 키: match:{matchId}:human_rank_counter, total_rank_counter
-     */
-    private void cleanupAllMatchRedis(Long matchId) {
-        log.info("경기 종료 - Redis 전체 정리 시작: matchId={}", matchId);
-
-        try {
-            // 1. 좌석 키 삭제
-            String seatPattern = "seat:" + matchId + ":*";
-            Set<String> seatKeys = redisTemplate.keys(seatPattern);
-            if (seatKeys != null && !seatKeys.isEmpty()) {
-                redisTemplate.delete(seatKeys);
-                log.info("좌석 키 삭제: matchId={}, count={}", matchId, seatKeys.size());
-            }
-
-            // 2. 상태 키 삭제
-            String statusKey = "match:" + matchId + ":status";
-            redisTemplate.delete(statusKey);
-
-            // 3. 카운트 키 삭제
-            String reservedCountKey = "match:" + matchId + ":reserved_count";
-            String confirmedCountKey = "match:" + matchId + ":confirmed_count";
-            String confirmedHumanCountKey = "match:" + matchId + ":confirmed_human_count";
-            redisTemplate.delete(reservedCountKey);
-            redisTemplate.delete(confirmedCountKey);
-            redisTemplate.delete(confirmedHumanCountKey);
-
-            // 4. 실제 유저 카운터 키 삭제
-            String humanUsersKey = "humanusers:match:" + matchId;
-            redisTemplate.delete(humanUsersKey);
-
-            // 5. 등수 카운터 키 삭제
-            String humanRankCounterKey = "match:" + matchId + ":human_rank_counter";
-            String totalRankCounterKey = "match:" + matchId + ":total_rank_counter";
-            redisTemplate.delete(humanRankCounterKey);
-            redisTemplate.delete(totalRankCounterKey);
-
-            log.info("경기 종료 - Redis 전체 정리 완료: matchId={}", matchId);
-
-        } catch (Exception e) {
-            log.error("Redis 정리 중 오류 발생: matchId={}", matchId, e);
         }
     }
 
