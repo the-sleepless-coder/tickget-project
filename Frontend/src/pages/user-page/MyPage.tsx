@@ -10,7 +10,7 @@ import { type UserRank, type MatchHistory } from "./mockData";
 import { useAuthStore } from "@features/auth/store";
 import { compressImage } from "@shared/utils/imageCompression";
 import { normalizeProfileImageUrl } from "@shared/utils/profileImageUrl";
-import { getMatchHistory } from "@features/user-page/api";
+import { getMatchHistory, getUserReportLLM } from "@features/user-page/api";
 import type { MatchDataResponse } from "@features/user-page/types";
 import dayjs from "dayjs";
 
@@ -233,6 +233,8 @@ export default function MyPageIndex() {
   const [currentPage, setCurrentPage] = useState(1); // 프론트엔드는 1-based로 관리
   const [matchHistoryData, setMatchHistoryData] = useState<MatchHistory[]>([]);
   const [isLoadingMatchHistory, setIsLoadingMatchHistory] = useState(false);
+  const [analysisText, setAnalysisText] = useState<string>("");
+  const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(false);
   const [hasMorePages, setHasMorePages] = useState(true); // 다음 페이지 존재 여부
 
   // API에서 경기 기록 가져오기
@@ -288,6 +290,76 @@ export default function MyPageIndex() {
   const filteredMatchHistory = matchHistoryData;
   const visibleItems = filteredMatchHistory;
 
+  // 마크다운 텍스트를 파싱하여 렌더링 가능한 요소로 변환
+  const parseAnalysisText = (text: string) => {
+    if (!text) return [];
+
+    // ### 제목으로 섹션 분리
+    const sections = text.split(/(?=### )/g);
+    const parsed: Array<{ type: "heading" | "content"; text: string }> = [];
+
+    sections.forEach((section) => {
+      const trimmed = section.trim();
+      if (!trimmed) return;
+
+      if (trimmed.startsWith("### ")) {
+        // 제목 추출 (줄바꿈 또는 끝까지)
+        const headingMatch = trimmed.match(/^### (.+?)(?:\n|$)/);
+        if (headingMatch) {
+          parsed.push({
+            type: "heading",
+            text: headingMatch[1].trim(),
+          });
+        }
+
+        // 제목 다음 내용 추출
+        const contentMatch = trimmed.match(/^### .+?\n(.*)/s);
+        if (contentMatch && contentMatch[1].trim()) {
+          parsed.push({
+            type: "content",
+            text: contentMatch[1].trim(),
+          });
+        }
+      } else {
+        // 제목 없는 내용 (첫 부분에만 있을 수 있음)
+        parsed.push({
+          type: "content",
+          text: trimmed,
+        });
+      }
+    });
+
+    return parsed;
+  };
+
+  // AI 분석 데이터 가져오기
+  useEffect(() => {
+    if (activePrimaryTab !== "analysis") return;
+
+    let cancelled = false;
+    setIsLoadingAnalysis(true);
+    (async () => {
+      try {
+        const data = await getUserReportLLM();
+        if (!cancelled) {
+          setAnalysisText(data.text);
+        }
+      } catch (error) {
+        console.error("AI 분석 불러오기 실패:", error);
+        if (!cancelled) {
+          setAnalysisText("");
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingAnalysis(false);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [activePrimaryTab]);
+
   // 필터가 변경되면 첫 페이지로 및 확장된 카드 초기화
   useEffect(() => {
     setCurrentPage(1);
@@ -324,7 +396,8 @@ export default function MyPageIndex() {
     if (storeProfileImageUrl) {
       // store의 profileImageUrl이 변경되면 캐시 무효화를 위해 cacheBust 적용
       setProfileImage(
-        normalizeProfileImageUrl(storeProfileImageUrl, storeUserId, true) || undefined
+        normalizeProfileImageUrl(storeProfileImageUrl, storeUserId, true) ||
+          undefined
       );
     }
   }, [storeNickname, storeEmail, storeProfileImageUrl, storeUserId]);
@@ -505,10 +578,13 @@ export default function MyPageIndex() {
 
               const imageData = await imageResponse.json().catch(() => ({}));
               newProfileImageUrl = imageData.profileImageUrl || null;
-              
+
               // 프로필 이미지 업로드 성공 시 즉시 store 업데이트 및 헤더 캐시 무효화 트리거
               if (newProfileImageUrl !== null) {
-                const { setAuth: setAuthImmediate, triggerProfileImageRefresh } = useAuthStore.getState();
+                const {
+                  setAuth: setAuthImmediate,
+                  triggerProfileImageRefresh,
+                } = useAuthStore.getState();
                 const currentAuthImmediate = useAuthStore.getState();
                 setAuthImmediate({
                   accessToken: currentAuthImmediate.accessToken || "",
@@ -755,6 +831,7 @@ export default function MyPageIndex() {
               tabs={[
                 { id: "stats", label: "개인 통계" },
                 { id: "match-history", label: "경기 기록" },
+                { id: "analysis", label: "경기 분석" },
               ]}
               activeTab={activePrimaryTab}
               onTabChange={setActivePrimaryTab}
@@ -906,9 +983,7 @@ export default function MyPageIndex() {
                     </span>
 
                     <button
-                      onClick={() =>
-                        setCurrentPage((prev) => prev + 1)
-                      }
+                      onClick={() => setCurrentPage((prev) => prev + 1)}
                       disabled={!hasMorePages || isLoadingMatchHistory}
                       className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-colors disabled:cursor-not-allowed disabled:opacity-50 hover:bg-neutral-50 disabled:hover:bg-white"
                     >
@@ -938,6 +1013,105 @@ export default function MyPageIndex() {
                   userNickname={selectedUser.nickname}
                   matchHistory={matchHistoryData}
                 />
+              </>
+            ) : activePrimaryTab === "analysis" ? (
+              // 경기 분석 탭
+              <>
+                {isLoadingAnalysis ? (
+                  <div className="flex flex-col items-center justify-center rounded-lg border border-neutral-200 bg-white p-12">
+                    <div className="mb-4 h-8 w-8 animate-spin rounded-full border-4 border-purple-200 border-t-purple-600"></div>
+                    <div className="text-neutral-400">로딩 중</div>
+                  </div>
+                ) : analysisText ? (
+                  <div className="space-y-4">
+                    {parseAnalysisText(analysisText).map((item, index) => {
+                      if (item.type === "heading") {
+                        return (
+                          <h3
+                            key={index}
+                            className="text-lg font-semibold text-c-purple-250"
+                          >
+                            {item.text}
+                          </h3>
+                        );
+                      } else {
+                        // 줄바꿈 처리
+                        const lines = item.text.split("\n");
+                        return (
+                          <div
+                            key={index}
+                            className="rounded-lg bg-white p-6 shadow-sm"
+                          >
+                            {lines.map((line, lineIndex) => {
+                              const trimmedLine = line.trim();
+                              if (!trimmedLine) {
+                                return (
+                                  <div key={lineIndex} className="mb-2"></div>
+                                );
+                              }
+
+                              // 리스트 항목 처리 (숫자나 불릿)
+                              if (
+                                trimmedLine.match(/^\d+\.\s/) ||
+                                trimmedLine.match(/^[-*]\s/)
+                              ) {
+                                // 볼드 텍스트 처리 (**텍스트**)
+                                const processedText = trimmedLine
+                                  .replace(/^[-*\d.]+\s/, "")
+                                  .replace(
+                                    /\*\*(.+?)\*\*/g,
+                                    "<strong>$1</strong>"
+                                  );
+                                return (
+                                  <div
+                                    key={lineIndex}
+                                    className="mb-2 ml-4"
+                                    dangerouslySetInnerHTML={{
+                                      __html: processedText,
+                                    }}
+                                  />
+                                );
+                              }
+
+                              // 볼드 텍스트가 포함된 일반 텍스트
+                              if (trimmedLine.includes("**")) {
+                                const processedText = trimmedLine.replace(
+                                  /\*\*(.+?)\*\*/g,
+                                  "<strong>$1</strong>"
+                                );
+                                return (
+                                  <p
+                                    key={lineIndex}
+                                    className="mb-2 text-neutral-700 last:mb-0"
+                                    dangerouslySetInnerHTML={{
+                                      __html: processedText,
+                                    }}
+                                  />
+                                );
+                              }
+
+                              // 일반 텍스트
+                              return (
+                                <p
+                                  key={lineIndex}
+                                  className="mb-2 whitespace-pre-wrap text-neutral-700 last:mb-0"
+                                >
+                                  {trimmedLine}
+                                </p>
+                              );
+                            })}
+                          </div>
+                        );
+                      }
+                    })}
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center rounded-lg border border-neutral-200 bg-white p-8">
+                    <div className="text-neutral-400">
+                      분석 데이터가 없습니다.
+                    </div>
+                  </div>
+                )}
               </>
             ) : (
               // 개인 통계 탭
