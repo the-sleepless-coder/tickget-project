@@ -26,10 +26,10 @@ public class UserStats {
     @Column(name = "is_success", nullable = false)
     private Boolean isSuccess;
 
-    @Column(name = "selected_section", nullable = false, length = 20)
+    @Column(name = "selected_section", nullable = false, length = 100)
     private String selectedSection;
 
-    @Column(name = "selected_seat", nullable = false, length = 20)
+    @Column(name = "selected_seat", nullable = false, length = 100)
     private String selectedSeat;
 
     @Column(name = "date_select_time", nullable = false)
