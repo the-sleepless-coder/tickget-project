@@ -1514,7 +1514,7 @@ export default function SelectSeatPage() {
                     </button>
                     <button
                       onClick={clearSelection}
-                      className="flex-1 text-[12px] border border-[#9b9b9b] rounded px-1 py-2 bg-[linear-gradient(to_bottom,#f7f7f7,#e2e2e2)] hover:bg-[linear-gradient(to_bottom,#ededed,#d9d9d9)] inline-flex items-center justify-center gap-1 text-gray-700"
+                      className="flex-1 text-[12px] border border-[#9b9b9b] rounded px-1 py-2 bg-[linear-gradient(to_bottom,#f7f7f7,#e2e2e2)] hover:bg-[linear-gradient(to_bottom,#ededed,#d9d9d9)] inline-flex items-center justify-center gap-1 text-gray-700 cursor-pointer"
                     >
                       <RefreshIcon style={{ fontSize: 14 }} />
                       좌석 다시 선택

@@ -28,13 +28,13 @@ export default function ThumbnailSelectModal({
             <button
               key={idx}
               type="button"
-              className="relative aspect-[3/4] overflow-hidden rounded-lg border border-gray-200 hover:border-purple-400"
+              className="relative aspect-[3/4] overflow-hidden rounded-lg border border-gray-200 hover:border-purple-400 cursor-pointer"
               onClick={() => onSelect(src)}
             >
               <img
                 src={src}
                 alt={`썸네일 ${idx + 1}`}
-                className="absolute inset-0 h-full w-full object-cover cursor-pointer"
+                className="absolute inset-0 h-full w-full object-cover"
               />
             </button>
           ))}

@@ -14,7 +14,9 @@ export default function Header() {
   const accessToken = useAuthStore((state) => state.accessToken);
   const userId = useAuthStore((state) => state.userId);
   const rawProfileImageUrl = useAuthStore((state) => state.profileImageUrl);
-  const profileImageUploaded = useAuthStore((state) => state.profileImageUploaded);
+  const profileImageUploaded = useAuthStore(
+    (state) => state.profileImageUploaded
+  );
   // rawProfileImageUrl이 없어도 userId로 S3 경로 생성
   // 타임스탬프 없이 원래 경로 그대로 사용
   const baseProfileImageUrl = normalizeProfileImageUrl(
@@ -22,13 +24,14 @@ export default function Header() {
     userId,
     false // 타임스탬프 추가하지 않음
   );
-  
+
   // profileImageUploaded가 변경되면 src에 _refresh 쿼리 파라미터를 추가하여 브라우저 캐시 무효화
   // 타임스탬프가 아닌 _refresh 파라미터를 사용하여 원래 경로는 유지하되 캐시만 무효화
-  const profileImageUrl = baseProfileImageUrl && profileImageUploaded > 0
-    ? `${baseProfileImageUrl}${baseProfileImageUrl.includes('?') ? '&' : '?'}_refresh=${profileImageUploaded}`
-    : baseProfileImageUrl;
-  
+  const profileImageUrl =
+    baseProfileImageUrl && profileImageUploaded > 0
+      ? `${baseProfileImageUrl}${baseProfileImageUrl.includes("?") ? "&" : "?"}_refresh=${profileImageUploaded}`
+      : baseProfileImageUrl;
+
   // 마이페이지와 동일하게 URL을 key로 사용
   // profileImageUrl이 변경되면 (profileImageUploaded가 변경되면 _refresh 파라미터가 추가됨) key도 변경
   const imageKey = profileImageUrl || `default-${profileImageUploaded}`;
@@ -100,14 +103,14 @@ export default function Header() {
   const handleLogout = async () => {
     const proceed = await confirmAndExitIfInRoom();
     if (!proceed) return;
-    
+
     // WebSocket 연결을 먼저 정리
     const wsClient = useWebSocketStore.getState().client;
     if (wsClient) {
       disconnectStompClient(wsClient);
       useWebSocketStore.getState().setClient(null);
     }
-    
+
     // 인증 상태 초기화
     useAuthStore.getState().clearAuth();
     // 상태 업데이트가 완료되도록 다음 이벤트 루프까지 대기
@@ -131,7 +134,7 @@ export default function Header() {
         <div className="flex items-center justify-between">
           <button
             type="button"
-            className="flex items-center gap-3"
+            className="flex items-center gap-3 transition-opacity hover:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400 focus-visible:ring-offset-2 rounded cursor-pointer"
             onClick={handleHomeClick}
             aria-label="홈"
           >
@@ -152,6 +155,7 @@ export default function Header() {
                     type="button"
                     aria-label="프로필"
                     onClick={handleMyPageClick}
+                    className="cursor-pointer"
                   >
                     <span
                       className="inline-flex items-center justify-center w-8 h-8 rounded-full overflow-hidden"
@@ -194,7 +198,7 @@ export default function Header() {
                     type="button"
                     aria-label="프로필"
                     onClick={handleMyPageClick}
-                    className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center"
+                    className="w-7 h-7 rounded-full overflow-hidden flex items-center justify-center cursor-pointer"
                   >
                     {profileImageUrl && !imageError ? (
                       <img
@@ -228,15 +232,16 @@ export default function Header() {
                   <button
                     type="button"
                     onClick={handleMyPageClick}
-                    className="text-sm text-neutral-700 hover:text-neutral-900"
+                    className="text-md text-neutral-700 hover:text-neutral-900 cursor-pointer mr-3"
                     aria-label="마이페이지"
                   >
                     {nickname}
                   </button>
                 )}
+
                 <button
                   onClick={handleLogout}
-                  className="text-sm text-neutral-700 hover:text-neutral-900"
+                  className="mr-4 text-md font-bold text-neutral-700 hover:text-neutral-900 font-bold cursor-pointer"
                 >
                   로그아웃
                 </button>
@@ -245,7 +250,7 @@ export default function Header() {
               <button
                 type="button"
                 onClick={handleLoginClick}
-                className="text-md font-bold text-neutral-700 hover:text-neutral-900 mr-4"
+                className="text-md font-bold text-neutral-700 hover:text-neutral-900 mr-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400 focus-visible:ring-offset-2 rounded px-1 cursor-pointer"
                 style={{ display: "block" }}
               >
                 로그인

@@ -489,7 +489,7 @@ export default function MyPageIndex() {
                   setActivePrimaryTab("stats");
                   setSelectedUser(null);
                 }}
-                className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                className="text-sm text-blue-600 hover:text-blue-700 font-medium cursor-pointer"
               >
                 ← {selectedUser.nickname}님의 통계 보기
               </button>
@@ -901,7 +901,7 @@ export default function MyPageIndex() {
                     onClick={() => {
                       setSelectedUser(null);
                     }}
-                    className="rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50"
+                    className="rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50 cursor-pointer"
                   >
                     돌아가기
                   </button>
@@ -973,7 +973,7 @@ export default function MyPageIndex() {
                         setCurrentPage((prev) => Math.max(prev - 1, 1))
                       }
                       disabled={currentPage === 1 || isLoadingMatchHistory}
-                      className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-colors disabled:cursor-not-allowed disabled:opacity-50 hover:bg-neutral-50 disabled:hover:bg-white"
+                      className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 hover:bg-neutral-50 disabled:hover:bg-white"
                     >
                       이전
                     </button>
@@ -985,7 +985,7 @@ export default function MyPageIndex() {
                     <button
                       onClick={() => setCurrentPage((prev) => prev + 1)}
                       disabled={!hasMorePages || isLoadingMatchHistory}
-                      className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-colors disabled:cursor-not-allowed disabled:opacity-50 hover:bg-neutral-50 disabled:hover:bg-white"
+                      className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 hover:bg-neutral-50 disabled:hover:bg-white"
                     >
                       다음
                     </button>
@@ -1003,7 +1003,7 @@ export default function MyPageIndex() {
                     onClick={() => {
                       setSelectedUser(null);
                     }}
-                    className="rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50"
+                    className="rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50 cursor-pointer"
                   >
                     돌아가기
                   </button>

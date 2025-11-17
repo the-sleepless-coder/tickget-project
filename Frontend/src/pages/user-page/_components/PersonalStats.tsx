@@ -34,10 +34,9 @@ export default function PersonalStats() {
         setAllStatsData([]);
         setCurrentPage(1);
         setHasMorePages(true);
-        
+
         const data = await getMyPageStats(1);
 
-        
         setAllStatsData([data]);
         // 다음 페이지가 있는지 확인 (specificsList가 비어있으면 더 이상 없음)
         setHasMorePages(data?.specificsList && data.specificsList.length > 0);
@@ -59,12 +58,12 @@ export default function PersonalStats() {
   // 더보기 버튼 클릭 시 다음 페이지 데이터 로드
   const handleLoadMore = async () => {
     if (loadingMore || !hasMorePages) return;
-    
+
     setLoadingMore(true);
     try {
       const nextPage = currentPage + 1;
       const data = await getMyPageStats(nextPage);
-      
+
       if (data?.specificsList && data.specificsList.length > 0) {
         setAllStatsData((prev) => [...prev, data]);
         setCurrentPage(nextPage);
@@ -81,13 +80,16 @@ export default function PersonalStats() {
   };
 
   // 모든 페이지의 데이터를 합쳐서 사용
-  const statsData: MyPageStatsResponse | null = allStatsData.length > 0
-    ? {
-        userId: allStatsData[0].userId,
-        clickStats: allStatsData[0].clickStats, // 첫 페이지의 클릭 통계 사용
-        specificsList: allStatsData.flatMap((data) => data.specificsList || []),
-      }
-    : null;
+  const statsData: MyPageStatsResponse | null =
+    allStatsData.length > 0
+      ? {
+          userId: allStatsData[0].userId,
+          clickStats: allStatsData[0].clickStats, // 첫 페이지의 클릭 통계 사용
+          specificsList: allStatsData.flatMap(
+            (data) => data.specificsList || []
+          ),
+        }
+      : null;
 
   // 날짜 포맷팅 함수
   const formatDate = (dateString: string): { date: string; time: string } => {
@@ -181,10 +183,12 @@ export default function PersonalStats() {
   });
 
   // 디버깅: 데이터 확인
-  useEffect(() => {
-  
-  }, [statsData, specificsData, filteredSpecificsData, matchFilter]);
-
+  useEffect(() => {}, [
+    statsData,
+    specificsData,
+    filteredSpecificsData,
+    matchFilter,
+  ]);
 
   // 평균 상위 비율 계산
   const averageTopPercentile =
@@ -425,7 +429,7 @@ export default function PersonalStats() {
             <div className="flex gap-2">
               <button
                 onClick={() => setMatchFilter("all")}
-                className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors cursor-pointer ${
                   matchFilter === "all"
                     ? "bg-purple-500 text-white"
                     : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"
@@ -435,7 +439,7 @@ export default function PersonalStats() {
               </button>
               <button
                 onClick={() => setMatchFilter("match")}
-                className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors cursor-pointer ${
                   matchFilter === "match"
                     ? "bg-purple-500 text-white"
                     : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"
@@ -445,7 +449,7 @@ export default function PersonalStats() {
               </button>
               <button
                 onClick={() => setMatchFilter("solo")}
-                className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors cursor-pointer ${
                   matchFilter === "solo"
                     ? "bg-purple-500 text-white"
                     : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"
@@ -499,52 +503,51 @@ export default function PersonalStats() {
             </thead>
             <tbody className="divide-y divide-neutral-200">
               {filteredSpecificsData.length > 0 ? (
-                filteredSpecificsData
-                  .map((data, index) => (
-                    <tr key={index} className="hover:bg-neutral-50">
-                      <td className="px-6 py-4 text-sm text-neutral-900">
-                        <div className="flex flex-col">
-                          <span>
-                            {data.date
-                              ? data.date.length >= 3
-                                ? data.date.slice(2)
-                                : data.date
-                              : "-"}
-                          </span>
-                          <span className="text-neutral-500">
-                            {data.time || "-"}
-                          </span>
+                filteredSpecificsData.map((data, index) => (
+                  <tr key={index} className="hover:bg-neutral-50">
+                    <td className="px-6 py-4 text-sm text-neutral-900">
+                      <div className="flex flex-col">
+                        <span>
+                          {data.date
+                            ? data.date.length >= 3
+                              ? data.date.slice(2)
+                              : data.date
+                            : "-"}
+                        </span>
+                        <span className="text-neutral-500">
+                          {data.time || "-"}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-neutral-900">
+                      {data.gameType}
+                    </td>
+                    <td className="px-6 py-4 text-sm font-semibold text-purple-600">
+                      {data.topPercentile}%
+                    </td>
+                    <td className="px-6 py-4 text-sm text-neutral-700">
+                      {data.userTotCount !== null && data.userTotCount > 0 ? (
+                        <div className="text-sm text-purple-600">
+                          {data.userRank}/{data.userTotCount}등
                         </div>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-neutral-900">
-                        {data.gameType}
-                      </td>
-                      <td className="px-6 py-4 text-sm font-semibold text-purple-600">
-                        {data.topPercentile}%
-                      </td>
-                      <td className="px-6 py-4 text-sm text-neutral-700">
-                        {data.userTotCount !== null && data.userTotCount > 0 ? (
-                          <div className="text-sm text-purple-600">
-                            {data.userRank}/{data.userTotCount}등
-                          </div>
-                        ) : (
-                          <div className="text-sm text-neutral-500">-</div>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-neutral-700">
-                        {data.queueClickTime}초
-                      </td>
-                      <td className="px-6 py-4 text-sm text-neutral-700">
-                        {data.captchaClickTime}초
-                      </td>
-                      <td className="px-6 py-4 text-sm text-neutral-700">
-                        {data.seatClickTime}초
-                      </td>
-                      <td className="px-6 py-4 text-sm text-neutral-700">
-                        {data.totalDuration}초
-                      </td>
-                    </tr>
-                  ))
+                      ) : (
+                        <div className="text-sm text-neutral-500">-</div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-neutral-700">
+                      {data.queueClickTime}초
+                    </td>
+                    <td className="px-6 py-4 text-sm text-neutral-700">
+                      {data.captchaClickTime}초
+                    </td>
+                    <td className="px-6 py-4 text-sm text-neutral-700">
+                      {data.seatClickTime}초
+                    </td>
+                    <td className="px-6 py-4 text-sm text-neutral-700">
+                      {data.totalDuration}초
+                    </td>
+                  </tr>
+                ))
               ) : (
                 <tr>
                   <td
@@ -565,7 +568,7 @@ export default function PersonalStats() {
             <button
               onClick={handleLoadMore}
               disabled={loadingMore}
-              className="rounded-lg border border-purple-500 bg-white px-6 py-2 text-sm font-medium text-purple-500 transition-colors disabled:cursor-not-allowed disabled:opacity-50 hover:bg-purple-500 hover:text-white disabled:hover:bg-white disabled:hover:text-purple-500"
+              className="rounded-lg border border-purple-500 bg-white px-6 py-2 text-sm font-medium text-purple-500 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 hover:bg-purple-500 hover:text-white disabled:hover:bg-white disabled:hover:text-purple-500"
             >
               {loadingMore ? "로딩 중..." : "더보기"}
             </button>

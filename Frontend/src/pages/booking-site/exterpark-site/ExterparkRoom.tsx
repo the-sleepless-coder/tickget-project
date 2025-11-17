@@ -3,7 +3,6 @@ import { useParams, useLocation } from "react-router-dom";
 import { Collapse, IconButton } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import PeopleIcon from "@mui/icons-material/People";
-import AccessTimeOutlinedIcon from "@mui/icons-material/AccessTimeOutlined";
 import { paths } from "../../../app/routes/paths";
 import RoomSettingModal from "../../room/edit-room-setting/RoomSettingModal";
 import Timer from "./_components/TimerHUD";
@@ -24,8 +23,6 @@ import { useRoomStore } from "@features/room/store";
 import { useMatchStore } from "@features/booking-site/store";
 import { useNavigate } from "react-router-dom";
 import ExitToAppIcon from "@mui/icons-material/ExitToApp";
-import ConfirmationNumberOutlinedIcon from "@mui/icons-material/ConfirmationNumberOutlined";
-import { enqueueTicketingQueue } from "@features/booking-site/api";
 import Thumbnail01 from "../../../shared/images/thumbnail/Thumbnail01.webp";
 import Thumbnail02 from "../../../shared/images/thumbnail/Thumbnail02.webp";
 import Thumbnail03 from "../../../shared/images/thumbnail/Thumbnail03.webp";
@@ -143,17 +140,9 @@ export default function ITicketPage() {
   const [isRoomModalOpen, setIsRoomModalOpen] = useState<boolean>(false);
   const [showTimer, setShowTimer] = useState<boolean>(false);
   const [isExiting, setIsExiting] = useState<boolean>(false);
-  const [bookingStage, setBookingStage] = useState<null | "loading" | "queue">(
-    null
-  );
-  const [queueRank, setQueueRank] = useState<number>(0);
-  const [totalQueue, setTotalQueue] = useState<number>(0);
-  const [positionAhead, setPositionAhead] = useState<number>(0);
-  const [hasEnqueued, setHasEnqueued] = useState<boolean>(false);
   const [hasDequeuedInPage, setHasDequeuedInPage] = useState<boolean>(false);
   const subscriptionRef = useRef<Subscription | null>(null);
   // ref로 상태를 관리하여 handleRoomEvent 재생성 방지
-  const bookingStageRef = useRef<null | "loading" | "queue">(null);
   const hasDequeuedInPageRef = useRef<boolean>(false);
   const handleRoomEventRef = useRef<
     | ((event: {
@@ -177,11 +166,6 @@ export default function ITicketPage() {
       }) => void)
     | null
   >(null);
-
-  // bookingStage 변경 시 ref도 업데이트
-  useEffect(() => {
-    bookingStageRef.current = bookingStage;
-  }, [bookingStage]);
 
   // hasDequeuedInPage 변경 시 ref도 업데이트
   useEffect(() => {
@@ -268,14 +252,9 @@ export default function ITicketPage() {
               }
 
               // 현재 페이지에서 경기 진행 중인 경우 좌석 선택 페이지로 이동
-              if (
-                bookingStageRef.current !== null &&
-                !hasDequeuedInPageRef.current
-              ) {
+              if (!hasDequeuedInPageRef.current) {
                 setHasDequeuedInPage(true);
                 hasDequeuedInPageRef.current = true;
-                setBookingStage(null);
-                bookingStageRef.current = null;
                 const hallId =
                   roomDetail?.hallId ?? roomData?.hallId ?? roomRequest?.hallId;
                 const startTime =
@@ -377,27 +356,6 @@ export default function ITicketPage() {
               };
 
               setMyQueueStatus(next);
-
-              // 현재 페이지에서 경기 진행 중인 경우 대기열 상태 업데이트
-              if (bookingStageRef.current !== null) {
-                const ahead = Number(raw.ahead ?? 0);
-                const behind = Number(raw.behind ?? 0);
-                const total = Number(raw.total ?? 0);
-                // ahead + 1로 대기순서 설정
-                setQueueRank(ahead + 1);
-                // positionAhead 업데이트
-                setPositionAhead(ahead);
-                // ahead + 1 + behind로 현재 대기인원 설정
-                setTotalQueue(ahead + 1 + behind);
-                // 이미 queue stage에 있다면 그대로 유지, loading stage에 있다면 queue로 전환
-                if (bookingStageRef.current === "queue") {
-                  // queue stage에 있으면 값만 업데이트하고 stage는 변경하지 않음
-                } else if (total > 0) {
-                  setBookingStage("queue");
-                } else {
-                  setBookingStage("loading");
-                }
-              }
 
               console.log("✅ [QUEUE] 내 대기열 상태 업데이트 성공:", {
                 myUserId,
@@ -1071,12 +1029,8 @@ export default function ITicketPage() {
     };
   }, [handleExitRoom]);
 
-  // URL 파라미터 생성 로직을 공통 함수로 분리
-  const buildBookingUrl = useCallback(() => {
-    const baseUrl = paths.booking.waiting;
-    const clickedTs = Date.now();
-    const totalStartAt = getTotalStartAtMs() ?? clickedTs;
-
+  // 대기열 페이지 URL 생성 공통 함수
+  const buildQueueUrl = useCallback(() => {
     // matchId 결정: store 우선 → joinResponse.matchId
     // 주의: matchId는 티켓팅 시스템의 ID이고, roomId와는 다른 개념입니다.
     // roomId를 matchId로 사용하지 않습니다.
@@ -1085,7 +1039,15 @@ export default function ITicketPage() {
     };
     const rawMatchId =
       matchIdFromStore ?? (jr?.matchId != null ? Number(jr.matchId) : null);
-    const matchIdParam = rawMatchId != null ? String(rawMatchId) : undefined;
+
+    if (!rawMatchId) {
+      return null;
+    }
+
+    const baseUrl = paths.booking.waiting;
+    const clickedTs = Date.now();
+    const totalStartAt = getTotalStartAtMs() ?? clickedTs;
+    const matchIdParam = String(rawMatchId);
 
     // hallId 결정: roomDetail → roomData → roomRequest 순으로 확인
     const hallId =
@@ -1136,16 +1098,12 @@ export default function ITicketPage() {
         nonReserveClickCount,
       });
       setIsTrackingClicks(false);
-      finalUrl = `${baseUrl}?rtSec=${encodeURIComponent(String(reactionSec))}&nrClicks=${encodeURIComponent(String(nonReserveClickCount))}&tStart=${encodeURIComponent(String(totalStartAt))}${
-        matchIdParam ? `&matchId=${encodeURIComponent(matchIdParam)}` : ""
-      }${hallIdParam}${hallTypeParam}${tsxUrlParam}${hallSizeParam}${dateParam}${roundParam}`;
+      finalUrl = `${baseUrl}?rtSec=${encodeURIComponent(String(reactionSec))}&nrClicks=${encodeURIComponent(String(nonReserveClickCount))}&tStart=${encodeURIComponent(String(totalStartAt))}&matchId=${encodeURIComponent(matchIdParam)}${hallIdParam}${hallTypeParam}${tsxUrlParam}${hallSizeParam}${dateParam}${roundParam}`;
     } else {
       console.log(
         "[ReserveTiming] Click without appearance timestamp (possibly test click)"
       );
-      finalUrl = `${baseUrl}?rtSec=0&nrClicks=${encodeURIComponent(String(nonReserveClickCount))}&tStart=${encodeURIComponent(String(totalStartAt))}${
-        matchIdParam ? `&matchId=${encodeURIComponent(matchIdParam)}` : ""
-      }${hallIdParam}${hallTypeParam}${tsxUrlParam}${hallSizeParam}${dateParam}${roundParam}`;
+      finalUrl = `${baseUrl}?rtSec=0&nrClicks=${encodeURIComponent(String(nonReserveClickCount))}&tStart=${encodeURIComponent(String(totalStartAt))}&matchId=${encodeURIComponent(matchIdParam)}${hallIdParam}${hallTypeParam}${tsxUrlParam}${hallSizeParam}${dateParam}${roundParam}`;
     }
 
     return finalUrl;
@@ -1159,14 +1117,32 @@ export default function ITicketPage() {
     nonReserveClickCount,
   ]);
 
-  const openQueueWindow = () => {
-    const finalUrl = buildBookingUrl();
+  // 새 창에서 대기열 페이지 열기
+  const openQueueWindowInNewTab = useCallback(() => {
+    const finalUrl = buildQueueUrl();
+    if (!finalUrl) {
+      console.warn("[booking] matchId가 없어 새 창을 열 수 없습니다.");
+      return;
+    }
+
     window.open(
       finalUrl,
       "_blank",
       "width=900,height=682,toolbar=no,menubar=no,location=no,status=no,scrollbars=yes,resizable=no"
     );
-  };
+  }, [buildQueueUrl]);
+
+  // 현재 창에서 대기열 페이지로 이동
+  const startBookingInPage = useCallback(() => {
+    const finalUrl = buildQueueUrl();
+    if (!finalUrl) {
+      console.warn(
+        "[booking] matchId가 없어 대기열 페이지로 이동할 수 없습니다."
+      );
+      return;
+    }
+    navigate(finalUrl);
+  }, [buildQueueUrl, navigate]);
 
   // 좌석 선택 페이지로 직접 이동 (대기열 거치지 않음)
   const goToSeatSelection = useCallback(() => {
@@ -1234,194 +1210,6 @@ export default function ITicketPage() {
     roomData,
     roomRequest,
   ]);
-
-  // 현재 페이지에서 경기 시작 (모달 없이)
-  const startBookingInPage = useCallback(async () => {
-    if (hasEnqueued) {
-      console.log("[booking] 이미 대기열에 진입했습니다.");
-      return;
-    }
-
-    setHasEnqueued(true);
-    setBookingStage("loading");
-
-    // matchId 결정
-    const jr = joinResponse as unknown as {
-      matchId?: unknown;
-    };
-    const rawMatchId =
-      matchIdFromStore ?? (jr?.matchId != null ? Number(jr.matchId) : null);
-
-    if (!rawMatchId) {
-      console.warn("[booking] matchId가 없어 대기열 진입을 건너뜁니다.");
-      setBookingStage(null);
-      setHasEnqueued(false);
-      return;
-    }
-
-    const matchId = String(rawMatchId);
-    const clickMiss = nonReserveClickCount;
-    const duration = reserveAppearedAt
-      ? Number(((Date.now() - reserveAppearedAt) / 1000).toFixed(2))
-      : 0;
-
-    try {
-      console.log("[booking] 대기열 진입 요청:", {
-        matchId,
-        clickMiss,
-        duration,
-      });
-      const res = await enqueueTicketingQueue(matchId, {
-        clickMiss,
-        duration,
-      });
-      console.log("[booking] 대기열 진입 성공");
-      console.log("[booking] API 응답:", res);
-
-      // API 응답으로 초기 상태 설정
-      if (res) {
-        console.log("[booking] API 응답 처리 시작:", {
-          totalNum: res.totalNum,
-          positionAhead: res.positionAhead,
-          positionBehind: res.positionBehind,
-        });
-        // 나의 대기순서: ahead + 1
-        setQueueRank(res.positionAhead + 1);
-        // positionAhead 저장 (게이지바 계산용)
-        setPositionAhead(res.positionAhead);
-        // 현재 대기인원: ahead + 1 + behind
-        setTotalQueue(res.positionAhead + 1 + res.positionBehind);
-        // queue stage로 전환
-        setBookingStage("queue");
-        console.log("[booking] 상태 설정 완료, queue stage로 전환");
-      } else {
-        console.warn("[booking] API 응답이 없습니다.");
-      }
-    } catch (error) {
-      console.error("[booking] 대기열 진입 실패:", error);
-      setBookingStage(null);
-      setHasEnqueued(false);
-    }
-  }, [
-    hasEnqueued,
-    matchIdFromStore,
-    joinResponse,
-    nonReserveClickCount,
-    reserveAppearedAt,
-  ]);
-
-  // 경기 진행 중인 경우 대기열 UI 표시
-  if (bookingStage === "loading") {
-    return (
-      <>
-        <div className="min-h-screen overflow-x-auto">
-          <div className="w-full h-screen flex items-center justify-center bg-white">
-            <div className="text-center">
-              <div className="mx-auto mb-8 h-12 w-12 animate-spin rounded-full border-4 border-gray-200 border-t-gray-500" />
-              <div className="text-xl font-extrabold text-gray-900 tracking-tight">
-                예매 화면을 불러오는 중입니다.
-              </div>
-              <div className="mt-2 text-lg text-blue-600 font-extrabold">
-                조금만 기다려주세요.
-              </div>
-            </div>
-          </div>
-        </div>
-        <RoomSettingModal
-          open={isRoomModalOpen}
-          onClose={() => setIsRoomModalOpen(false)}
-        />
-        {showTimer && <Timer draggable />}
-      </>
-    );
-  }
-
-  if (bookingStage === "queue") {
-    // positionAhead 기반 게이지바 계산: 0에 가까울수록 오른쪽으로 진행
-    // positionAhead가 0이면 100%, positionAhead가 totalQueue와 같으면 0%
-    const widthPercent =
-      totalQueue > 0
-        ? Math.max(
-            0,
-            Math.min(100, ((totalQueue - positionAhead) / totalQueue) * 100)
-          )
-        : 100;
-    // percent는 임박 여부 판단용 (positionAhead가 작을수록 임박)
-    const percent =
-      totalQueue > 0
-        ? Math.max(
-            0,
-            Math.min(100, Math.round((positionAhead / totalQueue) * 100))
-          )
-        : 0;
-    const isImminent = percent <= 20;
-
-    return (
-      <>
-        <div className="min-h-screen overflow-x-auto">
-          <div className="w-full h-screen bg-white">
-            <div className="pt-6 max-w-lg mx-auto p-6">
-              <h1 className="text-2xl font-extrabold text-gray-900">
-                {isImminent
-                  ? "곧 고객님의 순서가 다가옵니다."
-                  : "접속 인원이 많아 대기 중입니다."}
-              </h1>
-              <div
-                className={`text-2xl mt-1 font-extrabold ${isImminent ? "text-red-600" : "text-blue-600"}`}
-              >
-                {isImminent ? "예매를 준비해주세요." : "조금만 기다려주세요."}
-              </div>
-
-              <div className="mt-2 text-gray-700">티켓을 겟하다, Tickget!</div>
-
-              <div className="mt-4 rounded-xl border-[#e3e3e3] border shadow-lg bg-white p-6">
-                <div className="text-center text-md text-black font-bold mb-2">
-                  나의 대기순서
-                </div>
-                <div className="text-center text-6xl font-extrabold text-gray-900">
-                  {queueRank}
-                </div>
-
-                <div className="mt-2">
-                  <div className="relative h-6 rounded-full bg-gray-100">
-                    <div
-                      className={`absolute left-0 top-0 h-6 rounded-full ${
-                        isImminent ? "bg-red-500" : "bg-blue-600"
-                      }`}
-                      style={{ width: `${widthPercent}%` }}
-                    />
-                    <ConfirmationNumberOutlinedIcon
-                      fontSize="small"
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-300 rotate-[-10deg]"
-                    />
-                  </div>
-                  <div className="mt-4 h-px bg-gray-100" />
-                  <div className="mt-3 font-regular text-md text-gray-600 flex items-center justify-between">
-                    <span>현재 대기인원</span>
-                    <span className="text-black font-extrabold">
-                      {totalQueue}명
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <ul className="mt-6 text-sm text-gray-400 list-disc pl-5 space-y-1">
-                <li>잠시만 기다려주시면, 예매하기 페이지로 연결됩니다.</li>
-                <li>
-                  새로고침하거나 재접속 하시면 대기순서가 초기화되어 대기시간이
-                  더 길어집니다.
-                </li>
-              </ul>
-            </div>
-          </div>
-        </div>
-        <RoomSettingModal
-          open={isRoomModalOpen}
-          onClose={() => setIsRoomModalOpen(false)}
-        />
-        {showTimer && <Timer draggable />}
-      </>
-    );
-  }
 
   return (
     <>
@@ -1500,7 +1288,7 @@ export default function ITicketPage() {
                 gameStartTime={roomDetail?.startTime}
                 remaining={formatted}
                 canReserve={secondsLeft === 0}
-                onReserve={openQueueWindow}
+                onReserve={openQueueWindowInNewTab}
                 onStartInPage={startBookingInPage}
                 onGoToSeats={goToSeatSelection}
               />
@@ -2110,7 +1898,7 @@ function BookingCalendarCard({
         </button>
         <button
           type="button"
-          // onClick={onBook}
+          onClick={onBook}
           className="w-full py-3 rounded-xl border text-indigo-600 border-indigo-200 hover:bg-indigo-50 text-sm font-semibold"
         >
           BOOKING / 外國語

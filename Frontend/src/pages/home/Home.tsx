@@ -248,7 +248,7 @@ export default function HomePage() {
             type="button"
             onClick={handleRefresh}
             disabled={isRefreshing}
-            className="group flex items-center justify-center rounded-full p-2 text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="group flex items-center justify-center rounded-full p-2 text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             aria-label="새로고침"
           >
             <RefreshIcon
