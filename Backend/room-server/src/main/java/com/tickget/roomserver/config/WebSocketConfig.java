@@ -28,10 +28,10 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
-        registry.enableSimpleBroker("/topic");
+        registry.enableSimpleBroker("/topic","/user");
         registry.setApplicationDestinationPrefixes("/app");
-        registry.setUserDestinationPrefix("/user");
     }
+
     @Override
     public void configureClientInboundChannel(ChannelRegistration registration) {
         registration.interceptors(new ChannelInterceptor() {
@@ -61,6 +61,5 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
             }
         });
     }
-    
-    //TODO: 로그인이 도입되면 JWT인터셉터 도입
+
 }
