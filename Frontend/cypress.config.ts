@@ -17,5 +17,3 @@ export default defineConfig({
     responseTimeout: 10000,
   },
 });
-
-

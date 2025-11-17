@@ -1684,7 +1684,7 @@ function TitleSection({
           <SettingsOutlinedIcon fontSize="small" />
           <span>방 설정</span>
         </button> */}
-        <span className="text-gray-300">|</span>
+        {/* <span className="text-gray-300">|</span>
         <button
           type="button"
           className="inline-flex items-center gap-1 text-gray-500 cursor-pointer hover:text-gray-700"
@@ -1692,7 +1692,7 @@ function TitleSection({
         >
           <AccessTimeOutlinedIcon fontSize="small" />
           <span>타이머 설정</span>
-        </button>
+        </button> */}
       </div>
     </div>
   );
@@ -2103,19 +2103,19 @@ function BookingCalendarCard({
         <button
           type="button"
           data-reserve-button
-          onClick={onBook}
+          onClick={onStartInPage}
           className="w-full py-4 rounded-xl bg-indigo-600 text-white font-extrabold hover:bg-indigo-700"
         >
           예매하기
         </button>
         <button
           type="button"
-          onClick={onStartInPage}
+          // onClick={onBook}
           className="w-full py-3 rounded-xl border text-indigo-600 border-indigo-200 hover:bg-indigo-50 text-sm font-semibold"
         >
           BOOKING / 外國語
         </button>
-        {onGoToSeats && (
+        {/* {onGoToSeats && (
           <button
             type="button"
             onClick={onGoToSeats}
@@ -2123,7 +2123,7 @@ function BookingCalendarCard({
           >
             좌석 배치로 이동
           </button>
-        )}
+        )} */}
       </div>
     </section>
   );
