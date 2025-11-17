@@ -1,7 +1,9 @@
 package com.ticketing.seat.service;
 
 import com.ticketing.entity.UserStats;
+import com.ticketing.repository.UserStatsRepository;
 import com.ticketing.seat.concurrency.LuaReservationExecutor;
+import com.ticketing.seat.dto.FailedStatsRequest;
 import com.ticketing.seat.dto.ReservedSeatInfoDto;
 import com.ticketing.seat.dto.SeatInfo;
 import com.ticketing.seat.dto.SeatReservationRequest;
@@ -35,6 +37,7 @@ public class SeatReservationService {
     private final MatchRepository matchRepository;
     private final MatchStatusRepository matchStatusRepository;
     private final LuaReservationExecutor luaReservationExecutor;
+    private final UserStatsRepository userStatsRepository;  // ✅ 추가
 
     @Transactional
     public SeatReservationResponse reserveSeats(Long matchId, SeatReservationRequest req) {
@@ -111,15 +114,66 @@ public class SeatReservationService {
                 totalSeats
         );
 
-        // 5-1. 성공 시 TTL 설정
-        if (result != null && result == 1L) {
-            setMatchRedisTTL(matchId);
+        // ✅ 5-1. 실패 시 처리
+        if (result == null || result == 0L) {
+            log.warn("좌석 선점 실패: matchId={}, userId={}, seats={}",
+                    matchId, userId, rowNumbers);
+
+            // 실제 유저인 경우 실패 통계 저장
+            if (!isBot) {
+                saveFailedStatsOnHoldFailure(matchId, userId);
+            }
+
+            return buildFailureResponse(matchId, req);
         }
 
-        // 5-2. Hold 시점에는 만석 체크 안 함 (Confirm 시점에 체크)
-        // result는 0 (실패) 또는 1 (성공)만 반환됨
+        // ✅ 5-2. 성공 시 TTL 설정
+        setMatchRedisTTL(matchId);
+
+        log.info("좌석 선점 성공: matchId={}, userId={}, seats={}",
+                matchId, userId, rowNumbers);
 
         return buildSuccessResponse(matchId, req);
+    }
+
+    /**
+     * ✅ Hold 실패 시 실패 통계 저장
+     */
+    private void saveFailedStatsOnHoldFailure(Long matchId, Long userId) {
+        try {
+            // 중복 저장 방지
+            boolean alreadyExists = userStatsRepository.existsByUserIdAndMatchId(userId, matchId);
+            if (alreadyExists) {
+                log.debug("이미 통계가 저장된 유저: matchId={}, userId={}", matchId, userId);
+                return;
+            }
+
+            UserStats failedStats = UserStats.builder()
+                    .userId(userId)
+                    .matchId(matchId)
+                    .isSuccess(false)
+                    .selectedSection("")
+                    .selectedSeat("")
+                    .dateSelectTime(0f)
+                    .dateMissCount(0)
+                    .seccodeSelectTime(0f)
+                    .seccodeBackspaceCount(0)
+                    .seccodeTryCount(0)
+                    .seatSelectTime(0f)
+                    .seatSelectTryCount(1)
+                    .seatSelectClickMissCount(0)
+                    .userRank(-1)
+                    .totalRank(-1)
+                    .createdAt(LocalDateTime.now())
+                    .updatedAt(LocalDateTime.now())
+                    .build();
+
+            userStatsRepository.save(failedStats);
+            log.info("Hold 실패 통계 저장 완료: matchId={}, userId={}", matchId, userId);
+
+        } catch (Exception e) {
+            log.error("Hold 실패 통계 저장 중 오류: matchId={}, userId={}", matchId, userId, e);
+        }
     }
 
     /**
@@ -194,6 +248,7 @@ public class SeatReservationService {
                 .success(false)
                 .heldSeats(List.of())
                 .failedSeats(failed)
+                .message("좌석 선점 실패: 이미 다른 사용자가 선점했습니다.")
                 .build();
     }
 
@@ -215,6 +270,7 @@ public class SeatReservationService {
                 .success(true)
                 .heldSeats(held)
                 .failedSeats(List.of())
+                .message("좌석 선점 성공")
                 .build();
     }
 }

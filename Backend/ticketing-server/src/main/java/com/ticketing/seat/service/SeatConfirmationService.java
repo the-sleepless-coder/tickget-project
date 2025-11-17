@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -275,6 +276,9 @@ public class SeatConfirmationService {
      */
     private void handleFullMatchAtConfirm(Long matchId, Match match) {
         try {
+
+            //미확정 유저 실패 통계 저장 (매치 종료 전)
+            saveFailedStatsForUnconfirmedUsers(matchId);
             // 1. 통계 수집
             saveMatchStatistics(matchId, match);
 
@@ -305,6 +309,74 @@ public class SeatConfirmationService {
 
         } catch (Exception e) {
             log.error("Confirm 시점 만석 처리 중 오류: matchId={}", matchId, e);
+        }
+    }
+
+
+    /**
+     * 매치 종료 시 아직 confirm하지 못한 유저들의 실패 통계 저장
+     */
+    private void saveFailedStatsForUnconfirmedUsers(Long matchId) {
+        try {
+            // Redis에서 humanusers 확인
+            String humanUsersKey = "humanusers:match:" + matchId;
+            String remainingStr = redisTemplate.opsForValue().get(humanUsersKey);
+
+            if (remainingStr != null) {
+                int remaining = Integer.parseInt(remainingStr);
+
+                if (remaining > 0) {
+                    log.info("미확정 유저 {}명 실패 통계 저장 시작: matchId={}", remaining, matchId);
+
+                    // Redis에서 Hold만 하고 Confirm 안 한 유저 찾기
+                    Set<String> seatKeys = redisTemplate.keys("seat:" + matchId + ":*");
+                    Set<Long> unconfirmedUsers = new HashSet<>();
+
+                    if (seatKeys != null) {
+                        for (String key : seatKeys) {
+                            String value = redisTemplate.opsForValue().get(key);
+                            if (value != null) {
+                                String[] parts = value.split(":");
+                                Long userId = Long.valueOf(parts[0]);
+
+                                // 봇이 아니고 DB에 통계 없으면 미확정 유저
+                                if (userId > 0 && !userStatsRepository.existsByUserIdAndMatchId(userId, matchId)) {
+                                    unconfirmedUsers.add(userId);
+                                }
+                            }
+                        }
+                    }
+
+                    // 각 미확정 유저의 실패 통계 저장
+                    for (Long userId : unconfirmedUsers) {
+                        UserStats failedStats = UserStats.builder()
+                                .userId(userId)
+                                .matchId(matchId)
+                                .isSuccess(false)
+                                .selectedSection("")
+                                .selectedSeat("")
+                                .dateSelectTime(0f)
+                                .dateMissCount(0)
+                                .seccodeSelectTime(0f)
+                                .seccodeBackspaceCount(0)
+                                .seccodeTryCount(0)
+                                .seatSelectTime(0f)
+                                .seatSelectTryCount(0)
+                                .seatSelectClickMissCount(0)
+                                .userRank(-1)
+                                .totalRank(-1)
+                                .createdAt(LocalDateTime.now())
+                                .updatedAt(LocalDateTime.now())
+                                .build();
+
+                        userStatsRepository.save(failedStats);
+                    }
+
+                    log.info("미확정 유저 {}명 실패 통계 저장 완료: matchId={}", unconfirmedUsers.size(), matchId);
+                }
+            }
+        } catch (Exception e) {
+            log.error("미확정 유저 실패 통계 저장 중 오류: matchId={}", matchId, e);
         }
     }
 
