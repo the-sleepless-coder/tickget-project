@@ -296,7 +296,7 @@ export default function BookingWaitingPage() {
 
   // 대기열 진입 시 큐 등록 API 호출 (matchId가 있을 때만)
   // stage가 "loading"일 때만 API 호출 (초기 로드 시 한 번만)
-  // HTTP 응답으로 상태를 설정하지 않고, QUEUE_STATUS_UPDATE 이벤트만 사용
+  // startBookingInPage와 동일한 로직: API 응답으로 초기 상태 설정
   useEffect(() => {
     // stage가 "loading"이 아니면 실행하지 않음
     if (stage !== "loading") {
@@ -333,16 +333,43 @@ export default function BookingWaitingPage() {
           clickMiss,
           duration,
         });
-        // API 호출만 수행 (응답으로 상태 설정하지 않음)
-        await enqueueTicketingQueue(matchId, {
+        // startBookingInPage와 동일: API 응답으로 초기 상태 설정
+        const res = await enqueueTicketingQueue(matchId, {
           clickMiss,
           duration,
         });
-        console.log(
-          "[booking-site][queue.enqueue] API 호출 완료 (상태는 QUEUE_STATUS_UPDATE 이벤트에서 설정)"
-        );
+        console.log("[booking-site][queue.enqueue] API 호출 완료");
+        console.log("[booking-site][queue.enqueue] API 응답:", res);
+
+        // API 응답으로 초기 상태 설정 (startBookingInPage와 동일한 로직)
+        if (res) {
+          console.log("[booking-site][queue.enqueue] API 응답 처리 시작:", {
+            totalNum: res.totalNum,
+            positionAhead: res.positionAhead,
+            positionBehind: res.positionBehind,
+          });
+          // 나의 대기순서: ahead + 1
+          setRank(res.positionAhead + 1);
+          // positionAhead 저장 (게이지바 계산용)
+          setPositionAhead(res.positionAhead);
+          // 현재 대기인원: ahead + 1 + behind
+          setTotalQueue(res.positionAhead + 1 + res.positionBehind);
+          // 초기 totalQueue 값 고정
+          if (initialTotalQueueRef.current === null) {
+            initialTotalQueueRef.current =
+              res.positionAhead + 1 + res.positionBehind;
+          }
+          // queue stage로 전환
+          setStage("queue");
+          console.log(
+            "[booking-site][queue.enqueue] 상태 설정 완료, queue stage로 전환"
+          );
+        } else {
+          console.warn("[booking-site][queue.enqueue] API 응답이 없습니다.");
+        }
       } catch (error) {
         console.error("[booking-site][queue.enqueue] 실패:", error);
+        setStage("loading"); // 에러 시 loading 상태 유지
       }
     })();
   }, [stage, searchParams, matchIdFromStore]);
