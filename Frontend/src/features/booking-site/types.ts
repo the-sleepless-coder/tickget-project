@@ -218,3 +218,17 @@ export interface SeatCancelResult {
   status: number; // 200 | 404 | 409 | 500 등
   body: SeatCancelResponse;
 }
+
+// ----- Session Toast LLM (AST) -----
+export interface SessionToastLLMRequest {
+  difficulty: string; // required: "easy" | "medium" | "hard"
+  select_time?: number; // optional: 좌석 선택 시간(초)
+  miss_count?: number; // optional: 좌석 미스 클릭 수
+  success: boolean; // required: 성공 여부
+  final_rank?: number; // optional: 최종 순위
+  created_at?: string; // optional: 경기 종료 시각 (ISO string)
+}
+
+export interface SessionToastLLMResponse {
+  text: string; // AI 분석 메시지
+}
