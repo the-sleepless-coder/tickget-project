@@ -107,5 +107,6 @@ bot-server:
 room-server:
   url: ${ROOM_SERVICE_URL:http://localhost:8083}
 
+
 stats-server:
    url: ${STATS_SERVICE_URL:http://localhost:8084}
