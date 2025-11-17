@@ -62,7 +62,6 @@ export default function Step1BasicForm({
     [setStartTime]
   );
 
-
   // 추가 제약 없이 부모에서 내려준 startTime을 그대로 사용
   return (
     <div className="flex-1 space-y-6">
@@ -87,7 +86,7 @@ export default function Step1BasicForm({
             <button
               type="button"
               onClick={() => setMatchType("solo")}
-              className={`px-5 py-2 rounded-xl text-sm whitespace-nowrap ${
+              className={`px-5 py-2 rounded-xl text-sm whitespace-nowrap cursor-pointer ${
                 matchType === "solo"
                   ? "bg-c-blue-100 text-c-blue-300"
                   : "bg-blue-50 text-blue-700 hover:bg-blue-100"
@@ -98,7 +97,7 @@ export default function Step1BasicForm({
             <button
               type="button"
               onClick={() => setMatchType("versus")}
-              className={`px-5 py-2 rounded-xl text-sm whitespace-nowrap ${
+              className={`px-5 py-2 rounded-xl text-sm whitespace-nowrap cursor-pointer ${
                 matchType === "versus"
                   ? "bg-c-blue-100 text-c-blue-300"
                   : "bg-blue-50 text-blue-700 hover:bg-blue-100"
@@ -186,7 +185,7 @@ export default function Step1BasicForm({
             <button
               type="button"
               onClick={() => setPlatform("익스터파크")}
-              className={`px-5 py-2 rounded-xl text-sm ${
+              className={`px-5 py-2 rounded-xl text-sm cursor-pointer ${
                 platform === "익스터파크"
                   ? "bg-c-blue-100 text-c-blue-300"
                   : "bg-blue-50 text-blue-700 hover:bg-blue-100"

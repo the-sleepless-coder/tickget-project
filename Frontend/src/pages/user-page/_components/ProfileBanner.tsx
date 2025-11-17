@@ -69,49 +69,47 @@ export default function ProfileBanner({
         {/* Profile Image */}
         <div className="flex flex-col items-center gap-3">
           <div className="flex h-32 w-32 items-center justify-center rounded-full bg-white">
-            {isEditing ? (
-              (() => {
-                const imageUrl =
-                  tempProfileImage ||
-                  normalizeProfileImageUrl(profileImage, userId) ||
-                  "/profile.png";
-                return (
-                  <img
-                    src={imageUrl}
-                    alt="Profile"
-                    className="h-full w-full rounded-full object-cover"
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      if (target.src !== "/profile.png") {
-                        target.src = "/profile.png";
-                      }
-                    }}
-                  />
-                );
-              })()
-            ) : (
-              (() => {
-                // profileImage가 없으면 userId로 S3 경로 생성
-                const imageUrl = profileImage
-                  ? normalizeProfileImageUrl(profileImage, userId)
-                  : normalizeProfileImageUrl(null, userId);
-                const finalImageUrl = imageUrl || "/profile.png";
-                return (
-                  <img
-                    key={finalImageUrl}
-                    src={finalImageUrl}
-                    alt="Profile"
-                    className="h-full w-full rounded-full object-cover"
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      if (target.src !== "/profile.png") {
-                        target.src = "/profile.png";
-                      }
-                    }}
-                  />
-                );
-              })()
-            )}
+            {isEditing
+              ? (() => {
+                  const imageUrl =
+                    tempProfileImage ||
+                    normalizeProfileImageUrl(profileImage, userId) ||
+                    "/profile.png";
+                  return (
+                    <img
+                      src={imageUrl}
+                      alt="Profile"
+                      className="h-full w-full rounded-full object-cover"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        if (target.src !== "/profile.png") {
+                          target.src = "/profile.png";
+                        }
+                      }}
+                    />
+                  );
+                })()
+              : (() => {
+                  // profileImage가 없으면 userId로 S3 경로 생성
+                  const imageUrl = profileImage
+                    ? normalizeProfileImageUrl(profileImage, userId)
+                    : normalizeProfileImageUrl(null, userId);
+                  const finalImageUrl = imageUrl || "/profile.png";
+                  return (
+                    <img
+                      key={finalImageUrl}
+                      src={finalImageUrl}
+                      alt="Profile"
+                      className="h-full w-full rounded-full object-cover"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        if (target.src !== "/profile.png") {
+                          target.src = "/profile.png";
+                        }
+                      }}
+                    />
+                  );
+                })()}
           </div>
           {isEditing && (
             <label className="cursor-pointer rounded-lg bg-white/90 px-4 py-2 text-xs font-medium text-purple-600 transition-colors hover:bg-white">
@@ -147,7 +145,7 @@ export default function ProfileBanner({
                 <span className="text-white/70">|</span>
                 <button
                   onClick={onInfoManage}
-                  className="text-sm text-white/90 hover:text-white underline transition-colors"
+                  className="text-sm text-white/90 hover:text-white underline transition-colors cursor-pointer"
                 >
                   내정보 관리
                 </button>
@@ -156,7 +154,7 @@ export default function ProfileBanner({
             {!isEditing && (
               <button
                 onClick={onEdit}
-                className="flex items-center justify-center rounded-full p-1 text-white transition-colors hover:bg-white/20"
+                className="flex items-center justify-center rounded-full p-1 text-white transition-colors hover:bg-white/20 cursor-pointer"
                 aria-label="프로필 수정"
               >
                 <SettingsIcon fontSize="small" />
@@ -198,7 +196,7 @@ export default function ProfileBanner({
               </button>
               <button
                 onClick={onCancel}
-                className="rounded-lg bg-white/20 px-4 py-2 text-sm text-white transition-colors hover:bg-white/30"
+                className="rounded-lg bg-white/20 px-4 py-2 text-sm text-white transition-colors hover:bg-white/30 cursor-pointer"
               >
                 취소
               </button>

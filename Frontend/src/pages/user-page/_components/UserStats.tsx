@@ -340,7 +340,7 @@ export default function UserStats({
             <div className="flex gap-2">
               <button
                 onClick={() => setMatchFilter("all")}
-                className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors cursor-pointer ${
                   matchFilter === "all"
                     ? "bg-purple-500 text-white"
                     : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"
@@ -350,7 +350,7 @@ export default function UserStats({
               </button>
               <button
                 onClick={() => setMatchFilter("match")}
-                className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors cursor-pointer ${
                   matchFilter === "match"
                     ? "bg-purple-500 text-white"
                     : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"
@@ -360,7 +360,7 @@ export default function UserStats({
               </button>
               <button
                 onClick={() => setMatchFilter("solo")}
-                className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors cursor-pointer ${
                   matchFilter === "solo"
                     ? "bg-purple-500 text-white"
                     : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"
@@ -572,7 +572,7 @@ export default function UserStats({
                     Math.min(prev + 5, filteredData.length)
                   )
                 }
-                className="rounded-md border border-neutral-300 bg-white px-6 py-2 text-sm text-neutral-700 transition-colors hover:bg-neutral-50"
+                className="rounded-md border border-neutral-300 bg-white px-6 py-2 text-sm text-neutral-700 transition-colors hover:bg-neutral-50 cursor-pointer"
               >
                 더보기
               </button>

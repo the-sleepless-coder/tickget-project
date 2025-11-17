@@ -59,7 +59,7 @@ export default function Step2AdvancedForm({
         <button
           type="button"
           onClick={() => setStep2Mode("preset")}
-          className={`px-4 py-2 rounded-full text-sm ${
+          className={`px-4 py-2 rounded-full text-sm cursor-pointer ${
             step2Mode === "preset"
               ? "bg-gray-900 text-white"
               : "bg-gray-200 text-gray-700"
@@ -70,7 +70,7 @@ export default function Step2AdvancedForm({
         <button
           type="button"
           onClick={() => setStep2Mode("ai")}
-          className={`px-4 py-2 rounded-full text-sm ${
+          className={`px-4 py-2 rounded-full text-sm cursor-pointer ${
             step2Mode === "ai"
               ? "bg-gray-900 text-white"
               : "bg-gray-200 text-gray-700"
@@ -78,17 +78,28 @@ export default function Step2AdvancedForm({
         >
           AI
         </button>
-        <div className="relative group">
-          <button
-            type="button"
-            className="flex items-center gap-1 text-purple-600 font-semibold"
-          >
-            <InfoOutlined sx={{ fontSize: 18 }} /> 업로드 가이드
-          </button>
-          <div className="pointer-events-none absolute left-1/2 top-full z-10 mt-2 -translate-x-1/4 whitespace-nowrap rounded-xl bg-white px-3 py-2 text-[13px] text-gray-900 shadow-[0_6px_16px_rgba(0,0,0,0.12)] border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity">
-            공연 안내 이미지 중 배치도만 보이도록 업로드해주세요!
+        {step2Mode === "ai" && (
+          <div className="relative group">
+            <button
+              type="button"
+              className="flex items-center gap-1 text-purple-600 font-semibold cursor-pointer"
+            >
+              <InfoOutlined sx={{ fontSize: 18 }} /> 업로드 가이드
+            </button>
+            <div className="pointer-events-none absolute left-1/2 top-full z-10 mt-2 -translate-x-1/2 rounded-xl bg-white shadow-[0_6px_16px_rgba(0,0,0,0.12)] border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="p-4">
+                <div className="text-[13px] text-gray-900 mb-3 text-center whitespace-nowrap">
+                  공연 안내 이미지 중 배치도만 보이도록 업로드해주세요!
+                </div>
+                <img
+                  src="/test.png"
+                  alt="업로드 가이드 예시"
+                  className="w-full max-w-[400px] rounded-lg"
+                />
+              </div>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       <div className="text-base font-semibold text-gray-900">공연장 선택</div>
@@ -127,7 +138,7 @@ export default function Step2AdvancedForm({
               onClick={hasGenerated ? onReset : onCreate}
               className={`px-2 py-2 rounded-md text-sm font-semibold whitespace-nowrap ${
                 canCreate
-                  ? "bg-purple-600 text-white hover:bg-purple-700"
+                  ? "bg-purple-600 text-white hover:bg-purple-700 cursor-pointer"
                   : "bg-gray-200 text-gray-500 cursor-not-allowed"
               }`}
             >
@@ -146,7 +157,7 @@ export default function Step2AdvancedForm({
                 key={label}
                 type="button"
                 onClick={() => setDifficulty(label)}
-                className={`px-4 py-2 rounded-full text-sm transition-colors ${
+                className={`px-4 py-2 rounded-full text-sm transition-colors cursor-pointer ${
                   difficulty === label
                     ? label === "초보"
                       ? "bg-[#F9FBAD] text-[#8DBA07]"
