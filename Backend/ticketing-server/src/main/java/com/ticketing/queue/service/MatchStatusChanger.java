@@ -67,6 +67,11 @@ public class MatchStatusChanger {
             String userNumString="";
             if(userNum!=null){
                 userNumString = String.valueOf(userNum);
+
+                // Match 엔티티의 userCount 저장
+                m.setUserCount(userNum);
+                matchRepository.save(m);
+                log.info("Match userCount 저장 완료: matchId={}, userCount={}", matchId, userNum);
             }
             String userNumKey = USER_NUMBER_COUNT.formatted(matchId);
             redis.opsForValue().set(userNumKey, userNumString);
