@@ -201,7 +201,7 @@ public class StatsService {
             for(MatchInfoStatsDTO data: allMatchData){
                 matchIdLong = data.getMatchId();
                 log.info("MatchInfoStats matchId:{}", matchIdLong);
-                List<MatchSpecificsStatsDTO> matchSpecifics = userStatsRepository.findMatchSpecificInfoStatsByMatchId(matchIdLong, roomTypeCasted, topN);
+                List<MatchSpecificsStatsDTO> matchSpecifics = userStatsRepository.findMatchSpecificInfoStatsByMatchId(matchIdLong, roomTypeCasted);
                 log.info("MatchSpecifics: {}", matchSpecifics.toString());
 
                 // myData 조회.
@@ -337,7 +337,7 @@ public class StatsService {
 
                 // 이 매치에 대한 모든 참가자 기록
                 List<MatchSpecificsStatsDTO> matchSpecifics =
-                        userStatsRepository.findMatchSpecificInfoStatsByMatchId(matchIdLong, type, topN);
+                        userStatsRepository.findMatchSpecificInfoStatsByMatchId(matchIdLong, type);
 
                 log.info(matchSpecifics.toString());
 
@@ -555,7 +555,7 @@ public class StatsService {
             System.out.println(roomTypeCasted);
 
             // Match 내 사용자 정보 가져오기.
-            List<MatchSpecificsStatsDTO> matchSpecificsInfos = userStatsRepository.findMatchSpecificInfoStatsByMatchId(matchIdLong, roomTypeCasted, topN);
+            List<MatchSpecificsStatsDTO> matchSpecificsInfos = userStatsRepository.findMatchSpecificInfoStatsByMatchId(matchIdLong, roomTypeCasted);
             matchData = matchSpecificsInfos;
 
             if(roomType.equals("multi")){
@@ -570,8 +570,8 @@ public class StatsService {
 
 
         }else{
-            List<MatchSpecificsStatsDTO> matchSoloData = userStatsRepository.findMatchSpecificInfoStatsByMatchId(userIdLong, Room.RoomType.SOLO, topN);
-            List<MatchSpecificsStatsDTO> matchMultiData = userStatsRepository.findMatchSpecificInfoStatsByMatchId(userIdLong, Room.RoomType.MULTI, topN);
+            List<MatchSpecificsStatsDTO> matchSoloData = userStatsRepository.findMatchSpecificInfoStatsByMatchId(userIdLong, Room.RoomType.SOLO);
+            List<MatchSpecificsStatsDTO> matchMultiData = userStatsRepository.findMatchSpecificInfoStatsByMatchId(userIdLong, Room.RoomType.MULTI);
 
             MatchSpecificsStatsDTO myData = null;
             for(MatchSpecificsStatsDTO solo: matchSoloData){

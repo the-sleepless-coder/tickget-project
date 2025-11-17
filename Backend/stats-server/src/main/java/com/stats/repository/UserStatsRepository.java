@@ -109,8 +109,7 @@ public interface UserStatsRepository extends JpaRepository<UserStats, Long> {
     order by m.startedAt desc
 """)
     List<MatchSpecificsStatsDTO>findMatchSpecificInfoStatsByMatchId(@Param("matchId") Long matchId,
-                                                                    @Param("roomType") Room.RoomType roomType,
-                                                                   Pageable pageable
+                                                                    @Param("roomType") Room.RoomType roomType
                                                                    );
 
     // 중복되지 않는 matchId, 내림차순.

@@ -1,15 +1,13 @@
 package com.stats.dto.response.MatchData;
 
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 @Getter
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
+@ToString
 public class MatchSpecificsStatsDifferenceAddedDTO {
 
     @JsonUnwrapped
