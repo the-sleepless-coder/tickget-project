@@ -9,6 +9,7 @@
 #      1개=R / 2개=VIP,R / 3개=VIP,R,S / 4개 이상=STANDING,VIP,R,S
 #  - 거리 기준: “STAGE 폴리곤 중앙-하단(bottom-center)”과 각 폴리곤 중심 사이 거리
 #  - 색상 그룹별 ‘평균 거리’로 가까운 그룹이 상위 등급
+#  - git test 중
 
 from __future__ import annotations
 from fastapi import FastAPI, APIRouter, UploadFile, File, Form, Response, HTTPException, Request
