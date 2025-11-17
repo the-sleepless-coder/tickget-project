@@ -32,6 +32,7 @@ public class SeatConfirmationService {
     private final UserStatsRepository userStatsRepository;
     private final StringRedisTemplate redisTemplate;
     private final RoomServerClient roomServerClient;
+    private final StatsServerClient statsServerClient;
 
     @Transactional
     public SeatConfirmationResponse confirmSeats(Long matchId, SeatConfirmationRequest request) {
@@ -45,13 +46,13 @@ public class SeatConfirmationService {
         boolean isBot = userId < 0;  // 봇 여부 판단
 
         try {
-            // 1. Match 조회 (DB 상태 체크 안 함! - playing이든 finished든 상관없이 진행)
+            // 1. Match 조회
             Match match = matchRepository.findById(matchId)
                     .orElseThrow(() -> new MatchNotFoundException(matchId));
 
-            // DB 상태가 PLAYING일 때만 진행
-            if (match.getStatus() != Match.MatchStatus.PLAYING) {
-                return buildErrorResponse("경기가 이미 종료되었거나 대기 중입니다.");
+            // DB 상태가 WAITING일 때만 차단 (PLAYING, FINISHED 모두 허용)
+            if (match.getStatus() == Match.MatchStatus.WAITING) {
+                return buildErrorResponse("경기가 아직 시작되지 않았습니다.");
             }
 
             // ===== 봇과 실제 유저 분기 처리 =====
@@ -109,48 +110,7 @@ public class SeatConfirmationService {
         log.info("봇 Confirm 완료: matchId={}, botId={}, totalRank={}, confirmedCount={}, seatCount={}",
                 matchId, userId, totalRank, confirmedCount, seatCount);
 
-        // 4. UserStats 저장 (봇도 통계에 포함)
-        //    - 좌석/섹션 정보는 실제 유저와 동일한 형식으로 기록
-        //    - 상세 입력 정보는 봇이 없으므로 0 또는 null로 처리
-        List<String> allSectionIds = new ArrayList<>();
-        List<String> allSeatIds = new ArrayList<>();
-
-        for (String seatId : seatIds) {
-            String sectionId = extractSection(seatId);  // "8-9-15" -> "8"
-            allSectionIds.add(sectionId);
-            allSeatIds.add(seatId);
-        }
-
-        String selectedSections = String.join(",", allSectionIds);  // 예: "8" 또는 "8,8"
-        String selectedSeats = String.join(",", allSeatIds);        // 예: "8-9-15,8-9-16"
-
-        UserStats botStats = UserStats.builder()
-                .userId(userId)                     // 음수 ID 그대로 저장 (봇 식별용)
-                .matchId(matchId)
-                .isSuccess(true)
-                .selectedSection(selectedSections)
-                .selectedSeat(selectedSeats)
-                // 봇은 입력 과정이 없으므로 시간/카운트 계열은 기본값 사용
-                .dateSelectTime(0)
-                .dateMissCount(0)
-                .seccodeSelectTime(0)
-                .seccodeBackspaceCount(0)
-                .seccodeTryCount(0)
-                .seatSelectTime(0)
-                .seatSelectTryCount(0)
-                .seatSelectClickMissCount(0)
-                // 봇은 별도의 userRank는 없고 전체 등수만 기록 (필요하면 정책에 맞게 조정 가능)
-                .userRank(null)
-                .totalRank(totalRank)
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
-                .build();
-
-        userStatsRepository.save(botStats);
-        log.info("봇 통계 저장 완료: matchId={}, botId={}, seatCount={}, selectedSeats={}, totalRank={}",
-                matchId, userId, seatCount, selectedSeats, totalRank);
-
-        // 5. 성공 응답
+        // 4. 성공 응답
         return SeatConfirmationResponse.builder()
                 .success(true)
                 .message("봇 확정 완료")
@@ -277,7 +237,9 @@ public class SeatConfirmationService {
 
         // 10. 경기 종료 조건 체크
         // 조건: humanusers == 0 (모든 실제 유저가 confirm 완료)
-        if (remainingHumanUsers != null && remainingHumanUsers <= 0) {
+        // 단, 이미 FINISHED 상태면 중복 처리 방지
+        if (remainingHumanUsers != null && remainingHumanUsers <= 0
+                && match.getStatus() == Match.MatchStatus.PLAYING) {
             log.info("모든 실제 유저 Confirm 완료 - 경기 종료 처리: matchId={}, remainingHumanUsers={}",
                     matchId, remainingHumanUsers);
 
@@ -289,6 +251,14 @@ public class SeatConfirmationService {
 
             // Redis 전체 정리
             cleanupAllMatchRedis(matchId);
+
+            // Stats 서버에 매치 종료 알림
+            boolean statsNotificationSuccess = statsServerClient.notifyMatchEnd(matchId);
+            if (statsNotificationSuccess) {
+                log.info("Stats 서버 매치 종료 알림 성공: matchId={}", matchId);
+            } else {
+                log.warn("Stats 서버 매치 종료 알림 실패: matchId={}", matchId);
+            }
 
             // 룸 서버에 매치 종료 알림
             Long roomId = match.getRoomId();
