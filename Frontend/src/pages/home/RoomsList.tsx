@@ -183,6 +183,8 @@ export default function RoomsPage() {
       normalizedQuery ? r.title.toLowerCase().includes(normalizedQuery) : true
     )
     .filter((r) => {
+      // 종료된 방(시작 시간이 없는 방)은 제외
+      if (!r.startTime) return false;
       if (!availableOnly) return true;
       // 진행 중이거나 최대 인원인 방은 제외
       const isFull = r.participants
