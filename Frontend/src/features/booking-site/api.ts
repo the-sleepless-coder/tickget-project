@@ -358,9 +358,27 @@ export async function sendSeatStatsFailed(
     String(matchId)
   )}/stats/failed`;
 
-  return ticketingApi.postJson<SeatStatsFailedResponse>(path, payload, {
-    headers,
-  });
+  if (import.meta.env.DEV) {
+    console.log("[seat-stats-failed] API 요청:", {
+      matchId,
+      path,
+      payload,
+    });
+  }
+
+  const res = await ticketingApi.postJson<SeatStatsFailedResponse>(
+    path,
+    payload,
+    {
+      headers,
+    }
+  );
+
+  if (import.meta.env.DEV) {
+    console.log("[seat-stats-failed] API 응답:", res);
+  }
+
+  return res;
 }
 
 // ----- Session Toast LLM (AST) -----
