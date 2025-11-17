@@ -136,6 +136,7 @@ public class StatsService {
          * 1. 매치 데이터
          * */
         Pageable topN = PageRequest.of(page, size);
+        log.info("Pageable {}",topN.toString());
 
         // RoomType 반영
         Object roomType = null;
@@ -172,8 +173,10 @@ public class StatsService {
              * 1. 매치 데이터 처리
              * */
             Room.RoomType roomTypeCasted = (Room.RoomType) roomType;
+            log.info("Room casted Info {}", roomTypeCasted.toString());
+
             List<MatchInfoStatsDTO> allMatchData = userStatsRepository.findMatchInfoStatsByUserId(userId, roomTypeCasted, topN);
-            log.info(allMatchData.toString());
+            log.info("All match Data {}", allMatchData.toString());
 
             /**
              * 데이터 없음.
@@ -314,6 +317,7 @@ public class StatsService {
             matchData.clear();
             matchData.addAll(soloData);
             matchData.addAll(multiData);
+            log.info(matchData.toString());
 
             // 3. 시작 시간 기준 역순 정렬 (최근 경기 우선)
             matchData.sort((m1, m2) -> m2.getStartedAt().compareTo(m1.getStartedAt()));
