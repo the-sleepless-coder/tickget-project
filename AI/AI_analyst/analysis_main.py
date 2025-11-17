@@ -1,5 +1,4 @@
 # analysis_main.py
-# CI용 주석
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -29,6 +28,42 @@ from LLM_main import (
     build_user_report_prompt,
     build_session_toast_prompt,
 )
+
+# =========================
+# 최소 세션 수 설정
+# =========================
+
+# 한 유저에 대한 경기 데이터가 이 수보다 적으면
+# AI 분석(LLM 리포트)을 실행하지 않는다.
+MIN_SESSIONS_FOR_ANALYSIS = int(
+    os.getenv("MIN_SESSIONS_FOR_ANALYSIS", "10")  # 기본값 10판
+)
+
+
+def _ensure_enough_sessions(chart: ChartData):
+    """
+    ChartData 기반으로 최소 세션 수를 만족하는지 검사.
+    부족하면 HTTP 201 + ok=false 응답을 내려서
+    FE에서 "데이터 부족" UI를 띄우게 한다.
+    """
+    total = chart.aggregated.total_sessions
+    if total < MIN_SESSIONS_FOR_ANALYSIS:
+        raise HTTPException(
+            status_code=201,  # 400 대신 201
+            detail={
+                "ok": False,
+                "code": "NOT_ENOUGH_SESSIONS",
+                "message": (
+                    f"AI 분석 리포트를 생성하려면 최소 "
+                    f"{MIN_SESSIONS_FOR_ANALYSIS}판 이상의 연습 기록이 필요해요. "
+                    f"현재 기록은 {total}판이라 통계가 불안정해서, "
+                    "조금만 더 연습한 뒤에 분석을 다시 요청해 주세요."
+                ),
+                "min_sessions": MIN_SESSIONS_FOR_ANALYSIS,
+                "current_sessions": total,
+            },
+        )
+
 
 
 # =========================
@@ -164,6 +199,7 @@ async def get_chart_data(
 ):
     """
     프론트(Recharts) + LLM이 공통으로 사용할 차트용 집계 데이터.
+    (여기는 데이터가 적어도 그냥 차트는 보여주도록 제한을 두지 않는다.)
     """
     try:
         stats_df = fetch_mysql_user_stats(
@@ -210,32 +246,44 @@ async def get_user_report_prompt(
     """
     LLM 전체 분석 리포트용 system + user 프롬프트를 생성해서 내려준다.
     - 실제 LLM 호출(GMS/OpenAI)은 다른 서비스에서 수행.
+    - 한 유저에 대한 세션 수가 너무 적으면(샘플 부족) 분석을 생성하지 않는다.
     """
+    # 1) MySQL에서 raw user_stats 조회
     try:
         stats_df = fetch_mysql_user_stats(
             limit=limit,
             use_local=use_local,
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"MySQL 조회 중 오류: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"MySQL 조회 중 오류: {e}",
+        )
 
-    # 같은 raw 데이터로 차트 + 봇 파라미터 둘 다 계산
+    # 2) Recharts + LLM용 차트 데이터 계산 (특정 user_id / 기간 필터 포함)
     chart = calculate_chart_data(
         user_stats_df=stats_df,
         window_days=days,
         user_id=user_id,
     )
+
+    # 3) 최소 세션 수 만족 여부 체크 (부족하면 여기서 400 발생)
+    _ensure_enough_sessions(chart)
+
+    # 4) 같은 raw 데이터로 봇 파라미터 계산
     bot_config = compute_bot_params_from_user_stats(
         stats_df=stats_df,
         window_days=days,
     )
 
+    # 5) LLM user 프롬프트 빌드
     user_prompt = build_user_report_prompt(
         chart_data=chart,
         user_profile=None,  # 나중에 users 테이블 붙이면 여기서 넣기
         bot_params=bot_config.model_dump(),
     )
 
+    # 6) 최종 응답 모델 구성
     return UserReportPromptResponse(
         system_prompt=SYSTEM_PROMPT_USER_REPORT,
         user_prompt=user_prompt,
@@ -271,6 +319,7 @@ async def get_user_report_llm(
     GMS까지 호출해서 최종 한국어 분석 리포트 텍스트를 반환한다.
     프론트/백엔드는 이 엔드포인트만 호출해도 바로 마이페이지 'AI 분석 리포트'를 표시할 수 있다.
     """
+    # 1) MySQL 조회
     try:
         stats_df = fetch_mysql_user_stats(
             limit=limit,
@@ -279,22 +328,30 @@ async def get_user_report_llm(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"MySQL 조회 중 오류: {e}")
 
+    # 2) 차트 데이터 계산
     chart = calculate_chart_data(
         user_stats_df=stats_df,
         window_days=days,
         user_id=user_id,
     )
+
+    # ✅ 여기서도 세션 수 부족이면 바로 컷 (GMS 호출 X)
+    _ensure_enough_sessions(chart)
+
+    # 3) 봇 파라미터 계산
     bot_config = compute_bot_params_from_user_stats(
         stats_df=stats_df,
         window_days=days,
     )
 
+    # 4) LLM user 프롬프트 생성
     user_prompt = build_user_report_prompt(
         chart_data=chart,
         user_profile=None,
         bot_params=bot_config.model_dump(),
     )
 
+    # 5) GMS 호출
     try:
         text = await call_gms_chat(
             system_prompt=SYSTEM_PROMPT_USER_REPORT,
