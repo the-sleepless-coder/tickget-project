@@ -85,6 +85,7 @@ public class StatsBatchService {
             return createEmptyAggregation();
         }
 
+        //======= 1. 평균 계산 =======
         // 날짜 선택 평균 계산
         Float avgDateSelectTime = RoundBy.decimal(StatsCalculator.calculateAvgFloat(playerStats, UserStatsFloatExtractors.DATE_SELECT_TIME),2);
 
@@ -102,6 +103,11 @@ public class StatsBatchService {
         Float avgSeatSelectTryCount = RoundBy.decimal(StatsCalculator.calculateAvgInt(playerStats, UserStatsIntegerExtractors.SEAT_SELECT_TRY_COUNT),2);
         Float avgSeatSelectClickMissCount = RoundBy.decimal(StatsCalculator.calculateAvgInt(playerStats, UserStatsIntegerExtractors.SEAT_SELECT_CLICK_MISS_COUNT),2);
 
+        //======= 2. 표준 편차 계산 =======
+        Float stddevDateSelectTime = RoundBy.decimal( StatsCalculator.calculateStdDevFloat(playerStats, UserStatsFloatExtractors.DATE_SELECT_TIME, avgDateSelectTime), 2);
+        Float stddevSeccodeSelectTime = RoundBy.decimal( StatsCalculator.calculateStdDevFloat(playerStats, UserStatsFloatExtractors.SECCODE_SELECT_TIME, avgSeccodeSelectTime), 2);
+        Float stddevSeatSelectTime = RoundBy.decimal( StatsCalculator.calculateStdDevFloat(playerStats, UserStatsFloatExtractors.SEAT_SELECT_TIME, avgSeatSelectTime), 2);
+
         return MatchStatsAggregationDTO
                 .dtobuilder(matchId,
                         MatchStats.Type.ALL ,
@@ -113,9 +119,14 @@ public class StatsBatchService {
                         avgSeatSelectTime,
                         avgSeatSelectTryCount,
                         avgSeatSelectClickMissCount,
-                        playerCount);
+                        playerCount,
+                        stddevDateSelectTime,
+                        stddevSeccodeSelectTime,
+                        stddevSeatSelectTime
+                        );
 
     }
+
 
     /**
      * 빈 집계 결과 생성 (BOT만 있을 때)
@@ -135,7 +146,7 @@ public class StatsBatchService {
     }
 
     // ========================================
-    // 4. 배치 작업 (스케줄링)
+    // 3. 배치 작업 (스케줄링)
     // ========================================
 
     /**

@@ -136,7 +136,7 @@ public class StatsService {
          * 1. 매치 데이터
          * */
         Pageable topN = PageRequest.of(page, size);
-        log.info("Pageable {}",topN.toString());
+        //log.info("Pageable {}",topN.toString());
 
         // RoomType 반영
         Object roomType = null;
@@ -173,10 +173,10 @@ public class StatsService {
              * 1. 매치 데이터 처리
              * */
             Room.RoomType roomTypeCasted = (Room.RoomType) roomType;
-            log.info("Room casted Info {}", roomTypeCasted.toString());
+            //log.info("Room casted Info {}", roomTypeCasted.toString());
 
             List<MatchInfoStatsDTO> allMatchData = userStatsRepository.findMatchInfoStatsByUserId(userId, roomTypeCasted, topN);
-            log.info("All match Data {}", allMatchData.toString());
+            //log.info("All match Data {}", allMatchData.toString());
 
             /**
              * 데이터 없음.
@@ -200,9 +200,9 @@ public class StatsService {
 
             for(MatchInfoStatsDTO data: allMatchData){
                 matchIdLong = data.getMatchId();
-                log.info("MatchInfoStats matchId:{}", matchIdLong);
+                //log.info("MatchInfoStats matchId:{}", matchIdLong);
                 List<MatchSpecificsStatsDTO> matchSpecifics = userStatsRepository.findMatchSpecificInfoStatsByMatchId(matchIdLong, roomTypeCasted);
-                log.info("MatchSpecifics: {}", matchSpecifics.toString());
+                //log.info("MatchSpecifics: {}", matchSpecifics.toString());
 
                 // myData 조회.
                 MatchSpecificsStatsDTO myData = null;
@@ -216,7 +216,7 @@ public class StatsService {
                 // myData 없을 시 넘어감.
                 if (myData == null) {
                     // 로그 남기고
-                    log.warn("No stats found for userId {} in match {}", userId, matchIdLong);
+                    //log.warn("No stats found for userId {} in match {}", userId, matchIdLong);
                     // 나의 데이터가 없다면 넘어간다.
                     return Collections.emptyList();
                 }
@@ -318,7 +318,7 @@ public class StatsService {
             matchData.clear();
             matchData.addAll(soloData);
             matchData.addAll(multiData);
-            log.info(matchData.toString());
+            //log.info(matchData.toString());
 
             // 3. 시작 시간 기준 역순 정렬 (최근 경기 우선)
             matchData.sort((m1, m2) -> m2.getStartedAt().compareTo(m1.getStartedAt()));
@@ -339,7 +339,7 @@ public class StatsService {
                 List<MatchSpecificsStatsDTO> matchSpecifics =
                         userStatsRepository.findMatchSpecificInfoStatsByMatchId(matchIdLong, type);
 
-                log.info(matchSpecifics.toString());
+                //log.info(matchSpecifics.toString());
 
                 if (matchSpecifics == null || matchSpecifics.isEmpty()) {
                     // 참가자 정보 없으면 빈 리스트로 넣고 넘어감
@@ -448,151 +448,5 @@ public class StatsService {
         return matchResults;
     }
 
-
-    /**
-     * 기존 메서드
-     * */
-    // Match 관련 전체 정보를 가져온다.
-    public List<MatchInfoStatsDTO> getMatchInfoStats(Long userId, String mode , int page, int size){
-        Pageable topN = PageRequest.of(page, size);
-
-        // RoomType 반영
-        Object roomType = null;
-
-        mode = mode.trim().toLowerCase();
-        // 1. RoomType Exception
-        /**
-         * Exception 1
-         * 모드 유형 존재 안함.
-         * */
-        if(mode.equals("solo")){
-            roomType = Room.RoomType.SOLO;
-        }else if(mode.equals("multi")){
-            roomType = Room.RoomType.MULTI;
-        }else if(mode.equals("all")){
-            roomType = "all";
-        }else{
-            throw new RoomTypeException(mode + "유형이 존재하지 않았습니다.");
-        }
-
-        Room.RoomType SOLO = Room.RoomType.SOLO;
-        Room.RoomType MULTI = Room.RoomType.MULTI;
-
-        List<Object> result = new ArrayList<>();
-
-        List<MatchInfoStatsDTO> matchData = new ArrayList<>();
-
-        // Solo, Multi 데이터 처리.
-        if(roomType.equals(Room.RoomType.SOLO) || roomType.equals(Room.RoomType.MULTI)){
-            Room.RoomType roomTypeCasted = (Room.RoomType) roomType;
-            List<MatchInfoStatsDTO> gameTypeData = userStatsRepository.findMatchInfoStatsByUserId(userId, roomTypeCasted, topN);
-
-            /**
-             * 데이터 없음.
-             * */
-            if( gameTypeData.isEmpty()){
-                return Collections.emptyList();
-            }
-
-            matchData = gameTypeData;
-
-        }// 전체 데이터 처리
-        else if(roomType.equals("all")){
-            List<MatchInfoStatsDTO> soloData =  userStatsRepository.findMatchInfoStatsByUserId(userId, SOLO, topN);
-            List<MatchInfoStatsDTO> multiData = userStatsRepository.findMatchInfoStatsByUserId(userId, MULTI, topN);
-
-            /**
-             * 데이터 없음.
-             * */
-            if( soloData.isEmpty() && multiData.isEmpty() ){
-                return Collections.emptyList();
-            }
-
-            for(MatchInfoStatsDTO solo: soloData ){
-                matchData.add(solo);
-            }
-            for(MatchInfoStatsDTO multi:multiData){
-                matchData.add(multi);
-            }
-            // 시간 역순 정렬
-            matchData.sort((MatchInfoStatsDTO m1, MatchInfoStatsDTO m2) -> m2.getStartedAt().compareTo(m1.getStartedAt()));
-
-            if(matchData.size() > 5){
-                matchData = matchData.subList(0,5);
-            }
-
-        }
-
-        return matchData;
-    }
-
-    // Match 내 사람들 정보 가져오기.
-    public Object getMatchUserSpecificInfo(Long matchIdLong, Long userIdLong ,String mode, int page, int size){
-        Object roomType = null;
-
-        // solo, multi, all
-        if(mode.equals("solo")){
-            roomType = Room.RoomType.SOLO;
-        }else if(mode.equals("multi")){
-            roomType = Room.RoomType.MULTI;
-        }else if(mode.equals("all")){
-            roomType = "all";
-        }else{
-            throw new RoomTypeException(mode + "유형이 존재하지 않았습니다.");
-        }
-
-        // page offset 정보, 한 페이지당 최대 수 size, 최대 N개
-        Pageable topN = PageRequest.of(page, size);
-
-        // 결과 담을 객체.
-        List<Object> result = new ArrayList<>();
-
-        // 나의 정보, 다른 사람 정보 같이 담아준다.
-        List<MatchSpecificsStatsDTO> matchData = new ArrayList<>();
-
-        if( roomType.equals("solo") || roomType.equals("multi")){
-            Room.RoomType roomTypeCasted = (Room.RoomType) roomType;
-            System.out.println(roomTypeCasted);
-
-            // Match 내 사용자 정보 가져오기.
-            List<MatchSpecificsStatsDTO> matchSpecificsInfos = userStatsRepository.findMatchSpecificInfoStatsByMatchId(matchIdLong, roomTypeCasted);
-            matchData = matchSpecificsInfos;
-
-            if(roomType.equals("multi")){
-                MatchSpecificsStatsDTO myData = null;
-                for(MatchSpecificsStatsDTO matchSpecificsInfo: matchSpecificsInfos){
-                    //해당 유저에 대한 정보는 따로 빼둔다.
-                    if(userIdLong.equals(matchSpecificsInfo.getUserId())) {
-                        myData = matchSpecificsInfo;
-                    }
-                }
-            }
-
-
-        }else{
-            List<MatchSpecificsStatsDTO> matchSoloData = userStatsRepository.findMatchSpecificInfoStatsByMatchId(userIdLong, Room.RoomType.SOLO);
-            List<MatchSpecificsStatsDTO> matchMultiData = userStatsRepository.findMatchSpecificInfoStatsByMatchId(userIdLong, Room.RoomType.MULTI);
-
-            MatchSpecificsStatsDTO myData = null;
-            for(MatchSpecificsStatsDTO solo: matchSoloData){
-                matchData.add(solo);
-
-            }
-
-            for(MatchSpecificsStatsDTO multi: matchMultiData){
-                matchData.add(multi);
-                //해당 유저에 대한 정보는 따로 빼둔다.
-                if(userIdLong.equals(multi.getUserId())) {
-                    myData = multi;
-                }
-            }
-
-        }
-
-        result.add(matchData);
-
-
-        return result;
-    }
 
 }

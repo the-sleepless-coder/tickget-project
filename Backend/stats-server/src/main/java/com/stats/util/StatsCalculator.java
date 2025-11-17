@@ -53,6 +53,62 @@ public class StatsCalculator {
     }
 
     /**
+     * Float에 대한 표준 편차 계산
+     * */
+    public static Float calculateStdDevFloat(List<UserStats> stats, FloatExtractor extractor, Float mean) {
+        if (stats == null || stats.isEmpty() || mean == null) {
+            return 0f;
+        }
+
+        float sumSquaredDiff = 0f;
+        int count = 0;
+
+        for (UserStats us : stats) {
+            Float val = extractor.extract(us);
+            if (val != null) {
+                float diff = val - mean;
+                sumSquaredDiff += diff * diff;
+                count++;
+            }
+        }
+
+        if (count == 0) {
+            return 0f;
+        }
+
+        // 표준편차 = sqrt(분산)
+        // 분산 = 평균으로부터 각 값의 편차 제곱의 평균
+        return (float) Math.sqrt(sumSquaredDiff / count);
+    }
+
+    /**
+     * Integer에 대한 표준편차 계산
+     */
+    public static Float calculateStdDevInt(List<UserStats> stats, IntExtractor extractor, Float mean) {
+        if (stats == null || stats.isEmpty() || mean == null) {
+            return 0f;
+        }
+
+        float sumSquaredDiff = 0f;
+        int count = 0;
+
+        for (UserStats us : stats) {
+            Integer val = extractor.extract(us);
+            if (val != null) {
+                float diff = val - mean;
+                sumSquaredDiff += diff * diff;
+                count++;
+            }
+        }
+
+        if (count == 0) {
+            return 0f;
+        }
+
+        return (float) Math.sqrt(sumSquaredDiff / count);
+    }
+
+    /**
      * BOT 여부 판별
      * (UserStats에 isBot 필드가 있다고 가정, 없으면 다른 방법으로 판별)
      */
@@ -76,4 +132,6 @@ public class StatsCalculator {
     public static int nvl(Integer value) {
         return value != null ? value : 0;
     }
+
+
 }

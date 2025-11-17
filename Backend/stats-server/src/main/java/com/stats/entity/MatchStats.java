@@ -58,6 +58,15 @@ public class MatchStats {
     @Column(name="player_num", nullable = false)
     private Integer playerNum;
 
+    @Column(name = "stddev_date_select_time", nullable = false)
+    private Float stddevDateSelectTime;
+
+    @Column(name = "stddev_seccode_select_time", nullable = false)
+    private Float stddevSeccodeSelectTime;
+
+    @Column(name = "stddev_seat_select_time", nullable = false)
+    private Float stddevSeatSelectTime;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -91,6 +100,9 @@ public class MatchStats {
         this.avgSeatSelectTryCount = agg.getAvgSeatSelectTryCount();
         this.avgSeatSelectClickMissCount = agg.getAvgSeatSelectClickMissCount();
         this.playerNum = agg.getPlayerCount();
+        this.stddevDateSelectTime = agg.getStddevDateSelectTime();
+        this.stddevSeccodeSelectTime = agg.getStddevSeccodeSelectTime();
+        this.stddevSeatSelectTime = agg.getStddevSeatSelectTime();
     }
 
 }

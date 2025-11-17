@@ -15,12 +15,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Controller
@@ -94,7 +92,7 @@ public class StatsController {
      * Batch 단위로 데이터 수집
      * */
     // 게임 끝났을 때 집계 작업 수행.
-    @GetMapping("/stats/matches/{matchId}")
+    @PostMapping("/matchstats/{matchId}")
     public ResponseEntity<?> onGameEnd(@PathVariable("matchId")Long matchId) {
 
         // 1. 경기 종료 시 즉시 매치 통계 계산
@@ -103,20 +101,29 @@ public class StatsController {
         if(updateState){
             String message = "Match Updated for %s".formatted(matchId);
             log.info("Game ended and stats updated for matchId: {}", matchId);
-            return ResponseEntity.ok(message);
+            return ResponseEntity.ok(Map.of("message", message));
+
         }else{
             String errorMsg = "No UserStats found for matchId: %d".formatted(matchId);
             log.warn(errorMsg);
 
             return ResponseEntity
                     .status(HttpStatus.NOT_FOUND)
-                    .body(errorMsg);
+                    .body(Map.of("message", errorMsg));
         }
+    }
 
+    // Match 관련 데이터 가져오기
+    // 해당 userId에 맞게 한 페이지에 5개씩 가져오기
+    @GetMapping("/matchstats/{matchId}")
+    public ResponseEntity<?> getMatchStats(@PathVariable("matchId")Long matchId){
+
+
+        return null;
     }
 
 
-    // 매치 관련 데이터 가져오기
-    // 해당 userId에 맞게 한 페이지에 5개씩 가져오기
+
+
 
 }

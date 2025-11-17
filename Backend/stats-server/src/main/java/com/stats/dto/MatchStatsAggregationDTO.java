@@ -29,7 +29,14 @@ public class MatchStatsAggregationDTO {
 
     private Integer playerCount;
 
-    public static MatchStatsAggregationDTO dtobuilder(Long matchId, MatchStats.Type type, Float avgDateSelectTime, Float avgDateMissCount, Float avgSeccodeSelectTime, Float avgSeccodeBackspaceCount, Float avgSeccodeTryCount, Float avgSeatSelectTime, Float avgSeatSelectTryCount, Float avgSeatSelectClickMissCount, Integer playerCount){
+    private Float stddevDateSelectTime;
+    private Float stddevSeccodeSelectTime;
+    private Float stddevSeatSelectTime;
+
+
+    public static MatchStatsAggregationDTO dtobuilder(Long matchId, MatchStats.Type type, Float avgDateSelectTime, Float avgDateMissCount, Float avgSeccodeSelectTime, Float avgSeccodeBackspaceCount, Float avgSeccodeTryCount, Float avgSeatSelectTime, Float avgSeatSelectTryCount, Float avgSeatSelectClickMissCount, Integer playerCount,
+                                                      Float stddevDateSelectTime, Float stddevSeccodeSelectTime, Float stddevSeatSelectTime
+                                                      ){
         return MatchStatsAggregationDTO.builder()
                 .matchId(matchId)
                 .type(type)
@@ -42,6 +49,9 @@ public class MatchStatsAggregationDTO {
                 .avgSeatSelectTryCount(avgSeatSelectTryCount)
                 .avgSeatSelectClickMissCount(avgSeatSelectClickMissCount)
                 .playerCount(playerCount)
+                .stddevDateSelectTime(stddevDateSelectTime)
+                .stddevSeccodeSelectTime(stddevSeccodeSelectTime)
+                .stddevSeatSelectTime(stddevSeatSelectTime)
                 .build();
 
 
