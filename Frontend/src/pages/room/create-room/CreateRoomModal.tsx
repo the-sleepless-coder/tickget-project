@@ -591,7 +591,7 @@ export default function CreateRoomModal({
                         "인스파이어 아레나": 4,
                       };
                       const totalSeatMap: Record<string, number> = {
-                        샤롯데씨어터: 1236,
+                        샤롯데씨어터: 1231,
                         "올림픽공원 올림픽홀": 4256,
                         "인스파이어 아레나": 16424,
                       };
