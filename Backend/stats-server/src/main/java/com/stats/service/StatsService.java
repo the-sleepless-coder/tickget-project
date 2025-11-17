@@ -164,7 +164,6 @@ public class StatsService {
         List<MatchInfoStatsDTO> matchData = new ArrayList<>();
         // List<List<MatchSpecificsStatsDTO>> allMatchSpecifics = new ArrayList<>();
         List<List<MatchSpecificsStatsDifferenceAddedDTO>> allMatchSpecificsDifferenceAdded = new ArrayList<>();
-
         /**
          * Solo, Multi 데이터 처리.
          * */
@@ -174,6 +173,7 @@ public class StatsService {
              * */
             Room.RoomType roomTypeCasted = (Room.RoomType) roomType;
             List<MatchInfoStatsDTO> allMatchData = userStatsRepository.findMatchInfoStatsByUserId(userId, roomTypeCasted, topN);
+            log.info(allMatchData.toString());
 
             /**
              * 데이터 없음.
@@ -198,6 +198,7 @@ public class StatsService {
             for(MatchInfoStatsDTO data: allMatchData){
                 matchIdLong = data.getMatchId();
                 List<MatchSpecificsStatsDTO> matchSpecifics = userStatsRepository.findMatchSpecificInfoStatsByMatchId(matchIdLong, roomTypeCasted, topN);
+                log.info(matchSpecifics.toString());
 
                 // myData 조회.
                 MatchSpecificsStatsDTO myData = null;
@@ -332,6 +333,8 @@ public class StatsService {
                 // 이 매치에 대한 모든 참가자 기록
                 List<MatchSpecificsStatsDTO> matchSpecifics =
                         userStatsRepository.findMatchSpecificInfoStatsByMatchId(matchIdLong, type, topN);
+
+                log.info(matchSpecifics.toString());
 
                 if (matchSpecifics == null || matchSpecifics.isEmpty()) {
                     // 참가자 정보 없으면 빈 리스트로 넣고 넘어감

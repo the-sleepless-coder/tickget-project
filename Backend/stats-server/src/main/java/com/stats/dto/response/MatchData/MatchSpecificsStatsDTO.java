@@ -1,15 +1,13 @@
 package com.stats.dto.response.MatchData;
 
 import com.stats.entity.Room;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 @Getter
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
+@ToString
 public class MatchSpecificsStatsDTO {
     private Long userId;
     private String userName;
