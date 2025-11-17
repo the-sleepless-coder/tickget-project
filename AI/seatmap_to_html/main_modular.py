@@ -87,6 +87,24 @@ def _get_api_client() -> httpx.Client:
     }
     return httpx.Client(base_url=API_BASE, headers=headers, timeout=20.0)
 
+# def _raise_with_context(resp: httpx.Response, context: str):
+#     try:
+#         detail = resp.json()
+#     except Exception:
+#         detail = resp.text
+#     raise HTTPException(
+#         status_code=502,
+#         detail=f"{context} failed (upstream {resp.status_code}). body={detail}"
+#     )
+
+# def _ensure_bucket(bucket: str = MINIO_BUCKET) -> None:
+#     from minio.error import S3Error
+#     try:
+#         if not _minio_client.bucket_exists(bucket):
+#             _minio_client.make_bucket(bucket)
+#     except S3Error:
+#         pass
+
 # --- 그대로 사용(주석만 추가) ---
 def post_hall_and_get_id(*, name: str, total_seat: int) -> str:
     base = os.environ.get("HALLS_API_BASE", "").rstrip("/")
@@ -154,6 +172,38 @@ def post_hall_and_get_id(*, name: str, total_seat: int) -> str:
 
     # 두 주소 모두 실패하면 상세 에러 표시
     raise RuntimeError(f"Halls register failed at {urls_to_try}: {last_err}")
+
+# def _put_minio_with_retry(
+#     bucket: str,
+#     object_name: str,
+#     content: bytes,
+#     content_type: str,
+#     *,
+#     max_attempts: int = 4,
+#     base_delay: float = 0.6,
+# ) -> Tuple[bool, str]:
+#     """
+#     MinIO put_object with exponential backoff.
+#     Returns (ok, err_msg)
+#     """
+#     _ensure_bucket(bucket)  # ensure bucket exists :contentReference[oaicite:4]{index=4}
+#     attempt = 0
+#     while True:
+#         attempt += 1
+#         try:
+#             _minio_client.put_object(
+#                 bucket,
+#                 object_name.lstrip("/"),
+#                 io.BytesIO(content),
+#                 length=len(content),
+#                 content_type=content_type
+#             )
+#             return True, ""
+#         except Exception as e:
+#             if attempt >= max_attempts:
+#                 return False, f"{type(e).__name__}: {e}"
+#             time.sleep(base_delay * (2 ** (attempt - 1)))
+
 
 def _halls_auth_headers() -> dict:
     raw = os.getenv("TICKGET_API_TOKEN") or os.getenv("HALLS_API_TOKEN")
@@ -227,18 +277,23 @@ async def _finalize_and_publish(
     capacity: int,
     tsx_bytes: bytes,
     meta_dict: dict,
+    hall_name: Optional[str] = None,
+    object_stem: Optional[str] = None,
 ) -> dict:
     """
     1) Halls 서비스에 등록 → hallId 획득
     2) MinIO에 TSX / meta.json 업로드 (재시도 + 로컬 폴백)
     3) 업로드 결과 리턴
     """
-    logger.info("Finalize&Publish start: src=%s capacity=%s (tsx=%d bytes, meta_keys=%d)",
-                src_filename, capacity, len(tsx_bytes), len(meta_dict or {}))
-    stem = os.path.splitext(src_filename)[0]
+    logger.info(
+        "Finalize&Publish start: src=%s capacity=%s hall_name=%s (tsx=%d bytes, meta_keys=%d)",
+        src_filename, capacity, hall_name, len(tsx_bytes), len(meta_dict or {})
+    )
+    stem = (object_stem or "").strip() or os.path.splitext(src_filename)[0]
+    hall_register_name = (hall_name or "").strip() or stem
 
     # 1) Halls 등록
-    hall_id = await _register_hall_and_get_id(stem, capacity)
+    hall_id = await _register_hall_and_get_id(hall_register_name, capacity)
 
     # 2) MinIO 업로드(재시도) + 로컬 폴백
     tsx_key  = f"{stem}.tsx"
@@ -686,62 +741,6 @@ def stage_reference_point(stage_union_xywh, fallback_center):
 def _ocr_base_url() -> str:
     # 환경변수로 바꿀 수 있게: OCR_URL=http://localhost:8100
     return ""
-
-def call_ocr_extract_bgr(bgr: np.ndarray, *, min_score: float = 0.5, mask_dilate: int = 2) -> List[Dict[str, Any]]:
-    """
-    ocr_service.py 의 POST /ocr/extract 를 호출해 lines/items를 받아온다.
-    반환: [{ "text", "score", "poly": [[x,y],...], "bbox":[x1,y1,x2,y2], "center":[cx,cy] }, ...]
-    파이프라인에서는 normalize_ocr_lines()에 넘겨 poly→bbox/cx,cy로 정규화해서 쓴다.
-    """
-    return []
-
-    ok, buf = cv2.imencode(".png", bgr)
-    if not ok:
-        return []
-
-    url = _ocr_base_url() + "/ocr/extract"
-    files = {"file": ("img.png", buf.tobytes(), "image/png")}
-    data = {
-        "min_score": str(min_score),
-        "return_mask": "false",
-        "mask_dilate": str(int(mask_dilate)),
-    }
-    try:
-        with httpx.Client(timeout=10.0) as client:
-            resp = client.post(url, files=files, data=data)
-            resp.raise_for_status()
-            js = resp.json()
-            # ocr_service는 "items"와 "lines"를 반환한다. items가 더 풍부함.
-            items = js.get("items") or []
-            # items가 없으면 lines를 items 형태로 변환
-            if not items and js.get("lines"):
-                items = [{"text": ln.get("text",""),
-                          "score": float((ln.get("score") or 0.0)),
-                          "poly": ln.get("poly") or []} for ln in js["lines"]]
-            return items
-    except Exception:
-        return []
-
-def call_ocr_extract_path(path: str, *, min_score: float = 0.5, mask_dilate: int = 2) -> Dict[str, Any]:
-    """
-    파일 경로를 받아 /ocr/extract 호출. 텍스트 마스크 경로 등 메타를 그대로 반환.
-    """
-    return {}
-    url = _ocr_base_url() + "/ocr/extract"
-    try:
-        with open(path, "rb") as f:
-            files = {"file": (os.path.basename(path), f.read(), "image/png")}
-        data = {
-            "min_score": str(min_score),
-            "return_mask": "true",
-            "mask_dilate": str(int(mask_dilate)),
-        }
-        with httpx.Client(timeout=10.0) as client:
-            resp = client.post(url, files=files, data=data)
-            resp.raise_for_status()
-            return resp.json()
-    except Exception:
-        return {}
 
 def _inject_synthetic_stage_region(
     regions: List[Dict[str, Any]],
@@ -1738,25 +1737,6 @@ def union_bbox_xywh(bbs: List[Tuple[int, int, int, int]]) -> Optional[Tuple[int,
     x0, y0, x1, y1 = min(xs), min(ys), max(x2s), max(y2s)
     return (x0, y0, x1 - x0, y1 - y0)
 
-def normalize_ocr_lines(lines_raw: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    return []
-    for ln in lines_raw:
-        poly = ln.get("poly") or []
-        if not poly:
-            continue
-        xs = [p[0] for p in poly]; ys = [p[1] for p in poly]
-        x, y = min(xs), min(ys)
-        w, h = max(xs) - x, max(ys) - y
-        cx = int(sum(xs) / len(xs)); cy = int(sum(ys) / len(ys))
-        out.append({
-            "text": ln.get("text", ""),
-            "score": float(ln.get("score", 0.0)),
-            "poly": [[int(px), int(py)] for px, py in poly],
-            "bbox": [int(x), int(y), int(w), int(h)],
-            "cx": int(cx), "cy": int(cy)
-        })
-    return out
-
 # ----------------------------
 # 텍스트/회색/검정 판정 유틸
 # ----------------------------
@@ -1969,31 +1949,6 @@ def maybe_inject_stage_after_mark(
 # ----------------------------
 # HTML Render (pretty + OCR overlay)
 # ----------------------------
-
-def _legend_html(color_summary: List[Dict[str, Any]], note: str) -> str:
-    return ""
-    # rows = []
-    # for item in color_summary:
-    #     rows.append(
-    #         "\n".join([
-    #             "        <div class='row'>",
-    #             f"          <span class='sw' style='background:{item['repr_hex']}'></span>",
-    #             f"          <span class='txt'>G{item['group']} · {item['repr_hex']} · n={item['count']} · meanD={item['mean_distance']}</span>",
-    #             "        </div>",
-    #         ])
-    #     )
-    # # if not rows:
-    #     rows.append("        <div class='empty'>No color groups</div>")
-    # return "\n".join([
-    #     "      <div class='legend'>",
-    #     "        <div class='title'>Color Groups (by stage distance)</div>",
-    #     *rows,
-    #     f"        <div class='note'>{note}</div>",
-    #     "      </div>",
-    # ])
-
-def _escape_html(s: str) -> str:
-    return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 def write_svg_html(
     img_bgr,
@@ -2773,6 +2728,7 @@ def _process_image_pipeline(
 
     gray_thr = estimate_gray_thresholds(bgr, q=gray_chroma_quantile)
     mark_gray_black_textish_flags(bgr, regions, gray_thr)
+    regions = [r for r in regions if not r.get("is_textish", False)]
 
     _tmp_groups = cluster_by_color(regions, COLOR_DELTA)
     for r in regions:
@@ -2887,7 +2843,7 @@ def _process_image_pipeline(
     out_tsx_path = with_ts(RESULT_DIR, img_path.stem, "_v5.tsx")
     tsx_text = write_svg_tsx(
         w, h, regions, out_tsx_path,
-        min_render_area=0,
+        min_render_area=int(min_render_area),
         stage_only=stage_only
     )
 
@@ -2994,6 +2950,7 @@ export default function SeatMap() {{
 async def process_html(
     file: UploadFile = File(...),
     capacity: int = Form(...),
+    hall_name: Optional[str] = Form(None),
 ):
     """
     업로드된 이미지 처리 → 내부 파이프라인 실행(TSX + meta 생성) → /halls → MinIO 업로드
@@ -3001,6 +2958,11 @@ async def process_html(
     """
     total_start = time.perf_counter()
     stage_times: list[tuple[str, float]] = []
+    raw_hall_name = (hall_name or "").strip()
+    safe_hall_stem = re.sub(r"[^0-9A-Za-z._\-\uAC00-\uD7A3]+", "_", raw_hall_name) if raw_hall_name else ""
+    safe_hall_stem = safe_hall_stem.strip("_") or safe_hall_stem
+    if not safe_hall_stem:
+        safe_hall_stem = os.path.splitext(file.filename)[0]
 
     def _mark(name: str, started: float) -> None:
         stage_times.append((name, (time.perf_counter() - started) * 1000.0))
@@ -3009,7 +2971,7 @@ async def process_html(
         # 0) 업로드 저장(원본)
         data_dir = Path(os.environ.get("OUT_DATA_DIR", "/mnt/data/STH_v1/data"))
         data_dir.mkdir(parents=True, exist_ok=True)
-        stem = os.path.splitext(file.filename)[0]
+        stem = safe_hall_stem
         tmp_img_path = data_dir / file.filename
         t = time.perf_counter()
         tmp_bytes = await file.read()
@@ -3056,6 +3018,8 @@ async def process_html(
             capacity=capacity,
             tsx_bytes=tsx_bytes,
             meta_dict=meta_dict,
+            hall_name=raw_hall_name or safe_hall_stem,
+            object_stem=safe_hall_stem,
         )
         _mark("finalize_publish", t)
 
