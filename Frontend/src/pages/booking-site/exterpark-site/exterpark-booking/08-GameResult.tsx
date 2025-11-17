@@ -19,6 +19,7 @@ import {
   getSessionToastLLM,
   buildSeatMetricsPayload,
 } from "@features/booking-site/api";
+import GameAnalysisLoader from "./_components/GameAnalysisLoader";
 
 export default function GameResultPage() {
   const navigate = useNavigate();
@@ -218,26 +219,6 @@ export default function GameResultPage() {
           <h1 className="text-2xl font-extrabold text-gray-900">경기 결과</h1>
         </div>
 
-        {/* AI 분석 메시지 */}
-        {isLoadingAnalysis ? (
-          <div
-            className="mt-4 rounded-lg bg-white p-4 border border-gray-200 flex flex-col items-center justify-center gap-2"
-            style={{ boxShadow: "0 1px 3px 0 rgba(147, 197, 253, 0.3)" }}
-          >
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-200 border-t-blue-600"></div>
-            <div className="text-sm text-gray-500">로딩 중</div>
-          </div>
-        ) : analysisMessage ? (
-          <div
-            className="mt-4 rounded-lg bg-white p-4 border border-gray-200"
-            style={{ boxShadow: "0 1px 3px 0 rgba(147, 197, 253, 0.3)" }}
-          >
-            <div className="text-sm text-gray-700 whitespace-pre-wrap">
-              {analysisMessage}
-            </div>
-          </div>
-        ) : null}
-
         {/* 성과 요약 */}
         <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="rounded-lg bg-[#6e8ee3] text-white text-center py-4 text-3xl font-extrabold">
@@ -342,6 +323,22 @@ export default function GameResultPage() {
               },
             ]}
           />
+        </div>
+
+        {/* AI 분석 메시지 (세 개 섹션 밑, 방 나가기 버튼 위) */}
+        <div className="mt-6">
+          {isLoadingAnalysis ? (
+            <GameAnalysisLoader />
+          ) : analysisMessage ? (
+            <div
+              className="rounded-lg bg-white p-4 border border-gray-200"
+              style={{ boxShadow: "0 1px 3px 0 rgba(147, 197, 253, 0.3)" }}
+            >
+              <div className="text-sm text-gray-700 whitespace-pre-wrap">
+                {analysisMessage}
+              </div>
+            </div>
+          ) : null}
         </div>
 
         {/* 하단 버튼 */}
