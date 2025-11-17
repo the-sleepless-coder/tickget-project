@@ -16,6 +16,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@ToString
 public class MatchStats {
 
     @Id
@@ -54,6 +55,9 @@ public class MatchStats {
     @Column(name = "avg_seat_select_click_miss_count", nullable = false)
     private Float avgSeatSelectClickMissCount;
 
+    @Column(name="player_num", nullable = false)
+    private Integer playerNum;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -76,6 +80,8 @@ public class MatchStats {
     }
 
     public void updateStats(MatchStatsAggregationDTO agg) {
+        this.matchId = agg.getMatchId();
+        this.type = agg.getType();
         this.avgDateSelectTime = agg.getAvgDateSelectTime();
         this.avgDateMissCount = agg.getAvgDateMissCount();
         this.avgSeccodeSelectTime = agg.getAvgSeccodeSelectTime();
@@ -84,6 +90,7 @@ public class MatchStats {
         this.avgSeatSelectTime = agg.getAvgSeatSelectTime();
         this.avgSeatSelectTryCount = agg.getAvgSeatSelectTryCount();
         this.avgSeatSelectClickMissCount = agg.getAvgSeatSelectClickMissCount();
+        this.playerNum = agg.getPlayerCount();
     }
 
 }

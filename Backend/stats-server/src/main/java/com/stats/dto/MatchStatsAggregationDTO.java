@@ -1,6 +1,7 @@
 package com.stats.dto;
 
 import com.stats.entity.MatchStats;
+import com.stats.entity.UserStats;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -26,7 +27,9 @@ public class MatchStatsAggregationDTO {
     private Float avgSeatSelectTryCount;
     private Float avgSeatSelectClickMissCount;
 
-    public static MatchStatsAggregationDTO dtobuilder(Long matchId, MatchStats.Type type, Float avgDateSelectTime, Float avgDateMissCount, Float avgSeccodeSelectTime, Float avgSeccodeBackspaceCount, Float avgSeccodeTryCount, Float avgSeatSelectTime, Float avgSeatSelectTryCount, Float avgSeatSelectClickMissCount){
+    private Integer playerCount;
+
+    public static MatchStatsAggregationDTO dtobuilder(Long matchId, MatchStats.Type type, Float avgDateSelectTime, Float avgDateMissCount, Float avgSeccodeSelectTime, Float avgSeccodeBackspaceCount, Float avgSeccodeTryCount, Float avgSeatSelectTime, Float avgSeatSelectTryCount, Float avgSeatSelectClickMissCount, Integer playerCount){
         return MatchStatsAggregationDTO.builder()
                 .matchId(matchId)
                 .type(type)
@@ -38,6 +41,7 @@ public class MatchStatsAggregationDTO {
                 .avgSeatSelectTime(avgSeatSelectTime)
                 .avgSeatSelectTryCount(avgSeatSelectTryCount)
                 .avgSeatSelectClickMissCount(avgSeatSelectClickMissCount)
+                .playerCount(playerCount)
                 .build();
 
 

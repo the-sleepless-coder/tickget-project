@@ -27,7 +27,6 @@ export default function PlainLayout() {
 
       // 이미 구독되어 있으면 스킵
       if (userSubscriptionRef.current) {
-       
         return;
       }
 
@@ -46,9 +45,12 @@ export default function PlainLayout() {
           // 결과 페이지에서는 USER_LEFT 이벤트 무시
           const currentPath = window.location.pathname;
           const isGameResultPage = currentPath.includes("/game-result");
-          
-          if (isGameResultPage && (event.eventType === "USER_LEFT" || event.eventType === "USER_EXITED")) {
-           
+
+          if (
+            isGameResultPage &&
+            (event.eventType === "USER_LEFT" ||
+              event.eventType === "USER_EXITED")
+          ) {
             return; // 결과 페이지에서는 퇴장 알림 무시
           }
 
@@ -95,58 +97,60 @@ export default function PlainLayout() {
       }
     };
 
-    // 기존 클라이언트가 있으면 재사용 (MainLayout에서 생성한 클라이언트)
-    const existingClient = useWebSocketStore.getState().client;
+    if (isLoggedIn) {
+      // 먼저 기존 웹소켓 클라이언트 확인 (store에서)
+      const existingClient = useWebSocketStore.getState().client;
 
-    if (isLoggedIn && existingClient) {
-      // 기존 클라이언트가 있으면 재사용
-      clientRef.current = existingClient;
-      if (existingClient.connected && !userSubscriptionRef.current) {
+      if (existingClient && existingClient.connected) {
+        // 기존 연결이 있고 연결되어 있으면 재사용
         if (import.meta.env.DEV) {
-          console.log("✅ [PlainLayout] 기존 WebSocket 클라이언트 재사용");
+          console.log("✅ [PlainLayout] 기존 WebSocket 연결 재사용");
         }
-        doSubscribeUserMessage(existingClient);
-      } else if (!existingClient.connected) {
-        // 연결이 끊어진 경우 재연결 대기
+        clientRef.current = existingClient;
+
+        // 개인 메시지 구독이 없으면 구독
+        if (!userSubscriptionRef.current) {
+          doSubscribeUserMessage(existingClient);
+        }
+      } else if (!clientRef.current) {
+        // 기존 연결이 없거나 끊어진 경우에만 새로 생성
         if (import.meta.env.DEV) {
-          console.log("⏳ [PlainLayout] WebSocket 재연결 대기 중...");
+          console.log("🆕 [PlainLayout] 새 WebSocket 연결 생성");
         }
+        const client = createStompClient({
+          onConnect: () => {
+            if (import.meta.env.DEV) {
+              console.log("✅ [PlainLayout] WebSocket 연결 완료");
+            }
+
+            // 개인 메시지 구독: /user/{userId}
+            doSubscribeUserMessage(client);
+          },
+          onDisconnect: () => {
+            if (import.meta.env.DEV) {
+              console.log("⚠️ [PlainLayout] WebSocket 연결 끊김");
+            }
+            // 구독 해제
+            if (userSubscriptionRef.current) {
+              userSubscriptionRef.current.unsubscribe();
+              userSubscriptionRef.current = null;
+            }
+          },
+          onError: (err) => {
+            if (import.meta.env.DEV) {
+              console.error("❌ [PlainLayout] WebSocket 에러:", err);
+            }
+            // 구독 해제
+            if (userSubscriptionRef.current) {
+              userSubscriptionRef.current.unsubscribe();
+              userSubscriptionRef.current = null;
+            }
+          },
+        });
+        clientRef.current = client;
+        setClient(client);
+        connectStompClient(client);
       }
-    } else if (isLoggedIn && !clientRef.current) {
-      // 기존 클라이언트가 없을 때만 새로 생성
-      const client = createStompClient({
-        onConnect: () => {
-          if (import.meta.env.DEV) {
-            console.log("✅ [PlainLayout] WebSocket 연결 완료");
-          }
-
-          // 개인 메시지 구독: /user/{userId}
-          doSubscribeUserMessage(client);
-        },
-        onDisconnect: () => {
-          if (import.meta.env.DEV) {
-            console.log("⚠️ [PlainLayout] WebSocket 연결 끊김");
-          }
-          // 구독 해제
-          if (userSubscriptionRef.current) {
-            userSubscriptionRef.current.unsubscribe();
-            userSubscriptionRef.current = null;
-          }
-        },
-        onError: (err) => {
-          if (import.meta.env.DEV) {
-            console.error("❌ [PlainLayout] WebSocket 에러:", err);
-          }
-          // 구독 해제
-          if (userSubscriptionRef.current) {
-            userSubscriptionRef.current.unsubscribe();
-            userSubscriptionRef.current = null;
-          }
-        },
-      });
-      clientRef.current = client;
-      setClient(client);
-      connectStompClient(client);
     }
 
     return () => {

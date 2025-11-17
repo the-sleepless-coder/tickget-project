@@ -31,7 +31,6 @@ export default function MainLayout() {
 
       // 이미 구독되어 있으면 스킵
       if (userSubscriptionRef.current) {
-       
         return;
       }
 
@@ -50,10 +49,17 @@ export default function MainLayout() {
           // 결과 페이지에서는 USER_LEFT 이벤트 무시
           const currentPath = window.location.pathname;
           const isGameResultPage = currentPath.includes("/game-result");
-          
-          if (isGameResultPage && (event.eventType === "USER_LEFT" || event.eventType === "USER_EXITED")) {
+
+          if (
+            isGameResultPage &&
+            (event.eventType === "USER_LEFT" ||
+              event.eventType === "USER_EXITED")
+          ) {
             if (import.meta.env.DEV) {
-              console.log("ℹ️ [개인 메시지] 결과 페이지에서 USER_LEFT 이벤트 무시:", event);
+              console.log(
+                "ℹ️ [개인 메시지] 결과 페이지에서 USER_LEFT 이벤트 무시:",
+                event
+              );
             }
             return; // 결과 페이지에서는 퇴장 알림 무시
           }
@@ -102,71 +108,80 @@ export default function MainLayout() {
       }
     };
 
-    if (isLoggedIn && !clientRef.current) {
-      const client = createStompClient({
-        onConnect: () => {
-          if (import.meta.env.DEV) {
-            console.log("✅ 홈 진입: WebSocket 연결 완료");
-          }
-
-          // 개인 메시지 구독: /user/{userId}
-          doSubscribeUserMessage(client);
-        },
-        onDisconnect: () => {
-          if (import.meta.env.DEV) {
-            console.log("⚠️ WebSocket 연결 끊김");
-          }
-          // 구독 해제
-          if (userSubscriptionRef.current) {
-            userSubscriptionRef.current.unsubscribe();
-            userSubscriptionRef.current = null;
-          }
-          // 이미 로그아웃 상태면 자동 로그아웃을 하지 않음 (의도적인 로그아웃인 경우)
-          const currentAccessToken = useAuthStore.getState().accessToken;
-          if (currentAccessToken) {
-            // 로그인 상태인데 연결이 끊긴 경우에만 자동 로그아웃
-            if (import.meta.env.DEV) {
-              console.log("⚠️ WebSocket 연결 끊김 - 자동 로그아웃");
-            }
-            useAuthStore.getState().clearAuth();
-            navigate("/", { replace: true });
-          } else {
-          
-          }
-        },
-        onError: (err) => {
-          if (import.meta.env.DEV) {
-            console.error("❌ WebSocket 에러:", err);
-          }
-          // 구독 해제
-          if (userSubscriptionRef.current) {
-            userSubscriptionRef.current.unsubscribe();
-            userSubscriptionRef.current = null;
-          }
-          // 이미 로그아웃 상태면 자동 로그아웃을 하지 않음
-          const currentAccessToken = useAuthStore.getState().accessToken;
-          if (currentAccessToken) {
-            // 로그인 상태인데 에러가 발생한 경우에만 자동 로그아웃
-            useAuthStore.getState().clearAuth();
-            navigate("/", { replace: true });
-          }
-        },
-      });
-      clientRef.current = client;
-      setClient(client); // store에 저장
-      connectStompClient(client);
-    } else if (isLoggedIn) {
-      // 웹소켓이 이미 연결되어 있는 경우 (방 입장 후 나와서 다시 전체 방 목록인 경우)
+    if (isLoggedIn) {
+      // 먼저 기존 웹소켓 클라이언트 확인 (store에서)
       const existingClient = useWebSocketStore.getState().client;
-      if (
-        existingClient &&
-        existingClient.connected &&
-        !userSubscriptionRef.current
-      ) {
+
+      if (existingClient && existingClient.connected) {
+        // 기존 연결이 있고 연결되어 있으면 재사용
         if (import.meta.env.DEV) {
-          console.log("✅ [개인 메시지] 기존 연결에서 구독 시도");
+          console.log("✅ [MainLayout] 기존 WebSocket 연결 재사용");
         }
-        doSubscribeUserMessage(existingClient);
+        clientRef.current = existingClient;
+
+        // 개인 메시지 구독이 없으면 구독
+        if (!userSubscriptionRef.current) {
+          if (import.meta.env.DEV) {
+            console.log("✅ [개인 메시지] 기존 연결에서 구독 시도");
+          }
+          doSubscribeUserMessage(existingClient);
+        }
+      } else if (!clientRef.current) {
+        // 기존 연결이 없거나 끊어진 경우에만 새로 생성
+        if (import.meta.env.DEV) {
+          console.log("🆕 [MainLayout] 새 WebSocket 연결 생성");
+        }
+        const client = createStompClient({
+          onConnect: () => {
+            if (import.meta.env.DEV) {
+              console.log("✅ 홈 진입: WebSocket 연결 완료");
+            }
+
+            // 개인 메시지 구독: /user/{userId}
+            doSubscribeUserMessage(client);
+          },
+          onDisconnect: () => {
+            if (import.meta.env.DEV) {
+              console.log("⚠️ WebSocket 연결 끊김");
+            }
+            // 구독 해제
+            if (userSubscriptionRef.current) {
+              userSubscriptionRef.current.unsubscribe();
+              userSubscriptionRef.current = null;
+            }
+            // 이미 로그아웃 상태면 자동 로그아웃을 하지 않음 (의도적인 로그아웃인 경우)
+            const currentAccessToken = useAuthStore.getState().accessToken;
+            if (currentAccessToken) {
+              // 로그인 상태인데 연결이 끊긴 경우에만 자동 로그아웃
+              if (import.meta.env.DEV) {
+                console.log("⚠️ WebSocket 연결 끊김 - 자동 로그아웃");
+              }
+              useAuthStore.getState().clearAuth();
+              navigate("/", { replace: true });
+            } else {
+            }
+          },
+          onError: (err) => {
+            if (import.meta.env.DEV) {
+              console.error("❌ WebSocket 에러:", err);
+            }
+            // 구독 해제
+            if (userSubscriptionRef.current) {
+              userSubscriptionRef.current.unsubscribe();
+              userSubscriptionRef.current = null;
+            }
+            // 이미 로그아웃 상태면 자동 로그아웃을 하지 않음
+            const currentAccessToken = useAuthStore.getState().accessToken;
+            if (currentAccessToken) {
+              // 로그인 상태인데 에러가 발생한 경우에만 자동 로그아웃
+              useAuthStore.getState().clearAuth();
+              navigate("/", { replace: true });
+            }
+          },
+        });
+        clientRef.current = client;
+        setClient(client); // store에 저장
+        connectStompClient(client);
       }
     }
 

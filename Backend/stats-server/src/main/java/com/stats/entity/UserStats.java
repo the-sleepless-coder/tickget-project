@@ -15,6 +15,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@ToString
 //@org.hibernate.annotations.Immutable  // 읽기 전용으로 설정 (다른 테이블용)
 public class UserStats {
 

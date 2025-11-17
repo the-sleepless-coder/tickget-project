@@ -187,9 +187,7 @@ export default function RoomCard({
                       b: pixel[2],
                     });
                   }
-                } catch (e) {
-                 
-                }
+                } catch (e) {}
               }
             }
 
@@ -312,7 +310,6 @@ export default function RoomCard({
 
     setIsJoining(true);
     try {
-     
       const response = await joinRoom(roomId, {
         userId,
         userName: nickname,
@@ -487,11 +484,7 @@ export default function RoomCard({
                 </div>
               </div>
             </div>
-          ) : (
-            <div className="mt-auto flex justify-end">
-              <span className="text-sm text-gray-500">종료</span>
-            </div>
-          )}
+          ) : null}
         </div>
       </div>
     </div>

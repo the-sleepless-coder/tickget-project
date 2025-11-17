@@ -183,8 +183,8 @@ export default function HomePage() {
   }, [fetchRooms]);
 
   const displayedRooms = useMemo(() => {
-    // 진행 중인 방은 추천 방 목록에서 제외
-    const filteredRooms = rooms.filter((r) => !r.ongoing);
+    // 진행 중인 방과 종료된 방(시작 시간이 없는 방)은 추천 방 목록에서 제외
+    const filteredRooms = rooms.filter((r) => !r.ongoing && r.startTime);
     return sortRooms(
       filteredRooms,
       activeSort === "latest" ? "latest" : "start"
