@@ -1,21 +1,19 @@
 package com.ticketing.seat.service;
 
-import com.ticketing.entity.Match;
-import com.ticketing.repository.MatchRepository;
-import com.ticketing.repository.UserStatsRepository;
 import com.ticketing.seat.concurrency.LuaCancelExecutor;
 import com.ticketing.seat.dto.SeatCancelResponse;
 import com.ticketing.seat.dto.SeatInfo;
+import com.ticketing.entity.Match;
 import com.ticketing.seat.exception.MatchNotFoundException;
+import com.ticketing.repository.MatchRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -23,40 +21,20 @@ import java.util.Set;
 public class SeatCancelService {
 
     private final MatchRepository matchRepository;
-    private final UserStatsRepository userStatsRepository;
-    private final LuaCancelExecutor luaCancelExecutor;
     private final StringRedisTemplate redisTemplate;
-    private final RoomServerClient roomServerClient; // ✅ Confirm 서비스와 동일하게 주입
+    private final LuaCancelExecutor luaCancelExecutor;
 
     @Transactional
     public SeatCancelResponse cancelSeats(Long matchId, Long userId) {
-
         try {
             // 1. Match 조회
             Match match = matchRepository.findById(matchId)
                     .orElseThrow(() -> new MatchNotFoundException(matchId));
 
-            // 2. DB에서 이미 Confirm 했는지 확인
-            boolean alreadyConfirmed = !userStatsRepository
-                    .findByMatchIdAndUserId(matchId, userId)
-                    .isEmpty();
-
-            if (alreadyConfirmed) {
-                log.warn("이미 확정된 좌석 취소 시도: matchId={}, userId={}", matchId, userId);
-                return SeatCancelResponse.builder()
-                        .success(false)
-                        .message("이미 확정된 좌석은 취소할 수 없습니다.")
-                        .matchId(matchId)
-                        .userId(userId)
-                        .cancelledSeatCount(0)
-                        .build();
-            }
-
-            // 3. Redis에서 해당 유저의 좌석 조회
+            // 2. Redis에서 해당 유저의 좌석 정보 조회
             List<SeatInfo> userSeats = findUserSeatsInfo(matchId, userId);
 
             if (userSeats.isEmpty()) {
-                log.warn("취소할 좌석 없음: matchId={}, userId={}", matchId, userId);
                 return SeatCancelResponse.builder()
                         .success(false)
                         .message("취소할 좌석이 없습니다.")
@@ -66,72 +44,68 @@ public class SeatCancelService {
                         .build();
             }
 
-            // 4. 좌석 정보 추출 (현재 설계: 한 번의 Hold/Cancel은 한 섹션 기준)
-            String sectionId = userSeats.get(0).getSectionId().toString();
-            List<String> rowNumbers = userSeats.stream()
-                    .map(SeatInfo::toRowNumber)
-                    .toList();
+            // 3. 섹션별로 그룹화
+            Map<Long, List<SeatInfo>> seatsBySection = userSeats.stream()
+                    .collect(Collectors.groupingBy(SeatInfo::getSectionId));
 
-            // 5. 룸 서버에서 전체 좌석 수 조회 (Confirm 로직과 동일 기준)
-            Long roomId = match.getRoomId();
-            Integer totalSeats = roomServerClient.getTotalSeats(roomId);
+            int totalCancelledSeats = 0;
 
-            if (totalSeats == null) {
-                log.warn("룸 서버에서 totalSeats를 가져오지 못했습니다. matchId={}, roomId={}", matchId, roomId);
-                return SeatCancelResponse.builder()
-                        .success(false)
-                        .message("좌석 정보 조회에 실패했습니다.")
-                        .matchId(matchId)
-                        .userId(userId)
-                        .cancelledSeatCount(0)
-                        .build();
+            // 4. 섹션별로 Lua 스크립트 실행
+            for (Map.Entry<Long, List<SeatInfo>> entry : seatsBySection.entrySet()) {
+                Long sectionId = entry.getKey();
+                List<SeatInfo> seatsInSection = entry.getValue();
+
+                List<String> rowNumbers = seatsInSection.stream()
+                        .map(SeatInfo::toRowNumber)
+                        .toList();
+
+                log.info("좌석 취소 시도: matchId={}, userId={}, sectionId={}, seats={}",
+                        matchId, userId, sectionId, rowNumbers);
+
+                // Lua 스크립트로 원자적 취소
+                Long result = luaCancelExecutor.tryCancelSeatsAtomically(
+                        matchId,
+                        String.valueOf(sectionId),
+                        rowNumbers,
+                        userId,
+                        0  // totalSeats 사용 안 함 (하위 호환성)
+                );
+
+                if (result != null && result == 1L) {
+                    totalCancelledSeats += seatsInSection.size();
+                    log.info("좌석 취소 성공: matchId={}, userId={}, sectionId={}, count={}",
+                            matchId, userId, sectionId, seatsInSection.size());
+                } else {
+                    log.warn("좌석 취소 실패: matchId={}, userId={}, sectionId={}",
+                            matchId, userId, sectionId);
+                }
             }
 
-            // 6. Lua 스크립트로 원자적 취소
-            Long result = luaCancelExecutor.tryCancelSeatsAtomically(
-                    matchId,
-                    sectionId,
-                    rowNumbers,
-                    userId,
-                    totalSeats //  인원 수가 아니라, "전체 좌석 수"
-            );
-
-            // 7. 결과 처리
-            if (result == null || result == 0L) {
-                log.error("좌석 취소 실패: matchId={}, userId={}", matchId, userId);
+            if (totalCancelledSeats > 0) {
                 return SeatCancelResponse.builder()
-                        .success(false)
-                        .message("좌석 취소에 실패했습니다.")
+                        .success(true)
+                        .message("좌석 취소 성공")
                         .matchId(matchId)
                         .userId(userId)
-                        .cancelledSeatCount(0)
+                        .cancelledSeatCount(totalCancelledSeats)
                         .build();
-            }
-
-            String message;
-            if (result == 2L) {
-                message = "좌석 취소 완료 (만석 해제됨)";
-                log.info("좌석 취소 + OPEN 복구: matchId={}, userId={}, seats={}",
-                        matchId, userId, rowNumbers.size());
             } else {
-                message = "좌석 취소 완료";
-                log.info("좌석 취소 성공: matchId={}, userId={}, seats={}",
-                        matchId, userId, rowNumbers.size());
+                return SeatCancelResponse.builder()
+                        .success(false)
+                        .message("좌석 취소 실패")
+                        .matchId(matchId)
+                        .userId(userId)
+                        .cancelledSeatCount(0)
+                        .build();
             }
 
-            return SeatCancelResponse.builder()
-                    .success(true)
-                    .message(message)
-                    .matchId(matchId)
-                    .userId(userId)
-                    .cancelledSeatCount(rowNumbers.size())
-                    .build();
-
+        } catch (MatchNotFoundException e) {
+            throw e;
         } catch (Exception e) {
             log.error("좌석 취소 중 오류 발생: matchId={}, userId={}", matchId, userId, e);
             return SeatCancelResponse.builder()
                     .success(false)
-                    .message("좌석 취소 처리 중 오류가 발생했습니다: " + e.getMessage())
+                    .message("좌석 취소 중 오류: " + e.getMessage())
                     .matchId(matchId)
                     .userId(userId)
                     .cancelledSeatCount(0)

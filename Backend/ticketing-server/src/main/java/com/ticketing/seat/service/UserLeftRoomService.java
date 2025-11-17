@@ -1,7 +1,6 @@
 package com.ticketing.seat.service;
 
 import com.ticketing.entity.Match;
-import com.ticketing.entity.UserStats;
 import com.ticketing.repository.MatchRepository;
 import com.ticketing.repository.UserStatsRepository;
 import com.ticketing.seat.concurrency.LuaCancelExecutor;
@@ -22,7 +21,7 @@ import java.util.Set;
  *
  * 유저가 경기 중에 방을 나갔을 때 3가지 케이스:
  * 1. Hold 안 함: humanusers만 감소
- * 2. Hold만 함: 좌석 취소 + reserved_count 감소 + humanusers 감소
+ * 2. Hold만 함: 좌석 취소 + humanusers 감소
  * 3. Confirm 완료: 아무것도 안 함 (이미 처리 완료)
  *
  * 판단 순서:
@@ -214,11 +213,13 @@ public class UserLeftRoomService {
 
     /**
      * 유저의 선점 좌석을 섹션별로 원자적 취소 + humanusers 감소
+     *
+     * 주의: 좌석 취소 시 reserved_count는 변경하지 않음
+     * (Hold만 한 상태이므로 reserved_count에 포함되지 않음)
      */
     private UserLeftRoomResponse cancelUserSeatsAndDecreaseHumanUsers(Long matchId, Long userId,
                                                                       List<SeatInfo> userSeats, Match match) {
         int totalCancelledSeats = 0;
-        boolean statusChangedToOpen = false;
 
         // 섹션별로 그룹화
         var seatsBySection = userSeats.stream()
@@ -237,6 +238,7 @@ public class UserLeftRoomService {
                     sectionId, matchId, userId, rowNumbers);
 
             // Lua 스크립트로 원자적 취소
+            // 주의: totalSeats는 사용되지 않음 (reserved_count 변경 안 함)
             Long result = luaCancelExecutor.tryCancelSeatsAtomically(
                     matchId,
                     String.valueOf(sectionId),
@@ -247,11 +249,8 @@ public class UserLeftRoomService {
 
             if (result != null && result > 0L) {
                 totalCancelledSeats += seatsInSection.size();
-
-                if (result == 2L) {
-                    statusChangedToOpen = true;
-                    log.info("만석 상태가 OPEN으로 복구됨: matchId={}", matchId);
-                }
+                log.info("좌석 취소 성공: matchId={}, userId={}, sectionId={}, count={}",
+                        matchId, userId, sectionId, seatsInSection.size());
             } else {
                 log.warn("좌석 취소 실패: matchId={}, userId={}, sectionId={}",
                         matchId, userId, sectionId);
@@ -261,8 +260,8 @@ public class UserLeftRoomService {
         // 좌석 취소 후 humanusers 감소
         decreaseHumanUsers(matchId, userId);
 
-        log.info("유저 퇴장 처리 완료: matchId={}, userId={}, cancelledSeats={}, statusChanged={}",
-                matchId, userId, totalCancelledSeats, statusChangedToOpen);
+        log.info("유저 퇴장 처리 완료: matchId={}, userId={}, cancelledSeats={}",
+                matchId, userId, totalCancelledSeats);
 
         return UserLeftRoomResponse.builder()
                 .success(true)
@@ -270,7 +269,7 @@ public class UserLeftRoomService {
                 .matchId(matchId)
                 .userId(userId)
                 .cancelledSeatCount(totalCancelledSeats)
-                .statusChangedToOpen(statusChangedToOpen)
+                .statusChangedToOpen(false)
                 .build();
     }
 
