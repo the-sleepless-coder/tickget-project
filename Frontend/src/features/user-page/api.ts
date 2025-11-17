@@ -1,5 +1,9 @@
 import { useAuthStore } from "@features/auth/store";
-import type { MyPageStatsResponse, MatchDataResponse } from "./types";
+import type {
+  MyPageStatsResponse,
+  MatchDataResponse,
+  UserReportLLMResponse,
+} from "./types";
 
 /**
  * 마이페이지 통계 데이터 조회
@@ -74,6 +78,38 @@ export async function getMatchHistory(
   if (!response.ok) {
     const errorText = await response.text().catch(() => "");
     throw new Error(`경기 기록 조회 실패: ${response.status} ${errorText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * AI 경기 분석 리포트 조회
+ * @returns AI 분석 리포트 응답 데이터
+ */
+export async function getUserReportLLM(): Promise<UserReportLLMResponse> {
+  const { accessToken } = useAuthStore.getState();
+
+  // 상대 경로 사용 (Vite 프록시를 통해 요청)
+  const apiUrl = "/api/v1/dev/ast/user-report-llm";
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+  };
+
+  if (accessToken) {
+    headers.Authorization = `Bearer ${accessToken}`;
+  }
+
+  const response = await fetch(apiUrl, {
+    method: "GET",
+    headers,
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => "");
+    throw new Error(`AI 경기 분석 조회 실패: ${response.status} ${errorText}`);
   }
 
   return response.json();
