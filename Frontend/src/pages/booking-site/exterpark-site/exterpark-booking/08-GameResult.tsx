@@ -14,6 +14,8 @@ import { finalizeTotalNow } from "../../../../shared/utils/reserveMetrics";
 import { useAuthStore } from "@features/auth/store";
 import { useRoomStore } from "@features/room/store";
 import { exitRoom } from "@features/room/api";
+import { getRoom } from "@features/booking-site/api";
+import { getSessionToastLLM } from "@features/booking-site/api";
 
 export default function GameResultPage() {
   const navigate = useNavigate();
@@ -88,6 +90,7 @@ export default function GameResultPage() {
     capBackspaces,
     capWrong,
     seatTakenCount,
+    seatClickMiss,
   } = useMemo(() => readMetricsWithFallback(searchParams), [searchParams]);
 
   const totalSec = useMemo(() => {
@@ -103,6 +106,10 @@ export default function GameResultPage() {
     const userRankStorage = sessionStorage.getItem("reserve.userRank");
     return userRankParam || userRankStorage || null;
   }, [searchParams]);
+
+  // AI 분석 메시지 상태
+  const [analysisMessage, setAnalysisMessage] = useState<string | null>(null);
+  const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(false);
 
   useEffect(() => {
     // 2분 뒤 자동 이동 → rooms
@@ -120,6 +127,67 @@ export default function GameResultPage() {
     finalizeTotalNow();
   }, []);
 
+  // AI 분석 메시지 가져오기
+  useEffect(() => {
+    let cancelled = false;
+    setIsLoadingAnalysis(true);
+
+    (async () => {
+      try {
+        // roomId 가져오기
+        const qsRoomId = searchParams.get("roomId");
+        const storeRoomId =
+          useRoomStore.getState().roomInfo?.roomId ?? undefined;
+        const targetRoomId =
+          qsRoomId && !Number.isNaN(Number(qsRoomId))
+            ? Number(qsRoomId)
+            : storeRoomId;
+
+        if (!targetRoomId) {
+          if (!cancelled) {
+            setIsLoadingAnalysis(false);
+          }
+          return;
+        }
+
+        // 방 상세 정보 가져오기 (difficulty를 위해)
+        const roomDetail = await getRoom(targetRoomId);
+        const difficulty = roomDetail.difficulty?.toLowerCase() || "medium";
+
+        // API 요청 데이터 구성
+        const payload = {
+          difficulty,
+          select_time: capToCompleteSec ?? undefined,
+          miss_count: seatClickMiss > 0 ? seatClickMiss : undefined,
+          success: true, // 경기 결과 페이지에 도달했다는 것은 성공을 의미
+          final_rank: userRank ? Number(userRank) : undefined,
+          created_at: new Date().toISOString(),
+        };
+
+        // API 호출
+        const response = await getSessionToastLLM(payload);
+        if (!cancelled) {
+          setAnalysisMessage(response.text);
+        }
+      } catch (error) {
+        if (import.meta.env.DEV) {
+          console.error("AI 분석 메시지 가져오기 실패:", error);
+        }
+        if (!cancelled) {
+          setAnalysisMessage(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingAnalysis(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [searchParams, capToCompleteSec, seatClickMiss, userRank]);
+
   return (
     <>
       {showBanner && <TopBanner onClose={handleBannerClose} />}
@@ -127,15 +195,27 @@ export default function GameResultPage() {
         {/* 타이틀 + 예매확인 버튼 */}
         <div className="mt-6 flex items-center justify-between">
           <h1 className="text-2xl font-extrabold text-gray-900">경기 결과</h1>
-          {/* <button
-          type="button"
-          onClick={() => navigate(paths.mypage.reservations)}
-          className="inline-flex items-center gap-2 rounded-lg bg-indigo-50 text-indigo-700 px-3 py-2 text-sm font-semibold hover:bg-indigo-100"
-        >
-          <AlarmIcon fontSize="small" />
-          예매 확인
-        </button> */}
         </div>
+
+        {/* AI 분석 메시지 */}
+        {isLoadingAnalysis ? (
+          <div
+            className="mt-4 rounded-lg bg-white p-4 border border-gray-200 flex flex-col items-center justify-center gap-2"
+            style={{ boxShadow: "0 1px 3px 0 rgba(147, 197, 253, 0.3)" }}
+          >
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-200 border-t-blue-600"></div>
+            <div className="text-sm text-gray-500">로딩 중</div>
+          </div>
+        ) : analysisMessage ? (
+          <div
+            className="mt-4 rounded-lg bg-white p-4 border border-gray-200"
+            style={{ boxShadow: "0 1px 3px 0 rgba(147, 197, 253, 0.3)" }}
+          >
+            <div className="text-sm text-gray-700 whitespace-pre-wrap">
+              {analysisMessage}
+            </div>
+          </div>
+        ) : null}
 
         {/* 성과 요약 */}
         <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">

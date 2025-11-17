@@ -1,10 +1,23 @@
-import { createBrowserRouter, Outlet, useRouteError } from "react-router-dom";
+import {
+  createBrowserRouter,
+  Navigate,
+  Outlet,
+  useLocation,
+  useRouteError,
+} from "react-router-dom";
 import { lazy, Suspense } from "react";
 import type { ReactElement } from "react";
 import MainLayout from "../layouts/MainLayout";
 import PlainLayout from "../layouts/PlainLayout";
 import AuthLayout from "../layouts/AuthLayout";
 // AuthGuard removed because dashboard/profile routes were removed
+
+// 쿼리 파라미터를 보존하면서 리다이렉트하는 컴포넌트
+function GameResultRedirect() {
+  const location = useLocation();
+  const search = location.search || "";
+  return <Navigate to={`/game-result${search}`} replace />;
+}
 
 const HomePage = lazy(() => import("../../pages/home/Home"));
 // Removed BookingIndexPage usage for plain booking flow
@@ -48,9 +61,7 @@ const CompletePage = lazy(
 );
 const BookingWaitingPage = lazy(
   () =>
-    import(
-      "../../pages/booking-site/exterpark-site/exterpark-booking/00-Queue"
-    )
+    import("../../pages/booking-site/exterpark-site/exterpark-booking/00-Queue")
 );
 const GameResultPage = lazy(
   () =>
@@ -95,7 +106,9 @@ function ErrorPage() {
     <div className="flex min-h-screen items-center justify-center bg-neutral-50 p-4">
       <div className="max-w-md rounded-lg border border-red-200 bg-white p-6 shadow-lg">
         <h2 className="mb-4 text-xl font-bold text-red-600">
-          {isModuleLoadError ? "모듈 로드 오류" : "예기치 않은 오류가 발생했습니다"}
+          {isModuleLoadError
+            ? "모듈 로드 오류"
+            : "예기치 않은 오류가 발생했습니다"}
         </h2>
         <p className="mb-4 text-sm text-neutral-600">
           {isModuleLoadError
@@ -188,7 +201,10 @@ export const router = createBrowserRouter([
       { path: "cancel-fee", element: withSuspense(<CancelFeePage />) },
       { path: "complete", element: withSuspense(<CompletePage />) },
       { path: "payment", element: withSuspense(<PaymentPage />) },
-      { path: "game-result", element: withSuspense(<GameResultPage />) },
+      {
+        path: "game-result",
+        element: <GameResultRedirect />,
+      },
     ],
   },
   {
