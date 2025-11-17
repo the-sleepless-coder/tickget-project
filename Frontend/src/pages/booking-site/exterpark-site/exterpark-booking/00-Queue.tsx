@@ -128,8 +128,10 @@ export default function BookingWaitingPage() {
             const ahead = Number(raw.ahead ?? 0);
             const behind = Number(raw.behind ?? 0);
             const total = Number(raw.total ?? 0);
-            const currentRank = total; // totalNum
-            const currentTotalQueue = total + behind; // totalNum + positionBehind
+            // 나의 대기순서: ahead + 1 (API 응답과 동일한 로직)
+            const currentRank = ahead + 1;
+            // 현재 대기인원: ahead + 1 + behind (API 응답과 동일한 로직)
+            const currentTotalQueue = ahead + 1 + behind;
             setRank(currentRank);
             setPositionAhead(ahead); // positionAhead 업데이트
             setTotalQueue(currentTotalQueue);

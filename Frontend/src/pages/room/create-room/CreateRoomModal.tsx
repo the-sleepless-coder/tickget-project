@@ -457,15 +457,14 @@ export default function CreateRoomModal({
                     return;
                   }
                   try {
-                  
                     setIsGenerating(true);
                     setCanFinalize(false);
                     const resp = await processSeatmapTsx(
                       fileToSend,
-                      selectedHall.totalSeat
+                      selectedHall.totalSeat,
+                      selectedHall.name
                     );
                     if (resp.ok) {
-                     
                       setAITsxUrl(resp.minio.tsx.url);
                       // setAIMetaUrl(resp.minio.meta.url);
                       setAIHallId(resp.hallId);
@@ -640,8 +639,6 @@ export default function CreateRoomModal({
                     const selectedTime = `${String(selectedHour).padStart(2, "0")}:${String(selectedMinute).padStart(2, "0")}:${String(selectedSecond).padStart(2, "0")}`;
                     const gameStartTime = `${dayjs().tz("Asia/Seoul").format("YYYY-MM-DD")}T${selectedTime}`;
 
-                 
-
                     // thumbnailType 및 thumbnailValue
                     const isUploaded =
                       thumbnailUrl?.startsWith("blob:") &&
@@ -716,8 +713,6 @@ export default function CreateRoomModal({
                       "📦 요청 바디:",
                       JSON.stringify(payload, null, 2)
                     );
-                   
-                   
 
                     const response = await createRoom(
                       payload,
@@ -800,7 +795,7 @@ export default function CreateRoomModal({
                       }
 
                       const roomPath = paths.iTicketRoom(response.roomId);
-                    
+
                       onClose();
                       navigate(roomPath, {
                         state: {
@@ -824,7 +819,6 @@ export default function CreateRoomModal({
                     );
                   } finally {
                     setIsCreating(false);
-                  
                   }
                 }}
                 className={`px-4 py-1.5 rounded-md font-semibold ${

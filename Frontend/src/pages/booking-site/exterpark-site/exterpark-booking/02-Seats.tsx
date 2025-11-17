@@ -12,14 +12,22 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useRoomStore } from "@features/room/store";
 import { useMatchStore } from "@features/booking-site/store";
 import { useAuthStore } from "@features/auth/store";
-import { holdSeat, getSectionSeatsStatus } from "@features/booking-site/api";
+import {
+  holdSeat,
+  getSectionSeatsStatus,
+  buildSeatMetricsPayload,
+  sendSeatStatsFailed,
+} from "@features/booking-site/api";
 import { paths } from "../../../../app/routes/paths";
 import {
   saveInitialReaction,
   setCaptchaEndNow,
   recordSeatCompleteNow,
   setTotalStartAtMs,
+  buildMetricsQueryFromStorage,
 } from "../../../../shared/utils/reserveMetrics";
+import { useWebSocketStore } from "../../../../shared/lib/websocket-store";
+import { subscribe, type Subscription } from "../../../../shared/lib/websocket";
 import Viewport from "./_components/Viewport";
 import SeatGrades from "./_components/Side_Grades";
 import SeatSidebarBanner from "./_components/Side_Banner";
@@ -324,6 +332,141 @@ export default function SelectSeatPage() {
 
   const matchIdFromStore = useMatchStore((s) => s.matchId);
   const currentUserId = useAuthStore((s) => s.userId);
+  const wsClient = useWebSocketStore((s) => s.client);
+  const wsSubscriptionRef = useRef<Subscription | null>(null);
+
+  // MATCH_ENDED 이벤트 처리: 아직 좌석 홀드/결제 확정 전에 경기가 종료된 경우
+  useEffect(() => {
+    const roomId = useRoomStore.getState().roomInfo?.roomId;
+    if (!roomId) {
+      return;
+    }
+    if (!wsClient) {
+      if (import.meta.env.DEV) {
+        console.warn("[02-Seats][ws] WebSocket 클라이언트가 없습니다.");
+      }
+      return;
+    }
+
+    const destination = `/topic/rooms/${roomId}`;
+    let retryCount = 0;
+    const maxRetries = 20;
+
+    const handleMessage = (msg: { body: string }) => {
+      try {
+        const data = JSON.parse(msg.body) as {
+          eventType?: string;
+          type?: string;
+          payload?: { matchId?: number | string };
+        };
+        const evtType = data.eventType || data.type;
+        if (evtType !== "MATCH_ENDED") {
+          return;
+        }
+
+        const authState = useAuthStore.getState();
+        const userId = authState.userId;
+        if (!userId) {
+          if (import.meta.env.DEV) {
+            console.warn(
+              "[02-Seats][MATCH_ENDED] userId가 없어 실패 통계를 전송할 수 없습니다."
+            );
+          }
+        }
+
+        // matchId: 이벤트 payload → store → URL 순으로 결정
+        const payloadMatchId = data.payload?.matchId;
+        const qs = new URLSearchParams(window.location.search);
+        const qsMatchId = qs.get("matchId");
+        const storeMatchId = useMatchStore.getState().matchId;
+
+        const resolvedMatchIdRaw =
+          payloadMatchId ??
+          (qsMatchId != null && !Number.isNaN(Number(qsMatchId))
+            ? Number(qsMatchId)
+            : storeMatchId);
+
+        if (!resolvedMatchIdRaw) {
+          if (import.meta.env.DEV) {
+            console.warn(
+              "[02-Seats][MATCH_ENDED] matchId를 결정할 수 없습니다.",
+              data
+            );
+          }
+        }
+
+        // 통계 전송 (userId 또는 matchId가 없으면 0 값이더라도 최대한 시도)
+        (async () => {
+          try {
+            if (userId && resolvedMatchIdRaw) {
+              const metricsPayload = buildSeatMetricsPayload(userId);
+              await sendSeatStatsFailed(resolvedMatchIdRaw, metricsPayload);
+              if (import.meta.env.DEV) {
+                console.log(
+                  "[02-Seats][MATCH_ENDED] 실패 통계 전송 완료:",
+                  metricsPayload
+                );
+              }
+            }
+          } catch (err) {
+            if (import.meta.env.DEV) {
+              console.error(
+                "[02-Seats][MATCH_ENDED] 실패 통계 전송 실패:",
+                err
+              );
+            }
+          } finally {
+            // 알림 후 결과 페이지로 이동
+            alert("경기가 종료되었습니다.\n\n결과 화면으로 이동합니다.");
+            const metricsQs = buildMetricsQueryFromStorage();
+            const prefix = metricsQs ? `${metricsQs}&` : "?";
+            const target = paths.booking.gameResult + `${prefix}failed=true`;
+            window.location.replace(target);
+          }
+        })();
+      } catch (e) {
+        if (import.meta.env.DEV) {
+          console.error("[02-Seats][MATCH_ENDED] 메시지 파싱 실패:", e);
+        }
+      }
+    };
+
+    const trySubscribe = () => {
+      if (wsClient.connected) {
+        const sub = subscribe(wsClient, destination, (message) =>
+          handleMessage(
+            message as unknown as {
+              body: string;
+            }
+          )
+        );
+        if (sub) {
+          wsSubscriptionRef.current = sub;
+          if (import.meta.env.DEV) {
+            console.log("[02-Seats][ws] MATCH_ENDED 구독 성공:", destination);
+          }
+        }
+        return;
+      }
+      retryCount += 1;
+      if (retryCount <= maxRetries) {
+        setTimeout(trySubscribe, 500);
+      } else if (import.meta.env.DEV) {
+        console.error(
+          "[02-Seats][ws] MATCH_ENDED 구독 실패: WebSocket 연결 시간 초과"
+        );
+      }
+    };
+
+    trySubscribe();
+
+    return () => {
+      if (wsSubscriptionRef.current) {
+        wsSubscriptionRef.current.unsubscribe();
+        wsSubscriptionRef.current = null;
+      }
+    };
+  }, [wsClient]);
   // TAKEN 좌석 정보 저장 (SmallVenue용, section-row-col 형식)
   const [takenSeats, setTakenSeats] = useState<Set<string>>(new Set());
 

@@ -14,8 +14,12 @@ import { finalizeTotalNow } from "../../../../shared/utils/reserveMetrics";
 import { useAuthStore } from "@features/auth/store";
 import { useRoomStore } from "@features/room/store";
 import { exitRoom } from "@features/room/api";
-import { getRoom } from "@features/booking-site/api";
-import { getSessionToastLLM } from "@features/booking-site/api";
+import {
+  getRoom,
+  getSessionToastLLM,
+  buildSeatMetricsPayload,
+} from "@features/booking-site/api";
+import GameAnalysisLoader from "./_components/GameAnalysisLoader";
 
 export default function GameResultPage() {
   const navigate = useNavigate();
@@ -100,12 +104,30 @@ export default function GameResultPage() {
 
   const fmt = formatSecondsHuman;
 
+  // 실패 케이스 여부 (MATCH_ENDED 등으로 조기 종료된 경우)
+  const isFailed = useMemo(
+    () => searchParams.get("failed") === "true",
+    [searchParams]
+  );
+
+  // 실패 케이스일 때, SeatConfirmRequest/SeatStatsFailed와 동일한 메트릭을 재구성
+  const failedSeatMetrics = useMemo(() => {
+    if (!isFailed) return null;
+    if (!currentUserId) return null;
+    try {
+      return buildSeatMetricsPayload(currentUserId);
+    } catch {
+      return null;
+    }
+  }, [isFailed, currentUserId]);
+
   // userRank를 URL 파라미터 또는 sessionStorage에서 가져오기
   const userRank = useMemo(() => {
+    if (isFailed) return null;
     const userRankParam = searchParams.get("userRank");
     const userRankStorage = sessionStorage.getItem("reserve.userRank");
     return userRankParam || userRankStorage || null;
-  }, [searchParams]);
+  }, [searchParams, isFailed]);
 
   // AI 분석 메시지 상태
   const [analysisMessage, setAnalysisMessage] = useState<string | null>(null);
@@ -159,7 +181,7 @@ export default function GameResultPage() {
           difficulty,
           select_time: capToCompleteSec ?? undefined,
           miss_count: seatClickMiss > 0 ? seatClickMiss : undefined,
-          success: true, // 경기 결과 페이지에 도달했다는 것은 성공을 의미
+          success: !isFailed, // 실패 케이스에서는 false로 전송
           final_rank: userRank ? Number(userRank) : undefined,
           created_at: new Date().toISOString(),
         };
@@ -186,7 +208,7 @@ export default function GameResultPage() {
     return () => {
       cancelled = true;
     };
-  }, [searchParams, capToCompleteSec, seatClickMiss, userRank]);
+  }, [searchParams, capToCompleteSec, seatClickMiss, userRank, isFailed]);
 
   return (
     <>
@@ -197,33 +219,17 @@ export default function GameResultPage() {
           <h1 className="text-2xl font-extrabold text-gray-900">경기 결과</h1>
         </div>
 
-        {/* AI 분석 메시지 */}
-        {isLoadingAnalysis ? (
-          <div
-            className="mt-4 rounded-lg bg-white p-4 border border-gray-200 flex flex-col items-center justify-center gap-2"
-            style={{ boxShadow: "0 1px 3px 0 rgba(147, 197, 253, 0.3)" }}
-          >
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-200 border-t-blue-600"></div>
-            <div className="text-sm text-gray-500">로딩 중</div>
-          </div>
-        ) : analysisMessage ? (
-          <div
-            className="mt-4 rounded-lg bg-white p-4 border border-gray-200"
-            style={{ boxShadow: "0 1px 3px 0 rgba(147, 197, 253, 0.3)" }}
-          >
-            <div className="text-sm text-gray-700 whitespace-pre-wrap">
-              {analysisMessage}
-            </div>
-          </div>
-        ) : null}
-
         {/* 성과 요약 */}
         <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="rounded-lg bg-[#6e8ee3] text-white text-center py-4 text-3xl font-extrabold">
-            {userRank ? `${userRank}등` : "등수 측정중"}
+            {isFailed
+              ? "등수 없음"
+              : userRank
+                ? `${userRank}등`
+                : "등수 측정중"}
           </div>
           <div className="rounded-lg bg-[#6e8ee3] text-white text-center py-4 text-3xl font-extrabold">
-            {fmt(totalSec)}
+            {isFailed ? "FAIL" : fmt(totalSec)}
           </div>
         </div>
 
@@ -234,14 +240,20 @@ export default function GameResultPage() {
             items={[
               {
                 label: "반응 속도",
-                value: `${rtSec.toFixed(2)} 초`,
+                value:
+                  isFailed && failedSeatMetrics?.dateSelectTime === -1
+                    ? "x"
+                    : `${rtSec.toFixed(2)} 초`,
                 icon: (
                   <AccessTimeIcon fontSize="small" className="text-gray-500" />
                 ),
               },
               {
                 label: "클릭 실수",
-                value: `${nrClicks}회`,
+                value:
+                  isFailed && failedSeatMetrics?.dateMissCount === -1
+                    ? "x"
+                    : `${nrClicks}회`,
                 icon: (
                   <AdsClickIcon fontSize="small" className="text-gray-500" />
                 ),
@@ -253,19 +265,28 @@ export default function GameResultPage() {
             items={[
               {
                 label: "소요 시간",
-                value: `${captchaSec.toFixed(2)} 초`,
+                value:
+                  isFailed && failedSeatMetrics?.seccodeSelectTime === -1
+                    ? "x"
+                    : `${captchaSec.toFixed(2)} 초`,
                 icon: (
                   <AccessTimeIcon fontSize="small" className="text-gray-500" />
                 ),
               },
               {
                 label: "백스페이스",
-                value: `${capBackspaces ?? 0}회`,
+                value:
+                  isFailed && failedSeatMetrics?.seccodeBackspaceCount === -1
+                    ? "x"
+                    : `${capBackspaces ?? 0}회`,
                 icon: <CloseIcon fontSize="small" className="text-gray-500" />,
               },
               {
                 label: "틀린 횟수",
-                value: `${capWrong ?? 0}회`,
+                value:
+                  isFailed && failedSeatMetrics?.seccodeTryCount === -1
+                    ? "x"
+                    : `${capWrong ?? 0}회`,
                 icon: <CloseIcon fontSize="small" className="text-gray-500" />,
               },
             ]}
@@ -275,7 +296,10 @@ export default function GameResultPage() {
             items={[
               {
                 label: "소요 시간",
-                value: `${(capToCompleteSec ?? 0).toFixed(2)} 초`,
+                value:
+                  isFailed && failedSeatMetrics?.seatSelectTime === -1
+                    ? "x"
+                    : `${(capToCompleteSec ?? 0).toFixed(2)} 초`,
                 icon: (
                   <AccessTimeIcon fontSize="small" className="text-gray-500" />
                 ),
@@ -289,13 +313,32 @@ export default function GameResultPage() {
               // },
               {
                 label: "이선좌",
-                value: `${seatTakenCount}회`,
+                value:
+                  isFailed && failedSeatMetrics?.seatSelectTryCount === -1
+                    ? "x"
+                    : `${seatTakenCount}회`,
                 icon: (
                   <EventSeatIcon fontSize="small" className="text-gray-500" />
                 ),
               },
             ]}
           />
+        </div>
+
+        {/* AI 분석 메시지 (세 개 섹션 밑, 방 나가기 버튼 위) */}
+        <div className="mt-6">
+          {isLoadingAnalysis ? (
+            <GameAnalysisLoader />
+          ) : analysisMessage ? (
+            <div
+              className="rounded-lg bg-white p-4 border border-gray-200"
+              style={{ boxShadow: "0 1px 3px 0 rgba(147, 197, 253, 0.3)" }}
+            >
+              <div className="text-sm text-gray-700 whitespace-pre-wrap">
+                {analysisMessage}
+              </div>
+            </div>
+          ) : null}
         </div>
 
         {/* 하단 버튼 */}

@@ -2,13 +2,13 @@ import { useState, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { paths } from "../../../../app/routes/paths";
 import BookingLayout from "./_components/BookingLayout";
-import {
-  buildMetricsQueryFromStorage,
-  ReserveMetricKeys,
-} from "../../../../shared/utils/reserveMetrics";
+import { buildMetricsQueryFromStorage } from "../../../../shared/utils/reserveMetrics";
 import { useMatchStore } from "@features/booking-site/store";
 import { useAuthStore } from "@features/auth/store";
-import { confirmSeat } from "@features/booking-site/api";
+import {
+  buildSeatMetricsPayload,
+  confirmSeat,
+} from "@features/booking-site/api";
 import dayjs from "dayjs";
 
 type SeatData = {
@@ -38,42 +38,8 @@ export default function PaymentPage() {
     // API 호출: 좌석 확정
     if (matchId && currentUserId) {
       try {
-        // 메트릭 데이터 수집
-        const getMetric = (key: string, defaultValue: number = 0): number => {
-          const value = sessionStorage.getItem(key);
-          if (value == null) return defaultValue;
-          const num = Number(value);
-          return isNaN(num) ? defaultValue : num;
-        };
-
-        // dateSelectTime: 예매 버튼 클릭 반응 시간 (rtSec)
-        const dateSelectTime = getMetric(ReserveMetricKeys.rtSec, 0);
-        // dateMissCount: 예매 버튼 클릭 전 클릭 실수 (nrClicks)
-        const dateMissCount = getMetric(ReserveMetricKeys.nrClicks, 0);
-        const seccodeSelectTime = getMetric(
-          ReserveMetricKeys.captchaDurationSec,
-          0
-        );
-        const seccodeBackspaceCount = getMetric(
-          ReserveMetricKeys.capBackspaces,
-          0
-        );
-        const seccodeTryCount = getMetric(ReserveMetricKeys.capWrong, 0);
-        const seatSelectTime = getMetric(ReserveMetricKeys.capToCompleteSec, 0);
-        const seatSelectTryCount = getMetric("reserve.seatTakenCount", 0);
-        const seatSelectClickMissCount = getMetric("reserve.seatClickMiss", 0);
-
-        const payload = {
-          userId: currentUserId,
-          dateSelectTime,
-          dateMissCount,
-          seccodeSelectTime,
-          seccodeBackspaceCount,
-          seccodeTryCount,
-          seatSelectTime,
-          seatSelectTryCount,
-          seatSelectClickMissCount,
-        };
+        // SeatConfirmRequest와 동일한 메트릭 페이로드 공통 빌더 사용
+        const payload = buildSeatMetricsPayload(currentUserId);
 
         console.log("[seat-confirm] API 호출:", {
           matchId,
@@ -118,7 +84,7 @@ export default function PaymentPage() {
       : qs;
     // 경로 수정: paths.booking.gameResult 사용 (실제 게임 결과 페이지 경로)
     const target = paths.booking.gameResult + finalQs;
-    
+
     // window.opener가 있어도 현재 창에서 navigate 사용 (세션 유지)
     // 부모 창이 있으면 postMessage로 알림 (선택사항)
     try {
@@ -135,7 +101,7 @@ export default function PaymentPage() {
     } catch (error) {
       console.warn("[Payment] 부모 창에 메시지 전달 실패:", error);
     }
-    
+
     // 현재 창에서 결과 페이지로 이동 (세션 유지)
     navigate(target);
   };

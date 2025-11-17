@@ -11,6 +11,7 @@ import { useAuthStore } from "@features/auth/store";
 import { compressImage } from "@shared/utils/imageCompression";
 import { normalizeProfileImageUrl } from "@shared/utils/profileImageUrl";
 import { getMatchHistory, getUserReportLLM } from "@features/user-page/api";
+import AnalysisLoader from "./_components/AnalysisLoader";
 import type { MatchDataResponse } from "@features/user-page/types";
 import dayjs from "dayjs";
 
@@ -1018,10 +1019,7 @@ export default function MyPageIndex() {
               // 경기 분석 탭
               <>
                 {isLoadingAnalysis ? (
-                  <div className="flex flex-col items-center justify-center rounded-lg border border-neutral-200 bg-white p-12">
-                    <div className="mb-4 h-8 w-8 animate-spin rounded-full border-4 border-purple-200 border-t-purple-600"></div>
-                    <div className="text-neutral-400">로딩 중</div>
-                  </div>
+                  <AnalysisLoader />
                 ) : analysisText ? (
                   <div className="space-y-4">
                     {parseAnalysisText(analysisText).map((item, index) => {

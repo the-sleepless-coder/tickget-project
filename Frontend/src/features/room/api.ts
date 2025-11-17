@@ -113,7 +113,8 @@ export async function getRoomDetail(roomId: number) {
  */
 export async function processSeatmapTsx(
   file: File,
-  capacity: number
+  capacity: number,
+  hallName: string
 ): Promise<ProcessTsxResponse> {
   // Vite 프록시를 통해 요청: 상대 경로 사용
   // 개발 환경에서는 Vite 프록시가 /api를 https://tickget.kr로 프록시
@@ -126,6 +127,7 @@ export async function processSeatmapTsx(
   const form = new FormData();
   form.append("file", file);
   form.append("capacity", String(capacity));
+  form.append("hall_name", hallName);
 
   // Build headers, excluding any content-type override for multipart
   const headers: Record<string, string> = { Accept: "application/json" };
@@ -158,6 +160,7 @@ export async function processSeatmapTsx(
         fileName: file?.name,
         fileSize: file?.size,
         capacity,
+        hallName,
       },
     });
   } catch {

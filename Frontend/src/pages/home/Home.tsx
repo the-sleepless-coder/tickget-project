@@ -46,15 +46,11 @@ export default function HomePage() {
   const [rooms, setRooms] = useState<UiRoom[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // hallName을 한글로 변환하는 함수 (hallType이 AI_GENERATED면 "AI" 반환)
+  // hallName을 한글로 변환하는 함수 (AI 생성도 실제 hallName 사용)
   const convertHallNameToKorean = (
     hallName: string,
-    hallType?: string
+    _hallType?: string
   ): string => {
-    // AI 생성된 방은 "AI"로 표시
-    if (hallType === "AI_GENERATED") {
-      return "AI";
-    }
     const hallNameMap: Record<string, string> = {
       InspireArena: "인스파이어 아레나",
       CharlotteTheater: "샤롯데씨어터",
@@ -141,12 +137,20 @@ export default function HomePage() {
             (r.thumbnailType === "UPLOADED" && r.thumbnailValue
               ? normalizeS3Url(r.thumbnailValue)
               : undefined);
+          const localizedHallName = convertHallNameToKorean(
+            r.hallName,
+            r.hallType
+          );
+          const displayHallName =
+            r.hallType === "AI_GENERATED"
+              ? `${localizedHallName} (AI 생성)`
+              : localizedHallName;
           return {
             id: r.roomId,
             title: r.roomName,
             variant: "blue",
             size,
-            venueName: convertHallNameToKorean(r.hallName, r.hallType),
+            venueName: displayHallName,
             imageSrc: thumbnailImageSrc,
             participants: {
               current: r.currentUserCount,

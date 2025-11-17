@@ -5,6 +5,7 @@ import {
   TICKETING_SERVER_BASE_URL,
 } from "@shared/lib/http";
 import { useAuthStore } from "@features/auth/store";
+import { ReserveMetricKeys } from "@shared/utils/reserveMetrics";
 import type {
   CreateRoomRequest,
   ExitRoomRequest,
@@ -26,6 +27,8 @@ import type {
   SeatCancelResponse,
   SeatConfirmRequest,
   SeatConfirmResponse,
+  SeatStatsFailedRequest,
+  SeatStatsFailedResponse,
   SessionToastLLMRequest,
   SessionToastLLMResponse,
 } from "./types";
@@ -297,6 +300,67 @@ export async function confirmSeat(
     // 본문이 없거나 JSON 파싱 실패 시 기본값 유지
   }
   return { status: res.status, body };
+}
+
+// ----- Seat Metrics 공통 수집 -----
+// sessionStorage에 저장된 값을 기반으로 SeatConfirmRequest/SeatStatsFailedRequest 페이로드를 생성한다.
+export function buildSeatMetricsPayload(userId: number): SeatConfirmRequest {
+  const getMetric = (key: string, defaultValue: number = 0): number => {
+    const value = sessionStorage.getItem(key);
+    // 저장되지 않은 값은 -1로 표시 (미측정)
+    if (value == null) return -1;
+    const num = Number(value);
+    // 값이 저장돼 있지만 숫자가 아니면 기본값(대부분 0) 사용
+    return Number.isNaN(num) ? defaultValue : num;
+  };
+
+  // dateSelectTime: 예매 버튼 클릭 반응 시간 (rtSec)
+  const dateSelectTime = getMetric(ReserveMetricKeys.rtSec, 0);
+  // dateMissCount: 예매 버튼 클릭 전 클릭 실수 (nrClicks)
+  const dateMissCount = getMetric(ReserveMetricKeys.nrClicks, 0);
+  const seccodeSelectTime = getMetric(ReserveMetricKeys.captchaDurationSec, 0);
+  const seccodeBackspaceCount = getMetric(ReserveMetricKeys.capBackspaces, 0);
+  const seccodeTryCount = getMetric(ReserveMetricKeys.capWrong, 0);
+  const seatSelectTime = getMetric(ReserveMetricKeys.capToCompleteSec, 0);
+  const seatSelectTryCount = getMetric("reserve.seatTakenCount", 0);
+  const seatSelectClickMissCount = getMetric("reserve.seatClickMiss", 0);
+
+  return {
+    userId,
+    dateSelectTime,
+    dateMissCount,
+    seccodeSelectTime,
+    seccodeBackspaceCount,
+    seccodeTryCount,
+    seatSelectTime,
+    seatSelectTryCount,
+    seatSelectClickMissCount,
+  };
+}
+
+// ----- Seat Stats Failed (Ticketing) -----
+// POST /api/v1/dev/ticketing/matches/{matchId}/stats/failed
+// 기존 ticketingApi의 베이스(/api/v1/dev/tkt)를 활용하되,
+// 상대 경로에 ".."를 사용해 /api/v1/dev/ticketing 으로 이동한다.
+export async function sendSeatStatsFailed(
+  matchId: string | number,
+  payload: SeatStatsFailedRequest
+): Promise<SeatStatsFailedResponse> {
+  const { getAuthHeaders } = useAuthStore.getState();
+  const headers: Record<string, string> = {
+    ...getAuthHeaders(),
+    "Content-Type": "application/json",
+  };
+
+  // base: /api/v1/dev/tkt
+  // path: ../ticketing/matches/{matchId}/stats/failed
+  const path = `../ticketing/matches/${encodeURIComponent(
+    String(matchId)
+  )}/stats/failed`;
+
+  return ticketingApi.postJson<SeatStatsFailedResponse>(path, payload, {
+    headers,
+  });
 }
 
 // ----- Session Toast LLM (AST) -----
