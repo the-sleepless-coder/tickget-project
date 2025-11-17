@@ -90,3 +90,8 @@ export interface MatchDataResponse {
   matchInfo: MatchInfo;
   specifics: MatchSpecifics[];
 }
+
+// AI 분석 API 응답 타입
+export interface UserReportLLMResponse {
+  text: string;
+}
