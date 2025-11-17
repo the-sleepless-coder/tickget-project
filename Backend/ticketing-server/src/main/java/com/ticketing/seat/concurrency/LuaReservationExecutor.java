@@ -49,9 +49,6 @@ public class LuaReservationExecutor {
                         redis.call('EXPIRE', KEYS[i], ttl)  -- 좌석 키에 TTL 설정 (10분)
                     end
                     
-                    -- count phase: reserved_count 증가 및 TTL 설정
-                    local newCount = redis.call('INCRBY', KEYS[seatCount + 1], seatCount)
-                    redis.call('EXPIRE', KEYS[seatCount + 1], ttl)  -- reserved_count TTL
                     
                     -- status 키 TTL 설정 (OPEN 상태 유지)
                     redis.call('SET', KEYS[seatCount + 2], 'OPEN')
@@ -87,11 +84,10 @@ public class LuaReservationExecutor {
             throw new IllegalArgumentException("rowNumbers와 grades의 개수가 일치하지 않습니다.");
         }
 
-        // KEYS: seat 키들 + reserved_count + status
+        // KEYS: seat 키들 + status
         List<String> keys = Stream.of(
                 rowNumbers.stream().map(rowNumber ->
                         "seat:" + matchId + ":" + sectionId + ":" + rowNumber),
-                Stream.of("match:" + matchId + ":reserved_count"),
                 Stream.of("match:" + matchId + ":status")
         ).flatMap(s -> s).toList();
 
