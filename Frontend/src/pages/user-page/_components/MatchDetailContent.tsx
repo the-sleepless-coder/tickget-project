@@ -15,7 +15,11 @@ interface UserRank {
   time?: string;
   metrics?: {
     bookingClick?: { reactionMs?: number; misclicks?: number };
-    captcha?: { durationMs?: number; wrongCount?: number; backspaceCount?: number };
+    captcha?: {
+      durationMs?: number;
+      wrongCount?: number;
+      backspaceCount?: number;
+    };
     seatSelection?: {
       durationMs?: number;
       misclicks?: number;
@@ -255,7 +259,9 @@ export default function MatchDetailContent({
         {totalTime !== undefined && (
           <div className="rounded-xl border border-purple-200 bg-purple-50 px-6 py-4">
             <div className="text-center">
-              <div className="text-sm font-medium text-purple-700">총 소요 시간</div>
+              <div className="text-sm font-medium text-purple-700">
+                총 소요 시간
+              </div>
               <div className="mt-1 text-2xl font-bold text-purple-900">
                 {formatSecondsToClock(totalTime)}
               </div>
@@ -266,7 +272,11 @@ export default function MatchDetailContent({
           <StatCard
             title="예매 버튼 클릭"
             timeText={`${formatMsToClock(booking?.reactionMs ?? 0)}`}
-            timeDiff={diffBooking?.reactionMs ? formatDiffMs(diffBooking.reactionMs) : undefined}
+            timeDiff={
+              diffBooking?.reactionMs
+                ? formatDiffMs(diffBooking.reactionMs)
+                : undefined
+            }
             misclicksText={`${booking?.misclicks ?? 0}번`}
             misclicksDiff={
               diffBooking?.misclicks !== undefined
@@ -277,7 +287,11 @@ export default function MatchDetailContent({
           <StatCard
             title="보안 문자"
             timeText={`${formatMsToClock(captcha?.durationMs ?? 0)}`}
-            timeDiff={diffCaptcha?.durationMs ? formatDiffMs(diffCaptcha.durationMs) : undefined}
+            timeDiff={
+              diffCaptcha?.durationMs
+                ? formatDiffMs(diffCaptcha.durationMs)
+                : undefined
+            }
             misclicksText={`${captcha?.wrongCount ?? 0}번`}
             misclicksDiff={undefined}
             extraText={
@@ -295,7 +309,11 @@ export default function MatchDetailContent({
           <StatCard
             title="좌석 선택"
             timeText={`${formatMsToClock(seat?.durationMs ?? 0)}`}
-            timeDiff={diffSeat?.durationMs ? formatDiffMs(diffSeat.durationMs) : undefined}
+            timeDiff={
+              diffSeat?.durationMs
+                ? formatDiffMs(diffSeat.durationMs)
+                : undefined
+            }
             misclicksText={`${seat?.misclicks ?? 0}번`}
             misclicksDiff={
               diffSeat?.misclicks !== undefined
@@ -316,18 +334,24 @@ export default function MatchDetailContent({
 
   // SOLO 모드는 roomType이 "SOLO"인 경우에만
   // MULTI 모드는 roomType이 "MULTI"이거나 참가 인원이 2명 이상인 경우
-  const isSoloMode = roomType === "SOLO" || (roomType !== "MULTI" && users.length === 1);
+  const isSoloMode =
+    roomType === "SOLO" || (roomType !== "MULTI" && users.length === 1);
 
   // 공연장별 좌석 ID 변환 함수
   const convertSeatIdForVenue = useMemo(() => {
-    return (hallId: number | undefined, seatSection: string | number, seatRow: string | number, seatCol: string | number) => {
+    return (
+      hallId: number | undefined,
+      seatSection: string | number,
+      seatRow: string | number,
+      seatCol: string | number
+    ) => {
       if (!hallId) return null;
-      
+
       // 문자열로 변환
       const section = String(seatSection);
       const row = String(seatRow);
       const col = String(seatCol);
-      
+
       // SmallVenue (hallId === 2): small-${floor}-${displaySection}-${row}-${col}
       // 프리셋 모드에서는 displaySection이 "1" (OP는 "0")
       // floor는 1 또는 2인데, 사용자 정보에서 알 수 없으므로 1로 가정
@@ -338,14 +362,14 @@ export default function MatchDetailContent({
         const floor = 1; // 기본값, 필요시 조정
         return `small-${floor}-${displaySection}-${row}-${col}`;
       }
-      
+
       // MediumVenue & LargeVenue (hallId === 3 or 4): ${section}-${row}-${seat}
       // seatCol이 실제로 seat 번호인지 확인 필요
       // 일단 seatCol을 seat로 사용 (API 응답 형식에 따라 다를 수 있음)
       if (hallId === 3 || hallId === 4) {
         return `${section}-${row}-${col}`;
       }
-      
+
       return null;
     };
   }, []);
@@ -353,14 +377,20 @@ export default function MatchDetailContent({
   // 사용자 좌석 정보를 공연장별 좌석 ID로 변환
   // 호버된 유저가 있으면 해당 유저의 좌석만, 없으면 모든 좌석
   const selectedSeatIds = useMemo(() => {
-    const targetUsers = hoveredUserId !== null 
-      ? users.filter((u) => u.id === hoveredUserId)
-      : users;
-    
+    const targetUsers =
+      hoveredUserId !== null
+        ? users.filter((u) => u.id === hoveredUserId)
+        : users;
+
     return targetUsers
       .filter((u) => u.seatSection && u.seatRow && u.seatCol)
       .map((u) => {
-        const seatId = convertSeatIdForVenue(hallId, u.seatSection!, u.seatRow!, u.seatCol!);
+        const seatId = convertSeatIdForVenue(
+          hallId,
+          u.seatSection!,
+          u.seatRow!,
+          u.seatCol!
+        );
         return seatId || `${u.seatSection}-${u.seatRow}-${u.seatCol}`;
       })
       .filter((id): id is string => id !== null);
@@ -370,7 +400,12 @@ export default function MatchDetailContent({
   const mySeatId = useMemo(() => {
     const me = users.find((u) => u.id === 0);
     if (me?.seatSection && me.seatRow && me.seatCol) {
-      const seatId = convertSeatIdForVenue(hallId, me.seatSection, me.seatRow, me.seatCol);
+      const seatId = convertSeatIdForVenue(
+        hallId,
+        me.seatSection,
+        me.seatRow,
+        me.seatCol
+      );
       return seatId || `${me.seatSection}-${me.seatRow}-${me.seatCol}`;
     }
     return null;
@@ -396,25 +431,25 @@ export default function MatchDetailContent({
     const adjustSize = () => {
       const container = seatMapContainerRef.current;
       if (!container) return;
-      
+
       // SVG 요소 찾기 (MediumVenue, LargeVenue, TsxPreview)
-      const svg = container.querySelector('svg');
+      const svg = container.querySelector("svg");
       if (svg) {
         // SVG의 고정 width/height 속성 제거
-        svg.removeAttribute('width');
-        svg.removeAttribute('height');
-        
+        svg.removeAttribute("width");
+        svg.removeAttribute("height");
+
         // 컨테이너 크기 가져오기 (패딩 제외)
         const containerWidth = container.clientWidth;
         const containerHeight = container.clientHeight;
-        
+
         // viewBox 가져오기
-        const viewBox = svg.getAttribute('viewBox');
+        const viewBox = svg.getAttribute("viewBox");
         if (viewBox) {
-          const [, , vbWidth, vbHeight] = viewBox.split(' ').map(Number);
+          const [, , vbWidth, vbHeight] = viewBox.split(" ").map(Number);
           const aspectRatio = vbWidth / vbHeight;
           const containerAspectRatio = containerWidth / containerHeight;
-          
+
           // 컨테이너에 맞게 스케일 계산 (약간의 여유 공간을 두기 위해 0.98 배율 적용)
           let scale: number;
           if (aspectRatio > containerAspectRatio) {
@@ -424,7 +459,7 @@ export default function MatchDetailContent({
             // 높이가 더 높은 경우
             scale = (containerHeight * 0.98) / vbHeight;
           }
-          
+
           // SVG 크기 설정
           const svgWidth = vbWidth * scale;
           const svgHeight = vbHeight * scale;
@@ -432,37 +467,37 @@ export default function MatchDetailContent({
           svg.style.height = `${svgHeight}px`;
           svg.style.maxWidth = `${containerWidth}px`;
           svg.style.maxHeight = `${containerHeight}px`;
-          svg.style.display = 'block';
-          svg.style.margin = 'auto';
+          svg.style.display = "block";
+          svg.style.margin = "auto";
         } else {
           // viewBox가 없으면 기본 CSS 사용
-          svg.style.width = '100%';
-          svg.style.height = '100%';
-          svg.style.maxWidth = '100%';
-          svg.style.maxHeight = '100%';
-          svg.style.display = 'block';
-          svg.style.margin = 'auto';
+          svg.style.width = "100%";
+          svg.style.height = "100%";
+          svg.style.maxWidth = "100%";
+          svg.style.maxHeight = "100%";
+          svg.style.display = "block";
+          svg.style.margin = "auto";
         }
-        
-        svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+
+        svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
         return;
       }
-      
+
       // SmallVenue의 경우 (div 기반)
       const smallVenueContainer = container.querySelector('div[class*="grid"]');
       if (smallVenueContainer) {
         const containerWidth = container.clientWidth;
         const containerHeight = container.clientHeight;
-        
+
         // SmallVenue의 실제 크기 측정
         const venueElement = smallVenueContainer as HTMLElement;
         const venueWidth = venueElement.scrollWidth;
         const venueHeight = venueElement.scrollHeight;
-        
+
         if (venueWidth > 0 && venueHeight > 0) {
           const aspectRatio = venueWidth / venueHeight;
           const containerAspectRatio = containerWidth / containerHeight;
-          
+
           // 컨테이너에 맞게 스케일 계산 (약간의 여유 공간을 두기 위해 0.98 배율 적용)
           let scale: number;
           if (aspectRatio > containerAspectRatio) {
@@ -472,10 +507,10 @@ export default function MatchDetailContent({
             // 높이가 더 높은 경우
             scale = (containerHeight * 0.98) / venueHeight;
           }
-          
+
           // transform scale 적용
           venueElement.style.transform = `scale(${scale})`;
-          venueElement.style.transformOrigin = 'center center';
+          venueElement.style.transformOrigin = "center center";
           venueElement.style.width = `${venueWidth}px`;
           venueElement.style.height = `${venueHeight}px`;
         }
@@ -489,13 +524,13 @@ export default function MatchDetailContent({
     const observer = new MutationObserver(() => {
       setTimeout(adjustSize, 100);
     });
-    
+
     if (seatMapContainerRef.current) {
       observer.observe(seatMapContainerRef.current, {
         childList: true,
         subtree: true,
         attributes: true,
-        attributeFilter: ['width', 'height', 'viewBox', 'style'],
+        attributeFilter: ["width", "height", "viewBox", "style"],
       });
     }
 
@@ -514,52 +549,58 @@ export default function MatchDetailContent({
 
   // 좌석 배치도 렌더링
   const renderSeatMap = () => {
-   
-
     // AI 생성인 경우 - 우선순위 1
     // tsxUrl이 있고 "default"가 아니고 빈 문자열이 아닌 경우 렌더링
     // isAIGenerated가 false여도 tsxUrl이 있으면 AI 생성으로 간주
-    const isValidTsxUrl = tsxUrl && 
-      tsxUrl !== "default" && 
-      tsxUrl !== null && 
+    const isValidTsxUrl =
+      tsxUrl &&
+      tsxUrl !== "default" &&
+      tsxUrl !== null &&
       typeof tsxUrl === "string" &&
       tsxUrl.trim() !== "";
-    
+
     // tsxUrl이 있으면 AI 생성으로 간주 (isAIGenerated가 false여도)
     // tsxUrl이 http:// 또는 https://로 시작하면 AI 생성으로 간주
-    const shouldRenderAI = isValidTsxUrl && (
-      isAIGenerated || 
-      (typeof tsxUrl === "string" && (tsxUrl.startsWith("http://") || tsxUrl.startsWith("https://")))
-    );
-    
+    const shouldRenderAI =
+      isValidTsxUrl &&
+      (isAIGenerated ||
+        (typeof tsxUrl === "string" &&
+          (tsxUrl.startsWith("http://") || tsxUrl.startsWith("https://"))));
+
     if (shouldRenderAI) {
-  
       // AI 생성 좌석 배치도에 선택된 좌석 정보 전달
       // selectedSeatIds는 section-row-col 형식
       // 호버 시: 해당 유저의 좌석만 색상 유지, 나머지 회색 처리
       // 호버 없을 때: 모든 좌석 원래 색상으로 표시
       // hoveredUserSeatIds는 컴포넌트 최상단에서 이미 계산됨
-        return (
-          <div className="w-full h-[400px] flex justify-center items-center bg-white rounded-lg p-4">
-            <div ref={seatMapContainerRef} className="w-full h-full flex items-center justify-center">
-              <TsxPreview 
-                src={tsxUrl} 
-                className="w-full h-full"
-                selectedSeatIds={hoveredUserSeatIds}
-                readOnly={hoveredUserId !== null}
-              />
-            </div>
+      return (
+        <div className="w-full h-[400px] flex justify-center items-center bg-white rounded-lg p-4">
+          <div
+            ref={seatMapContainerRef}
+            className="w-full h-full flex items-center justify-center"
+          >
+            <TsxPreview
+              key={`match-detail-${tsxUrl}`}
+              src={tsxUrl}
+              className="w-full h-full"
+              selectedSeatIds={hoveredUserSeatIds}
+              readOnly={hoveredUserId !== null}
+            />
           </div>
-        );
+        </div>
+      );
     }
 
     // AI 생성이지만 tsxUrl이 없는 경우 디버깅
     if (isAIGenerated && !isValidTsxUrl) {
-      console.warn("[MatchDetailContent] AI 생성이지만 tsxUrl이 유효하지 않음:", {
-        isAIGenerated,
-        tsxUrl,
-        isValidTsxUrl,
-      });
+      console.warn(
+        "[MatchDetailContent] AI 생성이지만 tsxUrl이 유효하지 않음:",
+        {
+          isAIGenerated,
+          tsxUrl,
+          isValidTsxUrl,
+        }
+      );
     }
 
     // 프리셋인 경우 hallId 기준으로 렌더링 - 우선순위 2
@@ -567,28 +608,42 @@ export default function MatchDetailContent({
     // shouldRenderAI가 false일 때만 프리셋 렌더링
     if (hallId && !shouldRenderAI) {
       // 모든 사용자의 좌석을 selectedIds에 포함 (내 좌석은 첫 번째로)
-      const allSeatIds = mySeatId 
-        ? [mySeatId, ...selectedSeatIds.filter(id => id !== mySeatId)]
+      const allSeatIds = mySeatId
+        ? [mySeatId, ...selectedSeatIds.filter((id) => id !== mySeatId)]
         : selectedSeatIds;
-      
-  
+
       // hallId 2: 샤롯데씨어터 (SmallVenue)
       // 호버 시: 해당 유저의 좌석만 색상 유지, 나머지 회색 처리
       // 호버 없을 때: 모든 좌석 원래 색상으로 표시
       if (hallId === 2) {
-        const hoveredUserSeatIds = hoveredUserId !== null
-          ? users
-              .filter((u) => u.id === hoveredUserId && u.seatSection && u.seatRow && u.seatCol)
-              .map((u) => {
-                const seatId = convertSeatIdForVenue(hallId, u.seatSection!, u.seatRow!, u.seatCol!);
-                return seatId || `${u.seatSection}-${u.seatRow}-${u.seatCol}`;
-              })
-              .filter((id): id is string => id !== null)
-          : allSeatIds;
-        
+        const hoveredUserSeatIds =
+          hoveredUserId !== null
+            ? users
+                .filter(
+                  (u) =>
+                    u.id === hoveredUserId &&
+                    u.seatSection &&
+                    u.seatRow &&
+                    u.seatCol
+                )
+                .map((u) => {
+                  const seatId = convertSeatIdForVenue(
+                    hallId,
+                    u.seatSection!,
+                    u.seatRow!,
+                    u.seatCol!
+                  );
+                  return seatId || `${u.seatSection}-${u.seatRow}-${u.seatCol}`;
+                })
+                .filter((id): id is string => id !== null)
+            : allSeatIds;
+
         return (
           <div className="w-full h-[400px] flex justify-center items-center bg-white rounded-lg p-4">
-            <div ref={seatMapContainerRef} className="w-full h-full flex items-center justify-center">
+            <div
+              ref={seatMapContainerRef}
+              className="w-full h-full flex items-center justify-center"
+            >
               <SmallVenue
                 selectedIds={hoveredUserSeatIds}
                 takenSeats={new Set(hoveredUserSeatIds)}
@@ -604,19 +659,34 @@ export default function MatchDetailContent({
       // 호버 시: 해당 유저의 좌석만 색상 유지, 나머지 회색 처리
       // 호버 없을 때: 모든 좌석 원래 색상으로 표시 (readOnly=false, selectedIds=[])
       if (hallId === 3) {
-        const hoveredUserSeatIds = hoveredUserId !== null
-          ? users
-              .filter((u) => u.id === hoveredUserId && u.seatSection && u.seatRow && u.seatCol)
-              .map((u) => {
-                const seatId = convertSeatIdForVenue(hallId, u.seatSection!, u.seatRow!, u.seatCol!);
-                return seatId || `${u.seatSection}-${u.seatRow}-${u.seatCol}`;
-              })
-              .filter((id): id is string => id !== null)
-          : [];
-        
+        const hoveredUserSeatIds =
+          hoveredUserId !== null
+            ? users
+                .filter(
+                  (u) =>
+                    u.id === hoveredUserId &&
+                    u.seatSection &&
+                    u.seatRow &&
+                    u.seatCol
+                )
+                .map((u) => {
+                  const seatId = convertSeatIdForVenue(
+                    hallId,
+                    u.seatSection!,
+                    u.seatRow!,
+                    u.seatCol!
+                  );
+                  return seatId || `${u.seatSection}-${u.seatRow}-${u.seatCol}`;
+                })
+                .filter((id): id is string => id !== null)
+            : [];
+
         return (
           <div className="w-full h-[400px] flex justify-center items-center bg-white rounded-lg p-4">
-            <div ref={seatMapContainerRef} className="w-full h-full flex items-center justify-center">
+            <div
+              ref={seatMapContainerRef}
+              className="w-full h-full flex items-center justify-center"
+            >
               <MediumVenue
                 selectedIds={hoveredUserSeatIds}
                 onToggleSeat={undefined}
@@ -631,19 +701,34 @@ export default function MatchDetailContent({
       // 호버 시: 해당 유저의 좌석만 색상 유지, 나머지 회색 처리
       // 호버 없을 때: 모든 좌석 원래 색상으로 표시
       if (hallId === 4) {
-        const hoveredUserSeatIds = hoveredUserId !== null
-          ? users
-              .filter((u) => u.id === hoveredUserId && u.seatSection && u.seatRow && u.seatCol)
-              .map((u) => {
-                const seatId = convertSeatIdForVenue(hallId, u.seatSection!, u.seatRow!, u.seatCol!);
-                return seatId || `${u.seatSection}-${u.seatRow}-${u.seatCol}`;
-              })
-              .filter((id): id is string => id !== null)
-          : allSeatIds;
-        
+        const hoveredUserSeatIds =
+          hoveredUserId !== null
+            ? users
+                .filter(
+                  (u) =>
+                    u.id === hoveredUserId &&
+                    u.seatSection &&
+                    u.seatRow &&
+                    u.seatCol
+                )
+                .map((u) => {
+                  const seatId = convertSeatIdForVenue(
+                    hallId,
+                    u.seatSection!,
+                    u.seatRow!,
+                    u.seatCol!
+                  );
+                  return seatId || `${u.seatSection}-${u.seatRow}-${u.seatCol}`;
+                })
+                .filter((id): id is string => id !== null)
+            : allSeatIds;
+
         return (
           <div className="w-full h-[400px] flex justify-center items-center bg-white rounded-lg p-4">
-            <div ref={seatMapContainerRef} className="w-full h-full flex items-center justify-center">
+            <div
+              ref={seatMapContainerRef}
+              className="w-full h-full flex items-center justify-center"
+            >
               <LargeVenue
                 selectedIds={hoveredUserSeatIds}
                 onToggleSeat={undefined}

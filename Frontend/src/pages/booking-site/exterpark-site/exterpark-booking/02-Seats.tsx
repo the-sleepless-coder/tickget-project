@@ -359,12 +359,14 @@ export default function SelectSeatPage() {
       const sectionId = target.getAttribute("section");
       const grade = target.getAttribute("grade") || "";
       // React는 DOM 요소에 커스텀 prop을 허용하지 않으므로 data- 접두사나 소문자 속성도 시도
-      const totalRowsStr = target.getAttribute("totalRows") || 
-                          target.getAttribute("data-total-rows") || 
-                          target.getAttribute("totalrows");
-      const totalColsStr = target.getAttribute("totalCols") || 
-                           target.getAttribute("data-total-cols") || 
-                           target.getAttribute("totalcols");
+      const totalRowsStr =
+        target.getAttribute("totalRows") ||
+        target.getAttribute("data-total-rows") ||
+        target.getAttribute("totalrows");
+      const totalColsStr =
+        target.getAttribute("totalCols") ||
+        target.getAttribute("data-total-cols") ||
+        target.getAttribute("totalcols");
       const fillColor = target.getAttribute("fill") || "#CF0098";
 
       console.log("[AI-section-click] polygon 속성:", {
@@ -1397,10 +1399,15 @@ export default function SelectSeatPage() {
                     ) : (
                       // 전체 보기 (SVG)
                       <div
-                        className="w-[600px] h-full flex items-center justify-center"
+                        className="w-[600px] h-full flex items-center justify-center overflow-hidden"
                         id="ai-venue-container"
                       >
-                        <TsxPreview src={tsxUrl} className="w-full h-full" />
+                        <TsxPreview
+                          key={`seat-selection-${tsxUrl}`}
+                          src={tsxUrl}
+                          className="w-full h-full"
+                          overflowHidden={true}
+                        />
                       </div>
                     )}
                   </div>

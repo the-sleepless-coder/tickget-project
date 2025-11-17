@@ -155,12 +155,11 @@ export default function LeftPane({
               return (
                 <div className="w-full h-full flex items-center justify-center overflow-hidden">
                   <TsxPreview
+                    key={`create-room-${tsxUrl}`}
                     src={tsxUrl}
                     className="w-full h-full"
-                    style={{
-                      transform: "scale(0.8)",
-                      transformOrigin: "center",
-                    }}
+                    disableAutoScale={false}
+                    overflowHidden={true}
                   />
                 </div>
               );

@@ -7,6 +7,7 @@ type TsxPreviewProps = {
   selectedSeatIds?: string[]; // 선택된 좌석 ID 배열 (section-row-col 형식)
   readOnly?: boolean; // 읽기 전용 모드: 선택된 좌석만 색상 표시
   disableAutoScale?: boolean; // 자동 스케일링 비활성화 (외부에서 스케일링 제어)
+  overflowHidden?: boolean; // overflow를 hidden으로 설정 (스크롤 없이 컨테이너에 맞춤)
 };
 
 /**
@@ -16,12 +17,13 @@ type TsxPreviewProps = {
  * - 동적으로 컴포넌트를 생성하여 직접 렌더링
  * - iframe 없이 직접 렌더링 (빠른 로딩)
  */
-export default function TsxPreview({ 
-  src, 
+export default function TsxPreview({
+  src,
   className,
   selectedSeatIds = [],
   readOnly = false,
   disableAutoScale = false,
+  overflowHidden = false,
 }: TsxPreviewProps) {
   // 모든 hooks는 컴포넌트 최상단에 정의
   const [error, setError] = useState<string | null>(null);
@@ -32,21 +34,24 @@ export default function TsxPreview({
   const innerRef = React.useRef<HTMLDivElement>(null);
   const scaleRef = React.useRef(1);
   const lastReadOnlyRef = React.useRef<boolean | undefined>(undefined);
-  const lastSelectedSeatIdsRef = React.useRef<string>('');
-  
+  const lastSelectedSeatIdsRef = React.useRef<string>("");
+
   // readOnly 모드일 때 선택되지 않은 좌석을 회색으로 처리
   useEffect(() => {
     if (!containerRef.current || !Component) {
       return;
     }
 
-    const currentSelectedIds = selectedSeatIds.join(',');
-    
+    const currentSelectedIds = selectedSeatIds.join(",");
+
     // 실제로 변경된 경우에만 실행
-    if (lastReadOnlyRef.current === readOnly && lastSelectedSeatIdsRef.current === currentSelectedIds) {
+    if (
+      lastReadOnlyRef.current === readOnly &&
+      lastSelectedSeatIdsRef.current === currentSelectedIds
+    ) {
       return;
     }
-    
+
     lastReadOnlyRef.current = readOnly;
     lastSelectedSeatIdsRef.current = currentSelectedIds;
 
@@ -61,7 +66,10 @@ export default function TsxPreview({
           }
         }
         if (el instanceof SVGElement) {
-          if (el.style.fill === "#9ca3af" || el.getAttribute("fill") === "#9ca3af") {
+          if (
+            el.style.fill === "#9ca3af" ||
+            el.getAttribute("fill") === "#9ca3af"
+          ) {
             const originalFill = el.getAttribute("data-original-fill");
             if (originalFill) {
               el.setAttribute("fill", originalFill);
@@ -75,13 +83,11 @@ export default function TsxPreview({
       });
       return;
     }
-    
+
     // readOnly가 true이고 selectedSeatIds가 비어있으면 모든 좌석을 회색 처리하지 않음
     if (selectedSeatIds.length === 0) {
       return;
     }
-
-
 
     let isProcessing = false;
     let processedElements = new WeakSet();
@@ -100,7 +106,7 @@ export default function TsxPreview({
       // 모든 요소를 찾아서 좌석인지 확인 (div, svg polygon 등)
       const allElements = container.querySelectorAll("*");
       const selectedSeatIdsSet = new Set(selectedSeatIds);
-      
+
       // 섹션 번호 추출 (section-row-col 형식에서 section만)
       const selectedSections = new Set<string>();
       selectedSeatIds.forEach((seatId) => {
@@ -113,9 +119,7 @@ export default function TsxPreview({
           selectedSections.add(parts[0]);
         }
       });
-      
-   
-      
+
       let processedCount = 0;
       let selectedCount = 0;
       let sectionElements = new Map<string, Set<Element>>(); // 섹션별 요소 추적
@@ -123,12 +127,12 @@ export default function TsxPreview({
       allElements.forEach((el) => {
         // HTMLElement와 SVGElement 모두 처리
         if (!(el instanceof HTMLElement || el instanceof SVGElement)) return;
-        
+
         // 이미 처리된 요소는 스킵
         if (processedElements.has(el)) return;
 
         // data attribute나 title에서 좌석 정보 추출 시도
-        const seatId = 
+        const seatId =
           el.getAttribute("data-seat-id") ||
           el.getAttribute("seatid") ||
           el.getAttribute("data-id") ||
@@ -136,14 +140,14 @@ export default function TsxPreview({
 
         // data-section 속성에서도 섹션 번호 추출 시도
         const dataSection = el.getAttribute("data-section");
-        
+
         // section 속성에서도 섹션 번호 추출 시도 (AI 생성 맵의 polygon에 사용)
         const sectionAttr = el.getAttribute("section");
 
         // title에서 좌석 정보 추출 (예: "[VIP석] 12구역-8열-9")
         const title = el.getAttribute("title") || "";
         let extractedSeatId: string | null = null;
-        
+
         if (title) {
           // title 형식: "[VIP석] 12구역-8열-9" 또는 "[VIP석] 12-8-9" 또는 "12-8-9"
           const match = title.match(/(\d+)[구역\s-]*(\d+)[열\s-]*(\d+)/);
@@ -151,7 +155,7 @@ export default function TsxPreview({
             extractedSeatId = `${match[1]}-${match[2]}-${match[3]}`;
           }
         }
-        
+
         // 클래스명에서도 섹션 번호 추출 시도 (예: "section-12", "sect-12")
         const className = el.getAttribute("class") || "";
         let sectionFromClass: string | null = null;
@@ -163,24 +167,30 @@ export default function TsxPreview({
         }
 
         // 좌석 ID가 있으면 처리 (data-section이 있으면 그것도 포함)
-        const finalSeatId = seatId || extractedSeatId || (dataSection ? `${dataSection}-0-0` : null);
-        
+        const finalSeatId =
+          seatId ||
+          extractedSeatId ||
+          (dataSection ? `${dataSection}-0-0` : null);
+
         // 배경색 또는 fill 색상 확인
-        const currentBg = el instanceof HTMLElement 
-          ? window.getComputedStyle(el).backgroundColor
-          : null;
-        const fillColor = el.getAttribute("fill") || 
+        const currentBg =
+          el instanceof HTMLElement
+            ? window.getComputedStyle(el).backgroundColor
+            : null;
+        const fillColor =
+          el.getAttribute("fill") ||
           (el instanceof SVGElement ? window.getComputedStyle(el).fill : null);
-        
-        const hasColor = (currentBg && 
-          currentBg !== "rgba(0, 0, 0, 0)" && 
-          currentBg !== "transparent" &&
-          currentBg !== "rgb(255, 255, 255)" &&
-          currentBg !== "white" &&
-          currentBg !== "rgb(0, 0, 0)" &&
-          currentBg !== "black") ||
-          (fillColor && 
-            fillColor !== "none" && 
+
+        const hasColor =
+          (currentBg &&
+            currentBg !== "rgba(0, 0, 0, 0)" &&
+            currentBg !== "transparent" &&
+            currentBg !== "rgb(255, 255, 255)" &&
+            currentBg !== "white" &&
+            currentBg !== "rgb(0, 0, 0)" &&
+            currentBg !== "black") ||
+          (fillColor &&
+            fillColor !== "none" &&
             fillColor !== "transparent" &&
             fillColor !== "rgba(0, 0, 0, 0)");
 
@@ -197,7 +207,7 @@ export default function TsxPreview({
         } else if (sectionFromClass) {
           seatSection = sectionFromClass;
         }
-        
+
         // 섹션 번호 정규화 (숫자로 변환 후 다시 문자열로 변환하여 "12"와 "012" 같은 경우 처리)
         let normalizedSeatSection: string | null = null;
         if (seatSection) {
@@ -206,15 +216,17 @@ export default function TsxPreview({
             normalizedSeatSection = String(numSection);
           }
         }
-        
-        // 정확한 좌석 ID 매칭 또는 섹션 번호 매칭
-        const exactMatch = finalSeatId ? selectedSeatIdsSet.has(finalSeatId) : false;
-        const sectionMatch = (seatSection !== null && selectedSections.has(seatSection)) ||
-          (normalizedSeatSection !== null && selectedSections.has(normalizedSeatSection));
-        const isSelected = exactMatch || sectionMatch;
-        
 
-        
+        // 정확한 좌석 ID 매칭 또는 섹션 번호 매칭
+        const exactMatch = finalSeatId
+          ? selectedSeatIdsSet.has(finalSeatId)
+          : false;
+        const sectionMatch =
+          (seatSection !== null && selectedSections.has(seatSection)) ||
+          (normalizedSeatSection !== null &&
+            selectedSections.has(normalizedSeatSection));
+        const isSelected = exactMatch || sectionMatch;
+
         // 섹션별 요소 추적 (섹션이 있는 경우 - 원본과 정규화된 버전 모두)
         if (seatSection) {
           if (!sectionElements.has(seatSection)) {
@@ -228,7 +240,7 @@ export default function TsxPreview({
           }
           sectionElements.get(normalizedSeatSection)!.add(el);
         }
-        
+
         if (isSelected) {
           selectedCount++;
           // 선택된 섹션의 좌석은 원래 색상 유지 (회색 처리 제거)
@@ -240,7 +252,10 @@ export default function TsxPreview({
           }
           if (el instanceof SVGElement) {
             // 회색 처리된 경우 원래 색상 복원
-            if (el.style.fill === "#9ca3af" || el.getAttribute("fill") === "#9ca3af") {
+            if (
+              el.style.fill === "#9ca3af" ||
+              el.getAttribute("fill") === "#9ca3af"
+            ) {
               const originalFill = el.getAttribute("data-original-fill");
               if (originalFill) {
                 el.setAttribute("fill", originalFill);
@@ -252,7 +267,11 @@ export default function TsxPreview({
             }
             // 회색 처리되지 않았어도 원래 색상이 있으면 유지
             const currentFill = el.getAttribute("fill");
-            if (currentFill && currentFill !== "#9ca3af" && !el.hasAttribute("data-original-fill")) {
+            if (
+              currentFill &&
+              currentFill !== "#9ca3af" &&
+              !el.hasAttribute("data-original-fill")
+            ) {
               el.setAttribute("data-original-fill", currentFill);
             }
           }
@@ -278,15 +297,20 @@ export default function TsxPreview({
           // 좌석 ID가 없지만 색상이 있는 경우
           // 작은 크기의 요소 (좌석일 가능성)이고 색상이 있으면 회색 처리
           const rect = el.getBoundingClientRect();
-          const isSmallSeat = rect.width > 0 && rect.width < 50 && rect.height > 0 && rect.height < 50;
-          
+          const isSmallSeat =
+            rect.width > 0 &&
+            rect.width < 50 &&
+            rect.height > 0 &&
+            rect.height < 50;
+
           // SVG 요소도 처리
-          const isSVGElement = el instanceof SVGElement || 
-            el.tagName === "polygon" || 
-            el.tagName === "rect" || 
+          const isSVGElement =
+            el instanceof SVGElement ||
+            el.tagName === "polygon" ||
+            el.tagName === "rect" ||
             el.tagName === "circle" ||
             el.tagName === "path";
-          
+
           if ((isSmallSeat || isSVGElement) && hasColor) {
             // 원래 색상을 저장
             if (el instanceof SVGElement) {
@@ -305,7 +329,7 @@ export default function TsxPreview({
           }
         }
       });
-      
+
       // 선택된 섹션의 모든 요소가 원래 색상을 유지하도록 보장
       // 섹션 전체를 회색 처리하지 않도록 추가 처리
       selectedSections.forEach((sectionNum) => {
@@ -313,7 +337,7 @@ export default function TsxPreview({
         if (sectionEls) {
           sectionEls.forEach((el) => {
             if (processedElements.has(el)) return;
-            
+
             if (el instanceof HTMLElement) {
               if (el.style.backgroundColor === "#9ca3af") {
                 el.style.backgroundColor = "";
@@ -321,7 +345,10 @@ export default function TsxPreview({
               }
             }
             if (el instanceof SVGElement) {
-              if (el.style.fill === "#9ca3af" || el.getAttribute("fill") === "#9ca3af") {
+              if (
+                el.style.fill === "#9ca3af" ||
+                el.getAttribute("fill") === "#9ca3af"
+              ) {
                 const originalFill = el.getAttribute("data-original-fill");
                 if (originalFill) {
                   el.setAttribute("fill", originalFill);
@@ -337,8 +364,6 @@ export default function TsxPreview({
         }
       });
 
- 
-      
       isProcessing = false;
     };
 
@@ -349,7 +374,7 @@ export default function TsxPreview({
       isProcessing = false;
       processedElements = new WeakSet();
     };
-  }, [readOnly, selectedSeatIds.join(','), Component]); // selectedSeatIds를 문자열로 변환하여 불필요한 재실행 방지
+  }, [readOnly, selectedSeatIds.join(","), Component]); // selectedSeatIds를 문자열로 변환하여 불필요한 재실행 방지
 
   useEffect(() => {
     let cancelled = false;
@@ -361,7 +386,6 @@ export default function TsxPreview({
 
         // URL 인코딩 (공백 등) 처리
         const encoded = src.includes(" ") ? encodeURI(src) : src;
-       
 
         const res = await fetch(encoded, {
           credentials: "omit",
@@ -376,7 +400,6 @@ export default function TsxPreview({
         }
 
         const tsxCode = await res.text();
-       
 
         if (cancelled) return;
 
@@ -393,8 +416,6 @@ export default function TsxPreview({
             filename: "RemoteSeatmap.tsx",
             sourceType: "module",
           }).code || "";
-
-      
 
         // export default를 변수로 변환
         let processedCode = transformed;
@@ -424,8 +445,6 @@ export default function TsxPreview({
         let DynamicComponent: React.ComponentType | null = null;
 
         try {
-       
-
           // 모듈 래퍼 함수 생성
           const moduleCode = `
             (function(React) {
@@ -525,7 +544,6 @@ export default function TsxPreview({
 
         if (cancelled) return;
 
-       
         setComponent(() => DynamicComponent);
         setLoading(false);
       } catch (e) {
@@ -570,33 +588,144 @@ export default function TsxPreview({
       if (containerWidth === 0 || containerHeight === 0) return;
 
       // 내부 컴포넌트의 실제 크기 확인
-      const innerRect = inner.getBoundingClientRect();
-      const innerWidth = innerRect.width || containerWidth;
-      const innerHeight = innerRect.height || containerHeight;
+      // SVG 요소를 직접 찾아서 크기 측정
+      let innerWidth = 0;
+      let innerHeight = 0;
+
+      // SVG 요소 찾기
+      const svgElement = inner.querySelector("svg");
+      if (svgElement) {
+        // 먼저 실제 렌더링된 크기 측정 (가장 정확함)
+        const svgRect = svgElement.getBoundingClientRect();
+        if (svgRect.width > 0 && svgRect.height > 0) {
+          innerWidth = svgRect.width;
+          innerHeight = svgRect.height;
+        }
+
+        // 렌더링 크기가 없으면 viewBox 사용
+        if (innerWidth === 0 || innerHeight === 0) {
+          const viewBox = svgElement.getAttribute("viewBox");
+          if (viewBox) {
+            const [, , vbWidth, vbHeight] = viewBox.split(" ").map(Number);
+            if (vbWidth > 0 && vbHeight > 0) {
+              innerWidth = vbWidth;
+              innerHeight = vbHeight;
+            }
+          }
+        }
+
+        // viewBox도 없으면 width/height 속성 사용
+        if (innerWidth === 0 || innerHeight === 0) {
+          const svgWidth = svgElement.getAttribute("width");
+          const svgHeight = svgElement.getAttribute("height");
+          if (svgWidth && svgHeight) {
+            innerWidth = parseFloat(svgWidth) || 0;
+            innerHeight = parseFloat(svgHeight) || 0;
+          }
+        }
+      }
+
+      // SVG가 없으면 innerRef의 크기 직접 측정
+      if (innerWidth === 0 || innerHeight === 0) {
+        const innerRect = inner.getBoundingClientRect();
+        innerWidth = innerRect.width || containerWidth;
+        innerHeight = innerRect.height || containerHeight;
+      }
+
+      // scrollWidth/scrollHeight도 시도
+      if (innerWidth === 0 || innerHeight === 0) {
+        innerWidth = inner.scrollWidth || containerWidth;
+        innerHeight = inner.scrollHeight || containerHeight;
+      }
 
       if (innerWidth === 0 || innerHeight === 0) return;
 
       // 컨테이너에 맞춰 최대한 크게 스케일 계산 (높이와 너비 모두 고려)
       const scaleX = containerWidth / innerWidth;
       const scaleY = containerHeight / innerHeight;
-      const newScale = Math.min(scaleX, scaleY, 1); // 1보다 크게 확대하지 않음
+      // overflowHidden이 true면 컨테이너에 정확히 맞춤 (1보다 작아도 됨)
+      // overflowHidden이 false면 1보다 크게 확대하지 않음
+      const maxScale = overflowHidden
+        ? Math.min(scaleX, scaleY)
+        : Math.min(scaleX, scaleY, 1);
+      const newScale = maxScale > 0 ? maxScale : 1;
 
-      if (newScale > 0 && Math.abs(newScale - scaleRef.current) > 0.01) {
+      // 디버깅 로그 (개발 환경에서만)
+      if (import.meta.env.DEV && overflowHidden) {
+        console.log("[TsxPreview] 스케일 계산:", {
+          containerWidth,
+          containerHeight,
+          innerWidth,
+          innerHeight,
+          scaleX,
+          scaleY,
+          maxScale,
+          newScale,
+          currentScale: scaleRef.current,
+        });
+      }
+
+      // 스케일 값이 유의미하게 변경된 경우에만 업데이트 (0.05 이상 차이)
+      // 작은 변화는 무시하여 깜빡임 방지
+      if (newScale > 0 && Math.abs(newScale - scaleRef.current) > 0.05) {
         scaleRef.current = newScale;
         setScale(newScale);
       }
     };
 
-    // 초기 스케일 계산 (여러 번 시도)
+    // 초기 스케일 계산 (디바운싱 적용)
     const timeouts: ReturnType<typeof setTimeout>[] = [];
-    [300, 600, 1000].forEach((delay) => {
-      const timeoutId = setTimeout(updateScale, delay);
+    let updateScaleTimeout: ReturnType<typeof setTimeout> | null = null;
+    let isUpdating = false;
+
+    const debouncedUpdateScale = () => {
+      if (updateScaleTimeout) {
+        clearTimeout(updateScaleTimeout);
+      }
+      updateScaleTimeout = setTimeout(() => {
+        if (!isUpdating) {
+          isUpdating = true;
+          updateScale();
+          setTimeout(() => {
+            isUpdating = false;
+          }, 50);
+        }
+        updateScaleTimeout = null;
+      }, 150);
+    };
+
+    // requestAnimationFrame으로 렌더링 완료 후 측정 (한 번만)
+    let rafCalled = false;
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (!rafCalled && !isUpdating) {
+          rafCalled = true;
+          isUpdating = true;
+          updateScale();
+          setTimeout(() => {
+            isUpdating = false;
+          }, 50);
+        }
+      });
+    });
+
+    // 추가 시도 (안정화를 위해 - 스케일이 1이거나 0인 경우에만)
+    [300, 600].forEach((delay) => {
+      const timeoutId = setTimeout(() => {
+        if ((scaleRef.current === 1 || scaleRef.current === 0) && !isUpdating) {
+          isUpdating = true;
+          updateScale();
+          setTimeout(() => {
+            isUpdating = false;
+          }, 50);
+        }
+      }, delay);
       timeouts.push(timeoutId);
     });
-    
-    // 리사이즈 이벤트 리스너
+
+    // 리사이즈 이벤트 리스너 (디바운싱 적용)
     const resizeObserver = new ResizeObserver(() => {
-      setTimeout(updateScale, 100);
+      debouncedUpdateScale();
     });
     if (containerRef.current) {
       resizeObserver.observe(containerRef.current);
@@ -604,9 +733,12 @@ export default function TsxPreview({
 
     return () => {
       timeouts.forEach(clearTimeout);
+      if (updateScaleTimeout) {
+        clearTimeout(updateScaleTimeout);
+      }
       resizeObserver.disconnect();
     };
-  }, [Component, disableAutoScale]);
+  }, [Component, disableAutoScale, overflowHidden]);
 
   if (loading) {
     return (
@@ -658,7 +790,7 @@ export default function TsxPreview({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        overflow: "auto",
+        overflow: overflowHidden ? "hidden" : "auto",
         position: "relative",
       }}
     >
