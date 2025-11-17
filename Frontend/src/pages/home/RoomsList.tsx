@@ -140,12 +140,20 @@ export default function RoomsPage() {
             (r.thumbnailType === "UPLOADED" && r.thumbnailValue
               ? normalizeS3Url(r.thumbnailValue)
               : undefined);
+          const localizedHallName = convertHallNameToKorean(
+            r.hallName,
+            r.hallType
+          );
+          const displayHallName =
+            r.hallType === "AI_GENERATED"
+              ? `${localizedHallName} (AI 생성)`
+              : localizedHallName;
           return {
             id: r.roomId,
             title: r.roomName,
             variant: "blue",
             size,
-            venueName: convertHallNameToKorean(r.hallName, r.hallType),
+            venueName: displayHallName,
             imageSrc: thumbnailImageSrc,
             participants: {
               current: r.currentUserCount,
