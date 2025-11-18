@@ -67,6 +67,8 @@ public class FailedStatsService {
                     .userId(userId)
                     .matchId(matchId)
                     .isSuccess(false)  // 실패
+                    .selectedSection("failed")
+                    .selectedSeat("failed")
                     .dateSelectTime(request.getDateSelectTime() != null ? request.getDateSelectTime() : 0f)
                     .dateMissCount(request.getDateMissCount() != null ? request.getDateMissCount() : 0)
                     .seccodeSelectTime(request.getSeccodeSelectTime() != null ? request.getSeccodeSelectTime() : 0f)
