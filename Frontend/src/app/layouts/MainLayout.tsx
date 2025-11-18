@@ -22,6 +22,33 @@ export default function MainLayout() {
   const setClient = useWebSocketStore((s) => s.setClient);
   const navigate = useNavigate();
 
+  // 새로고침 감지: 페이지 로드 시 새로고침 여부 확인
+  const isReload = (() => {
+    try {
+      const entries = performance.getEntriesByType(
+        "navigation"
+      ) as PerformanceNavigationTiming[];
+      if (entries.length > 0 && entries[0].type === "reload") {
+        return true;
+      }
+      const nav = (
+        performance as {
+          navigation?: { type?: number };
+        }
+      ).navigation;
+      if (nav && nav.type === 1) {
+        // TYPE_RELOAD = 1
+        return true;
+      }
+    } catch {
+      // 확인 실패는 새로고침이 아닌 것으로 간주
+    }
+    return false;
+  })();
+
+  // 새로고침 직후 일정 시간 동안 WebSocket 퇴장/강제 종료 이벤트 무시 (5초)
+  const reloadIgnoreUntilRef = useRef<number>(isReload ? Date.now() + 5000 : 0);
+
   useEffect(() => {
     const userId = useAuthStore.getState().userId;
 
@@ -44,6 +71,28 @@ export default function MainLayout() {
               eventType: event.eventType,
               body: event,
             });
+          }
+
+          // 새로고침 직후 일정 시간 동안 퇴장/강제 종료 이벤트 무시
+          const now = Date.now();
+          if (
+            reloadIgnoreUntilRef.current > 0 &&
+            now < reloadIgnoreUntilRef.current &&
+            (event.eventType === "USER_LEFT" ||
+              event.eventType === "USER_EXITED" ||
+              event.eventType === "FORCE_DISCONNECT")
+          ) {
+            if (import.meta.env.DEV) {
+              console.log(
+                "⏭️ [개인 메시지] 새로고침 직후이므로 USER_LEFT/USER_EXITED/FORCE_DISCONNECT 무시:",
+                {
+                  eventType: event.eventType,
+                  remainingMs: reloadIgnoreUntilRef.current - now,
+                  event,
+                }
+              );
+            }
+            return;
           }
 
           // 결과 페이지에서는 USER_LEFT 이벤트 무시
