@@ -35,7 +35,7 @@ export interface MatchHistory {
   participants: string;
   venue: string;
   venueType: string;
-  tags: Array<{ label: string; color: string }>;
+  tags: Array<{ label: string; color: string; className?: string }>;
   date: string; // YYYY-MM-DD
   time: string; // HH:mm
   mySeatArea?: string;

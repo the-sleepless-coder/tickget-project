@@ -2,7 +2,7 @@ import React from "react";
 
 export default function AnalysisLoader() {
   return (
-    <div className="flex flex-col items-center justify-center rounded-lg border border-neutral-200 bg-white p-12">
+    <div className="flex flex-col items-center justify-center rounded-lg bg-white p-12">
       <div className="relative h-24 w-32 flex items-center justify-center">
         <div className="typewriter-alt">
           <div className="slide">

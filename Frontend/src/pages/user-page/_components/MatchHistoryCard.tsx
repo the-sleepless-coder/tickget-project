@@ -7,7 +7,7 @@ interface MatchHistoryCardProps {
   participants: string;
   venue: string;
   venueType: string;
-  tags: Array<{ label: string; color: string }>;
+  tags: Array<{ label: string; color: string; className?: string }>;
   date?: string;
   time?: string;
   mySeatArea?: string;
@@ -84,7 +84,9 @@ export default function MatchHistoryCard({
             {tags.map((tag, index) => (
               <span
                 key={index}
-                className={`rounded-full px-3 py-1 text-xs font-medium text-white ${getTagColorClass(tag.color)}`}
+                className={`rounded-full px-3 py-1 text-xs font-medium ${
+                  tag.className || `text-white ${getTagColorClass(tag.color)}`
+                }`}
               >
                 {tag.label}
               </span>

@@ -143,8 +143,36 @@ export default function ITicketPage() {
   const [isExiting, setIsExiting] = useState<boolean>(false);
   const [hasDequeuedInPage, setHasDequeuedInPage] = useState<boolean>(false);
   const subscriptionRef = useRef<Subscription | null>(null);
+  const hasOpenedNewWindowRef = useRef<boolean>(false); // 새 창이 열렸는지 추적
   // ref로 상태를 관리하여 handleRoomEvent 재생성 방지
   const hasDequeuedInPageRef = useRef<boolean>(false);
+
+  // 새로고침 감지: 페이지 로드 시 새로고침 여부 확인
+  const isReload = (() => {
+    try {
+      const entries = performance.getEntriesByType(
+        "navigation"
+      ) as PerformanceNavigationTiming[];
+      if (entries.length > 0 && entries[0].type === "reload") {
+        return true;
+      }
+      const nav = (
+        performance as {
+          navigation?: { type?: number };
+        }
+      ).navigation;
+      if (nav && nav.type === 1) {
+        // TYPE_RELOAD = 1
+        return true;
+      }
+    } catch {
+      // 확인 실패는 새로고침이 아닌 것으로 간주
+    }
+    return false;
+  })();
+
+  // 새로고침 직후 일정 시간 동안 본인 퇴장 이벤트 무시 (5초)
+  const reloadIgnoreUntilRef = useRef<number>(isReload ? Date.now() + 5000 : 0);
   const handleRoomEventRef = useRef<
     | ((event: {
         eventType?: string;
@@ -469,6 +497,26 @@ export default function ITicketPage() {
           const totalUsersInRoom = payload?.totalUsersInRoom;
           const myUserId = useAuthStore.getState().userId;
 
+          // 새로고침 직후 일정 시간 동안 본인 퇴장 이벤트 무시
+          const now = Date.now();
+          if (
+            userId === myUserId &&
+            reloadIgnoreUntilRef.current > 0 &&
+            now < reloadIgnoreUntilRef.current
+          ) {
+            if (import.meta.env.DEV) {
+              console.log(
+                "⏭️ [ExterparkRoom] 새로고침 직후이므로 본인 USER_EXITED/USER_LEFT 무시:",
+                {
+                  userId,
+                  remainingMs: reloadIgnoreUntilRef.current - now,
+                  event,
+                }
+              );
+            }
+            break;
+          }
+
           if (userId) {
             console.log(
               `👋 유저 퇴장: userId=${userId}, 남은 인원=${totalUsersInRoom || "알 수 없음"}`
@@ -477,6 +525,14 @@ export default function ITicketPage() {
 
             // 본인이 퇴장당한 경우
             if (userId === myUserId) {
+              // 새 창이 열린 경우 USER_LEFT 이벤트 무시 (새 창에서 웹소켓 세션 연결됨)
+              if (hasOpenedNewWindowRef.current) {
+                console.log(
+                  "ℹ️ [퇴장] 새 창이 열린 상태이므로 USER_LEFT 이벤트 무시 (새 창에서 세션 유지)"
+                );
+                break;
+              }
+
               const eventType = event.eventType || event.type || "USER_EXITED";
               const reason =
                 payload?.reason || payload?.message || event.message;
@@ -1131,6 +1187,14 @@ export default function ITicketPage() {
       : "";
     // 회차는 단일 회차(1회차)로 고정
     const roundParam = `&round=1`;
+    // roomId 추가: 새 창에서 방 정보를 알 수 있도록
+    const targetRoomId =
+      roomId ||
+      joinResponse?.roomId?.toString() ||
+      roomData?.roomId?.toString();
+    const roomIdParam = targetRoomId
+      ? `&roomId=${encodeURIComponent(targetRoomId)}`
+      : "";
 
     let finalUrl: string;
     if (reserveAppearedAt) {
@@ -1146,12 +1210,12 @@ export default function ITicketPage() {
         nonReserveClickCount,
       });
       setIsTrackingClicks(false);
-      finalUrl = `${baseUrl}?rtSec=${encodeURIComponent(String(reactionSec))}&nrClicks=${encodeURIComponent(String(nonReserveClickCount))}&tStart=${encodeURIComponent(String(totalStartAt))}&matchId=${encodeURIComponent(matchIdParam)}${hallIdParam}${hallTypeParam}${tsxUrlParam}${hallSizeParam}${dateParam}${roundParam}`;
+      finalUrl = `${baseUrl}?rtSec=${encodeURIComponent(String(reactionSec))}&nrClicks=${encodeURIComponent(String(nonReserveClickCount))}&tStart=${encodeURIComponent(String(totalStartAt))}&matchId=${encodeURIComponent(matchIdParam)}${hallIdParam}${hallTypeParam}${tsxUrlParam}${hallSizeParam}${dateParam}${roundParam}${roomIdParam}`;
     } else {
       console.log(
         "[ReserveTiming] Click without appearance timestamp (possibly test click)"
       );
-      finalUrl = `${baseUrl}?rtSec=0&nrClicks=${encodeURIComponent(String(nonReserveClickCount))}&tStart=${encodeURIComponent(String(totalStartAt))}&matchId=${encodeURIComponent(matchIdParam)}${hallIdParam}${hallTypeParam}${tsxUrlParam}${hallSizeParam}${dateParam}${roundParam}`;
+      finalUrl = `${baseUrl}?rtSec=0&nrClicks=${encodeURIComponent(String(nonReserveClickCount))}&tStart=${encodeURIComponent(String(totalStartAt))}&matchId=${encodeURIComponent(matchIdParam)}${hallIdParam}${hallTypeParam}${tsxUrlParam}${hallSizeParam}${dateParam}${roundParam}${roomIdParam}`;
     }
 
     return finalUrl;
@@ -1163,6 +1227,7 @@ export default function ITicketPage() {
     roomRequest,
     reserveAppearedAt,
     nonReserveClickCount,
+    roomId,
   ]);
 
   // 새 창에서 대기열 페이지 열기
@@ -1172,6 +1237,10 @@ export default function ITicketPage() {
       console.warn("[booking] matchId가 없어 새 창을 열 수 없습니다.");
       return;
     }
+
+    // 새 창이 열렸음을 표시 (USER_LEFT 이벤트 무시를 위해)
+    hasOpenedNewWindowRef.current = true;
+    console.log("[booking] 새 창 열기:", finalUrl);
 
     window.open(
       finalUrl,
@@ -1434,22 +1503,47 @@ function TagsRow({
     children,
     bgVar,
     colorVar,
+    className,
   }: {
     children: string;
-    bgVar: string;
-    colorVar: string;
+    bgVar?: string;
+    colorVar?: string;
+    className?: string;
   }) => (
     <span
-      className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold"
-      style={{ backgroundColor: `var(${bgVar})`, color: `var(${colorVar})` }}
+      className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold ${
+        className || ""
+      }`}
+      style={
+        !className && bgVar && colorVar
+          ? { backgroundColor: `var(${bgVar})`, color: `var(${colorVar})` }
+          : undefined
+      }
     >
       {children}
     </span>
   );
 
+  const getDifficultyClassName = (difficulty?: string): string => {
+    const difficultyLabel = difficulty
+      ? DIFFICULTY_TO_LABEL[difficulty] || difficulty
+      : "쉬움";
+
+    switch (difficultyLabel) {
+      case "쉬움":
+        return "bg-[#F9FBAD] text-[#8DBA07]";
+      case "보통":
+        return "bg-[#FFEEA2] text-[#FF8800]";
+      case "어려움":
+        return "bg-[#FFDEDE] text-[#FF4040]";
+      default:
+        return "bg-[#F9FBAD] text-[#8DBA07]";
+    }
+  };
+
   const difficultyLabel = difficulty
     ? DIFFICULTY_TO_LABEL[difficulty] || difficulty
-    : "어려움";
+    : "쉬움";
   // totalSeat가 있으면 "총 좌석 수 --명"으로 표시, 없으면 최대 천 명
   const maxLabel = totalSeat
     ? `총 좌석수 ${totalSeat.toLocaleString()}명`
@@ -1457,11 +1551,11 @@ function TagsRow({
   const botLabel =
     botCount !== undefined && botCount !== null
       ? `봇 ${botCount.toLocaleString()}명`
-      : "봇 3000명";
+      : "봇 100명";
 
   return (
     <div className="flex items-center gap-3 py-4">
-      <Pill bgVar="--color-c-red-100" colorVar="--color-c-red-200">
+      <Pill className={getDifficultyClassName(difficulty)}>
         {difficultyLabel}
       </Pill>
       <Pill bgVar="--color-c-blue-100" colorVar="--color-c-blue-200">
