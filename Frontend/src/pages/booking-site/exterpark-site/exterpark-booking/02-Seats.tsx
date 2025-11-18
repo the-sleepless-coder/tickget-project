@@ -24,6 +24,7 @@ import {
   recordSeatCompleteNow,
   setTotalStartAtMs,
   buildMetricsQueryFromStorage,
+  resetSeatSelectionMetrics,
 } from "../../../../shared/utils/reserveMetrics";
 import { useWebSocketStore } from "../../../../shared/lib/websocket-store";
 import { subscribe, type Subscription } from "../../../../shared/lib/websocket";
@@ -125,6 +126,10 @@ export default function SelectSeatPage() {
     document.addEventListener("click", onDocClick);
     return () => document.removeEventListener("click", onDocClick);
   }, [isTrackingSeatClicks]);
+
+  useEffect(() => {
+    resetSeatSelectionMetrics();
+  }, []);
 
   // Captcha modal open time for live measurement (and let HUD pick it up)
   useEffect(() => {
@@ -1586,7 +1591,7 @@ export default function SelectSeatPage() {
                     </thead>
                   </table>
                   {/* Fixed-height, scrollable body */}
-                  <div className="h-[160px] overflow-y-auto">
+                  <div className="h-[90px] overflow-y-auto">
                     <table className="w-full text-sm">
                       <tbody>
                         {selected.length === 0 ? (

@@ -94,12 +94,12 @@ export function buildMetricsQueryFromStorage(): string {
 export function readMetricsWithFallback(sp: URLSearchParams): {
   rtSec: number;
   nrClicks: number;
-  captchaSec: number;
+  captchaSec: number | null;
   capToCompleteSec: number | null;
   capBackspaces: number | null;
   capWrong: number | null;
-  seatClickMiss: number;
-  seatTakenCount: number;
+  seatClickMiss: number | null;
+  seatTakenCount: number | null;
 } {
   const getNum = (param: string, storageKey: string, nullable = false) => {
     const v = sp.get(param) ?? sessionStorage.getItem(storageKey);
@@ -110,12 +110,12 @@ export function readMetricsWithFallback(sp: URLSearchParams): {
   return {
     rtSec: getNum("rtSec", KEYS.rtSec),
     nrClicks: getNum("nrClicks", KEYS.nrClicks),
-    captchaSec: getNum("captchaSec", KEYS.captchaDurationSec),
+    captchaSec: getNum("captchaSec", KEYS.captchaDurationSec, true),
     capToCompleteSec: getNum("capToCompleteSec", KEYS.capToCompleteSec, true),
     capBackspaces: getNum("capBackspaces", KEYS.capBackspaces, true),
     capWrong: getNum("capWrong", KEYS.capWrong, true),
-    seatClickMiss: getNum("seatClickMiss", "reserve.seatClickMiss"),
-    seatTakenCount: getNum("seatTakenCount", "reserve.seatTakenCount"),
+    seatClickMiss: getNum("seatClickMiss", "reserve.seatClickMiss", true),
+    seatTakenCount: getNum("seatTakenCount", "reserve.seatTakenCount", true),
   };
 }
 
@@ -126,3 +126,19 @@ export function formatSecondsHuman(sec: number): string {
 }
 
 export const ReserveMetricKeys = KEYS;
+
+export function resetSeatSelectionMetrics(): void {
+  const keysToRemove = [
+    KEYS.captchaEndAtMs,
+    KEYS.captchaDurationSec,
+    KEYS.capBackspaces,
+    KEYS.capWrong,
+    KEYS.capToCompleteSec,
+    "reserve.captchaStartAtMs",
+    "reserve.seatClickMiss",
+    "reserve.seatTakenCount",
+  ];
+  for (const key of keysToRemove) {
+    sessionStorage.removeItem(key);
+  }
+}
