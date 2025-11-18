@@ -9,7 +9,10 @@ import { exitRoom } from "@features/room/api";
 import { sendSeatStatsFailedForMatch } from "@features/booking-site/api";
 import { useMatchStore } from "@features/booking-site/store";
 import { paths } from "../../../../../app/routes/paths";
-import { buildMetricsQueryFromStorage } from "../../../../../shared/utils/reserveMetrics";
+import {
+  buildMetricsQueryFromStorage,
+  recordSeatCompleteNow,
+} from "../../../../../shared/utils/reserveMetrics";
 
 type Props = PropsWithChildren<{
   className?: string;
@@ -142,6 +145,7 @@ export default function Viewport({
       });
       clearRoomInfo();
 
+      recordSeatCompleteNow();
       const metricsQs = buildMetricsQueryFromStorage();
       const extraParams = new URLSearchParams();
       if (resolvedRoomId) {

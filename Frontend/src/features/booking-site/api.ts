@@ -6,7 +6,10 @@ import {
 } from "@shared/lib/http";
 import { useAuthStore } from "@features/auth/store";
 import { useMatchStore } from "./store";
-import { ReserveMetricKeys } from "@shared/utils/reserveMetrics";
+import {
+  ReserveMetricKeys,
+  recordSeatCompleteNow,
+} from "@shared/utils/reserveMetrics";
 import type {
   CreateRoomRequest,
   ExitRoomRequest,
@@ -520,6 +523,7 @@ export async function sendSeatStatsFailedForMatch(
     // sessionStorage 접근 실패는 무시하고 계속 진행 (중복 전송 허용)
   }
 
+  recordSeatCompleteNow();
   const payload = buildSeatMetricsPayload(userId);
 
   if (import.meta.env.DEV) {
