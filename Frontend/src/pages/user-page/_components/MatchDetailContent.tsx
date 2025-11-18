@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import TsxPreview from "./TsxPreview";
 import SmallVenue from "../../performance-halls/small-venue/CharlotteTheater";
 import MediumVenue from "../../performance-halls/medium-venue/OlympicHall";
@@ -63,7 +63,6 @@ export default function MatchDetailContent({
   roomType,
 }: MatchDetailContentProps) {
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
-  const [hoveredUserId, setHoveredUserId] = useState<number | null>(null);
 
   const meFallback: UserRank = {
     id: 0,
@@ -104,19 +103,6 @@ export default function MatchDetailContent({
     return booking + captcha + seat;
   };
 
-  const diffSignVal = (
-    a: number | undefined,
-    b: number | undefined,
-    suffix: string
-  ): string => {
-    const av = a ?? 0;
-    const bv = b ?? 0;
-    const d = av - bv;
-    const sign = d > 0 ? "+" : d < 0 ? "-" : "±";
-    const val = Math.abs(d);
-    return `${sign} ${val}${suffix}`;
-  };
-
   const diffSec = (aMs?: number, bMs?: number): string => {
     const a = aMs ?? 0;
     const b = bMs ?? 0;
@@ -145,7 +131,7 @@ export default function MatchDetailContent({
     extraLabel?: string;
   }) => (
     <div className="flex flex-col rounded-xl border border-neutral-200 bg-white shadow-sm">
-      <div className="rounded-t-xl bg-blue-50 px-4 py-3 text-center text-sm font-semibold text-blue-600">
+      <div className="rounded-t-xl bg-purple-50 px-4 py-3 text-center text-sm font-semibold text-purple-700">
         {title}
       </div>
       <div className="space-y-3 px-6 py-5 text-sm">
@@ -221,11 +207,7 @@ export default function MatchDetailContent({
     </div>
   );
 
-  const renderUserStats = (
-    user: UserRank,
-    _color: "purple" | "blue",
-    baseline?: UserRank
-  ) => {
+  const renderUserStats = (user: UserRank) => {
     const booking = user.metrics?.bookingClick;
     const captcha = user.metrics?.captcha;
     const seat = user.metrics?.seatSelection;
@@ -333,52 +315,80 @@ export default function MatchDetailContent({
   const isSoloMode =
     roomType === "SOLO" || (roomType !== "MULTI" && users.length === 1);
 
-  // 공연장별 좌석 ID 변환 함수 (프리셋 공연장용)
-  const convertSeatIdForVenue = useMemo(() => {
-    return (
-      hallId: number | undefined,
-      seatSection: string | number,
-      seatRow: string | number,
-      seatCol: string | number
-    ) => {
-      if (!hallId) return null;
+  // 공연장별 좌석 ID 변환 함수 (프리셋 공연장용, 좌표 → seatId)
+  const convertSeatIdForVenue = (
+    hallId: number | undefined,
+    seatSection: string | number,
+    seatRow: string | number,
+    seatCol: string | number
+  ): string | null => {
+    if (!hallId) return null;
 
-      // 문자열로 변환
-      const section = String(seatSection);
-      const row = String(seatRow);
-      const col = String(seatCol);
+    const section = String(seatSection);
+    const row = String(seatRow);
+    const col = String(seatCol);
 
-      // SmallVenue (hallId === 2): small-${floor}-${displaySection}-${row}-${col}
-      // 프리셋 모드에서는 displaySection이 "1" (OP는 "0")
-      // floor는 1 또는 2인데, 사용자 정보에서 알 수 없으므로 1로 가정
-      // row는 displayRowInSection, col은 seatCol
-      if (hallId === 2) {
-        const displaySection = section === "0" ? "0" : "1";
-        const floor = 1; // 기본값, 필요시 조정
-        return `small-${floor}-${displaySection}-${row}-${col}`;
+    // SmallVenue (hallId === 2): small-${floor}-${displaySection}-${row}-${col}
+    if (hallId === 2) {
+      const displaySection = section === "0" ? "0" : "1";
+      const floor = 1;
+      return `small-${floor}-${displaySection}-${row}-${col}`;
+    }
+
+    // MediumVenue & LargeVenue (hallId === 3 or 4): ${section}-${row}-${seat}
+    if (hallId === 3 || hallId === 4) {
+      return `${section}-${row}-${col}`;
+    }
+
+    return null;
+  };
+
+  // 좌석 선택 성공 여부 판단
+  const hasAnyValidSeatSection = users.some(
+    (u) =>
+      u.seatSection !== undefined &&
+      u.seatSection !== null &&
+      u.seatSection !== "failed"
+  );
+  const allFailed = users.length > 0 && !hasAnyValidSeatSection;
+
+  // AI/TSX 공연장용: 섹션 단위 seatId 목록 (예: "12-0-0") - 모든 참가자 섹션
+  const aiSelectedSeatIds: string[] = (() => {
+    if (!hasAnyValidSeatSection) return [];
+
+    const sectionSet = new Set<string>();
+    users.forEach((u) => {
+      if (
+        u.seatSection !== undefined &&
+        u.seatSection !== null &&
+        u.seatSection !== "failed"
+      ) {
+        const num = Number(u.seatSection);
+        if (!Number.isNaN(num)) {
+          const normalized = String(num);
+          sectionSet.add(normalized);
+        }
       }
+    });
+    const sortedSections = Array.from(sectionSet).sort(
+      (a, b) => Number(a) - Number(b)
+    );
+    return sortedSections.map((s) => `${s}-0-0`);
+  })();
 
-      // MediumVenue & LargeVenue (hallId === 3 or 4): ${section}-${row}-${seat}
-      // seatCol이 실제로 seat 번호인지 확인 필요
-      // 일단 seatCol을 seat로 사용 (API 응답 형식에 따라 다를 수 있음)
-      if (hallId === 3 || hallId === 4) {
-        return `${section}-${row}-${col}`;
-      }
+  // 프리셋 공연장용: 실제 좌표 기반 seatId 목록 (모든 참가자)
+  const presetSelectedSeatIds: string[] = (() => {
+    // 모든 유저가 failed이면, 존재하지 않는 섹션 ID를 하나 넣어서
+    // 공연장 컴포넌트 내부 로직이 "선택된 섹션 없음"으로 판단하게 함 → 전체 회색 처리
+    if (!hasAnyValidSeatSection) {
+      return ["9999-0-0"];
+    }
 
-      return null;
-    };
-  }, []);
-
-  // 사용자 좌석 정보를 공연장별 좌석 ID로 변환 (프리셋 공연장용)
-  // 호버된 유저가 있으면 해당 유저의 좌석만, 없으면 모든 좌석
-  const selectedSeatIds = useMemo(() => {
-    const targetUsers =
-      hoveredUserId !== null
-        ? users.filter((u) => u.id === hoveredUserId)
-        : users;
-
-    return targetUsers
-      .filter((u) => u.seatSection && u.seatRow && u.seatCol)
+    return users
+      .filter(
+        (u) =>
+          u.seatSection && u.seatSection !== "failed" && u.seatRow && u.seatCol
+      )
       .map((u) => {
         const seatId = convertSeatIdForVenue(
           hallId,
@@ -389,69 +399,9 @@ export default function MatchDetailContent({
         return seatId || `${u.seatSection}-${u.seatRow}-${u.seatCol}`;
       })
       .filter((id): id is string => id !== null);
-  }, [users, hallId, convertSeatIdForVenue, hoveredUserId]);
+  })();
 
-  // 내 좌석 ID (프리셋 공연장용)
-  const mySeatId = useMemo(() => {
-    const me = users.find((u) => u.id === 0);
-    if (me?.seatSection && me.seatRow && me.seatCol) {
-      const seatId = convertSeatIdForVenue(
-        hallId,
-        me.seatSection,
-        me.seatRow,
-        me.seatCol
-      );
-      return seatId || `${me.seatSection}-${me.seatRow}-${me.seatCol}`;
-    }
-    return null;
-  }, [users, hallId, convertSeatIdForVenue]);
-
-  // 내 좌석 섹션 번호 추출 (AI/TSX 공연장용, 처음 렌더링 시 사용)
-  const mySeatSectionIds = useMemo(() => {
-    const me = users.find((u) => u.id === 0);
-    if (!me || !me.seatSection) {
-      console.log("[MatchDetailContent] mySeatSectionIds: 내 좌석 정보 없음");
-      return [];
-    }
-    // 섹션 번호만 포함된 좌석 ID 형식으로 전달 (예: "12-0-0")
-    // TsxPreview에서 섹션 번호를 추출하여 매칭함
-    const result = [`${me.seatSection}-0-0`];
-    console.log("[MatchDetailContent] mySeatSectionIds 계산:", {
-      meSeatSection: me.seatSection,
-      result,
-    });
-    return result;
-  }, [users]);
-
-  // 호버된 유저의 섹션 번호 추출 (AI 생성 맵용, 컴포넌트 최상단에서 호출)
-  const hoveredUserSeatIds = useMemo(() => {
-    if (hoveredUserId === null) {
-      console.log(
-        "[MatchDetailContent] hoveredUserSeatIds: hoveredUserId가 null"
-      );
-      return [];
-    }
-    const hoveredUser = users.find((u) => u.id === hoveredUserId);
-    if (!hoveredUser || !hoveredUser.seatSection) {
-      console.log(
-        "[MatchDetailContent] hoveredUserSeatIds: 호버된 유저 정보 없음",
-        {
-          hoveredUserId,
-          hoveredUser,
-        }
-      );
-      return [];
-    }
-    // 섹션 번호만 포함된 좌석 ID 형식으로 전달 (예: "12-0-0")
-    // TsxPreview에서 섹션 번호를 추출하여 매칭함
-    const result = [`${hoveredUser.seatSection}-0-0`];
-    console.log("[MatchDetailContent] hoveredUserSeatIds 계산:", {
-      hoveredUserId,
-      hoveredUserSeatSection: hoveredUser.seatSection,
-      result,
-    });
-    return result;
-  }, [hoveredUserId, users]);
+  // (현재는 색상 div를 표시하지 않으므로 좌석 등급별 색상 함수는 사용하지 않음)
 
   // SVG 자동 크기 조정을 위한 ref
   const seatMapContainerRef = useRef<HTMLDivElement>(null);
@@ -575,7 +525,7 @@ export default function MatchDetailContent({
       observer.disconnect();
       resizeObserver.disconnect();
     };
-  }, [selectedUserId, hoveredUserId, hallId, tsxUrl]);
+  }, [selectedUserId, hallId, tsxUrl]);
 
   // 좌석 배치도 렌더링
   const renderSeatMap = () => {
@@ -590,23 +540,10 @@ export default function MatchDetailContent({
     const shouldRenderWithTsx = !!isValidTsxUrl;
 
     if (shouldRenderWithTsx) {
-      // TSX 기반 좌석 배치도에 선택된 좌석 정보 전달
-      // selectedSeatIds는 section-row-col 형식
-      // 처음 렌더링 시: 내 좌석만 색상 유지, 나머지 회색 처리
-      // 호버 시: 해당 유저의 좌석만 색상 유지, 나머지 회색 처리
-      // hoveredUserSeatIds와 mySeatSectionIds는 컴포넌트 최상단에서 이미 계산됨
-      const displaySeatIds =
-        hoveredUserId !== null ? hoveredUserSeatIds : mySeatSectionIds;
-
-      console.log("[MatchDetailContent] renderSeatMap - TSX 맵 렌더링:", {
-        hallId,
-        hoveredUserId,
-        hoveredUserSeatIds,
-        mySeatSectionIds,
-        displaySeatIds,
-        tsxUrl,
-      });
-
+      // TSX 기반 좌석 배치도
+      // - 정상 섹션이 하나라도 있으면 해당 섹션들만 컬러 유지
+      // - 모든 유저가 실패(allFailed)면 전체 회색 처리 (selectedSeatIds 비워서 전달)
+      const displaySeatIdsForTsx = allFailed ? [] : aiSelectedSeatIds;
       return (
         <div className="w-full h-[400px] flex justify-center items-center bg-white rounded-lg p-4">
           <div
@@ -617,7 +554,7 @@ export default function MatchDetailContent({
               key={`match-detail-${tsxUrl}`}
               src={tsxUrl}
               className="w-full h-full"
-              selectedSeatIds={displaySeatIds}
+              selectedSeatIds={displaySeatIdsForTsx}
               readOnly={true}
             />
           </div>
@@ -627,37 +564,8 @@ export default function MatchDetailContent({
 
     // 2) tsxUrl이 없고 hallId가 있는 프리셋 공연장인 경우: 프론트 내장 TSX 컴포넌트 사용
     if (hallId && !isValidTsxUrl) {
-      // 모든 사용자의 좌석을 selectedIds에 포함 (내 좌석은 첫 번째로)
-      const allSeatIds = mySeatId
-        ? [mySeatId, ...selectedSeatIds.filter((id) => id !== mySeatId)]
-        : selectedSeatIds;
-
-      // hallId 2: 샤롯데씨어터 (SmallVenue)
-      // 읽기 전용 모드: 모두 회색, 선택된 좌석만 원래 색상 유지
-      // 유저 호버 시: 해당 유저의 좌석만 원래 색상, 나머지는 회색
+      // hallId 2: 샤롯데씨어터 (SmallVenue) - 선택된 섹션만 원래 색상
       if (hallId === 2) {
-        const hoveredUserSeatIdsForSmall =
-          hoveredUserId !== null
-            ? users
-                .filter(
-                  (u) =>
-                    u.id === hoveredUserId &&
-                    u.seatSection &&
-                    u.seatRow &&
-                    u.seatCol
-                )
-                .map((u) => {
-                  const seatId = convertSeatIdForVenue(
-                    hallId,
-                    u.seatSection!,
-                    u.seatRow!,
-                    u.seatCol!
-                  );
-                  return seatId || `${u.seatSection}-${u.seatRow}-${u.seatCol}`;
-                })
-                .filter((id): id is string => id !== null)
-            : allSeatIds;
-
         return (
           <div className="w-full h-[400px] flex justify-center items-center bg-white rounded-lg p-4">
             <div
@@ -665,8 +573,8 @@ export default function MatchDetailContent({
               className="w-full h-full flex items-center justify-center"
             >
               <SmallVenue
-                selectedIds={hoveredUserSeatIdsForSmall}
-                takenSeats={new Set(hoveredUserSeatIdsForSmall)}
+                selectedIds={presetSelectedSeatIds}
+                takenSeats={new Set(presetSelectedSeatIds)}
                 isPreset={true}
                 readOnly={true}
               />
@@ -675,32 +583,8 @@ export default function MatchDetailContent({
         );
       }
 
-      // hallId 3: 올림픽홀 (MediumVenue)
-      // 읽기 전용 모드: 전체 뷰에서 선택된 섹션만 원래 색상, 나머지 섹션 회색
-      // 유저 호버 시: 해당 유저의 섹션만 강조
+      // hallId 3: 올림픽홀 (MediumVenue) - 선택된 섹션만 원래 색상
       if (hallId === 3) {
-        const hoveredUserSeatIdsForMedium =
-          hoveredUserId !== null
-            ? users
-                .filter(
-                  (u) =>
-                    u.id === hoveredUserId &&
-                    u.seatSection &&
-                    u.seatRow &&
-                    u.seatCol
-                )
-                .map((u) => {
-                  const seatId = convertSeatIdForVenue(
-                    hallId,
-                    u.seatSection!,
-                    u.seatRow!,
-                    u.seatCol!
-                  );
-                  return seatId || `${u.seatSection}-${u.seatRow}-${u.seatCol}`;
-                })
-                .filter((id): id is string => id !== null)
-            : allSeatIds;
-
         return (
           <div className="w-full h-[400px] flex justify-center items-center bg-white rounded-lg p-4">
             <div
@@ -708,7 +592,7 @@ export default function MatchDetailContent({
               className="w-full h-full flex items-center justify-center"
             >
               <MediumVenue
-                selectedIds={hoveredUserSeatIdsForMedium}
+                selectedIds={presetSelectedSeatIds}
                 onToggleSeat={undefined}
                 readOnly={true}
               />
@@ -717,32 +601,8 @@ export default function MatchDetailContent({
         );
       }
 
-      // hallId 4: 인스파이어 아레나 (LargeVenue)
-      // 읽기 전용 모드: 전체 뷰에서 선택된 섹션만 원래 색상, 나머지 섹션 회색
-      // 유저 호버 시: 해당 유저의 섹션만 강조
+      // hallId 4: 인스파이어 아레나 (LargeVenue) - 선택된 섹션만 원래 색상
       if (hallId === 4) {
-        const hoveredUserSeatIdsForLarge =
-          hoveredUserId !== null
-            ? users
-                .filter(
-                  (u) =>
-                    u.id === hoveredUserId &&
-                    u.seatSection &&
-                    u.seatRow &&
-                    u.seatCol
-                )
-                .map((u) => {
-                  const seatId = convertSeatIdForVenue(
-                    hallId,
-                    u.seatSection!,
-                    u.seatRow!,
-                    u.seatCol!
-                  );
-                  return seatId || `${u.seatSection}-${u.seatRow}-${u.seatCol}`;
-                })
-                .filter((id): id is string => id !== null)
-            : allSeatIds;
-
         return (
           <div className="w-full h-[400px] flex justify-center items-center bg-white rounded-lg p-4">
             <div
@@ -750,7 +610,7 @@ export default function MatchDetailContent({
               className="w-full h-full flex items-center justify-center"
             >
               <LargeVenue
-                selectedIds={hoveredUserSeatIdsForLarge}
+                selectedIds={presetSelectedSeatIds}
                 onToggleSeat={undefined}
                 readOnly={true}
               />
@@ -782,22 +642,6 @@ export default function MatchDetailContent({
               .map((user) => (
                 <div
                   key={user.id}
-                  onMouseEnter={() => {
-                    console.log(
-                      "[MatchDetailContent] onMouseEnter:",
-                      user.id,
-                      user.nickname
-                    );
-                    setHoveredUserId(user.id);
-                  }}
-                  onMouseLeave={() => {
-                    console.log(
-                      "[MatchDetailContent] onMouseLeave:",
-                      user.id,
-                      user.nickname
-                    );
-                    setHoveredUserId(null);
-                  }}
                   onClick={(e) => {
                     // 더블클릭 또는 컨텍스트 메뉴(우클릭)로 유저 전체 통계 보기
                     if (e.detail === 2 || e.type === "contextmenu") {
@@ -821,13 +665,11 @@ export default function MatchDetailContent({
                   className={`flex cursor-pointer items-center rounded-lg border p-3 transition-colors ${
                     selectedUserId === user.id
                       ? "border-purple-500 bg-purple-50"
-                      : hoveredUserId === user.id
-                        ? "border-blue-400 bg-blue-50"
-                        : "border-neutral-200 bg-white hover:bg-neutral-50"
+                      : "border-neutral-200 bg-white hover:bg-neutral-50"
                   }`}
                 >
                   <span className="text-lg font-bold text-neutral-600">
-                    {user.rank}.
+                    {user.rank === -1 ? "-" : user.rank}{" "}
                   </span>
                   <div className="ml-3 mr-3 h-8 w-8 rounded-full bg-neutral-300" />
                   <div className="flex-1">
@@ -837,15 +679,38 @@ export default function MatchDetailContent({
                       </span>
                       {user.seatSection && user.seatRow && user.seatCol && (
                         <span className="text-xs text-neutral-500">
-                          ({user.seatSection}-{user.seatRow}번 {user.seatCol}번)
+                          {user.seatSection}구역-{user.seatRow}열-{user.seatCol}
                         </span>
                       )}
                     </div>
                     {user.metrics && (
                       <div className="mt-1 text-xs text-neutral-500">
-                        총 소요 시간:{" "}
-                        {formatMsToClock(calculateTotalTime(user))}
+                        총 소요 시간 {formatMsToClock(calculateTotalTime(user))}
                       </div>
+                      //   {user.seatSection && (
+                      //     <div className="mt-1 flex items-center gap-2 text-xs text-neutral-500">
+                      //       <span>
+                      //         선택한 섹션:{" "}
+                      //         {user.seatSection === "failed"
+                      //           ? "없음"
+                      //           : `${user.seatSection}구역`}
+                      //       </span>
+                      //       {user.seatSection !== "failed" &&
+                      //         (() => {
+                      //           const color = getSeatColor(
+                      //             user.seatArea,
+                      //             hallId
+                      //           );
+                      //           return color ? (
+                      //             <div
+                      //               className="h-3 w-3 rounded"
+                      //               style={{ backgroundColor: color }}
+                      //             />
+                      //           ) : null;
+                      //         })()}
+                      //     </div>
+                      //   )}
+                      // </>
                     )}
                   </div>
                 </div>
@@ -867,7 +732,7 @@ export default function MatchDetailContent({
                   <div className="mb-3 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <div
-                        className={`h-3 w-3 rounded ${selectedUser && selectedUser.id === 0 ? "bg-purple-400" : "bg-blue-400"}`}
+                        className={`h-3 w-3 rounded ${selectedUser && selectedUser.id === 0 ? "bg-purple-400" : "bg-gray-300"}`}
                       />
                       <span className="text-sm font-medium text-neutral-700">
                         {selectedUser?.nickname}
@@ -880,12 +745,7 @@ export default function MatchDetailContent({
                       돌아가기
                     </button>
                   </div>
-                  {selectedUser &&
-                    renderUserStats(
-                      selectedUser,
-                      selectedUser.id === 0 ? "purple" : "blue",
-                      selectedUser.id !== 0 ? meUser : undefined
-                    )}
+                  {selectedUser && renderUserStats(selectedUser)}
                 </div>
               ) : (
                 <div>
@@ -898,7 +758,7 @@ export default function MatchDetailContent({
                       ({mySeatSection}-{mySeatArea.replace("-", "번 ")}번)
                     </span>
                   </div>
-                  {renderUserStats(meUser, "purple")}
+                  {renderUserStats(meUser)}
                 </div>
               )}
             </div>
