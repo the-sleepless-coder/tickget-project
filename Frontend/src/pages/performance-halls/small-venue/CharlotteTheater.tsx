@@ -306,9 +306,12 @@ export default function SmallVenue({
                     : seatColor,
                 cursor: opacityVal === 0 || readOnly ? "default" : "pointer",
                 opacity: opacityVal,
-                pointerEvents: opacityVal === 0 || readOnly ? "none" : "auto",
+                // readOnly여도 툴팁/호버를 위해 pointerEvents는 유지하고,
+                // 클릭만 onClick에서 막는다.
+                pointerEvents: opacityVal === 0 ? "none" : "auto",
               }}
               onClick={() => {
+                if (readOnly) return;
                 if (opacityVal === 0) return;
                 // TAKEN 또는 MY_RESERVED 좌석은 클릭 불가
                 if (isTaken) {
