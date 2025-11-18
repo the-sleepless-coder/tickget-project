@@ -96,13 +96,6 @@ export default function MatchDetailContent({
     return formatMsToClock(totalMs);
   };
 
-  const calculateTotalTime = (user: UserRank): number => {
-    const booking = user.metrics?.bookingClick?.reactionMs ?? 0;
-    const captcha = user.metrics?.captcha?.durationMs ?? 0;
-    const seat = user.metrics?.seatSelection?.durationMs ?? 0;
-    return booking + captcha + seat;
-  };
-
   const diffSec = (aMs?: number, bMs?: number): string => {
     const a = aMs ?? 0;
     const b = bMs ?? 0;
@@ -401,10 +394,29 @@ export default function MatchDetailContent({
       .filter((id): id is string => id !== null);
   })();
 
-  // (현재는 색상 div를 표시하지 않으므로 좌석 등급별 색상 함수는 사용하지 않음)
+  const getSeatDetails = (user: UserRank): string[] => {
+    if (
+      user.seatSection &&
+      user.seatSection !== "failed" &&
+      user.seatRow !== undefined &&
+      user.seatCol !== undefined
+    ) {
+      return [`${user.seatSection}구역-${user.seatRow}열-${user.seatCol}`];
+    }
+
+    if (user.seatArea) {
+      return user.seatArea
+        .split(/[,\\n]+/)
+        .map((seat) => seat.trim())
+        .filter(Boolean);
+    }
+
+    return [];
+  };
 
   // SVG 자동 크기 조정을 위한 ref
   const seatMapContainerRef = useRef<HTMLDivElement>(null);
+  const tooltipRef = useRef<HTMLDivElement | null>(null);
 
   // SVG 또는 SmallVenue 요소를 찾아서 자동 크기 조정
   useEffect(() => {
@@ -527,6 +539,133 @@ export default function MatchDetailContent({
     };
   }, [selectedUserId, hallId, tsxUrl]);
 
+  // 섹션 호버 시 툴팁 표시
+  useEffect(() => {
+    const container = seatMapContainerRef.current;
+    if (!container) return;
+
+    // 툴팁 요소 생성 (없으면)
+    if (!tooltipRef.current) {
+      const tooltip = document.createElement("div");
+      tooltip.style.position = "fixed";
+      tooltip.style.pointerEvents = "none";
+      tooltip.style.padding = "8px 12px";
+      tooltip.style.background = "#ffffff";
+      tooltip.style.color = "#333";
+      tooltip.style.fontSize = "12px";
+      tooltip.style.fontFamily =
+        "-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif";
+      tooltip.style.borderRadius = "6px";
+      tooltip.style.boxShadow = "0 2px 8px rgba(0, 0, 0, 0.15)";
+      tooltip.style.border = "1px solid #e0e0e0";
+      tooltip.style.zIndex = "9999";
+      tooltip.style.maxWidth = "300px";
+      tooltip.style.display = "none";
+      tooltip.style.lineHeight = "1.5";
+      document.body.appendChild(tooltip);
+      tooltipRef.current = tooltip;
+    }
+
+    const tooltip = tooltipRef.current;
+
+    // 섹션 번호 추출 함수
+    const extractSectionId = (element: Element | null): string | null => {
+      if (!element) return null;
+
+      // AI 공연장: section 속성 또는 data-section
+      const sectionAttr =
+        element.getAttribute("section") || element.getAttribute("data-section");
+      if (sectionAttr) return sectionAttr;
+
+      // 프리셋 공연장: data-id (올림픽홀, 인스파이어 아레나)
+      const dataId = element.getAttribute("data-id");
+      if (dataId && dataId !== "0") return dataId;
+
+      // title에서 추출 시도
+      const title = element.getAttribute("title") || "";
+      const titleMatch = title.match(/(\d+)구역/);
+      if (titleMatch) return titleMatch[1];
+
+      return null;
+    };
+
+    // 해당 섹션을 선택한 유저들 찾기
+    const getUsersInSection = (sectionId: string): UserRank[] => {
+      return users.filter((u) => {
+        if (!u.seatSection || u.seatSection === "failed") return false;
+        const normalized = String(Number(u.seatSection));
+        return normalized === sectionId || u.seatSection === sectionId;
+      });
+    };
+
+    // 툴팁 내용 생성
+    const createTooltipContent = (sectionId: string): string => {
+      const sectionUsers = getUsersInSection(sectionId);
+      if (sectionUsers.length === 0) return "";
+
+      return sectionUsers
+        .map((user) => {
+          const seatInfo =
+            user.seatSection && user.seatRow && user.seatCol
+              ? `${user.seatSection}구역-${user.seatRow}열-${user.seatCol}`
+              : "";
+          return `<span style="color: #7c3aed;">${user.nickname}</span>${
+            seatInfo ? ` <span style="color: #acacac;">${seatInfo}</span>` : ""
+          }`;
+        })
+        .join("<br/>");
+    };
+
+    // 마우스 이동 이벤트 핸들러
+    const handleMouseMove = (e: MouseEvent) => {
+      const target = e.target as Element | null;
+      if (!target) {
+        tooltip.style.display = "none";
+        return;
+      }
+
+      // polygon 또는 섹션 요소 찾기
+      const sectionElement =
+        target.closest("polygon") ||
+        target.closest("[section]") ||
+        target.closest("[data-section]") ||
+        target.closest("[data-id]");
+
+      const sectionId = extractSectionId(sectionElement);
+      if (!sectionId) {
+        tooltip.style.display = "none";
+        return;
+      }
+
+      const tooltipContent = createTooltipContent(sectionId);
+      if (!tooltipContent) {
+        tooltip.style.display = "none";
+        return;
+      }
+
+      tooltip.innerHTML = tooltipContent;
+      tooltip.style.left = `${e.clientX + 10}px`;
+      tooltip.style.top = `${e.clientY - 10}px`;
+      tooltip.style.display = "block";
+    };
+
+    const handleMouseLeave = () => {
+      tooltip.style.display = "none";
+    };
+
+    container.addEventListener("mousemove", handleMouseMove);
+    container.addEventListener("mouseleave", handleMouseLeave);
+
+    return () => {
+      container.removeEventListener("mousemove", handleMouseMove);
+      container.removeEventListener("mouseleave", handleMouseLeave);
+      if (tooltipRef.current && tooltipRef.current.parentNode) {
+        tooltipRef.current.parentNode.removeChild(tooltipRef.current);
+        tooltipRef.current = null;
+      }
+    };
+  }, [users, hallId]);
+
   // 좌석 배치도 렌더링
   const renderSeatMap = () => {
     // 1) tsxUrl이 있으면 TSX 기반 좌석 배치도 렌더링 (AI 공연장 + tsxUrl이 있는 프리셋 모두)
@@ -639,82 +778,79 @@ export default function MatchDetailContent({
             {users
               .slice()
               .sort((a, b) => a.rank - b.rank)
-              .map((user) => (
-                <div
-                  key={user.id}
-                  onClick={(e) => {
-                    // 더블클릭 또는 컨텍스트 메뉴(우클릭)로 유저 전체 통계 보기
-                    if (e.detail === 2 || e.type === "contextmenu") {
+              .map((user) => {
+                const seatDetails = getSeatDetails(user);
+                return (
+                  <div
+                    key={user.id}
+                    onClick={(e) => {
+                      // 더블클릭 또는 컨텍스트 메뉴(우클릭)로 유저 전체 통계 보기
+                      if (e.detail === 2 || e.type === "contextmenu") {
+                        e.preventDefault();
+                        if (onUserClick) {
+                          onUserClick(user);
+                        }
+                      } else {
+                        // 싱글클릭은 기존 동작 (상세 정보)
+                        setSelectedUserId((prev) =>
+                          prev === user.id ? null : user.id
+                        );
+                      }
+                    }}
+                    onContextMenu={(e) => {
                       e.preventDefault();
                       if (onUserClick) {
                         onUserClick(user);
                       }
-                    } else {
-                      // 싱글클릭은 기존 동작 (상세 정보)
-                      setSelectedUserId((prev) =>
-                        prev === user.id ? null : user.id
-                      );
-                    }
-                  }}
-                  onContextMenu={(e) => {
-                    e.preventDefault();
-                    if (onUserClick) {
-                      onUserClick(user);
-                    }
-                  }}
-                  className={`flex cursor-pointer items-center rounded-lg border p-3 transition-colors ${
-                    selectedUserId === user.id
-                      ? "border-purple-500 bg-purple-50"
-                      : "border-neutral-200 bg-white hover:bg-neutral-50"
-                  }`}
-                >
-                  <span className="text-lg font-bold text-neutral-600">
-                    {user.rank === -1 ? "-" : user.rank}{" "}
-                  </span>
-                  <div className="ml-3 mr-3 h-8 w-8 rounded-full bg-neutral-300" />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-base text-neutral-700">
-                        {user.nickname}
-                      </span>
-                      {user.seatSection && user.seatRow && user.seatCol && (
-                        <span className="text-xs text-neutral-500">
-                          {user.seatSection}구역-{user.seatRow}열-{user.seatCol}
+                    }}
+                    className={`group flex cursor-pointer items-center rounded-lg border p-3 transition-colors ${
+                      selectedUserId === user.id
+                        ? "border-purple-500 bg-purple-50"
+                        : "border-neutral-200 bg-white hover:bg-neutral-50"
+                    }`}
+                  >
+                    <span className="text-lg font-bold text-neutral-600">
+                      {user.rank === -1 ? "-" : user.rank}{" "}
+                    </span>
+                    <div className="ml-3 mr-3 h-8 w-8 rounded-full bg-neutral-300" />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-base font-semibold text-neutral-700 group-hover:text-neutral-900">
+                          {user.nickname}
                         </span>
+                      </div>
+                      {/* {user.metrics && (
+                        <div className="mt-1 text-xs text-neutral-500">
+                          총 소요 시간{" "}
+                          {formatMsToClock(calculateTotalTime(user))}
+                        </div>
+                      )} */}
+                      {seatDetails.length > 0 && (
+                        <div className="mt-1 text-xs text-neutral-500 leading-4">
+                          {seatDetails.map((detail, idx) => (
+                            <div key={`${user.id}-seat-${idx}`}>{detail}</div>
+                          ))}
+                        </div>
                       )}
                     </div>
-                    {user.metrics && (
-                      <div className="mt-1 text-xs text-neutral-500">
-                        총 소요 시간 {formatMsToClock(calculateTotalTime(user))}
-                      </div>
-                      //   {user.seatSection && (
-                      //     <div className="mt-1 flex items-center gap-2 text-xs text-neutral-500">
-                      //       <span>
-                      //         선택한 섹션:{" "}
-                      //         {user.seatSection === "failed"
-                      //           ? "없음"
-                      //           : `${user.seatSection}구역`}
-                      //       </span>
-                      //       {user.seatSection !== "failed" &&
-                      //         (() => {
-                      //           const color = getSeatColor(
-                      //             user.seatArea,
-                      //             hallId
-                      //           );
-                      //           return color ? (
-                      //             <div
-                      //               className="h-3 w-3 rounded"
-                      //               style={{ backgroundColor: color }}
-                      //             />
-                      //           ) : null;
-                      //         })()}
-                      //     </div>
-                      //   )}
-                      // </>
-                    )}
+                    {/* 오른쪽 화살표 아이콘 */}
+                    <svg
+                      className="h-5 w-5 flex-shrink-0 transition-colors text-white group-hover:text-neutral-400"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 5l7 7-7 7"
+                      />
+                    </svg>
                   </div>
-                </div>
-              ))}
+                );
+              })}
           </div>
         </div>
       )}
