@@ -59,7 +59,7 @@ const GRADE_META: Record<
   R: { name: "R석", color: "#3da14b", price: 132000 },
   S: { name: "S석", color: "#59b3ea", price: 110000 },
   A: { name: "A석", color: "#FB7E4E", price: 80000 },
-  STANDING: { name: "스탠딩석", color: "#9ca3af", price: 170000 },
+  STANDING: { name: "스탠딩석", color: "#d4d4d8", price: 170000 },
 };
 
 // 등급 레이블로 가격 찾기
@@ -1493,7 +1493,7 @@ export default function SelectSeatPage() {
                                   }`}
                                   style={{
                                     backgroundColor: isTaken
-                                      ? "#9ca3af"
+                                      ? "#d4d4d8"
                                       : isSelected
                                         ? "#4a4a4a"
                                         : selectedAISection.fillColor,

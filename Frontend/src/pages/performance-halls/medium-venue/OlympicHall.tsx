@@ -3,6 +3,8 @@ import { useSearchParams } from "react-router-dom";
 import { useMatchStore } from "@features/booking-site/store";
 import { useAuthStore } from "@features/auth/store";
 import { getSectionSeatsStatus } from "@features/booking-site/api";
+
+const LIGHT_GRAY = "#d4d4d8";
 import Olympic_18 from "./seats-olympic-hall/S/Olympic_18";
 import Olympic_20 from "./seats-olympic-hall/S/Olympic_20";
 import Olympic_21 from "./seats-olympic-hall/S/Olympic_21";
@@ -107,7 +109,7 @@ export default function MediumVenue({
       const polygons = Array.from(
         svg.querySelectorAll("polygon")
       ) as SVGPolygonElement[];
-      
+
       // readOnly 모드일 때 사용자가 선택한 좌석이 있는 섹션 ID 추출
       const sectionsWithSeats = new Set<string>();
       if (readOnly && selectedIds.length > 0) {
@@ -119,16 +121,16 @@ export default function MediumVenue({
           }
         });
       }
-      
+
       polygons.forEach((p) => {
         const level = p.getAttribute("data-seat-level") || "";
         const idAttr = p.getAttribute("data-id") || "";
         let fill: string | null = null;
-        
+
         // readOnly 모드이고 사용자가 선택한 좌석이 없는 섹션은 회색 처리
         if (readOnly && idAttr !== "0" && sectionsWithSeats.size > 0) {
           if (!sectionsWithSeats.has(idAttr)) {
-            fill = "#9ca3af"; // 회색
+            fill = LIGHT_GRAY; // 회색
           } else {
             // 원래 색상 유지
             if (level === "STANDING") fill = "#FE4AB9";
@@ -143,10 +145,10 @@ export default function MediumVenue({
           else if (level === "R") fill = "#4CA0FF";
           else if (level === "S") fill = "#FFCC10";
         }
-        
+
         // id=0 areas (e.g., STAGE/CONSOLE) should be black
         if (idAttr === "0") fill = "#949494";
-        
+
         if (fill) {
           p.setAttribute("fill", fill);
           p.setAttribute("data-fill", fill);
@@ -314,7 +316,7 @@ export default function MediumVenue({
     const handleClick = async (e: MouseEvent) => {
       // readOnly 모드일 때는 클릭 이벤트 무시
       if (readOnly) return;
-      
+
       const target = e.target as Element | null;
       if (!target) return;
       const polygon = (target as Element).closest?.("polygon");
@@ -645,7 +647,14 @@ export default function MediumVenue({
       observer.disconnect();
       root?.removeEventListener("click", handleClick);
     };
-  }, [showDetailView, searchParams, matchIdFromStore, currentUserId, readOnly, selectedIds]);
+  }, [
+    showDetailView,
+    searchParams,
+    matchIdFromStore,
+    currentUserId,
+    readOnly,
+    selectedIds,
+  ]);
 
   const content = `
 <div class='wrapper'>
@@ -842,7 +851,7 @@ export default function MediumVenue({
         const isSelected = selectedIds.includes(seatId);
         if (isTaken) {
           // TAKEN 좌석: 회색 처리 및 클릭 불가
-          el.style.backgroundColor = "#9ca3af"; // 회색
+          el.style.backgroundColor = LIGHT_GRAY; // 회색
           el.style.cursor = "not-allowed";
           el.style.opacity = "0.6";
           el.setAttribute("data-taken", "true");
@@ -853,7 +862,7 @@ export default function MediumVenue({
             el.style.cursor = "default";
             el.style.opacity = "1";
           } else {
-            el.style.backgroundColor = "#9ca3af"; // 회색
+            el.style.backgroundColor = LIGHT_GRAY; // 회색
             el.style.cursor = "default";
             el.style.opacity = "0.5";
           }
