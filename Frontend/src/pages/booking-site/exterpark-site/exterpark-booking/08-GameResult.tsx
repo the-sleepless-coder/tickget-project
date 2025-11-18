@@ -179,7 +179,7 @@ export default function GameResultPage() {
           );
         }
       }
-    } catch (e) {
+    } catch {
       // 로그 읽기 실패는 무시
     }
   }, []);
@@ -304,7 +304,9 @@ export default function GameResultPage() {
               {
                 label: "소요 시간",
                 value:
-                  isFailed && failedSeatMetrics?.seccodeSelectTime === -1
+                  isFailed &&
+                  (failedSeatMetrics?.seccodeSelectTime === -1 ||
+                    captchaSec == null)
                     ? "x"
                     : captchaSec != null
                       ? `${captchaSec.toFixed(2)} 초`
@@ -337,7 +339,9 @@ export default function GameResultPage() {
               {
                 label: "소요 시간",
                 value:
-                  isFailed && failedSeatMetrics?.seatSelectTime === -1
+                  isFailed &&
+                  (!hasSeatSelectionStats ||
+                    failedSeatMetrics?.seatSelectTime === -1)
                     ? "x"
                     : hasSeatSelectionStats
                       ? `${(capToCompleteSec ?? 0).toFixed(2)} 초`
@@ -356,7 +360,9 @@ export default function GameResultPage() {
               {
                 label: "이선좌",
                 value:
-                  isFailed && failedSeatMetrics?.seatSelectTryCount === -1
+                  isFailed &&
+                  (!hasSeatSelectionStats ||
+                    failedSeatMetrics?.seatSelectTryCount === -1)
                     ? "x"
                     : hasSeatSelectionStats
                       ? formatCountValue(seatTakenCount)
