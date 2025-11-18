@@ -607,7 +607,7 @@ export default function SocialLogin() {
               ))}
 
               {/* 테스트 계정 생성 버튼 */}
-              {/* <Button
+              <Button
                 size="medium"
                 fullWidth
                 className="h-12 flex items-center justify-center rounded-lg font-medium !bg-c-purple-250 hover:!bg-c-purple-300 !text-white"
@@ -618,7 +618,7 @@ export default function SocialLogin() {
                 disabled={isLoading !== null}
               >
                 <span className="text-sm">테스트 계정 생성</span>
-              </Button> */}
+              </Button>
             </div>
 
             {/* 회원가입 링크 */}
