@@ -97,30 +97,11 @@ export default function GameResultPage() {
     seatClickMiss,
   } = useMemo(() => readMetricsWithFallback(searchParams), [searchParams]);
 
-  const totalSec = useMemo(() => {
-    const seatSec = capToCompleteSec ?? 0;
-    const captchaDuration = captchaSec ?? 0;
-    return rtSec + captchaDuration + seatSec;
-  }, [rtSec, captchaSec, capToCompleteSec]);
-
-  const fmt = formatSecondsHuman;
-  const hasSeatSelectionStats = capToCompleteSec != null;
-  const formatCountValue = (
-    value: number | null,
-    suffix = "회",
-    fallback = "-"
-  ) => {
-    if (value == null) return fallback;
-    return `${value}${suffix}`;
-  };
-
-  // 실패 케이스 여부 (MATCH_ENDED 등으로 조기 종료된 경우)
   const isFailed = useMemo(
     () => searchParams.get("failed") === "true",
     [searchParams]
   );
 
-  // 실패 케이스일 때, SeatConfirmRequest/SeatStatsFailed와 동일한 메트릭을 재구성
   const failedSeatMetrics = useMemo(() => {
     if (!isFailed) return null;
     if (!currentUserId) return null;
@@ -130,6 +111,44 @@ export default function GameResultPage() {
       return null;
     }
   }, [isFailed, currentUserId]);
+
+  const resolvedCaptchaSec = useMemo(() => {
+    if (captchaSec != null) return captchaSec;
+    if (!isFailed) return null;
+    const metric = failedSeatMetrics?.seccodeSelectTime;
+    return metric != null && metric !== -1 ? metric : null;
+  }, [captchaSec, failedSeatMetrics, isFailed]);
+
+  const resolvedSeatTime = useMemo(() => {
+    if (capToCompleteSec != null) return capToCompleteSec;
+    if (!isFailed) return null;
+    const metric = failedSeatMetrics?.seatSelectTime;
+    return metric != null && metric !== -1 ? metric : null;
+  }, [capToCompleteSec, failedSeatMetrics, isFailed]);
+
+  const resolvedSeatTakenCount = useMemo(() => {
+    if (seatTakenCount != null) return seatTakenCount;
+    if (!isFailed) return null;
+    const metric = failedSeatMetrics?.seatSelectTryCount;
+    return metric != null && metric !== -1 ? metric : null;
+  }, [seatTakenCount, failedSeatMetrics, isFailed]);
+
+  const totalSec = useMemo(() => {
+    const seatSec = resolvedSeatTime ?? 0;
+    const captchaDuration = resolvedCaptchaSec ?? 0;
+    return rtSec + captchaDuration + seatSec;
+  }, [rtSec, resolvedSeatTime, resolvedCaptchaSec]);
+
+  const fmt = formatSecondsHuman;
+  const hasSeatSelectionStats = resolvedSeatTime != null;
+  const formatCountValue = (
+    value: number | null,
+    suffix = "회",
+    fallback = "-"
+  ) => {
+    if (value == null) return fallback;
+    return `${value}${suffix}`;
+  };
 
   // userRank를 URL 파라미터 또는 sessionStorage에서 가져오기
   const userRank = useMemo(() => {
@@ -214,11 +233,13 @@ export default function GameResultPage() {
         // API 요청 데이터 구성
         const payload = {
           difficulty,
-          select_time: capToCompleteSec ?? undefined,
+          select_time: resolvedSeatTime ?? undefined,
           miss_count:
             seatClickMiss != null && seatClickMiss > 0
               ? seatClickMiss
-              : undefined,
+              : resolvedSeatTakenCount != null && resolvedSeatTakenCount > 0
+                ? resolvedSeatTakenCount
+                : undefined,
           success: !isFailed, // 실패 케이스에서는 false로 전송
           final_rank: userRank ? Number(userRank) : undefined,
           created_at: new Date().toISOString(),
@@ -246,7 +267,14 @@ export default function GameResultPage() {
     return () => {
       cancelled = true;
     };
-  }, [searchParams, capToCompleteSec, seatClickMiss, userRank, isFailed]);
+  }, [
+    searchParams,
+    resolvedSeatTime,
+    seatClickMiss,
+    userRank,
+    isFailed,
+    resolvedSeatTakenCount,
+  ]);
 
   return (
     <>
@@ -304,12 +332,10 @@ export default function GameResultPage() {
               {
                 label: "소요 시간",
                 value:
-                  isFailed &&
-                  (failedSeatMetrics?.seccodeSelectTime === -1 ||
-                    captchaSec == null)
+                  isFailed && resolvedCaptchaSec == null
                     ? "x"
-                    : captchaSec != null
-                      ? `${captchaSec.toFixed(2)} 초`
+                    : resolvedCaptchaSec != null
+                      ? `${resolvedCaptchaSec.toFixed(2)} 초`
                       : "-",
                 icon: (
                   <AccessTimeIcon fontSize="small" className="text-gray-500" />
@@ -339,12 +365,10 @@ export default function GameResultPage() {
               {
                 label: "소요 시간",
                 value:
-                  isFailed &&
-                  (!hasSeatSelectionStats ||
-                    failedSeatMetrics?.seatSelectTime === -1)
+                  isFailed && !hasSeatSelectionStats
                     ? "x"
-                    : hasSeatSelectionStats
-                      ? `${(capToCompleteSec ?? 0).toFixed(2)} 초`
+                    : hasSeatSelectionStats && resolvedSeatTime != null
+                      ? `${resolvedSeatTime.toFixed(2)} 초`
                       : "-",
                 icon: (
                   <AccessTimeIcon fontSize="small" className="text-gray-500" />
@@ -360,12 +384,10 @@ export default function GameResultPage() {
               {
                 label: "이선좌",
                 value:
-                  isFailed &&
-                  (!hasSeatSelectionStats ||
-                    failedSeatMetrics?.seatSelectTryCount === -1)
+                  isFailed && !hasSeatSelectionStats
                     ? "x"
                     : hasSeatSelectionStats
-                      ? formatCountValue(seatTakenCount)
+                      ? formatCountValue(resolvedSeatTakenCount)
                       : "-",
                 icon: (
                   <EventSeatIcon fontSize="small" className="text-gray-500" />

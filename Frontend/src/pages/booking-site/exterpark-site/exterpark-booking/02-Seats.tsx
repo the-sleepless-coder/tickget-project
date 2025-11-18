@@ -63,6 +63,16 @@ const GRADE_META: Record<
   STANDING: { name: "스탠딩석", color: "#d4d4d8", price: 170000 },
 };
 
+const setReserveMetric = (key: string, value: string) => {
+  try {
+    sessionStorage.setItem(key, value);
+  } catch (error) {
+    if (import.meta.env.DEV) {
+      console.warn(`[reserve-metric] ${key} 저장 실패`, error);
+    }
+  }
+};
+
 // 등급 레이블로 가격 찾기
 const getPriceByGradeLabel = (gradeLabel: string): number => {
   // "스탠딩석", "VIP석", "R석", "S석", "A석", "SR석" 등
@@ -143,9 +153,20 @@ export default function SelectSeatPage() {
   // 이미 선택한 좌석 알림이 표시될 때마다 카운트 증가
   useEffect(() => {
     if (showSeatTakenAlert && isTrackingSeatClicks) {
-      _setSeatTakenAlertCount((prev) => prev + 1);
+      _setSeatTakenAlertCount((prev) => {
+        const next = prev + 1;
+        setReserveMetric("reserve.seatTakenCount", String(next));
+        return next;
+      });
     }
   }, [showSeatTakenAlert, isTrackingSeatClicks]);
+  useEffect(() => {
+    setReserveMetric("reserve.seatClickMiss", String(seatClickMissCount));
+  }, [seatClickMissCount]);
+
+  useEffect(() => {
+    setReserveMetric("reserve.seatTakenCount", String(seatTakenAlertCount));
+  }, [seatTakenAlertCount]);
   const mediumVenueRef = useRef<MediumVenueRef | null>(null);
   const largeVenueRef = useRef<LargeVenueRef | null>(null);
 
@@ -394,6 +415,7 @@ export default function SelectSeatPage() {
           } finally {
             // 알림 후 결과 페이지로 이동
             alert("경기가 종료되었습니다.\n\n결과 화면으로 이동합니다.");
+            recordSeatCompleteNow();
             const metricsQs = buildMetricsQueryFromStorage();
             const prefix = metricsQs ? `${metricsQs}&` : "?";
             const target = paths.booking.gameResult + `${prefix}failed=true`;
@@ -1041,7 +1063,11 @@ export default function SelectSeatPage() {
               setSelected([]);
               // 알림 표시
               setShowSeatTakenAlert(true);
-              _setSeatTakenAlertCount((prev) => prev + 1);
+              _setSeatTakenAlertCount((prev) => {
+                const next = prev + 1;
+                setReserveMetric("reserve.seatTakenCount", String(next));
+                return next;
+              });
               // 다음 페이지로 이동하지 않고 현재 페이지에 머물기
               return;
             }
@@ -1059,7 +1085,11 @@ export default function SelectSeatPage() {
           // 에러 발생 시에도 알림 표시하고 현재 페이지에 머물기
           setSelected([]);
           setShowSeatTakenAlert(true);
-          _setSeatTakenAlertCount((prev) => prev + 1);
+          _setSeatTakenAlertCount((prev) => {
+            const next = prev + 1;
+            setReserveMetric("reserve.seatTakenCount", String(next));
+            return next;
+          });
           return;
         }
       } else {

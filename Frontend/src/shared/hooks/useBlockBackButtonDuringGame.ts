@@ -3,7 +3,10 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useMatchStore } from "@features/booking-site/store";
 import { useAuthStore } from "@features/auth/store";
 import { sendSeatStatsFailedForMatch } from "@features/booking-site/api";
-import { buildMetricsQueryFromStorage } from "../utils/reserveMetrics";
+import {
+  buildMetricsQueryFromStorage,
+  recordSeatCompleteNow,
+} from "../utils/reserveMetrics";
 import { paths } from "../../app/routes/paths";
 
 /**
@@ -115,6 +118,7 @@ export function useBlockBackButtonDuringGame(trigger: string) {
           );
         } finally {
           // 실패해도 결과 페이지로 이동
+          recordSeatCompleteNow();
           const metricsQs = buildMetricsQueryFromStorage();
           const prefix = metricsQs ? `${metricsQs}&` : "?";
           const target = paths.booking.gameResult + `${prefix}failed=true`;
