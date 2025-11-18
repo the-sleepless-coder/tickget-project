@@ -134,15 +134,21 @@ export default function GameResultPage() {
   const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(false);
 
   useEffect(() => {
-    // 2분 뒤 자동 이동 → rooms
+    // 2분 뒤 자동 방 나가기 처리
     const id = setTimeout(
       () => {
-        navigate(paths.rooms);
+        // 수동 "방 나가기" 버튼과 동일한 로직 재사용
+        // (서버에 exitRoom 호출 후 홈/방 목록으로 이동)
+        void handleExitRoom();
       },
       2 * 60 * 1000
     );
+
     return () => clearTimeout(id);
-  }, [navigate]);
+    // handleExitRoom은 navigate, searchParams 등을 캡처하지만
+    // 결과 페이지 라이프사이클 동안만 유지되므로 ESLint deps는 생략
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     // 총 소요 시간 최종 마킹
