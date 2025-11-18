@@ -10,7 +10,7 @@ from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel
 
 # ---- 공통 데이터 로더 / 계산 모듈 ----
-from data_loader import fetch_mysql_user_stats
+from data_loader import fetch_mysql_user_stats, fetch_mysql_matches_user_count
 
 from bot_params_core import (
     BotParamConfig,
@@ -374,6 +374,7 @@ class SessionToastRequest(BaseModel):
     success: bool
     final_rank: Optional[int] = None
     created_at: Optional[datetime] = None
+    match_id: Optional[int] = None
 
 
 class SessionToastPromptResponse(BaseModel):
@@ -387,6 +388,7 @@ async def get_session_toast_prompt(req: SessionToastRequest):
     방금 끝난 한 경기 결과로 LLM 토스트용 프롬프트를 생성한다.
     - 프론트는 이 프롬프트를 LLM에 보내고, 리턴된 2~3줄 텍스트를 토스트로 띄우면 됨.
     """
+    user_count = fetch_mysql_matches_user_count(match_id=req.match_id, debug=False)
     user_prompt = build_session_toast_prompt(
         difficulty=req.difficulty,
         select_time=req.select_time,
@@ -394,6 +396,7 @@ async def get_session_toast_prompt(req: SessionToastRequest):
         success=req.success,
         final_rank=req.final_rank,
         created_at=req.created_at,
+        user_count=user_count,
     )
 
     return SessionToastPromptResponse(
@@ -411,6 +414,26 @@ async def get_session_toast_llm(req: SessionToastRequest):
     """
     방금 끝난 한 경기 결과로 GMS까지 호출해 최종 토스트 메시지를 반환한다.
     """
+
+    # 1) match_id가 들어온 경우, MySQL matches에서 user_count 조회
+    user_count = None
+    if req.match_id is not None:
+        try:
+            user_count = fetch_mysql_matches_user_count(
+                match_id=req.match_id,
+                # use_local / debug는 기본값(None / True) 써도 되고, 필요하면 조절 가능
+                # 여기서는 로그 줄이려고 debug=False로 둬도 됨
+                debug=False,
+            )
+            print(
+                f"[session-toast-llm] match_id={req.match_id}, user_count={user_count}"
+            )
+        except Exception as e:
+            # 토스트 하나 뽑는 용도라, DB 에러가 전체 토스트 실패까지는 안 가게 로그만 찍고 넘김
+            print(f"[session-toast-llm] fetch_mysql_matches_user_count error: {e}")
+            user_count = None
+
+    # 2) 토스트 프롬프트 생성 
     user_prompt = build_session_toast_prompt(
         difficulty=req.difficulty,
         select_time=req.select_time,
@@ -418,6 +441,7 @@ async def get_session_toast_llm(req: SessionToastRequest):
         success=req.success,
         final_rank=req.final_rank,
         created_at=req.created_at,
+        user_count=user_count,
     )
 
     try:
@@ -429,6 +453,7 @@ async def get_session_toast_llm(req: SessionToastRequest):
         raise HTTPException(status_code=500, detail=f"GMS 호출 중 오류: {e}")
 
     return SessionToastLLMResponse(text=text)
+
 
 
 # 실행 예:

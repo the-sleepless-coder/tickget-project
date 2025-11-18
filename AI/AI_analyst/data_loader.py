@@ -153,6 +153,75 @@ def fetch_mysql_user_stats(
 
 
 # ---------------------------------------------------------------------
+# 2-1) MySQL: matches 테이블에서 match_id 기준 user_count 조회
+# ---------------------------------------------------------------------
+def fetch_mysql_matches_user_count(
+    match_id: int,
+    use_local: Optional[bool] = None,
+    debug: bool = True,
+) -> Optional[int]:
+    """
+    MySQL matches 테이블에서 특정 match_id의 user_count 값을 조회해서 반환한다.
+
+    - use_local:
+        * None  -> USE_ENV / USE_LOCAL_DB 환경변수 따라감
+        * True  -> LOCAL_MYSQL_URL 사용 (로컬 docker용)
+        * False -> MYSQL_URL 사용 (SSAFY 클라우드용)
+
+    반환:
+        - user_count 값 (int)  -> row가 존재하고 user_count가 NULL이 아닐 때
+        - None               -> 해당 match_id가 없거나, user_count가 NULL일 때
+    """
+    # 어떤 환경 쓸지 결정
+    if use_local is None:
+        # 둘 중 하나라도 true면 로컬로 본다
+        use_local = _as_bool(os.getenv("USE_ENV")) or _as_bool(
+            os.getenv("USE_LOCAL_DB")
+        )
+
+    if use_local:
+        mysql_url = os.getenv("LOCAL_MYSQL_URL")
+    else:
+        mysql_url = os.getenv("MYSQL_URL")
+
+    if not mysql_url:
+        raise RuntimeError(
+            "MySQL URL이 설정되어 있지 않습니다 (MYSQL_URL / LOCAL_MYSQL_URL)."
+        )
+
+    engine = create_engine(mysql_url)
+
+    if debug:
+        print(f"[fetch_mysql_matches_user_count] use_local={use_local}, url={mysql_url}")
+        print(f"[fetch_mysql_matches_user_count] match_id={match_id}")
+
+    query = text(
+        """
+        SELECT user_count
+        FROM matches
+        WHERE match_id = :match_id
+        LIMIT 1
+        """
+    )
+
+    with engine.connect() as conn:
+        row = conn.execute(query, {"match_id": match_id}).fetchone()
+
+    if row is None:
+        if debug:
+            print(f"[fetch_mysql_matches_user_count] match_id={match_id} not found")
+        return None
+
+    user_count = row[0]
+    if user_count is None:
+        if debug:
+            print(f"[fetch_mysql_matches_user_count] match_id={match_id} user_count is NULL")
+        return None
+
+    return int(user_count)
+
+
+# ---------------------------------------------------------------------
 # 3) 예시: 이 파일만 직접 실행했을 때 동작 (간단 테스트)
 # ---------------------------------------------------------------------
 if __name__ == "__main__":
