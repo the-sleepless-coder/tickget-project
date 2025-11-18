@@ -85,6 +85,73 @@ public class SeatConfirmationService {
      * - humanusers 변경 없음
      * - user_stats 저장 안 함
      */
+//    private SeatConfirmationResponse handleBotConfirm(Long matchId, Long userId,
+//                                                      Match match, long startTime) {
+//        log.info("봇 Confirm 처리 시작: matchId={}, botId={}", matchId, userId);
+//
+//        // 1. Redis에서 봇이 선점한 좌석 조회
+//        List<String> seatIds = findUserSeats(matchId, userId);
+//
+//        if (seatIds.isEmpty()) {
+//            log.warn("봇의 선점 좌석 없음: matchId={}, botId={}", matchId, userId);
+//            return buildErrorResponse("선점된 좌석이 없습니다.");
+//        }
+//
+//        int seatCount = seatIds.size();
+//
+//        // 2. reserved_count 증가 (좌석 수만큼)
+//        String reservedCountKey = "match:" + matchId + ":reserved_count";
+//        Long reservedCount = redisTemplate.opsForValue().increment(reservedCountKey, seatCount);
+//        redisTemplate.expire(reservedCountKey, Duration.ofSeconds(600));
+//
+//        // 3. total_rank_counter 증가 (봇도 전체 등수에 포함)
+//        String totalRankCounterKey = "match:" + matchId + ":total_rank_counter";
+//        Long totalRankLong = redisTemplate.opsForValue().increment(totalRankCounterKey);
+//        redisTemplate.expire(totalRankCounterKey, Duration.ofSeconds(600));
+//        Integer totalRank = (totalRankLong != null) ? totalRankLong.intValue() : null;
+//
+//        // 4. success_bot_count 증가 (Match 엔티티)
+//        if (match.getSuccessBotCount() == null) {
+//            match.setSuccessBotCount(0);
+//        }
+//        match.setSuccessBotCount(match.getSuccessBotCount() + 1);
+//        matchRepository.save(match);
+//
+//        log.info("봇 Confirm 완료: matchId={}, botId={}, totalRank={}, reservedCount={}, seatCount={}",
+//                matchId, userId, totalRank, reservedCount, seatCount);
+//
+//        // 5. 만석 체크 (봇 Confirm 후에도 만석 가능)
+//        Long roomId = match.getRoomId();
+//        Integer totalSeats = roomServerClient.getTotalSeats(roomId);
+//
+//        if (totalSeats != null && reservedCount != null && reservedCount >= totalSeats) {
+//            log.info("봇 Confirm으로 만석 도달: matchId={}, reservedCount={}, totalSeats={}",
+//                    matchId, reservedCount, totalSeats);
+//
+//            if (match.getStatus() == Match.MatchStatus.PLAYING) {
+//                handleFullMatchAtConfirm(matchId, match);
+//            }
+//        }
+//
+//        // 6. 성공 응답
+//        return SeatConfirmationResponse.builder()
+//                .success(true)
+//                .message("봇 확정 완료")
+//                .userRank(-1)  // 봇은 응답에서는 userRank 없음으로 표기
+//                .confirmedSeats(
+//                        seatIds.stream()
+//                                .map(seatId -> ConfirmedSeatDto.builder()
+//                                        .seatId(seatId)
+//                                        .sectionId(extractSection(seatId))
+//                                        .build())
+//                                .toList()
+//                )
+//                .status("CONFIRMED")
+//                .matchId(matchId)
+//                .userId(userId)
+//                .build();
+//    }
+
     private SeatConfirmationResponse handleBotConfirm(Long matchId, Long userId,
                                                       Match match, long startTime) {
         log.info("봇 Confirm 처리 시작: matchId={}, botId={}", matchId, userId);
@@ -99,12 +166,12 @@ public class SeatConfirmationService {
 
         int seatCount = seatIds.size();
 
-        // 2. reserved_count 증가 (좌석 수만큼)
+        // 2. reserved_count 증가 (좌석 수만큼) + TTL 갱신
         String reservedCountKey = "match:" + matchId + ":reserved_count";
         Long reservedCount = redisTemplate.opsForValue().increment(reservedCountKey, seatCount);
         redisTemplate.expire(reservedCountKey, Duration.ofSeconds(1800));
 
-        // 3. total_rank_counter 증가 (봇도 전체 등수에 포함)
+        // 3. total_rank_counter 증가 (봇도 전체 등수에 포함) + TTL 갱신
         String totalRankCounterKey = "match:" + matchId + ":total_rank_counter";
         Long totalRankLong = redisTemplate.opsForValue().increment(totalRankCounterKey);
         redisTemplate.expire(totalRankCounterKey, Duration.ofSeconds(1800));
@@ -120,15 +187,20 @@ public class SeatConfirmationService {
         log.info("봇 Confirm 완료: matchId={}, botId={}, totalRank={}, reservedCount={}, seatCount={}",
                 matchId, userId, totalRank, reservedCount, seatCount);
 
-        // 5. 만석 체크 (봇 Confirm 후에도 만석 가능)
+        // 5. 경기 종료 조건 체크 (유저와 동일한 로직)
         Long roomId = match.getRoomId();
         Integer totalSeats = roomServerClient.getTotalSeats(roomId);
+        boolean isFull = reservedCount != null && totalSeats != null && reservedCount >= totalSeats;
 
-        if (totalSeats != null && reservedCount != null && reservedCount >= totalSeats) {
-            log.info("봇 Confirm으로 만석 도달: matchId={}, reservedCount={}, totalSeats={}",
-                    matchId, reservedCount, totalSeats);
+        // humanusers 확인 (봇은 humanusers에 영향 안 줌)
+        String humanUsersKey = "humanusers:match:" + matchId;
+        String humanUsersValue = redisTemplate.opsForValue().get(humanUsersKey);
+        Long remainingHumanUsers = (humanUsersValue != null) ? Long.parseLong(humanUsersValue) : null;
 
+        if ((remainingHumanUsers != null && remainingHumanUsers <= 0) || isFull) {
             if (match.getStatus() == Match.MatchStatus.PLAYING) {
+                log.info("봇 Confirm으로 경기 종료 조건 만족: matchId={}, remainingHumanUsers={}, isFull={}",
+                        matchId, remainingHumanUsers, isFull);
                 handleFullMatchAtConfirm(matchId, match);
             }
         }
@@ -137,7 +209,7 @@ public class SeatConfirmationService {
         return SeatConfirmationResponse.builder()
                 .success(true)
                 .message("봇 확정 완료")
-                .userRank(-1)  // 봇은 응답에서는 userRank 없음으로 표기
+                .userRank(-1)
                 .confirmedSeats(
                         seatIds.stream()
                                 .map(seatId -> ConfirmedSeatDto.builder()
@@ -146,7 +218,6 @@ public class SeatConfirmationService {
                                         .build())
                                 .toList()
                 )
-                .status("CONFIRMED")
                 .matchId(matchId)
                 .userId(userId)
                 .build();

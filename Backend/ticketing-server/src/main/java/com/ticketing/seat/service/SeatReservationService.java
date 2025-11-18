@@ -53,14 +53,14 @@ public class SeatReservationService {
         // 1-2. 각 좌석에 grade가 있는지 확인 (없으면 최상위 grade 사용)
         validateAndFillGrades(req);
 
-        // 1-3. Redis 경기 상태 확인 전에 초기화 확인
-        String statusKey = "match:" + matchId + ":status";
-        if (Boolean.FALSE.equals(redisTemplate.hasKey(statusKey))) {
-            // status 키가 없으면 OPEN으로 초기화
-            redisTemplate.opsForValue().set(statusKey, "OPEN",
-                    Duration.ofSeconds(MATCH_REDIS_TTL_SECONDS));
-            log.info("매치 status 키 초기화: matchId={}, status=OPEN", matchId);
-        }
+//        // 1-3. Redis 경기 상태 확인 전에 초기화 확인
+//        String statusKey = "match:" + matchId + ":status";
+//        if (Boolean.FALSE.equals(redisTemplate.hasKey(statusKey))) {
+//            // status 키가 없으면 OPEN으로 초기화
+//            redisTemplate.opsForValue().set(statusKey, "OPEN",
+//                    Duration.ofSeconds(MATCH_REDIS_TTL_SECONDS));
+//            log.info("매치 status 키 초기화: matchId={}, status=OPEN", matchId);
+//        }
 
         // 2. DB에서 경기 정보 조회
         Match match = matchRepository.findById(matchId)
