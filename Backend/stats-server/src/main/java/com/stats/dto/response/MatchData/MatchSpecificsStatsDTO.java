@@ -10,7 +10,7 @@ import lombok.*;
 @ToString
 public class MatchSpecificsStatsDTO {
     private Long userId;
-    private String userName;
+    private String userNickname;
     private Long hallId;
     private Room.RoomType roomType;
     private String selectedSection;

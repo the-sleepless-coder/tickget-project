@@ -82,7 +82,7 @@ public interface UserStatsRepository extends JpaRepository<UserStats, Long> {
     @Query("""
     select new com.stats.dto.response.MatchData.MatchSpecificsStatsDTO(
         us.userId,
-        u.name,
+        u.nickname,
         r.hallId,
         r.roomType,
         us.selectedSection,

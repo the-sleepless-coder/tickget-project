@@ -3,6 +3,7 @@ package com.stats.controller;
 import com.stats.dto.response.IndividualData.MyPageDTO;
 import com.stats.dto.response.IndividualData.SpecificStatsDTO;
 import com.stats.dto.response.MatchData.MatchDataDTO;
+import com.stats.service.RankingService;
 import com.stats.service.StatsBatchService;
 import com.stats.service.StatsService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -25,8 +26,9 @@ import java.util.Map;
 @RequiredArgsConstructor
 @Tag(name = "Stats", description = "Stat 관련 API")
 public class StatsController {
-    private final StatsService service;
+    private final StatsService statsService;
     private final StatsBatchService statsBatchService;
+    private final RankingService rankingService;
 
     /**
      * 개인 통계
@@ -48,7 +50,7 @@ public class StatsController {
         }
         Long userIdLong = Long.valueOf(userIdString);
 
-        MyPageDTO myPageData = service.getMyPageInfo(userIdLong, page);
+        MyPageDTO myPageData = statsService.getMyPageInfo(userIdLong, page);
 
         return ResponseEntity.ok(myPageData);
 
@@ -63,7 +65,7 @@ public class StatsController {
         }
         Long userIdLong = Long.valueOf(userIdString);
 
-        List<SpecificStatsDTO> specificsData =  service.getSpecificUserStats(userIdLong, page);
+        List<SpecificStatsDTO> specificsData = statsService.getSpecificUserStats(userIdLong, page);
 
         return ResponseEntity.ok(specificsData);
     }
@@ -82,16 +84,50 @@ public class StatsController {
         }
         Long userIdLong = Long.valueOf(userIdString);
 
-        List<MatchDataDTO> data = service.getMatchDataStats(userIdLong, mode, page, size);
+        List<MatchDataDTO> data = statsService.getMatchDataStats(userIdLong, mode, page, size);
 
         return ResponseEntity.ok(data);
 
     }
 
     /**
-     * Batch 단위로 데이터 수집
+     * 경기 종료 후, 경기 평균 집계/ 랭킹 집계
      * */
-    // 게임 끝났을 때 집계 작업 수행.
+    // 경기 종료 후, 랭킹 집계 /
+    @PostMapping("/matchstats/{matchId}/end")
+    public ResponseEntity<?> endMatchProcess(@PathVariable("matchId") Long matchId){
+        // match에 대한 평균 집계
+        // 1. 경기 종료 시 즉시 매치 통계 계산
+        boolean updateState = statsBatchService.updateMatchStats(matchId);
+
+        if(updateState){
+            String message = "Match Updated for %s".formatted(matchId);
+            log.info("Game ended and stats updated for matchId: {}", matchId);
+            return ResponseEntity.ok(Map.of("message", message));
+
+        }else{
+            String errorMsg = "No UserStats found for matchId: %d".formatted(matchId);
+            log.warn(errorMsg);
+
+            return ResponseEntity
+                    .status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("message", errorMsg));
+        }
+
+        // 2.개인 별 랭킹 집계
+
+    }
+
+    // Match 관련 데이터 가져오기
+    // 해당 userId에 맞게 한 페이지에 5개씩 가져오기
+    @GetMapping("/matchstats/{matchId}")
+    public ResponseEntity<?> getMatchStats(@PathVariable("matchId")Long matchId){
+
+
+        return null;
+    }
+
+    // 게임 끝났을 때, match average 집계 작업 수행.
     @PostMapping("/matchstats/{matchId}")
     public ResponseEntity<?> onGameEnd(@PathVariable("matchId")Long matchId) {
 
@@ -113,17 +149,12 @@ public class StatsController {
         }
     }
 
-    // Match 관련 데이터 가져오기
-    // 해당 userId에 맞게 한 페이지에 5개씩 가져오기
-    @GetMapping("/matchstats/{matchId}")
-    public ResponseEntity<?> getMatchStats(@PathVariable("matchId")Long matchId){
+    @PostMapping("/matchstats/{matchId}/ranking")
+    public ResponseEntity<?> createRanking(@PathVariable("matchId")Long matchId) {
 
+        rankingService.calculateRanking(matchId);
 
-        return null;
+        return ResponseEntity.ok("Great");
     }
-
-
-
-
 
 }

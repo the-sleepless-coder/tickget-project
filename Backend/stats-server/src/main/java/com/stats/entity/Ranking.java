@@ -25,8 +25,8 @@ public class Ranking {
     @Column(name = "points", nullable = false)
     private Integer points;  // 점수
 
-    @Column(name = "rank", nullable = false)
-    private Integer rank;  // 순위
+    @Column(name = "user_rank", nullable = false)
+    private Integer userRank;  // 순위
 
 //    @Enumerated(EnumType.STRING)
 //    @Column(name = "grade")
