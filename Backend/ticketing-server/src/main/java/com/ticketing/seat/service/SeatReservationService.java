@@ -26,7 +26,7 @@ import java.util.List;
 public class SeatReservationService {
 
     private static final int MAX_SEATS_PER_REQUEST = 2;
-    private static final int MATCH_REDIS_TTL_SECONDS = 600; // 10분
+    private static final int MATCH_REDIS_TTL_SECONDS = 1800; // 30분
     private final StringRedisTemplate redisTemplate;
     private final RoomServerClient roomServerClient;
 

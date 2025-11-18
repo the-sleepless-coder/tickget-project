@@ -102,12 +102,12 @@ public class SeatConfirmationService {
         // 2. reserved_count 증가 (좌석 수만큼)
         String reservedCountKey = "match:" + matchId + ":reserved_count";
         Long reservedCount = redisTemplate.opsForValue().increment(reservedCountKey, seatCount);
-        redisTemplate.expire(reservedCountKey, Duration.ofSeconds(600));
+        redisTemplate.expire(reservedCountKey, Duration.ofSeconds(1800));
 
         // 3. total_rank_counter 증가 (봇도 전체 등수에 포함)
         String totalRankCounterKey = "match:" + matchId + ":total_rank_counter";
         Long totalRankLong = redisTemplate.opsForValue().increment(totalRankCounterKey);
-        redisTemplate.expire(totalRankCounterKey, Duration.ofSeconds(600));
+        redisTemplate.expire(totalRankCounterKey, Duration.ofSeconds(1800));
         Integer totalRank = (totalRankLong != null) ? totalRankLong.intValue() : null;
 
         // 4. success_bot_count 증가 (Match 엔티티)
@@ -215,20 +215,20 @@ public class SeatConfirmationService {
         // 4. reserved_count 증가 (좌석 수만큼)
         String reservedCountKey = "match:" + matchId + ":reserved_count";
         Long reservedCount = redisTemplate.opsForValue().increment(reservedCountKey, seatCount);
-        redisTemplate.expire(reservedCountKey, Duration.ofSeconds(600));
+        redisTemplate.expire(reservedCountKey, Duration.ofSeconds(1800));
 
         // ===== Confirm 시점에 등수 계산 =====
 
         // 5. human_rank_counter 증가 → userRank
         String humanRankCounterKey = "match:" + matchId + ":human_rank_counter";
         Long userRankLong = redisTemplate.opsForValue().increment(humanRankCounterKey);
-        redisTemplate.expire(humanRankCounterKey, Duration.ofSeconds(600));
+        redisTemplate.expire(humanRankCounterKey, Duration.ofSeconds(1800));
         Integer userRank = userRankLong.intValue();
 
         // 6. total_rank_counter 증가 → totalRank
         String totalRankCounterKey = "match:" + matchId + ":total_rank_counter";
         Long totalRankLong = redisTemplate.opsForValue().increment(totalRankCounterKey);
-        redisTemplate.expire(totalRankCounterKey, Duration.ofSeconds(600));
+        redisTemplate.expire(totalRankCounterKey, Duration.ofSeconds(1800));
         Integer totalRank = totalRankLong.intValue();
 
         log.info("Confirm 시점 등수 계산: matchId={}, userId={}, userRank={}, totalRank={}",
@@ -237,7 +237,7 @@ public class SeatConfirmationService {
         // 7. humanusers 감소
         String humanUsersKey = "humanusers:match:" + matchId;
         Long remainingHumanUsers = redisTemplate.opsForValue().decrement(humanUsersKey);
-        redisTemplate.expire(humanUsersKey, Duration.ofSeconds(600));
+        redisTemplate.expire(humanUsersKey, Duration.ofSeconds(1800));
         log.info("실제 유저 Confirm: matchId={}, userId={}, 남은 실제 유저={}",
                 matchId, userId, remainingHumanUsers);
 
@@ -331,7 +331,7 @@ public class SeatConfirmationService {
             // 3. Redis 상태를 CLOSED로 설정
             String statusKey = "match:" + matchId + ":status";
             redisTemplate.opsForValue().set(statusKey, "CLOSED");
-            redisTemplate.expire(statusKey, Duration.ofSeconds(600));
+            redisTemplate.expire(statusKey, Duration.ofSeconds(1800));
 
             // 4. Redis 정리
             cleanupAllMatchRedis(matchId);

@@ -252,7 +252,7 @@ public class QueueConsumer {
 
                         // 네가 주었던 그대로: HMSET + (선택) TTL
                         c.hMSet(hkey, m);
-                        c.expire(hkey, 600);
+                        c.expire(hkey, 1800);
 
                         idx++;
                     }
