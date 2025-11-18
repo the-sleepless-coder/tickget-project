@@ -74,7 +74,9 @@ export interface MatchSpecifics {
   seatSelectClickMissCount: number;
   seatSelectTime: number;
   seatSelectTrialCount: number;
-  totalRank: number;
+  // 백엔드 응답: 전체 순위 및 유저 랭크
+  userTotalRank: number; // 경기 내 전체 순위 (봇 + 사람)
+  userRank: number; // 유저 랭크 (사용자들 중 순위)
   totalTime: number;
   queueTimeDifference: number;
   queueMissCountDifference: number;

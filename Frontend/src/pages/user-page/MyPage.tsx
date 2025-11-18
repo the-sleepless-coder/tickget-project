@@ -175,18 +175,34 @@ export default function MyPageIndex() {
           ? normalizeProfileImageUrl(null, actualUserId)
           : null;
 
+      // 좌석 선택 실패 여부 판단
+      const isFailedSeat =
+        spec.userTotalRank === -1 ||
+        spec.selectedSeat === "failed" ||
+        spec.selectedSection === "failed";
+
+      // 좌석 문자열 (여러 좌석일 수 있음, 예: "1-15-32,1-14-30")
+      const seatArea = isFailedSeat ? "실패" : spec.selectedSeat;
+
       return {
         id: actualUserId,
         isCurrentUser: isMe,
         profileImageUrl,
         nickname: spec.userNickname,
-        rank: spec.totalRank,
-        seatArea: seatInfo
-          ? `${seatInfo.row}-${seatInfo.col}`
-          : spec.selectedSeat,
-        seatSection: seatInfo ? seatInfo.section : spec.selectedSection,
-        seatRow: seatInfo?.row,
-        seatCol: seatInfo?.col,
+        // 실패한 유저는 rank를 -1로 고정 (정렬 및 표시용)
+        // 좌측 큰 숫자 등수 영역에는 "유저 랭크"를 사용
+        rank: isFailedSeat ? -1 : spec.userRank,
+        // 닉네임 오른쪽 괄호에는 전체 랭크(봇 포함)를 표시
+        rankAmongUsers: isFailedSeat ? undefined : spec.userTotalRank,
+        seatArea,
+        // 실패한 유저는 seatSection을 "failed"로 표시하여 좌석 하이라이트에서 제외
+        seatSection: isFailedSeat
+          ? "failed"
+          : seatInfo
+            ? seatInfo.section
+            : spec.selectedSection,
+        seatRow: isFailedSeat ? undefined : seatInfo?.row,
+        seatCol: isFailedSeat ? undefined : seatInfo?.col,
         time: spec.totalTime.toFixed(2),
         metrics: {
           bookingClick: {
