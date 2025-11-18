@@ -29,6 +29,8 @@ import Inspire_42 from "./seats-inspire-arena/R/Inspire_42";
 import Inspire_43 from "./seats-inspire-arena/R/Inspire_43";
 import Inspire_1 from "./seats-inspire-arena/STANDING/Inspire_1";
 
+const LIGHT_GRAY = "#d4d4d8";
+
 interface PolygonData {
   id: string;
   level: string;
@@ -127,7 +129,7 @@ export default function LargeVenue({
     if (showDetailView) return; // only applies to overview SVG
     const svg = containerRef.current?.querySelector("svg");
     if (!svg) return;
-    
+
     // readOnly 모드일 때 사용자가 선택한 좌석이 있는 섹션 ID 추출
     const sectionsWithSeats = new Set<string>();
     if (readOnly && selectedIds.length > 0) {
@@ -139,7 +141,7 @@ export default function LargeVenue({
         }
       });
     }
-    
+
     const vipPolygons = Array.from(
       svg.querySelectorAll('polygon[data-seat-level="VIP"]')
     ) as SVGPolygonElement[];
@@ -181,11 +183,11 @@ export default function LargeVenue({
         // 브라우저 기본 툴팁 설정 (전체 뷰)
         const idAttr = p.getAttribute("data-id") || "";
         const level = p.getAttribute("data-seat-level") || "";
-        
+
         // readOnly 모드일 때 사용자가 선택한 좌석이 없는 섹션은 회색 처리
         if (readOnly && idAttr !== "0" && sectionsWithSeats.size > 0) {
           if (!sectionsWithSeats.has(idAttr)) {
-            const grayFill = "#9ca3af";
+            const grayFill = LIGHT_GRAY;
             p.setAttribute("fill", grayFill);
             p.setAttribute("data-fill", grayFill);
             const existingStyle = p.getAttribute("style") || "";
@@ -196,7 +198,7 @@ export default function LargeVenue({
             p.setAttribute("style", `fill:${grayFill};${styleWithoutFill}`);
           }
         }
-        
+
         if (idAttr && idAttr !== "0" && level) {
           const gradeLabel = level === "STANDING" ? "스탠딩석" : `${level}석`;
           p.setAttribute("title", `[${gradeLabel}] ${idAttr}구역`);
@@ -253,7 +255,7 @@ export default function LargeVenue({
   const handlePolygonClick = async (polygon: SVGPolygonElement) => {
     // readOnly 모드일 때는 클릭 이벤트 무시
     if (readOnly) return;
-    
+
     const data: PolygonData = {
       id: polygon.dataset.id || "",
       level: polygon.dataset.seatLevel || "",
@@ -528,7 +530,7 @@ export default function LargeVenue({
         const isSelected = selectedIds.includes(seatId);
         if (isTaken) {
           // TAKEN 좌석: 회색 처리 및 클릭 불가
-          el.style.backgroundColor = "#9ca3af"; // 회색
+          el.style.backgroundColor = LIGHT_GRAY; // 회색
           el.style.cursor = "not-allowed";
           el.style.opacity = "0.6";
           el.setAttribute("data-taken", "true");
@@ -539,7 +541,7 @@ export default function LargeVenue({
             el.style.cursor = "default";
             el.style.opacity = "1";
           } else {
-            el.style.backgroundColor = "#9ca3af"; // 회색
+            el.style.backgroundColor = LIGHT_GRAY; // 회색
             el.style.cursor = "default";
             el.style.opacity = "0.5";
           }

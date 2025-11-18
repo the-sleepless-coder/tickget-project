@@ -89,6 +89,7 @@ export default function SmallVenue({
     width: 7.5,
     height: 7.5,
   };
+  const LIGHT_GRAY = "#d4d4d8";
 
   type BlockPos = "left" | "center" | "right";
   const COLORS = {
@@ -299,7 +300,7 @@ export default function SmallVenue({
                 backgroundColor: readOnly
                   ? isSelected
                     ? seatColor
-                    : "#9ca3af" // 회색
+                    : LIGHT_GRAY // 회색
                   : isSelected
                     ? "#4a4a4a"
                     : seatColor,
