@@ -155,13 +155,13 @@ export default function MyPageIndex() {
       },
       {
         label: `총 좌석수 ${matchInfo.totalSeat.toLocaleString()}명`,
-        color: "blue",
-        className: "bg-c-blue-100 text-c-blue-200",
+        color: "purple",
+        className: "bg-c-purple-100 text-c-purple-400",
       },
       {
         label: `봇 ${matchInfo.botCount}명`,
-        color: "blue",
-        className: "bg-c-blue-100 text-c-blue-200",
+        color: "purple",
+        className: "bg-c-purple-100 text-c-purple-400",
       },
     ];
 
