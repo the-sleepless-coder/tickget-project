@@ -119,6 +119,20 @@ export default function GameResultPage() {
     return metric != null && metric !== -1 ? metric : null;
   }, [captchaSec, failedSeatMetrics, isFailed]);
 
+  const resolvedCapBackspaces = useMemo(() => {
+    if (capBackspaces != null) return capBackspaces;
+    if (!isFailed) return null;
+    const metric = failedSeatMetrics?.seccodeBackspaceCount;
+    return metric != null && metric !== -1 ? metric : null;
+  }, [capBackspaces, failedSeatMetrics, isFailed]);
+
+  const resolvedCapWrong = useMemo(() => {
+    if (capWrong != null) return capWrong;
+    if (!isFailed) return null;
+    const metric = failedSeatMetrics?.seccodeTryCount;
+    return metric != null && metric !== -1 ? metric : null;
+  }, [capWrong, failedSeatMetrics, isFailed]);
+
   const resolvedSeatTime = useMemo(() => {
     if (capToCompleteSec != null) return capToCompleteSec;
     if (!isFailed) return null;
@@ -344,17 +358,17 @@ export default function GameResultPage() {
               {
                 label: "백스페이스",
                 value:
-                  isFailed && failedSeatMetrics?.seccodeBackspaceCount === -1
+                  isFailed && resolvedCapBackspaces == null
                     ? "x"
-                    : formatCountValue(capBackspaces),
+                    : formatCountValue(resolvedCapBackspaces),
                 icon: <CloseIcon fontSize="small" className="text-gray-500" />,
               },
               {
                 label: "틀린 횟수",
                 value:
-                  isFailed && failedSeatMetrics?.seccodeTryCount === -1
+                  isFailed && resolvedCapWrong == null
                     ? "x"
-                    : formatCountValue(capWrong),
+                    : formatCountValue(resolvedCapWrong),
                 icon: <CloseIcon fontSize="small" className="text-gray-500" />,
               },
             ]}
