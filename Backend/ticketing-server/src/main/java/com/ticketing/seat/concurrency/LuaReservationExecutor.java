@@ -10,15 +10,17 @@ import java.util.List;
 import java.util.stream.Stream;
 
 /**
- * 여러 좌석을 한 번에 선점(Hold) 처리하고, 동시에 카운트를 원자적으로 증가시킨다.
- * Redis 키: seat:{matchId}:{sectionId}:{row-number}
- * Redis 값: {userId}:{grade}
- * <p>
+ * 여러 좌석을 한 번에 선점(Hold) 처리하고, 좌석 키에만 정보를 저장한다.
+ * Redis 키:
+ *   - seat:{matchId}:{sectionId}:{row-number}
+ *   - match:{matchId}:status
+ * Redis seat 값: {userId}:{grade}
+ *
  * 반환값:
  * - 0: 실패 (좌석 이미 선점됨)
- * - 1: 성공 (일반)
+ * - 1: 성공
  *
- * 주의: Hold 시점에는 만석 체크를 하지 않음 (Confirm 시점에 체크)
+ * 주의: Hold 시점에는 만석/카운트 체크를 하지 않음 (Confirm 시점에 처리)
  */
 @Component
 @RequiredArgsConstructor
@@ -33,6 +35,9 @@ public class LuaReservationExecutor {
                     local seatCount = tonumber(ARGV[1])
                     local userId = ARGV[2]
                     local ttl = tonumber(ARGV[3])
+                    
+                    -- KEYS[1..seatCount]     : seat 키들
+                    -- KEYS[seatCount + 1]    : match status 키
                     
                     -- check phase: 모든 좌석이 비어있는지 확인
                     for i = 1, seatCount do
@@ -49,10 +54,10 @@ public class LuaReservationExecutor {
                         redis.call('EXPIRE', KEYS[i], ttl)  -- 좌석 키에 TTL 설정 (10분)
                     end
                     
-                    
-                    -- status 키 TTL 설정 (OPEN 상태 유지)
-                    redis.call('SET', KEYS[seatCount + 2], 'OPEN')
-                    redis.call('EXPIRE', KEYS[seatCount + 2], ttl)  -- status TTL
+                    -- status 키를 OPEN으로 설정 + TTL 설정
+                    local statusKeyIndex = seatCount + 1
+                    redis.call('SET', KEYS[statusKeyIndex], 'OPEN')
+                    redis.call('EXPIRE', KEYS[statusKeyIndex], ttl)
                     
                     return 1  -- 성공
                     """,
@@ -63,7 +68,7 @@ public class LuaReservationExecutor {
      * 좌석 원자적 선점 처리 (각 좌석마다 다른 grade 가능)
      *
      * Hold 시점에는 만석 체크를 하지 않음
-     * reserved_count만 증가시키고 항상 1 반환
+     * reserved_count는 사용하지 않음
      *
      * @param matchId    경기 ID
      * @param sectionId  섹션 ID (String - Redis 키용)
@@ -84,7 +89,7 @@ public class LuaReservationExecutor {
             throw new IllegalArgumentException("rowNumbers와 grades의 개수가 일치하지 않습니다.");
         }
 
-        // KEYS: seat 키들 + status
+        // KEYS: seat 키들 + status 키
         List<String> keys = Stream.of(
                 rowNumbers.stream().map(rowNumber ->
                         "seat:" + matchId + ":" + sectionId + ":" + rowNumber),
@@ -98,20 +103,13 @@ public class LuaReservationExecutor {
         args.add(String.valueOf(MATCH_REDIS_TTL_SECONDS)); // ARGV[3]: ttl (10분)
         args.addAll(grades);                               // ARGV[4]~: 각 좌석의 grade
 
-        Long result = redisTemplate.execute(
+        return redisTemplate.execute(
                 reserveSeatsLuaScript,
                 keys,
                 args.toArray()
         );
-
-        return result;
     }
 
-    /**
-     * 하위 호환성: 모든 좌석이 같은 grade를 가지는 경우
-     *
-     * @deprecated tryReserveSeatsAtomically(matchId, sectionId, rowNumbers, userId, grades, totalSeats) 사용 권장
-     */
     @Deprecated
     public Long tryReserveSeatsAtomically(Long matchId,
                                           String sectionId,
@@ -119,7 +117,6 @@ public class LuaReservationExecutor {
                                           Long userId,
                                           String grade,
                                           int totalSeats) {
-        // 모든 좌석에 같은 grade 적용
         List<String> grades = rowNumbers.stream()
                 .map(r -> grade)
                 .toList();
