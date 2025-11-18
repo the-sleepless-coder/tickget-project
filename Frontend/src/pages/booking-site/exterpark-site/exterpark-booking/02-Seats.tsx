@@ -1586,7 +1586,7 @@ export default function SelectSeatPage() {
                     </thead>
                   </table>
                   {/* Fixed-height, scrollable body */}
-                  <div className="h-[160px] overflow-y-auto">
+                  <div className="h-[90px] overflow-y-auto">
                     <table className="w-full text-sm">
                       <tbody>
                         {selected.length === 0 ? (
