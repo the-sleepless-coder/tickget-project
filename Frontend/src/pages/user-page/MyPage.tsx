@@ -168,10 +168,17 @@ export default function MyPageIndex() {
     // 사용자 정보 변환
     const users: UserRank[] = specifics.map((spec) => {
       const seatInfo = parseSeat(spec.selectedSeat);
-      const isMe = spec.userId === currentUserId;
+      const actualUserId = spec.userId;
+      const isMe = actualUserId === currentUserId;
+      const profileImageUrl =
+        actualUserId && actualUserId > 0
+          ? normalizeProfileImageUrl(null, actualUserId)
+          : null;
 
       return {
-        id: isMe ? 0 : spec.userId,
+        id: actualUserId,
+        isCurrentUser: isMe,
+        profileImageUrl,
         nickname: spec.userNickname,
         rank: spec.totalRank,
         seatArea: seatInfo

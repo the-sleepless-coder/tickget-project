@@ -3,6 +3,7 @@ import TsxPreview from "./TsxPreview";
 import SmallVenue from "../../performance-halls/small-venue/CharlotteTheater";
 import MediumVenue from "../../performance-halls/medium-venue/OlympicHall";
 import LargeVenue from "../../performance-halls/large-venue/InspireArena";
+import { normalizeProfileImageUrl } from "@shared/utils/profileImageUrl";
 
 interface UserRank {
   id: number;
@@ -13,6 +14,8 @@ interface UserRank {
   seatRow?: number;
   seatCol?: number;
   time?: string;
+  isCurrentUser?: boolean;
+  profileImageUrl?: string | null;
   metrics?: {
     bookingClick?: { reactionMs?: number; misclicks?: number };
     captcha?: {
@@ -51,6 +54,34 @@ interface MatchDetailContentProps {
   roomType?: "SOLO" | "MULTI";
 }
 
+function UserAvatar({
+  nickname,
+  profileImageUrl,
+}: {
+  nickname: string;
+  profileImageUrl?: string | null;
+}) {
+  const [hasError, setHasError] = useState(false);
+  const displayInitial = nickname?.trim().charAt(0)?.toUpperCase() || "U";
+
+  if (!profileImageUrl || hasError) {
+    return (
+      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-neutral-300 text-xs font-semibold text-white">
+        {displayInitial}
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={profileImageUrl}
+      alt={`${nickname} 프로필 이미지`}
+      className="h-8 w-8 rounded-full object-cover"
+      onError={() => setHasError(true)}
+    />
+  );
+}
+
 export default function MatchDetailContent({
   mySeatArea,
   mySeatSection,
@@ -70,8 +101,10 @@ export default function MatchDetailContent({
     rank: 0,
     seatArea: mySeatArea,
     seatSection: mySeatSection,
+    isCurrentUser: true,
   };
-  const meUser: UserRank = users.find((u) => u.id === 0) ?? meFallback;
+  const meUser: UserRank =
+    users.find((u) => u.isCurrentUser || u.id === 0) ?? meFallback;
   const selectedUser: UserRank | undefined =
     selectedUserId !== null
       ? users.find((u) => u.id === selectedUserId)
@@ -894,6 +927,11 @@ export default function MatchDetailContent({
               .sort((a, b) => a.rank - b.rank)
               .map((user) => {
                 const seatDetails = getSeatDetails(user);
+                const resolvedProfileImage =
+                  user.profileImageUrl ||
+                  (user.id && user.id > 0
+                    ? normalizeProfileImageUrl(null, user.id)
+                    : null);
                 return (
                   <div
                     key={user.id}
@@ -926,7 +964,12 @@ export default function MatchDetailContent({
                     <span className="text-lg font-bold text-neutral-600">
                       {user.rank === -1 ? "-" : `${user.rank}등`}{" "}
                     </span>
-                    <div className="ml-3 mr-3 h-8 w-8 rounded-full bg-neutral-300" />
+                    <div className="ml-3 mr-3">
+                      <UserAvatar
+                        nickname={user.nickname}
+                        profileImageUrl={resolvedProfileImage}
+                      />
+                    </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <span className="text-base font-semibold text-neutral-700 group-hover:text-neutral-900">
@@ -982,7 +1025,12 @@ export default function MatchDetailContent({
                   <div className="mb-3 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <div
-                        className={`h-3 w-3 rounded ${selectedUser && selectedUser.id === 0 ? "bg-purple-400" : "bg-gray-300"}`}
+                        className={`h-3 w-3 rounded ${
+                          selectedUser &&
+                          (selectedUser.isCurrentUser || selectedUser.id === 0)
+                            ? "bg-purple-400"
+                            : "bg-gray-300"
+                        }`}
                       />
                       <span className="text-sm font-medium text-neutral-700">
                         {selectedUser?.nickname}
