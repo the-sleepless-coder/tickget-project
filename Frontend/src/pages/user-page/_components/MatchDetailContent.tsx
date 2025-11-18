@@ -572,6 +572,26 @@ export default function MatchDetailContent({
     const extractSectionId = (element: Element | null): string | null => {
       if (!element) return null;
 
+      // SmallVenue (샤롯데 씨어터): section 속성 (div 기반)
+      // 프리셋 모드일 때는 section이 "0" 또는 "1"이지만, 실제로는 여러 섹션이 섞여있을 수 있음
+      // seatid에서 섹션 정보 추출 시도
+      const seatId = element.getAttribute("seatid");
+      if (seatId && seatId.startsWith("small-")) {
+        // small-${floor}-${displaySection}-${row}-${col} 형식
+        const parts = seatId.split("-");
+        if (parts.length >= 3) {
+          const sectionFromSeatId = parts[2];
+          // 프리셋 모드에서는 displaySection이 "0" 또는 "1"이지만,
+          // 실제 유저의 seatSection과 매칭하기 위해 좌석의 실제 섹션 정보를 사용
+          // title에서 섹션 정보 추출 시도
+          const title = element.getAttribute("title") || "";
+          const titleMatch = title.match(/(\d+)구역/);
+          if (titleMatch) return titleMatch[1];
+          // title이 없으면 seatid의 섹션 사용
+          return sectionFromSeatId;
+        }
+      }
+
       // AI 공연장: section 속성 또는 data-section
       const sectionAttr =
         element.getAttribute("section") || element.getAttribute("data-section");
@@ -625,11 +645,14 @@ export default function MatchDetailContent({
       }
 
       // polygon 또는 섹션 요소 찾기
+      // SmallVenue는 div 기반이므로 [section] 속성을 가진 div도 찾아야 함
       const sectionElement =
         target.closest("polygon") ||
         target.closest("[section]") ||
         target.closest("[data-section]") ||
-        target.closest("[data-id]");
+        target.closest("[data-id]") ||
+        (target.hasAttribute("section") ? target : null) ||
+        (target.hasAttribute("seatid") ? target : null);
 
       const sectionId = extractSectionId(sectionElement);
       if (!sectionId) {
