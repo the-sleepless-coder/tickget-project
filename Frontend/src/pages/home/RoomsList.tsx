@@ -1,6 +1,7 @@
 import RoomCard from "./_components/RoomCard";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import dayjs from "dayjs";
+import { useNavigate } from "react-router-dom";
 import Tooltip from "@mui/material/Tooltip";
 import InfoOutlined from "@mui/icons-material/InfoOutlined";
 import SearchIcon from "@mui/icons-material/Search";
@@ -9,6 +10,7 @@ import CreateRoomModal from "../room/create-room/CreateRoomModal";
 import { getRooms } from "@features/booking-site/api";
 import type { RoomResponse } from "@features/booking-site/types";
 import { useAuthStore } from "@features/auth/store";
+import { paths } from "../../app/routes/paths";
 import Thumbnail01 from "../../shared/images/thumbnail/Thumbnail01.webp";
 import Thumbnail02 from "../../shared/images/thumbnail/Thumbnail02.webp";
 import Thumbnail03 from "../../shared/images/thumbnail/Thumbnail03.webp";
@@ -21,6 +23,7 @@ import { sortRooms } from "./_components/RoomSortUtil";
 type SortKey = "start" | "latest";
 
 export default function RoomsPage() {
+  const navigate = useNavigate();
   const [activeSort, setActiveSort] = useState<SortKey>("start");
   const [query, setQuery] = useState("");
   const [openCreate, setOpenCreate] = useState(false);
@@ -270,7 +273,13 @@ export default function RoomsPage() {
             type="button"
             onClick={() => {
               if (!userId || !nickname) {
-                alert("로그인이 필요합니다.");
+                if (
+                  confirm(
+                    "로그인이 필요합니다. 로그인 페이지로 이동하시겠습니까?"
+                  )
+                ) {
+                  navigate(paths.auth.login);
+                }
                 return;
               }
               setOpenCreate(true);
