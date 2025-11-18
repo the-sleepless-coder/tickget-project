@@ -10,6 +10,7 @@ import {
   confirmSeat,
 } from "@features/booking-site/api";
 import { useSeatStatsFailedOnUnload } from "../../../../shared/hooks/useSeatStatsFailedOnUnload";
+import { useBlockBackButtonDuringGame } from "../../../../shared/hooks/useBlockBackButtonDuringGame";
 import dayjs from "dayjs";
 
 type SeatData = {
@@ -28,6 +29,9 @@ export default function PaymentPage() {
 
   // 결제 단계에서 창을 닫는 경우에도 실패 통계 전송 시도
   useSeatStatsFailedOnUnload("05-Payment");
+
+  // 경기 중 브라우저 뒤로가기 차단
+  useBlockBackButtonDuringGame("05-Payment");
 
   const goPrev = () => navigate(paths.booking.orderConfirm);
   const complete = async () => {

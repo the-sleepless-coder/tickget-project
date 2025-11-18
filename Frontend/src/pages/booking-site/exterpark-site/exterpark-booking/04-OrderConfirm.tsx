@@ -4,6 +4,7 @@ import BookingLayout from "./_components/BookingLayout";
 import { paths } from "../../../../app/routes/paths";
 import dayjs from "dayjs";
 import { useAuthStore } from "@features/auth/store";
+import { useBlockBackButtonDuringGame } from "../../../../shared/hooks/useBlockBackButtonDuringGame";
 
 type SeatData = {
   grade: string;
@@ -14,6 +15,10 @@ type SeatData = {
 export default function OrderConfirmPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+
+  // 경기 중 브라우저 뒤로가기 차단
+  useBlockBackButtonDuringGame("04-OrderConfirm");
+
   const goPrev = () => navigate(paths.booking.price);
   const goNext = () => {
     const nextUrl = new URL(window.location.origin + paths.booking.payment);

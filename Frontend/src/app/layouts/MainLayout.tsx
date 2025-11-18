@@ -134,15 +134,22 @@ export default function MainLayout() {
               });
             }
 
-            // 결과 페이지에서는 자동 로그아웃 대신 알림만 표시하고 세션은 유지
+            // 결과 페이지에서는 알림 없이 조용히 처리 (세션 유지)
             const currentPathForForce = window.location.pathname;
             const isGameResultForForce =
               currentPathForForce.includes("/game-result");
 
             if (isGameResultForForce) {
-              alert(
-                `${disconnectMessage}\n\n(결과 화면은 유지되며, 새로 접속 시 다시 로그인해야 할 수 있습니다.)`
-              );
+              if (import.meta.env.DEV) {
+                console.log(
+                  "ℹ️ [FORCE_DISCONNECT] 결과 페이지에서 강제 종료 이벤트 무시 (알림 없음)",
+                  {
+                    reason: payload?.reason,
+                    message: disconnectMessage,
+                    timestamp: payload?.timestamp || event.timestamp,
+                  }
+                );
+              }
               // WebSocket 연결만 정리하고 인증 상태는 유지
               disconnectStompClient(client);
               return;

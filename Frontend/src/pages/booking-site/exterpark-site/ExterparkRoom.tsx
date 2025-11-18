@@ -146,6 +146,8 @@ export default function ITicketPage() {
   const hasOpenedNewWindowRef = useRef<boolean>(false); // 새 창이 열렸는지 추적
   // ref로 상태를 관리하여 handleRoomEvent 재생성 방지
   const hasDequeuedInPageRef = useRef<boolean>(false);
+  // 방 나가기 트리거 구분용: "button" (버튼 클릭), "back" (브라우저 뒤로가기)
+  const exitReasonRef = useRef<"button" | "back" | null>(null);
 
   // 새로고침 감지: 페이지 로드 시 새로고침 여부 확인
   const isReload = (() => {

@@ -15,7 +15,6 @@ import { useAuthStore } from "@features/auth/store";
 import {
   holdSeat,
   getSectionSeatsStatus,
-  buildSeatMetricsPayload,
   sendSeatStatsFailedForMatch,
 } from "@features/booking-site/api";
 import { paths } from "../../../../app/routes/paths";
@@ -29,6 +28,7 @@ import {
 import { useWebSocketStore } from "../../../../shared/lib/websocket-store";
 import { subscribe, type Subscription } from "../../../../shared/lib/websocket";
 import { useSeatStatsFailedOnUnload } from "../../../../shared/hooks/useSeatStatsFailedOnUnload";
+import { useBlockBackButtonDuringGame } from "../../../../shared/hooks/useBlockBackButtonDuringGame";
 import Viewport from "./_components/Viewport";
 import SeatGrades from "./_components/Side_Grades";
 import SeatSidebarBanner from "./_components/Side_Banner";
@@ -438,6 +438,9 @@ export default function SelectSeatPage() {
       }
     };
   }, [wsClient]);
+
+  // 브라우저 뒤로가기 시에도 "방 나가기"와 동일하게 실패 처리 후 결과 페이지로 이동
+  useBlockBackButtonDuringGame("02-Seats");
   // TAKEN 좌석 정보 저장 (SmallVenue용, section-row-col 형식)
   const [takenSeats, setTakenSeats] = useState<Set<string>>(new Set());
 
