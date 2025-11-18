@@ -149,6 +149,7 @@ export default function ITicketPage() {
   const hasDequeuedInPageRef = useRef<boolean>(false);
   // 방 나가기 트리거 구분용: "button" (버튼 클릭), "back" (브라우저 뒤로가기)
   const exitReasonRef = useRef<"button" | "back" | null>(null);
+  const lastResetRoomIdRef = useRef<number | null>(null);
 
   // 새로고침 감지: 페이지 로드 시 새로고침 여부 확인
   const isReload = (() => {
@@ -212,6 +213,24 @@ export default function ITicketPage() {
   );
   const matchIdFromStore = useMatchStore((s) => s.matchId);
   const [, setMyQueueStatus] = useState<QueueStatus | null>(null);
+
+  useEffect(() => {
+    const parsedRoomId =
+      roomData?.roomId ??
+      joinResponse?.roomId ??
+      (roomId ? Number(roomId) : null);
+
+    if (parsedRoomId == null || Number.isNaN(parsedRoomId)) {
+      return;
+    }
+
+    if (lastResetRoomIdRef.current === parsedRoomId) {
+      return;
+    }
+
+    resetSeatSelectionMetrics();
+    lastResetRoomIdRef.current = parsedRoomId;
+  }, [roomData?.roomId, joinResponse?.roomId, roomId]);
 
   // WebSocket 이벤트 핸들러 (ref로 관리하여 재생성 방지)
   const handleRoomEvent = useCallback(
