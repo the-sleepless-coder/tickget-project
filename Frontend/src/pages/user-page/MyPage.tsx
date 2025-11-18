@@ -134,18 +134,34 @@ export default function MyPageIndex() {
     const venueType = matchInfo.isAIGenerated ? "AI 생성" : "프리셋";
 
     // 태그 생성
+    const getDifficultyTagClass = (difficulty: string): string => {
+      switch (difficulty) {
+        case "EASY":
+          return "bg-[#F9FBAD] text-[#8DBA07]";
+        case "MEDIUM":
+          return "bg-[#FFEEA2] text-[#FF8800]";
+        case "HARD":
+          return "bg-[#FFDEDE] text-[#FF4040]";
+        default:
+          return "bg-neutral-400 text-white";
+      }
+    };
+
     const tags = [
       {
         label: convertDifficultyToKorean(matchInfo.difficulty),
         color: matchInfo.difficulty === "HARD" ? "red" : "blue",
+        className: getDifficultyTagClass(matchInfo.difficulty),
       },
       {
         label: `총 좌석수 ${matchInfo.totalSeat.toLocaleString()}명`,
         color: "blue",
+        className: "bg-c-blue-100 text-c-blue-200",
       },
       {
         label: `봇 ${matchInfo.botCount}명`,
         color: "blue",
+        className: "bg-c-blue-100 text-c-blue-200",
       },
     ];
 

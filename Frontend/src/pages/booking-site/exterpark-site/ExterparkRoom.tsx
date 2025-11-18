@@ -1403,22 +1403,47 @@ function TagsRow({
     children,
     bgVar,
     colorVar,
+    className,
   }: {
     children: string;
-    bgVar: string;
-    colorVar: string;
+    bgVar?: string;
+    colorVar?: string;
+    className?: string;
   }) => (
     <span
-      className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold"
-      style={{ backgroundColor: `var(${bgVar})`, color: `var(${colorVar})` }}
+      className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold ${
+        className || ""
+      }`}
+      style={
+        !className && bgVar && colorVar
+          ? { backgroundColor: `var(${bgVar})`, color: `var(${colorVar})` }
+          : undefined
+      }
     >
       {children}
     </span>
   );
 
+  const getDifficultyClassName = (difficulty?: string): string => {
+    const difficultyLabel = difficulty
+      ? DIFFICULTY_TO_LABEL[difficulty] || difficulty
+      : "쉬움";
+
+    switch (difficultyLabel) {
+      case "쉬움":
+        return "bg-[#F9FBAD] text-[#8DBA07]";
+      case "보통":
+        return "bg-[#FFEEA2] text-[#FF8800]";
+      case "어려움":
+        return "bg-[#FFDEDE] text-[#FF4040]";
+      default:
+        return "bg-[#F9FBAD] text-[#8DBA07]";
+    }
+  };
+
   const difficultyLabel = difficulty
     ? DIFFICULTY_TO_LABEL[difficulty] || difficulty
-    : "어려움";
+    : "쉬움";
   // totalSeat가 있으면 "총 좌석 수 --명"으로 표시, 없으면 최대 천 명
   const maxLabel = totalSeat
     ? `총 좌석수 ${totalSeat.toLocaleString()}명`
@@ -1426,11 +1451,11 @@ function TagsRow({
   const botLabel =
     botCount !== undefined && botCount !== null
       ? `봇 ${botCount.toLocaleString()}명`
-      : "봇 3000명";
+      : "봇 100명";
 
   return (
     <div className="flex items-center gap-3 py-4">
-      <Pill bgVar="--color-c-red-100" colorVar="--color-c-red-200">
+      <Pill className={getDifficultyClassName(difficulty)}>
         {difficultyLabel}
       </Pill>
       <Pill bgVar="--color-c-blue-100" colorVar="--color-c-blue-200">
