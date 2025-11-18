@@ -112,3 +112,8 @@ room-server:
 
 stats-server:
    url: ${STATS_SERVICE_URL:http://localhost:8084}
+
+consume-rate:
+  per-second: ${PER_SECOND_CONSUME_RATE}
+  kafka-emit: ${PER_SECOND_KAFKA_EMIT}
+  redis-emit: ${PER_SECOND_REDIS_EMIT}

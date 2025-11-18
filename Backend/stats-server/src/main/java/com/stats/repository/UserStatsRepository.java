@@ -87,6 +87,7 @@ public interface UserStatsRepository extends JpaRepository<UserStats, Long> {
         r.roomType,
         us.selectedSection,
         us.selectedSeat,
+        us.userRank,
         us.totalRank,
         r.hallSize,
         r.tsxUrl,
@@ -98,7 +99,8 @@ public interface UserStatsRepository extends JpaRepository<UserStats, Long> {
         us.seccodeTryCount,
         us.seatSelectClickMissCount,
         us.seatSelectTime,
-        us.seatSelectTryCount
+        us.seatSelectTryCount,
+        u.profileImageUrl
     )
     from UserStats us
     left join Match m on m.matchId = us.matchId

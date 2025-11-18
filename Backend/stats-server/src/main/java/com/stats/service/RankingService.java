@@ -8,8 +8,16 @@ import com.stats.repository.UserStatsRepository;
 import com.stats.util.RoundBy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.stereotype.Service;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.temporal.WeekFields;
 import java.util.List;
+import java.util.Locale;
+
 import static java.lang.Math.log;
 import com.stats.util.*;
 
@@ -20,6 +28,8 @@ public class RankingService {
     private final RankingRepository rankingRepository;
     private final UserStatsRepository userStatsRepository;
     private final MatchStatsRepository matchStatsRepository;
+    private final StringRedisTemplate redisTemplate;
+    private final SeasonService seasonService;
 
     private static final int BOT_BASE_SCORE = 1000;
     private static final int USER_BASE_SCORE = 500;
@@ -36,7 +46,6 @@ public class RankingService {
             return null;
         }
 
-
         // Match별 평균, 표준편차 데이터 찾기
         Float avgQueueTime = -100f;
         Float avgCaptchaTime = -100f;
@@ -44,6 +53,7 @@ public class RankingService {
         Float stddevQueueTime = -100f;
         Float stddevCaptchaTime = -100f;
         Float stddevSeatTime = -100f;
+
         for(RankingDTO singleData: givenMatchData){
             avgQueueTime = singleData.getAvgDateSelectTime();
             avgCaptchaTime = singleData.getAvgSeccodeSelectTime();
@@ -54,7 +64,6 @@ public class RankingService {
             stddevSeatTime = singleData.getStddevSeatSelectTime();
 
             boolean missing = false;
-
             if (avgQueueTime == null) {
                 log.warn("Missing avgQueueTime for matchId={}", singleData.getAvgDateSelectTime());
                 missing = true;
@@ -83,14 +92,18 @@ public class RankingService {
 
             // 모든 값 존재하면 break
             if (!missing) {
+                log.info("All aggregating values of the match exist");
                 break;
+            }else{
+                log.info("Certain field missing in match_stats");
+                return null;
             }
 
         }
 
         // Match내 개별 사용자에 대한 Ranking 상정
         // BASE SCORE + SPEED BONUS로 MMR산정(MatchMakingRating)
-        for(RankingDTO singleUser : givenMatchData){
+        for(RankingDTO singleUser : givenMatchData) {
             log.info("single user info {}", singleUser.toString());
             int point = 0;
             int usedBots = singleUser.getUsedBotCount();
@@ -98,82 +111,119 @@ public class RankingService {
             int basePlayerCount = 0;
             int baseTotCount = 0;
 
+            boolean botIncluded = true;
             // 사용자 끼리 경기 시 등수
-            if(usedBots ==0){
+            if (usedBots == 0) {
                 basePlayerCount = singleUser.getUserRank();
                 baseTotCount = singleUser.getUserCount();
-
+                botIncluded = false;
             }
             // 봇 포함 경기 시 등수
-            else{
-                basePlayerCount= singleUser.getTotalRank();
-                baseTotCount = singleUser.getUsedBotCount();
-
+            else {
+                basePlayerCount = singleUser.getTotalRank();
+                baseTotCount = singleUser.getUsedBotCount() + basePlayerCount;
             }
             // Base 점수
             // (BASE_SCORE * SKILLFACTOR) * PEOPLEFACTOR * DIFFICULTYFACTOR + SPEED BONUS
             // PEOPLEFACTOR는 최대 1.3배까지만 반영
             // DIFFICULTYFACTOR는 최대 1.3배까지만 반영
+
+            // SPEED BONUS
             // SPEED BONUS는 경기를 마친 사람에게만 부여.
             // 최대 300점까지 부여.
+
+            /**
+             * 1. baseScore
+             * */
             int finalScore = 0;
             float baseScore = 0f;
-            float skillFactor = RoundBy.decimal((float) (1 - basePlayerCount / baseTotCount), 2);
+            float ratio = (float) basePlayerCount / baseTotCount; // 반드시 둘 중 하나는 float로 바꿔주야, Casting 시 문제가 발생 안함.
+            float skillFactor = RoundBy.decimal((1f - ratio), 2);
 
-            float normLog = (float) ( Math.log10(baseTotCount) / Math.log10(BASE_LOG)) ;
-            normLog = Math.max(0f, Math.min(1f, normLog));
-
-            float peopleFactor = 1f + PEOPLE_FACTOR_MAX * normLog * skillFactor;
-
-            Match.Difficulty difficulty =  singleUser.getDifficulty();
-            float difficultyFactor = 1f;
-            switch(difficulty){
-                case EASY -> difficultyFactor = 1.0f;
-                case MEDIUM -> difficultyFactor = 1.15f;
-                case HARD -> difficultyFactor = 1.3f;
+            // PEOPLE_FACTOR
+            float peopleFactor = 1f;
+            if (botIncluded) {
+                float normLog = (float) (Math.log10(baseTotCount) / Math.log10(BASE_LOG));
+                normLog = Math.max(0f, Math.min(1f, normLog));
+                peopleFactor = 1f + PEOPLE_FACTOR_MAX * normLog * skillFactor;
             }
 
-            baseScore = BOT_BASE_SCORE * skillFactor * peopleFactor * difficultyFactor;
+            // DIFFICULTY_FACTOR
+            Match.Difficulty difficulty = singleUser.getDifficulty();
+            float difficultyFactor = 1f;
+            if(botIncluded){
+                switch (difficulty) {
+                    case EASY -> difficultyFactor = 1.1f;
+                    case MEDIUM -> difficultyFactor = 1.2f;
+                    case HARD -> difficultyFactor = 1.3f;
+                }
+            }
 
-            // Speed Bonus
+            baseScore = (BOT_BASE_SCORE * skillFactor) * peopleFactor * difficultyFactor;
+
+
+            /**
+             * 2. Speed Bonus
+             * */
             // 경기 끝난 사람에게만 점수 부여,
             // 표준점수로 보너스 계산
             float speedBonus = -1f;
             boolean finishedFlag = singleUser.getIsSuccess();
-            if(!finishedFlag){
+            if (!finishedFlag) {
                 speedBonus = 0f;
-            }else{
+            } else {
                 float userQueueClickTime = singleUser.getUserDateSelectTime();
                 float userSeccodeClickTime = singleUser.getUserSeccodeSelectTime();
                 float userSeatClickTime = singleUser.getUserSeatSelectTime();
 
-                float zQueue   = safeZCalculate(avgQueueTime,   stddevQueueTime,   userQueueClickTime);
-                float zCaptcha = safeZCalculate(avgCaptchaTime, stddevCaptchaTime, userSeccodeClickTime);
-                float zSeat    = safeZCalculate(avgSeatTime,    stddevSeatTime,    userSeatClickTime) ;
+                float zQueue = StatsCalculator.safeZCalculate(avgQueueTime, stddevQueueTime, userQueueClickTime);
+                float zCaptcha = StatsCalculator.safeZCalculate(avgCaptchaTime, stddevCaptchaTime, userSeccodeClickTime);
+                float zSeat = StatsCalculator.safeZCalculate(avgSeatTime, stddevSeatTime, userSeatClickTime);
 
                 // 2. 구간별 중요도 가중치
-                final float W_QUEUE   = 0.4f;
+                final float W_QUEUE = 0.4f;
                 final float W_CAPTCHA = 0.2f;
-                final float W_SEAT    = 0.4f;
+                final float W_SEAT = 0.4f;
 
                 // 3. 속도 지수(speedIndex)
                 float speedIndex =
-                        W_QUEUE   * zQueue +
+                        W_QUEUE * zQueue +
                         W_CAPTCHA * zCaptcha +
-                        W_SEAT    * zSeat;
+                        W_SEAT * zSeat;
 
                 // 4. speed bonus 계산 (z-score × 비율)
-                final float SPEED_UNIT      = 100f;   // z 1당 100점
+                final float SPEED_UNIT = 100f;   // z 1당 100점
 
                 final float MAX_SPEED_BONUS = 300f;  // 상한 300
                 final float MIN_SPEED_BONUS = 0;     // 하한 -0
 
-                float rawBonus = SPEED_UNIT * speedIndex;
+                speedBonus = SPEED_UNIT * speedIndex;
 
-                rawBonus = Math.max(MIN_SPEED_BONUS, Math.min(MAX_SPEED_BONUS, rawBonus));
+                speedBonus = Math.max(MIN_SPEED_BONUS, Math.min(MAX_SPEED_BONUS, speedBonus));
 
             }
 
+            /**
+             * MMR 감소 로직
+             * Fail일 때 감소, 하위 N% 감소
+             **/
+
+            /**
+             * 시간 있으면 좌석선점 보너스까지 제공.
+             **/
+            finalScore = (int) (baseScore + speedBonus);
+
+            log.info("userId: {} finalScore: {}", singleUser.getUserId(), finalScore);
+
+            // Redis에 보내서 해당 시즌의 Key에  정렬 시킨다.
+            Long userId = singleUser.getUserId();
+            LocalDateTime now = LocalDateTime.now();
+            updateUserScore(userId, now, finalScore);
+
+            // 일정 주기로 DB에 업데이트 시켜준다.
+
+
+            // 업데이트 안된 것들 FULLTEXT SEARCH를 안 조지기 위해서, INDEX를 만들어준다.
 
 
         }
@@ -182,16 +232,27 @@ public class RankingService {
     }
 
 
+    /**
+     * match가 끝나고, 한 유저의 최종 점수를 계산한 뒤 호출
+     * redisKey : 2025-11-3W
+     * userIdString
+     * score:deltaScore
+     */
+    public void updateUserScore(Long userId, LocalDateTime now , double deltaScore) {
+        String redisKey = StatsCalculator.buildRankKey(now); // ex) rank:2025-11-3W
+        // Key Type, Member Type
+        ZSetOperations<String, String> zset = redisTemplate.opsForZSet();
 
-    // std가 0일 수도 있으니 방어 코드
-    private static float safeZCalculate(float avg, float std, Float my) {
-        if (std <= 0.0001f) return 0f;
-        if(my==null){
-            return 0f;
-        }
-        return (avg - my) / std;  // 빠를수록 z가 커짐
+        // 누적 점수 증가 (한 경기 플레이할 때마다)
+        // userIdString, 누적되는 값.
+        zset.incrementScore(redisKey, userId.toString(), deltaScore);
+        log.info("redisKey: {}, userId:{}, deltaScore: {}", redisKey, userId.toString(), deltaScore);
     }
 
 
+    // Redis에 있는 값을 일정 시간마다 가져와서 DB에 집계
+
+
+    // BTree에서 빨리 찾을 수 있게 CREATE_INDEX
 
 }

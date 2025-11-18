@@ -5,6 +5,7 @@ import com.ticketing.KafkaTopic;
 import com.ticketing.queue.domain.enums.QueueKeys;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.connection.StringRedisConnection;
 import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -26,17 +27,31 @@ public class QueueConsumer {
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final ObjectMapper mapper;
 
-    // 주기 설정
-    private static final int CONSUME_RATE_PER_2S = 10;  // 2초당 최대 소비자 수
-    private static final int EMIT_MS = 1_500;             // Kafka 발행 틱 (20ms)
-    private static final int COMMIT_MS = 1_000;          // Redis 상태 커밋 주기 (2s)
+    public static int CONSUME_RATE_PER_2S;
+    public static int EMIT_MS;
+    public static int COMMIT_MS;
+
+    @Value("${consume-rate.per-second}")
+    public void setConsumeRatePerSecond(int v) {
+        CONSUME_RATE_PER_2S = v;
+    }
+    @Value("${consume-rate.kafka-emit}")
+    public void setEmitMs(int v) {
+        EMIT_MS = v;
+    }
+    @Value("${consume-rate.redis-emit}")
+    public void setCommitMs(int v) {
+        COMMIT_MS = v;
+    }
 
     private static final String STATE = "state";
     private static final String DEQUEUED = "DEQUEUED";
     private static final Duration STATE_TTL = Duration.ofSeconds(3);
 
     // 틱당 소비량 = 2초 총량을 틱 수로 나눔 (200 / (2000/20) = 2)
-    private static final int PER_TICK = Math.max(1, CONSUME_RATE_PER_2S * EMIT_MS / COMMIT_MS);
+    private static int getPerTick() {
+        return Math.max(1, CONSUME_RATE_PER_2S * EMIT_MS / COMMIT_MS);
+    }
 
     // 대규모 방 대비 배치 사이즈
     private static final int BATCH_SIZE = 1000;
@@ -57,7 +72,7 @@ public class QueueConsumer {
         return "q:" + matchId + ":window:" + bucket;
     }
 
-    @Scheduled(fixedRate = EMIT_MS) // 빠른 주기: 카프카 발행
+    @Scheduled(fixedRateString = "${consume-rate.kafka-emit}") // 빠른 주기: 카프카 발행
     public void emitTick() {
         ZSetOperations<String, String> zset = redis.opsForZSet();
         Set<String> roomKeys = redis.keys("queue:*:waiting");
@@ -72,7 +87,7 @@ public class QueueConsumer {
             try { matchId = Long.parseLong(matchIdStr); } catch (Exception e) { continue; }
 
             // 이번 틱에서 뺄 개수
-            Set<ZSetOperations.TypedTuple<String>> popped = zset.popMin(zsetKey, PER_TICK);
+            Set<ZSetOperations.TypedTuple<String>> popped = zset.popMin(zsetKey, getPerTick());
             if (popped == null || popped.isEmpty()) continue;
 
             // 방별 통계 갱신을 위해 카운트 누적 (2초 커밋 때 반영)
@@ -148,7 +163,7 @@ public class QueueConsumer {
     }
 
     // 2초마다 사용자에 대한 Redis 키 업데이트
-    @Scheduled(fixedRate = COMMIT_MS, initialDelay = 0) // 2초마다 커밋
+    @Scheduled(fixedRateString = "${consume-rate.redis-emit}", initialDelay = 0) // 2초마다 커밋
     public void commitWindow() {
         long bucket = previousBucket(); // 직전 윈도우를 커밋
         // 방 키를 한 번 더 긁어, 각 방의 버킷리스트를 처리
@@ -195,7 +210,7 @@ public class QueueConsumer {
     }
 
     // 2초마다 사용자에 대한 Redis 키 업데이트
-    @Scheduled(fixedRate = COMMIT_MS, initialDelay = DELAY_DIFF)
+    @Scheduled(fixedRateString = "${consume-rate.redis-emit}", initialDelay = DELAY_DIFF)
     public void updatePositions() {
         ZSetOperations<String, String> zset = redis.opsForZSet();
         Set<String> roomKeys = redis.keys("queue:*:waiting");

@@ -16,7 +16,8 @@ public class MatchSpecificsStatsDTO {
     private String selectedSection;
     private String selectedSeat;
 
-    private Integer totalRank;
+    private Integer userRank;
+    private Integer userTotalRank;
     private Room.HallSize hallSize;
     private String tsxUrl;
 
@@ -29,13 +30,20 @@ public class MatchSpecificsStatsDTO {
     private Integer seatSelectClickMissCount;
     private Float seatSelectTime;
     private Integer seatSelectTrialCount;
+    private String profileImageUrl;
 
     public Integer getQueueMissCountSafe() {
         return queueMissCount != null ? queueMissCount : 0;
     }
 
     public Float getQueueSelectTimeSafe() {
-        return queueSelectTime != null ? queueSelectTime : 0f;
+        if (queueSelectTime == null) {
+            return 0f;
+        }
+        if (queueSelectTime < 0) {
+            return 0f;
+        }
+        return queueSelectTime;
     }
 
     public Integer getCaptchaBackspaceCountSafe() {
@@ -43,7 +51,14 @@ public class MatchSpecificsStatsDTO {
     }
 
     public Float getCaptchaSelectTimeSafe() {
-        return captchaSelectTime != null ? captchaSelectTime : 0f;
+        if(captchaSelectTime==null){
+            return 0f;
+        }
+        if(captchaSelectTime < 0){
+            captchaSelectTime = 0f;
+        }
+
+        return captchaSelectTime;
     }
 
     public Integer getCaptchaTrialCountSafe() {
@@ -55,7 +70,14 @@ public class MatchSpecificsStatsDTO {
     }
 
     public Float getSeatSelectTimeSafe() {
-        return seatSelectTime != null ? seatSelectTime : 0f;
+        if(seatSelectTime==null){
+            seatSelectTime = 0f;
+        }
+        if(seatSelectTime < 0){
+            seatSelectTime = 0f;
+        }
+
+        return seatSelectTime;
     }
 
     public Integer getSeatSelectTrialCountSafe() {

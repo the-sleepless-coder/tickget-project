@@ -93,9 +93,10 @@ public class StatsController {
     /**
      * 경기 종료 후, 경기 평균 집계/ 랭킹 집계
      * */
-    // 경기 종료 후, 랭킹 집계 /
+    // 경기 종료 후, 매치별 통계 및 랭킹 집계
     @PostMapping("/matchstats/{matchId}/end")
     public ResponseEntity<?> endMatchProcess(@PathVariable("matchId") Long matchId){
+        // 반드시 하나로 묶어서 Transactional로 수행해줘야 해.
         // match에 대한 평균 집계
         // 1. 경기 종료 시 즉시 매치 통계 계산
         boolean updateState = statsBatchService.updateMatchStats(matchId);
@@ -118,14 +119,11 @@ public class StatsController {
 
     }
 
-    // Match 관련 데이터 가져오기
-    // 해당 userId에 맞게 한 페이지에 5개씩 가져오기
-    @GetMapping("/matchstats/{matchId}")
-    public ResponseEntity<?> getMatchStats(@PathVariable("matchId")Long matchId){
+    // 실시간 랭킹 데이터 가져오기
+    // 상위 N명 가져오기.
+    // 가져올 수 있는 사람 수에 제한 두기.
 
 
-        return null;
-    }
 
     // 게임 끝났을 때, match average 집계 작업 수행.
     @PostMapping("/matchstats/{matchId}")
@@ -149,12 +147,25 @@ public class StatsController {
         }
     }
 
+    // Ranking 집계 함수 실행.
     @PostMapping("/matchstats/{matchId}/ranking")
     public ResponseEntity<?> createRanking(@PathVariable("matchId")Long matchId) {
 
-        rankingService.calculateRanking(matchId);
+        Object result = rankingService.calculateRanking(matchId);
 
+        if(result==null){
+            return ResponseEntity.status(HttpStatus.NO_CONTENT).body("Something Wrong");
+        }
         return ResponseEntity.ok("Great");
+    }
+
+    // Match 관련 데이터 가져오기
+    // 해당 userId에 맞게 한 페이지에 5개씩 가져오기
+    @GetMapping("/matchstats/{matchId}")
+    public ResponseEntity<?> getMatchStats(@PathVariable("matchId")Long matchId){
+
+
+        return null;
     }
 
 }

@@ -2,7 +2,11 @@ package com.stats.util;
 
 import com.stats.entity.UserStats;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.temporal.WeekFields;
 import java.util.List;
+import java.util.Locale;
 
 public class StatsCalculator {
 
@@ -133,5 +137,26 @@ public class StatsCalculator {
         return value != null ? value : 0;
     }
 
+    // std가 0일 수도 있으니 방어 코드
+    public static float safeZCalculate(float avg, float std, Float my) {
+        if (std <= 0.0001f) return 0f;
+        if(my==null){
+            return 0f;
+        }
+        return (avg - my) / std;  // 빠를수록 z가 커짐
+    }
+
+    public static String buildRankKey(LocalDateTime now) {
+        LocalDate today = LocalDate.now();
+        WeekFields weekFields = WeekFields.of(Locale.KOREA);
+
+        int week = today.get(weekFields.weekOfMonth());
+
+        return String.format("rank:%s-%02d-%dW",
+                today.getYear(),
+                today.getMonthValue(),
+                week
+        );
+    }
 
 }
