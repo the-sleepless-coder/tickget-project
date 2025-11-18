@@ -2,6 +2,7 @@ import RoomCard from "./_components/RoomCard";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import dayjs from "dayjs";
 import { useNavigate } from "react-router-dom";
+import { Snackbar, Alert } from "@mui/material";
 import Tooltip from "@mui/material/Tooltip";
 import InfoOutlined from "@mui/icons-material/InfoOutlined";
 import SearchIcon from "@mui/icons-material/Search";
@@ -41,6 +42,7 @@ export default function RoomsPage() {
     startTime?: string;
     startAtMs?: number;
     ongoing?: boolean;
+    startingSoon?: boolean;
     createdAtMs?: number;
     difficulty?: string;
     maxUserCount?: number;
@@ -51,6 +53,7 @@ export default function RoomsPage() {
   const [rooms, setRooms] = useState<UiRoom[]>([]);
   const [availableOnly, setAvailableOnly] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [startingSoonToastOpen, setStartingSoonToastOpen] = useState(false);
 
   // hallName을 한글로 변환하는 함수 (AI 생성도 실제 hallName 사용)
   const convertHallNameToKorean = (
@@ -151,6 +154,11 @@ export default function RoomsPage() {
             r.hallType === "AI_GENERATED"
               ? `${localizedHallName} (AI 생성)`
               : localizedHallName;
+          const nowMs = Date.now();
+          const startingSoon =
+            startAtMs !== undefined &&
+            startAtMs > nowMs &&
+            startAtMs - nowMs <= 30 * 1000;
           return {
             id: r.roomId,
             title: r.roomName,
@@ -165,6 +173,7 @@ export default function RoomsPage() {
             startTime,
             startAtMs,
             ongoing: r.status === "PLAYING",
+            startingSoon,
             createdAtMs,
             difficulty: r.difficulty,
             maxUserCount: r.maxUserCount,
@@ -201,11 +210,12 @@ export default function RoomsPage() {
       // 종료된 방(시작 시간이 없는 방)은 제외
       if (!r.startTime) return false;
       if (!availableOnly) return true;
-      // 진행 중이거나 최대 인원인 방은 제외
+      // 진행 중이거나 시작 준비 중이거나 최대 인원인 방은 제외
       const isFull = r.participants
         ? r.participants.current >= r.participants.capacity
         : false;
-      return !r.ongoing && !isFull;
+      const isStartingSoon = r.startingSoon === true;
+      return !r.ongoing && !isStartingSoon && !isFull;
     });
 
   const sortedRooms = useMemo(() => {
@@ -344,7 +354,13 @@ export default function RoomsPage() {
             )}
             participants={room.participants}
             startTime={room.startTime}
+            startAtMs={room.startAtMs}
             ongoing={room.ongoing}
+            startingSoon={room.startingSoon}
+            onStartingSoonBlocked={async () => {
+              setStartingSoonToastOpen(true);
+              await handleRefresh();
+            }}
             roomId={room.id}
           />
         ))}
@@ -354,6 +370,22 @@ export default function RoomsPage() {
           현재 진행되는 경기가 없습니다.
         </div>
       ) : null}
+
+      <Snackbar
+        open={startingSoonToastOpen}
+        autoHideDuration={2500}
+        onClose={() => setStartingSoonToastOpen(false)}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+      >
+        <Alert
+          onClose={() => setStartingSoonToastOpen(false)}
+          severity="info"
+          variant="filled"
+          sx={{ width: "100%" }}
+        >
+          경기 시작 30초 전에는 입장이 불가능합니다. 방 목록을 새로고침했습니다.
+        </Alert>
+      </Snackbar>
     </div>
   );
 }
