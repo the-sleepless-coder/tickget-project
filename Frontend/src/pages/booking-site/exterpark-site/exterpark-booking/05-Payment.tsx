@@ -8,13 +8,8 @@ import { useAuthStore } from "@features/auth/store";
 import {
   buildSeatMetricsPayload,
   confirmSeat,
-  sendSeatStatsFailedForMatch,
 } from "@features/booking-site/api";
 import { useSeatStatsFailedOnUnload } from "../../../../shared/hooks/useSeatStatsFailedOnUnload";
-import {
-  buildSeatMetricsPayload,
-  confirmSeat,
-} from "@features/booking-site/api";
 import dayjs from "dayjs";
 
 type SeatData = {
