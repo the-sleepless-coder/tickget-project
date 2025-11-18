@@ -16,7 +16,7 @@ import {
   holdSeat,
   getSectionSeatsStatus,
   buildSeatMetricsPayload,
-  sendSeatStatsFailed,
+  sendSeatStatsFailedForMatch,
 } from "@features/booking-site/api";
 import { paths } from "../../../../app/routes/paths";
 import {
@@ -28,6 +28,7 @@ import {
 } from "../../../../shared/utils/reserveMetrics";
 import { useWebSocketStore } from "../../../../shared/lib/websocket-store";
 import { subscribe, type Subscription } from "../../../../shared/lib/websocket";
+import { useSeatStatsFailedOnUnload } from "../../../../shared/hooks/useSeatStatsFailedOnUnload";
 import Viewport from "./_components/Viewport";
 import SeatGrades from "./_components/Side_Grades";
 import SeatSidebarBanner from "./_components/Side_Banner";
@@ -335,6 +336,9 @@ export default function SelectSeatPage() {
   const wsClient = useWebSocketStore((s) => s.client);
   const wsSubscriptionRef = useRef<Subscription | null>(null);
 
+  // 좌석 선택 단계에서 창을 닫는 경우에도 실패 통계 전송 시도
+  useSeatStatsFailedOnUnload("02-Seats");
+
   // MATCH_ENDED 이벤트 처리: 아직 좌석 홀드/결제 확정 전에 경기가 종료된 경우
   useEffect(() => {
     const roomId = useRoomStore.getState().roomInfo?.roomId;
@@ -364,16 +368,6 @@ export default function SelectSeatPage() {
           return;
         }
 
-        const authState = useAuthStore.getState();
-        const userId = authState.userId;
-        if (!userId) {
-          if (import.meta.env.DEV) {
-            console.warn(
-              "[02-Seats][MATCH_ENDED] userId가 없어 실패 통계를 전송할 수 없습니다."
-            );
-          }
-        }
-
         // matchId: 이벤트 payload → store → URL 순으로 결정
         const payloadMatchId = data.payload?.matchId;
         const qs = new URLSearchParams(window.location.search);
@@ -386,35 +380,12 @@ export default function SelectSeatPage() {
             ? Number(qsMatchId)
             : storeMatchId);
 
-        if (!resolvedMatchIdRaw) {
-          if (import.meta.env.DEV) {
-            console.warn(
-              "[02-Seats][MATCH_ENDED] matchId를 결정할 수 없습니다.",
-              data
-            );
-          }
-        }
-
-        // 통계 전송 (userId 또는 matchId가 없으면 0 값이더라도 최대한 시도)
+        // 통계 전송 (helper 내부에서 userId/matchId/중복 여부 모두 검사)
         (async () => {
           try {
-            if (userId && resolvedMatchIdRaw) {
-              const metricsPayload = buildSeatMetricsPayload(userId);
-              await sendSeatStatsFailed(resolvedMatchIdRaw, metricsPayload);
-              if (import.meta.env.DEV) {
-                console.log(
-                  "[02-Seats][MATCH_ENDED] 실패 통계 전송 완료:",
-                  metricsPayload
-                );
-              }
-            }
-          } catch (err) {
-            if (import.meta.env.DEV) {
-              console.error(
-                "[02-Seats][MATCH_ENDED] 실패 통계 전송 실패:",
-                err
-              );
-            }
+            await sendSeatStatsFailedForMatch(resolvedMatchIdRaw, {
+              trigger: "MATCH_ENDED@02-Seats",
+            });
           } finally {
             // 알림 후 결과 페이지로 이동
             alert("경기가 종료되었습니다.\n\n결과 화면으로 이동합니다.");

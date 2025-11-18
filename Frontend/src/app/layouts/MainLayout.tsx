@@ -85,10 +85,22 @@ export default function MainLayout() {
               });
             }
 
-            // 사용자에게 알림
-            alert(disconnectMessage);
+            // 결과 페이지에서는 자동 로그아웃 대신 알림만 표시하고 세션은 유지
+            const currentPathForForce = window.location.pathname;
+            const isGameResultForForce =
+              currentPathForForce.includes("/game-result");
 
-            // 즉시 연결 종료
+            if (isGameResultForForce) {
+              alert(
+                `${disconnectMessage}\n\n(결과 화면은 유지되며, 새로 접속 시 다시 로그인해야 할 수 있습니다.)`
+              );
+              // WebSocket 연결만 정리하고 인증 상태는 유지
+              disconnectStompClient(client);
+              return;
+            }
+
+            // 일반 페이지에서는 기존 동작 유지: 알림 + 로그아웃 + 홈 이동
+            alert(disconnectMessage);
             disconnectStompClient(client);
             useAuthStore.getState().clearAuth();
             navigate("/", { replace: true });

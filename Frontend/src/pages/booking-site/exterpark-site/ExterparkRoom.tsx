@@ -33,6 +33,7 @@ import {
   setTotalStartAtMs,
   getTotalStartAtMs,
 } from "../../../shared/utils/reserveMetrics";
+import { sendSeatStatsFailedForMatch } from "@features/booking-site/api";
 
 type Participant = {
   name: string;
@@ -377,6 +378,33 @@ export default function ITicketPage() {
           break;
         }
 
+        case "MATCH_ENDED": {
+          const payloadMatchId = payload?.matchId;
+          // 방 대기 화면에서는 "예매하기" 버튼이 실제로 활성화된 이후(=reserveAppearedAt 세팅 후)에만
+          // 실패 통계를 전송한다.
+          if (reserveAppearedAt !== null) {
+            (async () => {
+              try {
+                await sendSeatStatsFailedForMatch(payloadMatchId, {
+                  trigger: "MATCH_ENDED@ExterparkRoom",
+                });
+              } finally {
+                const metricsQs = new URLSearchParams(
+                  window.location.search
+                ).toString();
+                const prefix = metricsQs ? `?${metricsQs}&` : "?";
+                const target =
+                  paths.booking.gameResult + `${prefix}failed=true`;
+                window.location.replace(target);
+              }
+            })();
+          } else {
+            // 경기 시작(예매 버튼 활성화) 전에 MATCH_ENDED를 받으면 통계만 건너뛰고 홈으로 보낸다.
+            navigate(paths.home, { replace: true });
+          }
+          break;
+        }
+
         case "USER_JOINED":
         case "USER_ENTERED": {
           const userId = payload?.userId || event.userId;
@@ -473,6 +501,16 @@ export default function ITicketPage() {
 
               // Room store 초기화
               useRoomStore.getState().clearRoomInfo();
+
+              // 예매하기 버튼이 실제로 활성화된 이후(=reserveAppearedAt 세팅 후)에만
+              // 경기 중 이탈로 간주하고 실패 통계 전송 시도
+              if (reserveAppearedAt !== null) {
+                (async () => {
+                  await sendSeatStatsFailedForMatch(undefined, {
+                    trigger: "USER_EXITED@ExterparkRoom",
+                  });
+                })();
+              }
 
               // WebSocket 구독 해제
               if (subscriptionRef.current) {
@@ -971,6 +1009,16 @@ export default function ITicketPage() {
       // Room store 초기화
       useRoomStore.getState().clearRoomInfo();
 
+      // 예매하기 버튼이 실제로 활성화된 이후(=reserveAppearedAt 세팅 후)에만
+      // 경기 중 자발적인 퇴장으로 간주하고 실패 통계 전송 시도
+      if (reserveAppearedAt !== null) {
+        (async () => {
+          await sendSeatStatsFailedForMatch(undefined, {
+            trigger: "EXIT_ROOM@ExterparkRoom",
+          });
+        })();
+      }
+
       // WebSocket 구독 해제
       if (subscriptionRef.current) {
         console.log(`🔌 방 구독 해제: ${response.unsubscriptionTopic}`);
@@ -1180,6 +1228,11 @@ export default function ITicketPage() {
     // reaction time과 click miss는 0으로 설정 (대기열 거치지 않으므로)
     nextUrl.searchParams.set("rtSec", "0");
     nextUrl.searchParams.set("nrClicks", "0");
+
+    if (rawMatchId != null && !Number.isNaN(rawMatchId)) {
+      // matchId를 전역 스토어에도 저장 (이탈/종료 시 실패 통계 전송을 위해)
+      useMatchStore.getState().setMatchId(rawMatchId as number);
+    }
 
     if (matchIdParam) {
       nextUrl.searchParams.set("matchId", matchIdParam);

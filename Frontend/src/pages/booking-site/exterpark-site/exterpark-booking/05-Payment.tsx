@@ -8,6 +8,12 @@ import { useAuthStore } from "@features/auth/store";
 import {
   buildSeatMetricsPayload,
   confirmSeat,
+  sendSeatStatsFailedForMatch,
+} from "@features/booking-site/api";
+import { useSeatStatsFailedOnUnload } from "../../../../shared/hooks/useSeatStatsFailedOnUnload";
+import {
+  buildSeatMetricsPayload,
+  confirmSeat,
 } from "@features/booking-site/api";
 import dayjs from "dayjs";
 
@@ -24,6 +30,9 @@ export default function PaymentPage() {
   // 카드 할부 등 추가 옵션이 생기면 확장 예정
   const matchIdFromStore = useMatchStore((s) => s.matchId);
   const currentUserId = useAuthStore((s) => s.userId);
+
+  // 결제 단계에서 창을 닫는 경우에도 실패 통계 전송 시도
+  useSeatStatsFailedOnUnload("05-Payment");
 
   const goPrev = () => navigate(paths.booking.orderConfirm);
   const complete = async () => {
