@@ -88,24 +88,6 @@ def _get_api_client() -> httpx.Client:
     }
     return httpx.Client(base_url=API_BASE, headers=headers, timeout=20.0)
 
-# def _raise_with_context(resp: httpx.Response, context: str):
-#     try:
-#         detail = resp.json()
-#     except Exception:
-#         detail = resp.text
-#     raise HTTPException(
-#         status_code=502,
-#         detail=f"{context} failed (upstream {resp.status_code}). body={detail}"
-#     )
-
-# def _ensure_bucket(bucket: str = MINIO_BUCKET) -> None:
-#     from minio.error import S3Error
-#     try:
-#         if not _minio_client.bucket_exists(bucket):
-#             _minio_client.make_bucket(bucket)
-#     except S3Error:
-#         pass
-
 # --- 그대로 사용(주석만 추가) ---
 def post_hall_and_get_id(*, name: str, total_seat: int) -> str:
     base = os.environ.get("HALLS_API_BASE", "").rstrip("/")
@@ -173,38 +155,6 @@ def post_hall_and_get_id(*, name: str, total_seat: int) -> str:
 
     # 두 주소 모두 실패하면 상세 에러 표시
     raise RuntimeError(f"Halls register failed at {urls_to_try}: {last_err}")
-
-# def _put_minio_with_retry(
-#     bucket: str,
-#     object_name: str,
-#     content: bytes,
-#     content_type: str,
-#     *,
-#     max_attempts: int = 4,
-#     base_delay: float = 0.6,
-# ) -> Tuple[bool, str]:
-#     """
-#     MinIO put_object with exponential backoff.
-#     Returns (ok, err_msg)
-#     """
-#     _ensure_bucket(bucket)  # ensure bucket exists :contentReference[oaicite:4]{index=4}
-#     attempt = 0
-#     while True:
-#         attempt += 1
-#         try:
-#             _minio_client.put_object(
-#                 bucket,
-#                 object_name.lstrip("/"),
-#                 io.BytesIO(content),
-#                 length=len(content),
-#                 content_type=content_type
-#             )
-#             return True, ""
-#         except Exception as e:
-#             if attempt >= max_attempts:
-#                 return False, f"{type(e).__name__}: {e}"
-#             time.sleep(base_delay * (2 ** (attempt - 1)))
-
 
 def _halls_auth_headers() -> dict:
     raw = os.getenv("TICKGET_API_TOKEN") or os.getenv("HALLS_API_TOKEN")
@@ -2853,6 +2803,16 @@ def _process_image_pipeline(
         min_render_area=int(min_render_area),
         stage_only=stage_only
     )
+    renderable_polygons = [
+        r for r in regions
+        if r.get('render', 1) != 0 and (r.get('polygon') or r.get('points'))
+    ]
+    tsx_polygon_count = len(renderable_polygons)
+    logger.info(
+        'TSX polygon count total=%d renderable=%d stage_only=%s',
+        len(regions), tsx_polygon_count, stage_only
+    )
+
 
     # --- 8) 메타 생성/저장: sections JSON (프론트 소비용)
     try:
