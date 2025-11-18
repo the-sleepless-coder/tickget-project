@@ -145,6 +145,33 @@ export default function ITicketPage() {
   const subscriptionRef = useRef<Subscription | null>(null);
   // ref로 상태를 관리하여 handleRoomEvent 재생성 방지
   const hasDequeuedInPageRef = useRef<boolean>(false);
+
+  // 새로고침 감지: 페이지 로드 시 새로고침 여부 확인
+  const isReload = (() => {
+    try {
+      const entries = performance.getEntriesByType(
+        "navigation"
+      ) as PerformanceNavigationTiming[];
+      if (entries.length > 0 && entries[0].type === "reload") {
+        return true;
+      }
+      const nav = (
+        performance as {
+          navigation?: { type?: number };
+        }
+      ).navigation;
+      if (nav && nav.type === 1) {
+        // TYPE_RELOAD = 1
+        return true;
+      }
+    } catch {
+      // 확인 실패는 새로고침이 아닌 것으로 간주
+    }
+    return false;
+  })();
+
+  // 새로고침 직후 일정 시간 동안 본인 퇴장 이벤트 무시 (5초)
+  const reloadIgnoreUntilRef = useRef<number>(isReload ? Date.now() + 5000 : 0);
   const handleRoomEventRef = useRef<
     | ((event: {
         eventType?: string;
@@ -468,6 +495,26 @@ export default function ITicketPage() {
           const userId = payload?.userId || event.userId;
           const totalUsersInRoom = payload?.totalUsersInRoom;
           const myUserId = useAuthStore.getState().userId;
+
+          // 새로고침 직후 일정 시간 동안 본인 퇴장 이벤트 무시
+          const now = Date.now();
+          if (
+            userId === myUserId &&
+            reloadIgnoreUntilRef.current > 0 &&
+            now < reloadIgnoreUntilRef.current
+          ) {
+            if (import.meta.env.DEV) {
+              console.log(
+                "⏭️ [ExterparkRoom] 새로고침 직후이므로 본인 USER_EXITED/USER_LEFT 무시:",
+                {
+                  userId,
+                  remainingMs: reloadIgnoreUntilRef.current - now,
+                  event,
+                }
+              );
+            }
+            break;
+          }
 
           if (userId) {
             console.log(
