@@ -22,7 +22,7 @@ public class LuaCancelExecutor {
 
     private final StringRedisTemplate redisTemplate;
 
-    private static final int MATCH_REDIS_TTL_SECONDS = 1800; // 30분
+    private static final int MATCH_REDIS_TTL_SECONDS = 1800; // 10분
 
     private final DefaultRedisScript<Long> cancelSeatsLuaScript = new DefaultRedisScript<>(
             """
