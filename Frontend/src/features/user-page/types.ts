@@ -60,7 +60,7 @@ export interface MatchInfo {
 
 export interface MatchSpecifics {
   userId: number;
-  userName: string;
+  userNickname: string;
   hallId: number;
   roomType: "SOLO" | "MULTI";
   selectedSection: string;

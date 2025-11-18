@@ -84,10 +84,11 @@ export default function TsxPreview({
       return;
     }
 
-    // readOnly가 true이고 selectedSeatIds가 비어있으면 모든 좌석을 회색 처리하지 않음
-    if (selectedSeatIds.length === 0) {
-      return;
-    }
+    // readOnly가 true이고 selectedSeatIds가 비어있으면 모든 좌석을 회색 처리
+    // (처음 렌더링 시 내 좌석 정보가 없을 수도 있으므로)
+    // if (selectedSeatIds.length === 0) {
+    //   return;
+    // }
 
     let isProcessing = false;
     let processedElements = new WeakSet();
@@ -122,7 +123,7 @@ export default function TsxPreview({
 
       let processedCount = 0;
       let selectedCount = 0;
-      let sectionElements = new Map<string, Set<Element>>(); // 섹션별 요소 추적
+      const sectionElements = new Map<string, Set<Element>>(); // 섹션별 요소 추적
 
       allElements.forEach((el) => {
         // HTMLElement와 SVGElement 모두 처리

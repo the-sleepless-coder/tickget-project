@@ -172,7 +172,7 @@ export default function MyPageIndex() {
 
       return {
         id: isMe ? 0 : spec.userId,
-        nickname: spec.userName,
+        nickname: spec.userNickname,
         rank: spec.totalRank,
         seatArea: seatInfo
           ? `${seatInfo.row}-${seatInfo.col}`

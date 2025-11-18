@@ -3,7 +3,7 @@ import { useState } from "react";
 import Loader from "../shared/Loader";
 import InsertPhotoOutlined from "@mui/icons-material/InsertPhotoOutlined";
 import { Alert, Snackbar } from "@mui/material";
-import TsxPreview from "@shared/components/TsxPreview";
+import TsxPreview from "@/pages/user-page/_components/TsxPreview";
 
 export default function LeftPane({
   step,
