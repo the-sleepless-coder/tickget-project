@@ -371,12 +371,30 @@ export async function sendSeatStatsFailed(
     String(matchId)
   )}/stats/failed`;
 
-  if (import.meta.env.DEV) {
-    console.log("[seat-stats-failed] API 요청:", {
-      matchId,
-      path,
-      payload,
+  // 항상 요청 바디 로그 출력
+  const requestLog = {
+    matchId,
+    path,
+    payload,
+    url: `${TICKETING_SERVER_BASE_URL}/${path}`,
+    timestamp: new Date().toISOString(),
+  };
+  console.log("[seat-stats-failed] API 요청:", requestLog);
+
+  // sessionStorage에 요청 로그 저장 (결과 페이지에서도 확인 가능하도록)
+  try {
+    const logsKey = "reserve.seatStatsFailedLogs";
+    const existingLogs = sessionStorage.getItem(logsKey);
+    const logs = existingLogs ? JSON.parse(existingLogs) : [];
+    logs.push({
+      type: "request",
+      ...requestLog,
     });
+    // 최근 10개만 유지
+    const recentLogs = logs.slice(-10);
+    sessionStorage.setItem(logsKey, JSON.stringify(recentLogs));
+  } catch (e) {
+    // sessionStorage 저장 실패는 무시
   }
 
   const res = await ticketingApi.postJson<SeatStatsFailedResponse>(
@@ -387,8 +405,27 @@ export async function sendSeatStatsFailed(
     }
   );
 
-  if (import.meta.env.DEV) {
-    console.log("[seat-stats-failed] API 응답:", res);
+  // 항상 응답 로그 출력
+  const responseLog = {
+    ...res,
+    timestamp: new Date().toISOString(),
+  };
+  console.log("[seat-stats-failed] API 응답:", responseLog);
+
+  // sessionStorage에 응답 로그 저장
+  try {
+    const logsKey = "reserve.seatStatsFailedLogs";
+    const existingLogs = sessionStorage.getItem(logsKey);
+    const logs = existingLogs ? JSON.parse(existingLogs) : [];
+    logs.push({
+      type: "response",
+      ...responseLog,
+    });
+    // 최근 10개만 유지
+    const recentLogs = logs.slice(-10);
+    sessionStorage.setItem(logsKey, JSON.stringify(recentLogs));
+  } catch (e) {
+    // sessionStorage 저장 실패는 무시
   }
 
   // 실패 통계 전송 플래그 저장 (중복 전송 방지용)

@@ -149,6 +149,25 @@ export default function GameResultPage() {
     finalizeTotalNow();
   }, []);
 
+  // 실패 API 로그 확인 (sessionStorage에서 읽어서 콘솔에 출력)
+  useEffect(() => {
+    try {
+      const logsKey = "reserve.seatStatsFailedLogs";
+      const logsJson = sessionStorage.getItem(logsKey);
+      if (logsJson) {
+        const logs = JSON.parse(logsJson);
+        if (Array.isArray(logs) && logs.length > 0) {
+          console.log(
+            "[seat-stats-failed] 저장된 로그 (결과 페이지에서 확인):",
+            logs
+          );
+        }
+      }
+    } catch (e) {
+      // 로그 읽기 실패는 무시
+    }
+  }, []);
+
   // AI 분석 메시지 가져오기
   useEffect(() => {
     let cancelled = false;
