@@ -202,52 +202,128 @@ def build_session_toast_prompt(
     miss_count: Optional[int],
     success: bool,
     final_rank: Optional[int],
+    user_count: Optional[int] = None,
     created_at: Optional[datetime] = None,
-    ) -> str:
-    """
-    방금 끝난 한 경기 결과를 기반으로,
-    2~3문장짜리 짧은 피드백을 생성하기 위한 user 프롬프트를 만든다.
-    """
+) -> str:
+    import json
+    from typing import Any, Dict, Optional
+
+    rank_ratio: Optional[float] = None
+    performance_band: Optional[str] = None
+
+    if final_rank is not None and user_count and user_count > 0:
+        rank_ratio = final_rank / user_count
+        # 서버에서 구간을 확정해 버린다
+        if rank_ratio <= 0.10:
+            performance_band = "TOP_10"
+        elif rank_ratio <= 0.50:
+            performance_band = "TOP_50"
+        elif rank_ratio <= 0.80:
+            performance_band = "BOTTOM_50_80"
+        else:
+            performance_band = "BOTTOM_80_100"
+
     base: Dict[str, Any] = {
-    "difficulty": difficulty,
-    "success": success,
-    "select_time": select_time,
-    "miss_count": miss_count,
-    "final_rank": final_rank,
-    "created_at": created_at.isoformat() if isinstance(created_at, datetime) else None,
+        "difficulty": difficulty,
+        "success": success,
+        "select_time": select_time,
+        "miss_count": miss_count,
+        "final_rank": final_rank,
+        "user_count": user_count,
+        "rank_ratio": rank_ratio,
+        "performance_band": performance_band,
+        "created_at": created_at.isoformat() if created_at else None,
     }
 
     json_blob = json.dumps(base, ensure_ascii=False, indent=2)
 
     prompt = f"""
+아래는 사용자가 방금 끝낸 한 번의 티켓팅 연습 결과입니다.
 
+--- 경기 결과 JSON ---
 
-    아래는 사용자가 방금 끝낸 한 번의 티켓팅 연습 결과입니다.
+{json_blob}
 
-    --- 경기 결과 JSON ---
+--- 끝 ---
 
-    {json_blob}
+위 JSON에는 이번 경기의 난이도(difficulty), 성공 여부(success), 선택 시간(select_time),
+미스 횟수(miss_count), 최종 순위(final_rank), 전체 참가 인원 수(user_count),
+순위 비율(rank_ratio), 성과 구간(performance_band)이 담겨 있습니다.
+- final_rank는 1위가 가장 좋은 순위이며, 숫자가 커질수록 순위가 내려갑니다.
+- performance_band는 서버에서 미리 계산한 성과 구간으로, 다음 중 하나입니다:
+  "TOP_10", "TOP_50", "BOTTOM_50_80", "BOTTOM_80_100".
 
+이 데이터를 바탕으로, 사용자가 연습을 계속하고 싶어지도록
+짧고 긍정적인 피드백 문단 하나를 만들어 주세요.
 
-    --- 끝 ---
+[작성 스타일]
+- 한국어 존댓말을 사용해 주세요.
+- 전체 길이는 2~3문장 정도로 가볍게 유지해 주세요.
+- 톤은 부드럽고 응원하는 느낌으로, 너무 딱딱하지 않게 작성해 주세요.
+- 다만 성과가 좋지 않은 구간에서는, 결과가 아쉽다는 점을 솔직하게 짚어 주셔도 됩니다.
 
-    위 데이터를 참고하여, 아래 조건을 만족하는 짧은 피드백 문단 하나만 작성해 주세요.
+[구성 가이드]
+- 1문장: 이번 경기 결과를 간단히 요약해 주세요.
+  - 성공/실패, 난이도, 속도, 순위를 자연스럽게 섞어 주시고,
+  - final_rank와 user_count가 모두 있을 경우,
+    반드시 한 번은 "전체 {user_count}명 중 {final_rank}위"처럼
+    전체 인원 대비 순위를 문장에 포함해 주세요.
+- 2문장: 잘한 점 또는 특히 괜찮았던 부분 한 가지를 칭찬해 주세요.
+- 3문장(선택): 다음 연습에서 시도해 보면 좋을 간단한 팁을 한 줄 정도로 제안해 주세요.
 
-    한국어 존댓말 사용
+[성과 구간별 톤 조절 (performance_band 기준)]
+performance_band 값에 따라 말투와 강조점을 다음처럼 **확실하게** 다르게 해 주세요.
 
-    최대 2~3문장
+1) performance_band == "TOP_10":
+- 매우 좋은 결과입니다. 상위권에서도 돋보이는 성과라는 인상을 분명하게 전달해 주세요.
+- 예시 표현: "매우 뛰어난 결과", "상위권에서도 눈에 띄는 기록" 등
+- 보완점은 있다면 아주 짧게, 가볍게만 언급해 주세요.
 
-    구성 예시:
-    1문장: 이번 경기 결과 요약 (성공/실패, 난이도, 속도, 순위 등)
-    2문장: 잘한 점 또는 보완하면 좋을 점 한 가지
-    3문장: 다음 연습을 위한 아주 간단한 팁 한 가지
+2) performance_band == "TOP_50":
+- 충분히 잘한 결과임을 먼저 알려 주세요.
+- 예시 표현: "상위권에 가까운 안정적인 기록", "경쟁력 있는 성과" 등
+- "조금만 더 신경 쓰면 상위권도 노려볼 수 있다"는 식으로,
+  도전 의욕이 생기도록 부드럽게 자극해 주세요.
 
-    주의:
+3) performance_band == "BOTTOM_50_80":
+- 결과가 다소 아쉬웠다는 점을 예의를 갖추어 솔직하게 짚어 주세요.
+- 예시 표현: "아쉬운 편에 속하는 결과", "조금 더 개선할 여지가 있는 기록" 등
+- 한 문장에서는 평소보다 조금 더 단호한 톤으로
+  구체적인 개선 포인트(예: 반응 속도, 초반 클릭 집중도 등)를 짚어 주세요.
+- 마지막에는 "다음 번에는 ~을 신경 쓰면 순위를 올릴 수 있다"는 식으로
+  개선 방향과 희망적인 마무리를 함께 적어 주세요.
 
-    사용자를 비난하거나 낙담시키는 표현은 피해주세요.
+4) performance_band == "BOTTOM_80_100":
+- 이번 결과가 **분명히 아쉬운 편**이라는 사실을 반드시 한 번은 직접적으로 표현해 주세요.
+  - 예: "이번 경기는 전체 {user_count}명 중 {final_rank}위로, 결과가 많이 아쉬운 편입니다."
+- 특히 final_rank == user_count (예: 전체 6명 중 6위)인 경우:
+  - "상위권", "충분히 잘하셨습니다", "좋은 순위" 같은 표현을 사용하지 마세요.
+  - 첫 문장은 반드시 "결과가 아쉬운 편입니다", "만족스럽지는 않은 결과입니다"와 같이
+    이번 순위가 만족스럽지 않다는 점을 분명하게 드러내는 문장으로 시작해 주세요.
+- 두 번째 문장에서는 그럼에도 불구하고 의미 있었던 부분
+  (예: 미스가 적었다, HARD 난이도에 도전했다, 끝까지 포기하지 않았다 등)을 짚어 주세요.
+- 세 번째 문장(또는 두 번째 문장의 뒤쪽)에서는
+  "어떻게 연습하면 순위를 끌어올릴 수 있을지"에 대한 구체적인 행동 팁을 제시해 주세요.
+- 이 구간에서는 약간의 쓴소리가 포함되어도 괜찮지만,
+  마지막 문장은 반드시 "그래도 연습을 통해 충분히 나아질 수 있다"는
+  격려와 희망의 메시지로 마무리해 주세요.
 
-    서비스의 시스템 설정(봇 난이도 분포, 정책 등)을 바꾸라는 말은 하지 말고,
-    사용자의 플레이 방식에 대한 조언만 포함해 주세요.
+- performance_band가 None이거나 user_count가 없을 때에는,
+  상대적인 순위 표현(예: "상위권", "중위권", "하위권")을 사용하지 말고,
+  성공 여부와 절대적인 기록(속도, 미스 횟수 등)에만 기반하여 피드백을 작성해 주세요.
+
+[사실 일관성 규칙]
+- 순위와 인원 수에 맞지 않는 표현은 사용하지 마세요.
+  - 예를 들어, 전체 6명 중 6위인 경우 "상위권", "충분히 좋은 순위"라고 말하면 안 됩니다.
+- 항상 final_rank, user_count, success 등의 수치를 존중하여,
+  사실과 모순되지 않는 범위 안에서만 긍정적인 표현을 사용해 주세요.
+
+[주의 사항]
+- 사용자를 비난하거나 낙담시키는 표현은 피하고,
+  "이번 기록을 바탕으로 더 좋아질 수 있다"는 뉘앙스를 꼭 유지해 주세요.
+- 서비스의 시스템 설정(봇 난이도 분포, 정책 등)을 바꾸라는 말은 쓰지 말고,
+  오직 사용자의 플레이 방식과 연습 방법에 대한 조언만 포함해 주세요.
     """.strip()
+
 
     return prompt
