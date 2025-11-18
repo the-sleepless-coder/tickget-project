@@ -7,6 +7,7 @@ import BookingLoadingPage from "./00-Loading";
 import {
   requestCaptchaImage,
   enqueueTicketingQueue,
+  sendSeatStatsFailedForMatch,
 } from "@features/booking-site/api";
 import { useMatchStore } from "@features/booking-site/store";
 import { useRoomStore } from "@features/room/store";
@@ -14,6 +15,7 @@ import { useAuthStore } from "@features/auth/store";
 import { useWebSocketStore } from "../../../../shared/lib/websocket-store";
 import { subscribe, type Subscription } from "../../../../shared/lib/websocket";
 import { joinRoom } from "@features/room/api";
+import { useSeatStatsFailedOnUnload } from "../../../../shared/hooks/useSeatStatsFailedOnUnload";
 
 export default function BookingWaitingPage() {
   const navigate = useNavigate();
@@ -32,6 +34,8 @@ export default function BookingWaitingPage() {
   const subscriptionRef = useRef<Subscription | null>(null);
   const enqueuedRef = useRef<boolean>(false);
   // 실데이터 수신 기반으로만 표시 (시뮬레이션 제거)
+  // 대기열 단계에서 창을 닫는 경우에도 실패 통계 전송 시도
+  useSeatStatsFailedOnUnload("00-Queue");
 
   // booking-site API 연결: 캡차 이미지 사전 확인
   useEffect(() => {
@@ -248,6 +252,26 @@ export default function BookingWaitingPage() {
               myUserId,
             });
           }
+        } else if (evtType === "MATCH_ENDED") {
+          // 경기 종료 알림 수신 시 실패 통계 전송 후 결과 페이지로 이동
+          const payloadMatchId =
+            (data as { payload?: { matchId?: number | string } }).payload
+              ?.matchId ?? null;
+
+          (async () => {
+            try {
+              await sendSeatStatsFailedForMatch(payloadMatchId, {
+                trigger: "MATCH_ENDED@00-Queue",
+              });
+            } finally {
+              const metricsQs = new URLSearchParams(
+                window.location.search
+              ).toString();
+              const prefix = metricsQs ? `?${metricsQs}&` : "?";
+              const target = paths.booking.gameResult + `${prefix}failed=true`;
+              window.location.replace(target);
+            }
+          })();
         } else {
           console.log("ℹ️ [waiting][ws] QUEUE 외 이벤트:", evtType);
         }

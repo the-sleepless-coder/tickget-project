@@ -5,6 +5,7 @@ import {
   TICKETING_SERVER_BASE_URL,
 } from "@shared/lib/http";
 import { useAuthStore } from "@features/auth/store";
+import { useMatchStore } from "./store";
 import { ReserveMetricKeys } from "@shared/utils/reserveMetrics";
 import type {
   CreateRoomRequest,
@@ -299,6 +300,20 @@ export async function confirmSeat(
   } catch {
     // 본문이 없거나 JSON 파싱 실패 시 기본값 유지
   }
+  // 성공적으로 좌석 확정이 이루어진 경우 성공 플래그 저장
+  try {
+    const userId = payload.userId;
+    const resolvedMatchId = body.matchId ?? matchId;
+    if (userId != null && resolvedMatchId != null && body.success) {
+      const matchIdNum = Number(resolvedMatchId);
+      if (!Number.isNaN(matchIdNum)) {
+        const key = `reserve.seatSuccess:${matchIdNum}:${userId}`;
+        sessionStorage.setItem(key, "true");
+      }
+    }
+  } catch {
+    // sessionStorage 접근 실패는 무시
+  }
   return { status: res.status, body };
 }
 
@@ -339,9 +354,7 @@ export function buildSeatMetricsPayload(userId: number): SeatConfirmRequest {
 }
 
 // ----- Seat Stats Failed (Ticketing) -----
-// POST /api/v1/dev/ticketing/matches/{matchId}/stats/failed
-// 기존 ticketingApi의 베이스(/api/v1/dev/tkt)를 활용하되,
-// 상대 경로에 ".."를 사용해 /api/v1/dev/ticketing 으로 이동한다.
+// POST /api/v1/dev/tkt/ticketing/matches/{matchId}/stats/failed
 export async function sendSeatStatsFailed(
   matchId: string | number,
   payload: SeatStatsFailedRequest
@@ -353,14 +366,184 @@ export async function sendSeatStatsFailed(
   };
 
   // base: /api/v1/dev/tkt
-  // path: ../ticketing/matches/{matchId}/stats/failed
-  const path = `../ticketing/matches/${encodeURIComponent(
+  // path: ticketing/matches/{matchId}/stats/failed
+  const path = `ticketing/matches/${encodeURIComponent(
     String(matchId)
   )}/stats/failed`;
 
-  return ticketingApi.postJson<SeatStatsFailedResponse>(path, payload, {
-    headers,
-  });
+  // 항상 요청 바디 로그 출력
+  const requestLog = {
+    matchId,
+    path,
+    payload,
+    url: `${TICKETING_SERVER_BASE_URL}/${path}`,
+    timestamp: new Date().toISOString(),
+  };
+  console.log("[seat-stats-failed] API 요청:", requestLog);
+
+  // sessionStorage에 요청 로그 저장 (결과 페이지에서도 확인 가능하도록)
+  try {
+    const logsKey = "reserve.seatStatsFailedLogs";
+    const existingLogs = sessionStorage.getItem(logsKey);
+    const logs = existingLogs ? JSON.parse(existingLogs) : [];
+    logs.push({
+      type: "request",
+      ...requestLog,
+    });
+    // 최근 10개만 유지
+    const recentLogs = logs.slice(-10);
+    sessionStorage.setItem(logsKey, JSON.stringify(recentLogs));
+  } catch (e) {
+    // sessionStorage 저장 실패는 무시
+  }
+
+  const res = await ticketingApi.postJson<SeatStatsFailedResponse>(
+    path,
+    payload,
+    {
+      headers,
+    }
+  );
+
+  // 항상 응답 로그 출력
+  const responseLog = {
+    ...res,
+    timestamp: new Date().toISOString(),
+  };
+  console.log("[seat-stats-failed] API 응답:", responseLog);
+
+  // sessionStorage에 응답 로그 저장
+  try {
+    const logsKey = "reserve.seatStatsFailedLogs";
+    const existingLogs = sessionStorage.getItem(logsKey);
+    const logs = existingLogs ? JSON.parse(existingLogs) : [];
+    logs.push({
+      type: "response",
+      ...responseLog,
+    });
+    // 최근 10개만 유지
+    const recentLogs = logs.slice(-10);
+    sessionStorage.setItem(logsKey, JSON.stringify(recentLogs));
+  } catch (e) {
+    // sessionStorage 저장 실패는 무시
+  }
+
+  // 실패 통계 전송 플래그 저장 (중복 전송 방지용)
+  try {
+    const userId =
+      payload.userId ?? useAuthStore.getState().userId ?? undefined;
+    if (userId != null) {
+      const key = `reserve.seatFailed:${Number(matchId)}:${Number(userId)}`;
+      sessionStorage.setItem(key, "true");
+    }
+  } catch {
+    // sessionStorage 접근 실패는 무시
+  }
+
+  return res;
+}
+
+/**
+ * 현재(또는 지정된) matchId/userId 기준으로 SeatStatsFailed를 한 번만 전송하는 헬퍼.
+ * - 이미 성공(SeatConfirm) 또는 실패 통계가 전송된 경우 재전송하지 않음.
+ * - matchIdOverride가 없으면 MatchStore에 저장된 matchId를 사용.
+ */
+export async function sendSeatStatsFailedForMatch(
+  matchIdOverride?: string | number | null,
+  opts?: { trigger?: string }
+): Promise<SeatStatsFailedResponse | null> {
+  const { trigger } = opts ?? {};
+  const authState = useAuthStore.getState();
+  const userId = authState.userId;
+
+  if (userId == null) {
+    if (import.meta.env.DEV) {
+      console.warn(
+        "[seat-stats-failed] userId가 없어 실패 통계를 전송하지 않습니다.",
+        { trigger }
+      );
+    }
+    return null;
+  }
+
+  const rawMatchId =
+    matchIdOverride != null
+      ? matchIdOverride
+      : useMatchStore.getState().matchId;
+
+  if (rawMatchId == null) {
+    if (import.meta.env.DEV) {
+      console.warn(
+        "[seat-stats-failed] matchId가 없어 실패 통계를 전송하지 않습니다.",
+        { trigger }
+      );
+    }
+    return null;
+  }
+
+  const matchIdNum = Number(rawMatchId);
+  if (Number.isNaN(matchIdNum)) {
+    if (import.meta.env.DEV) {
+      console.warn(
+        "[seat-stats-failed] matchId가 숫자가 아니어서 실패 통계를 전송하지 않습니다.",
+        { rawMatchId, trigger }
+      );
+    }
+    return null;
+  }
+
+  // 중복/상충 전송 방지 플래그 체크
+  try {
+    const successKey = `reserve.seatSuccess:${matchIdNum}:${userId}`;
+    const failedKey = `reserve.seatFailed:${matchIdNum}:${userId}`;
+
+    if (sessionStorage.getItem(successKey) === "true") {
+      if (import.meta.env.DEV) {
+        console.log(
+          "[seat-stats-failed] 이미 성공 통계가 전송되어 실패 통계를 생략합니다.",
+          { matchId: matchIdNum, userId, trigger }
+        );
+      }
+      return null;
+    }
+
+    if (sessionStorage.getItem(failedKey) === "true") {
+      if (import.meta.env.DEV) {
+        console.log(
+          "[seat-stats-failed] 이미 실패 통계가 전송되어 재전송을 생략합니다.",
+          { matchId: matchIdNum, userId, trigger }
+        );
+      }
+      return null;
+    }
+  } catch {
+    // sessionStorage 접근 실패는 무시하고 계속 진행 (중복 전송 허용)
+  }
+
+  const payload = buildSeatMetricsPayload(userId);
+
+  if (import.meta.env.DEV) {
+    console.log("[seat-stats-failed] 전송 시도:", {
+      matchId: matchIdNum,
+      userId,
+      trigger,
+      payload,
+    });
+  }
+
+  try {
+    const res = await sendSeatStatsFailed(matchIdNum, payload);
+    return res;
+  } catch (err) {
+    if (import.meta.env.DEV) {
+      console.error("[seat-stats-failed] 전송 실패:", err, {
+        matchId: matchIdNum,
+        userId,
+        trigger,
+      });
+    }
+    return null;
+  }
 }
 
 // ----- Session Toast LLM (AST) -----
