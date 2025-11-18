@@ -41,7 +41,7 @@ import MediumVenue, {
 import LargeVenue, {
   type LargeVenueRef,
 } from "../../../performance-halls/large-venue/InspireArena";
-import TsxPreview from "../../../../shared/components/TsxPreview";
+import TsxPreview from "../../../user-page/_components/TsxPreview";
 
 type GradeKey = "SR" | "R" | "S" | "A" | "STANDING";
 type SelectedSeat = {
