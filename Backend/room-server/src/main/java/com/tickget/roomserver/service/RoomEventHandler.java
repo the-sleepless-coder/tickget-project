@@ -1,6 +1,7 @@
 package com.tickget.roomserver.service;
 
 import com.tickget.roomserver.domain.repository.RoomCacheRepository;
+import com.tickget.roomserver.dto.cache.DisconnectInfo;
 import com.tickget.roomserver.dto.cache.GlobalSessionInfo;
 import com.tickget.roomserver.dto.request.ExitRoomRequest;
 import com.tickget.roomserver.event.HostChangedEvent;
@@ -179,6 +180,7 @@ public class RoomEventHandler {
             }
 
             // 5. 방 퇴장 처리를 수행
+            /*
             Long roomId = sessionInfo.getRoomId();
             if (roomId != null) {
                 log.info("강제 종료 전 방 퇴장 처리: userId={}, roomId={}", userId, roomId);
@@ -187,6 +189,34 @@ public class RoomEventHandler {
                     roomService.exitRoom(new ExitRoomRequest(userId, userName), roomId);
                 } catch (Exception e) {
                     log.error("강제 종료 시 방 퇴장 처리 실패: userId={}, roomId={}", userId, roomId, e);
+                }
+            }
+            */
+
+            /* 2025-11-18, 약 14시경 승수 수정 부분 */
+            // 5. 재연결 컨텍스트 확인 후 방 퇴장 처리 결정
+            Long roomId = sessionInfo.getRoomId();
+            if (roomId != null) {
+                // ✅ Redis에서 재연결 정보 확인
+                DisconnectInfo disconnectInfo = roomCacheRepository.getDisconnectInfo(userId);
+
+                // 재연결 정보가 있고 grace period 이내라면 방 퇴장 처리 스킵
+                boolean isReconnecting = disconnectInfo != null
+                    && disconnectInfo.isWithinGracePeriod(5000); // 5초 이내
+
+                if (isReconnecting) {
+                    log.info("재연결 중인 유저이므로 방 퇴장 처리 스킵: userId={}, roomId={}", userId, roomId);
+                    // 재연결 정보 삭제 (이미 처리됨)
+                    roomCacheRepository.deleteDisconnectInfo(userId);
+                } else {
+                    // 일반적인 중복 로그인이므로 방 퇴장 처리 수행
+                    log.info("중복 로그인 감지, 방 퇴장 처리: userId={}, roomId={}", userId, roomId);
+                    try {
+                        String userName = roomCacheRepository.getUserName(roomId, userId);
+                        roomService.exitRoom(new ExitRoomRequest(userId, userName), roomId);
+                    } catch (Exception e) {
+                        log.error("강제 종료 시 방 퇴장 처리 실패: userId={}, roomId={}", userId, roomId, e);
+                    }
                 }
             }
 
