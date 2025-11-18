@@ -138,10 +138,20 @@ public class SeatConfirmationService {
                 .success(true)
                 .message("봇 확정 완료")
                 .userRank(-1)  // 봇은 응답에서는 userRank 없음으로 표기
+                .confirmedSeats(
+                        seatIds.stream()
+                                .map(seatId -> ConfirmedSeatDto.builder()
+                                        .seatId(seatId)
+                                        .sectionId(extractSection(seatId))
+                                        .build())
+                                .toList()
+                )
+                .status("CONFIRMED")
                 .matchId(matchId)
                 .userId(userId)
                 .build();
     }
+
 
     /**
      * 실제 유저 Confirm 처리
