@@ -183,6 +183,7 @@ export default function MyPageIndex() {
         time: spec.totalTime.toFixed(2),
         metrics: {
           bookingClick: {
+            // API는 초 단위이므로 ms 단위로 변환
             reactionMs: Math.round(spec.queueSelectTime * 1000),
             misclicks: spec.queueMissCount,
           },
@@ -203,15 +204,16 @@ export default function MyPageIndex() {
           : {
               differenceMetrics: {
                 bookingClick: {
-                  reactionMs: Math.round(spec.queueTimeDifference * 1000),
+                  // diff 값은 API가 보내주는 초 단위를 그대로 사용 (형식에서 처리)
+                  reactionMs: spec.queueTimeDifference,
                   misclicks: spec.queueMissCountDifference,
                 },
                 captcha: {
-                  durationMs: Math.round(spec.captchaTimeDifference * 1000),
+                  durationMs: spec.captchaTimeDifference,
                   backspaceCount: spec.captchaBackSpaceCountDifference,
                 },
                 seatSelection: {
-                  durationMs: Math.round(spec.seatSelectTimeDifference * 1000),
+                  durationMs: spec.seatSelectTimeDifference,
                   misclicks: spec.seatClickMissDifference,
                   duplicateSeat: spec.seatTrialCountDifference,
                 },

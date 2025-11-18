@@ -96,12 +96,19 @@ export default function MatchDetailContent({
     return formatMsToClock(totalMs);
   };
 
-  const diffSec = (aMs?: number, bMs?: number): string => {
-    const a = aMs ?? 0;
-    const b = bMs ?? 0;
-    const d = Math.round(Math.abs(a - b) / 1000);
-    const sign = a > b ? "+" : a < b ? "-" : "±";
-    return `${sign} ${d}초`;
+  type StatCardProps = {
+    title: string;
+    timeText: string;
+    timeDiff?: string;
+    misclicksText: string;
+    misclicksDiff?: string;
+    extraText?: string;
+    extraTextDiff?: string;
+    extraLabel?: string;
+    hideMisclicks?: boolean;
+    timeLabel?: string;
+    misclicksLabel?: string;
+    extraFirst?: boolean;
   };
 
   const StatCard = ({
@@ -113,16 +120,11 @@ export default function MatchDetailContent({
     extraText,
     extraTextDiff,
     extraLabel,
-  }: {
-    title: string;
-    timeText: string;
-    timeDiff?: string;
-    misclicksText: string;
-    misclicksDiff?: string;
-    extraText?: string;
-    extraTextDiff?: string;
-    extraLabel?: string;
-  }) => (
+    hideMisclicks,
+    timeLabel,
+    misclicksLabel,
+    extraFirst,
+  }: StatCardProps) => (
     <div className="flex flex-col rounded-xl border border-neutral-200 bg-white shadow-sm">
       <div className="rounded-t-xl bg-purple-50 px-4 py-3 text-center text-sm font-semibold text-purple-700">
         {title}
@@ -132,7 +134,7 @@ export default function MatchDetailContent({
           <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-neutral-100 text-[11px] text-neutral-700">
             ⏲
           </span>
-          <span className="text-neutral-600">소요 시간 :</span>
+          <span className="text-neutral-600">{timeLabel ?? "소요 시간"} :</span>
           <span className="text-base font-semibold text-neutral-900">
             {timeText}
             {timeDiff && (
@@ -150,51 +152,118 @@ export default function MatchDetailContent({
             )}
           </span>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-neutral-100 text-[11px] text-neutral-700">
-            🖱
-          </span>
-          <span className="text-neutral-600">클릭 실수 :</span>
-          <span className="text-base font-semibold text-neutral-900">
-            {misclicksText}
-            {misclicksDiff && (
-              <span
-                className={`ml-2 text-xs ${
-                  misclicksDiff.startsWith("+")
-                    ? "text-red-500"
-                    : misclicksDiff.startsWith("-")
-                      ? "text-blue-500"
-                      : "text-neutral-500"
-                }`}
-              >
-                ({misclicksDiff})
-              </span>
-            )}
-          </span>
-        </div>
-        {extraText && (
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-neutral-100 text-[11px] text-neutral-700">
-              ※
-            </span>
-            <span className="text-neutral-600">{extraLabel || "이선좌"} :</span>
-            <span className="text-base font-semibold text-neutral-900">
-              {extraText}
-              {extraTextDiff && (
-                <span
-                  className={`ml-2 text-xs ${
-                    extraTextDiff.startsWith("+")
-                      ? "text-red-500"
-                      : extraTextDiff.startsWith("-")
-                        ? "text-blue-500"
-                        : "text-neutral-500"
-                  }`}
-                >
-                  ({extraTextDiff})
+
+        {/* 클릭 실수 / 추가 정보 영역 */}
+        {extraFirst ? (
+          <>
+            {extraText && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-neutral-100 text-[11px] text-neutral-700">
+                  ※
                 </span>
-              )}
-            </span>
-          </div>
+                <span className="text-neutral-600">
+                  {extraLabel || "이선좌"} :
+                </span>
+                <span className="text-base font-semibold text-neutral-900">
+                  {extraText}
+                  {extraTextDiff && (
+                    <span
+                      className={`ml-2 text-xs ${
+                        extraTextDiff.startsWith("+")
+                          ? "text-red-500"
+                          : extraTextDiff.startsWith("-")
+                            ? "text-blue-500"
+                            : "text-neutral-500"
+                      }`}
+                    >
+                      ({extraTextDiff})
+                    </span>
+                  )}
+                </span>
+              </div>
+            )}
+            {!hideMisclicks && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-neutral-100 text-[11px] text-neutral-700">
+                  🖱
+                </span>
+                <span className="text-neutral-600">
+                  {misclicksLabel ?? "클릭 실수"} :
+                </span>
+                <span className="text-base font-semibold text-neutral-900">
+                  {misclicksText}
+                  {misclicksDiff && (
+                    <span
+                      className={`ml-2 text-xs ${
+                        misclicksDiff.startsWith("+")
+                          ? "text-red-500"
+                          : misclicksDiff.startsWith("-")
+                            ? "text-blue-500"
+                            : "text-neutral-500"
+                      }`}
+                    >
+                      ({misclicksDiff})
+                    </span>
+                  )}
+                </span>
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            {!hideMisclicks && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-neutral-100 text-[11px] text-neutral-700">
+                  🖱
+                </span>
+                <span className="text-neutral-600">
+                  {misclicksLabel ?? "클릭 실수"} :
+                </span>
+                <span className="text-base font-semibold text-neutral-900">
+                  {misclicksText}
+                  {misclicksDiff && (
+                    <span
+                      className={`ml-2 text-xs ${
+                        misclicksDiff.startsWith("+")
+                          ? "text-red-500"
+                          : misclicksDiff.startsWith("-")
+                            ? "text-blue-500"
+                            : "text-neutral-500"
+                      }`}
+                    >
+                      ({misclicksDiff})
+                    </span>
+                  )}
+                </span>
+              </div>
+            )}
+            {extraText && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-neutral-100 text-[11px] text-neutral-700">
+                  ※
+                </span>
+                <span className="text-neutral-600">
+                  {extraLabel || "이선좌"} :
+                </span>
+                <span className="text-base font-semibold text-neutral-900">
+                  {extraText}
+                  {extraTextDiff && (
+                    <span
+                      className={`ml-2 text-xs ${
+                        extraTextDiff.startsWith("+")
+                          ? "text-red-500"
+                          : extraTextDiff.startsWith("-")
+                            ? "text-blue-500"
+                            : "text-neutral-500"
+                      }`}
+                    >
+                      ({extraTextDiff})
+                    </span>
+                  )}
+                </span>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
@@ -211,11 +280,21 @@ export default function MatchDetailContent({
     const diffSeat = user.differenceMetrics?.seatSelection;
 
     // 차이 값 포맷팅 함수
-    const formatDiffMs = (ms?: number): string => {
-      if (ms === undefined || ms === 0) return "";
-      const sign = ms > 0 ? "+" : "-";
-      const absMs = Math.abs(ms);
-      return diffSec(absMs, 0).replace("±", sign);
+    // - API에서 초 단위(예: 2.53)를 내려주지만,
+    // - 과거 ms 단위(예: 2530)로 들어올 수도 있으므로 1000 이상이면 초로 보정
+    const formatDiffMs = (raw?: number): string => {
+      if (raw === undefined || raw === 0) return "";
+
+      // 1000 이상이면 ms 단위로 판단하여 초 단위로 변환
+      let seconds = raw;
+      if (Math.abs(seconds) >= 1000) {
+        seconds = seconds / 1000;
+      }
+
+      const sign = seconds > 0 ? "+" : "-";
+      const absSeconds = Math.abs(seconds);
+      const absStr = (Math.round(absSeconds * 1000) / 1000).toString(); // 소수 3자리까지
+      return `${sign} ${absStr}초`;
     };
 
     const formatDiffCount = (count?: number, suffix: string = "번"): string => {
@@ -226,22 +305,30 @@ export default function MatchDetailContent({
 
     return (
       <div className="space-y-4">
-        {/* 총 소요시간 표시 */}
-        {totalTime !== undefined && (
-          <div className="rounded-xl border border-purple-200 bg-purple-50 px-6 py-4">
-            <div className="text-center">
-              <div className="text-sm font-medium text-purple-700">
-                총 소요 시간
-              </div>
-              <div className="mt-1 text-2xl font-bold text-purple-900">
-                {formatSecondsToClock(totalTime)}
+        {/* 총 소요시간 표시 - 유저별 totalTime 사용, 없으면 props의 totalTime 사용 */}
+        {(() => {
+          const userTotalSeconds =
+            user.time !== undefined ? Number(user.time) : totalTime;
+          if (userTotalSeconds === undefined || isNaN(userTotalSeconds)) {
+            return null;
+          }
+          return (
+            <div className="rounded-xl border border-purple-200 bg-purple-50 px-6 py-4">
+              <div className="text-center">
+                <div className="text-sm font-medium text-purple-700">
+                  총 소요 시간
+                </div>
+                <div className="mt-1 text-2xl font-bold text-purple-900">
+                  {formatSecondsToClock(userTotalSeconds)}
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
         <div className={`grid grid-cols-1 gap-4 md:grid-cols-3`}>
           <StatCard
             title="예매 버튼 클릭"
+            timeLabel="반응 속도"
             timeText={`${formatMsToClock(booking?.reactionMs ?? 0)}`}
             timeDiff={
               diffBooking?.reactionMs
@@ -257,6 +344,7 @@ export default function MatchDetailContent({
           />
           <StatCard
             title="보안 문자"
+            timeLabel="소요 시간"
             timeText={`${formatMsToClock(captcha?.durationMs ?? 0)}`}
             timeDiff={
               diffCaptcha?.durationMs
@@ -265,6 +353,7 @@ export default function MatchDetailContent({
             }
             misclicksText={`${captcha?.wrongCount ?? 0}번`}
             misclicksDiff={undefined}
+            misclicksLabel="틀린 횟수"
             extraText={
               captcha?.backspaceCount !== undefined
                 ? `${captcha.backspaceCount}번`
@@ -276,6 +365,7 @@ export default function MatchDetailContent({
                 : undefined
             }
             extraLabel="백스페이스"
+            extraFirst
           />
           <StatCard
             title="좌석 선택"
@@ -291,6 +381,7 @@ export default function MatchDetailContent({
                 ? formatDiffCount(diffSeat.misclicks)
                 : undefined
             }
+            hideMisclicks
             extraText={` ${seat?.duplicateSeat ?? 0}번`}
             extraTextDiff={
               diffSeat?.duplicateSeat !== undefined
@@ -833,7 +924,7 @@ export default function MatchDetailContent({
                     }`}
                   >
                     <span className="text-lg font-bold text-neutral-600">
-                      {user.rank === -1 ? "-" : user.rank}{" "}
+                      {user.rank === -1 ? "-" : `${user.rank}등`}{" "}
                     </span>
                     <div className="ml-3 mr-3 h-8 w-8 rounded-full bg-neutral-300" />
                     <div className="flex-1">
