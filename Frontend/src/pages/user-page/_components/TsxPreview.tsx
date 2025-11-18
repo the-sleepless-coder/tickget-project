@@ -36,6 +36,8 @@ export default function TsxPreview({
   const lastReadOnlyRef = React.useRef<boolean | undefined>(undefined);
   const lastSelectedSeatIdsRef = React.useRef<string>("");
 
+  const LIGHT_GRAY = "#d4d4d8";
+
   // readOnly 모드일 때 선택되지 않은 좌석을 회색으로 처리
   useEffect(() => {
     if (!containerRef.current || !Component) {
@@ -60,15 +62,15 @@ export default function TsxPreview({
       const allElements = containerRef.current.querySelectorAll("*");
       allElements.forEach((el) => {
         if (el instanceof HTMLElement) {
-          if (el.style.backgroundColor === "#9ca3af") {
+          if (el.style.backgroundColor === LIGHT_GRAY) {
             el.style.backgroundColor = "";
             el.style.opacity = "";
           }
         }
         if (el instanceof SVGElement) {
           if (
-            el.style.fill === "#9ca3af" ||
-            el.getAttribute("fill") === "#9ca3af"
+            el.style.fill === LIGHT_GRAY ||
+            el.getAttribute("fill") === LIGHT_GRAY
           ) {
             const originalFill = el.getAttribute("data-original-fill");
             if (originalFill) {
@@ -84,10 +86,11 @@ export default function TsxPreview({
       return;
     }
 
-    // readOnly가 true이고 selectedSeatIds가 비어있으면 모든 좌석을 회색 처리하지 않음
-    if (selectedSeatIds.length === 0) {
-      return;
-    }
+    // readOnly가 true이고 selectedSeatIds가 비어있으면 모든 좌석을 회색 처리
+    // (처음 렌더링 시 내 좌석 정보가 없을 수도 있으므로)
+    // if (selectedSeatIds.length === 0) {
+    //   return;
+    // }
 
     let isProcessing = false;
     let processedElements = new WeakSet();
@@ -122,7 +125,7 @@ export default function TsxPreview({
 
       let processedCount = 0;
       let selectedCount = 0;
-      let sectionElements = new Map<string, Set<Element>>(); // 섹션별 요소 추적
+      const sectionElements = new Map<string, Set<Element>>(); // 섹션별 요소 추적
 
       allElements.forEach((el) => {
         // HTMLElement와 SVGElement 모두 처리
@@ -245,19 +248,24 @@ export default function TsxPreview({
           selectedCount++;
           // 선택된 섹션의 좌석은 원래 색상 유지 (회색 처리 제거)
           if (el instanceof HTMLElement) {
-            if (el.style.backgroundColor === "#9ca3af") {
+            if (el.style.backgroundColor === LIGHT_GRAY) {
               el.style.backgroundColor = "";
               el.style.opacity = "";
             }
           }
           if (el instanceof SVGElement) {
             // 회색 처리된 경우 원래 색상 복원
-            if (
-              el.style.fill === "#9ca3af" ||
-              el.getAttribute("fill") === "#9ca3af"
-            ) {
+            const currentFill = el.getAttribute("fill");
+            const styleFill = el.style.fill;
+            const isGray =
+              currentFill === LIGHT_GRAY ||
+              styleFill === LIGHT_GRAY ||
+              currentFill === "rgb(212, 212, 216)" ||
+              styleFill === "rgb(212, 212, 216)";
+
+            if (isGray) {
               const originalFill = el.getAttribute("data-original-fill");
-              if (originalFill) {
+              if (originalFill && originalFill !== LIGHT_GRAY) {
                 el.setAttribute("fill", originalFill);
                 el.style.fill = "";
               } else {
@@ -265,31 +273,55 @@ export default function TsxPreview({
               }
               el.style.opacity = "";
             }
-            // 회색 처리되지 않았어도 원래 색상이 있으면 유지
-            const currentFill = el.getAttribute("fill");
-            if (
-              currentFill &&
-              currentFill !== "#9ca3af" &&
-              !el.hasAttribute("data-original-fill")
-            ) {
-              el.setAttribute("data-original-fill", currentFill);
+            // 회색이 아닌 경우에도 원래 색상이 없으면 저장 (한 번만)
+            // 단, 이미 data-original-fill이 있으면 절대 덮어쓰지 않음
+            if (!isGray && !el.hasAttribute("data-original-fill")) {
+              const fillToSave = currentFill || fillColor;
+              if (
+                fillToSave &&
+                fillToSave !== LIGHT_GRAY &&
+                fillToSave !== "rgb(212, 212, 216)" &&
+                fillToSave !== "none" &&
+                fillToSave !== "transparent"
+              ) {
+                el.setAttribute("data-original-fill", fillToSave);
+              }
             }
           }
           processedElements.add(el);
         } else if (hasColor) {
           // 선택되지 않은 섹션의 좌석은 회색 처리 (색상이 있는 경우만)
           if (el instanceof HTMLElement) {
-            el.style.backgroundColor = "#9ca3af";
+            el.style.backgroundColor = LIGHT_GRAY;
             el.style.opacity = "0.5";
           }
           if (el instanceof SVGElement) {
-            // 원래 fill 색상 저장
-            if (!el.hasAttribute("data-original-fill") && fillColor) {
-              el.setAttribute("data-original-fill", fillColor);
+            // 원래 fill 색상 저장 (이미 저장되어 있지 않고, 회색이 아닌 경우에만)
+            // fillColor는 이미 회색일 수 있으므로 현재 fill attribute를 확인
+            // 단, 이미 회색으로 처리된 경우는 스킵
+            const currentFill = el.getAttribute("fill");
+            const isAlreadyGray =
+              currentFill === LIGHT_GRAY ||
+              currentFill === "rgb(212, 212, 216)";
+
+            if (!isAlreadyGray) {
+              const fillToSave = currentFill || fillColor;
+
+              // data-original-fill이 이미 있으면 절대 덮어쓰지 않음
+              if (
+                !el.hasAttribute("data-original-fill") &&
+                fillToSave &&
+                fillToSave !== LIGHT_GRAY &&
+                fillToSave !== "rgb(212, 212, 216)" &&
+                fillToSave !== "none" &&
+                fillToSave !== "transparent"
+              ) {
+                el.setAttribute("data-original-fill", fillToSave);
+              }
+              el.setAttribute("fill", LIGHT_GRAY);
+              el.style.fill = LIGHT_GRAY;
+              el.style.opacity = "0.5";
             }
-            el.setAttribute("fill", "#9ca3af");
-            el.style.fill = "#9ca3af";
-            el.style.opacity = "0.5";
           }
           processedCount++;
           processedElements.add(el);
@@ -312,16 +344,26 @@ export default function TsxPreview({
             el.tagName === "path";
 
           if ((isSmallSeat || isSVGElement) && hasColor) {
-            // 원래 색상을 저장
+            // 원래 색상을 저장 (이미 저장되어 있지 않고, 회색이 아닌 경우에만)
             if (el instanceof SVGElement) {
-              if (!el.hasAttribute("data-original-fill") && fillColor) {
-                el.setAttribute("data-original-fill", fillColor);
+              const currentFill = el.getAttribute("fill");
+              const fillToSave = currentFill || fillColor;
+
+              if (
+                !el.hasAttribute("data-original-fill") &&
+                fillToSave &&
+                fillToSave !== LIGHT_GRAY &&
+                fillToSave !== "rgb(212, 212, 216)" &&
+                fillToSave !== "none" &&
+                fillToSave !== "transparent"
+              ) {
+                el.setAttribute("data-original-fill", fillToSave);
               }
-              el.setAttribute("fill", "#9ca3af");
-              el.style.fill = "#9ca3af";
+              el.setAttribute("fill", LIGHT_GRAY);
+              el.style.fill = LIGHT_GRAY;
               el.style.opacity = "0.5";
             } else if (el instanceof HTMLElement) {
-              el.style.backgroundColor = "#9ca3af";
+              el.style.backgroundColor = LIGHT_GRAY;
               el.style.opacity = "0.5";
             }
             processedCount++;
@@ -339,15 +381,15 @@ export default function TsxPreview({
             if (processedElements.has(el)) return;
 
             if (el instanceof HTMLElement) {
-              if (el.style.backgroundColor === "#9ca3af") {
+              if (el.style.backgroundColor === LIGHT_GRAY) {
                 el.style.backgroundColor = "";
                 el.style.opacity = "";
               }
             }
             if (el instanceof SVGElement) {
               if (
-                el.style.fill === "#9ca3af" ||
-                el.getAttribute("fill") === "#9ca3af"
+                el.style.fill === LIGHT_GRAY ||
+                el.getAttribute("fill") === LIGHT_GRAY
               ) {
                 const originalFill = el.getAttribute("data-original-fill");
                 if (originalFill) {

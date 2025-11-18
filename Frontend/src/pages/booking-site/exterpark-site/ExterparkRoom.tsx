@@ -32,6 +32,7 @@ import Thumbnail06 from "../../../shared/images/thumbnail/Thumbnail06.webp";
 import {
   setTotalStartAtMs,
   getTotalStartAtMs,
+  resetSeatSelectionMetrics,
 } from "../../../shared/utils/reserveMetrics";
 import { sendSeatStatsFailedForMatch } from "@features/booking-site/api";
 
@@ -146,6 +147,8 @@ export default function ITicketPage() {
   const hasOpenedNewWindowRef = useRef<boolean>(false); // 새 창이 열렸는지 추적
   // ref로 상태를 관리하여 handleRoomEvent 재생성 방지
   const hasDequeuedInPageRef = useRef<boolean>(false);
+  // 방 나가기 트리거 구분용: "button" (버튼 클릭), "back" (브라우저 뒤로가기)
+  const exitReasonRef = useRef<"button" | "back" | null>(null);
 
   // 새로고침 감지: 페이지 로드 시 새로고침 여부 확인
   const isReload = (() => {
@@ -1135,6 +1138,7 @@ export default function ITicketPage() {
 
   // 대기열 페이지 URL 생성 공통 함수
   const buildQueueUrl = useCallback(() => {
+    resetSeatSelectionMetrics();
     // matchId 결정: store 우선 → joinResponse.matchId
     // 주의: matchId는 티켓팅 시스템의 ID이고, roomId와는 다른 개념입니다.
     // roomId를 matchId로 사용하지 않습니다.
@@ -1263,6 +1267,7 @@ export default function ITicketPage() {
 
   // 좌석 선택 페이지로 직접 이동 (대기열 거치지 않음)
   const goToSeatSelection = useCallback(() => {
+    resetSeatSelectionMetrics();
     const clickedTs = Date.now();
     const totalStartAt = getTotalStartAtMs() ?? clickedTs;
 

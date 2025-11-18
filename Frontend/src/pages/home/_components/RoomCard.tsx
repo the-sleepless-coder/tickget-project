@@ -18,9 +18,12 @@ interface RoomCardProps {
   // Home 전용 확장 props
   participants?: { current: number; capacity: number };
   startTime?: string; // e.g., "18:10"
+  startAtMs?: number; // 절대 시작 시각 (ms)
   size?: "small" | "medium" | "large"; // 썸네일 선택과 태그 구성에 사용
   venueName?: string; // 공연장 이름
   ongoing?: boolean; // 경기 진행중 여부
+  startingSoon?: boolean; // 시작 30초 전 (시작 준비 중)
+  onStartingSoonBlocked?: () => void; // 시작 준비 중 클릭 시 처리 (토스트+리스트 새로고침 등)
 }
 
 const VARIANT_GRADIENT: Record<RoomCardVariant, { from: string; to: string }> =
@@ -52,9 +55,12 @@ export default function RoomCard({
   roomId,
   participants,
   startTime,
+  startAtMs,
   size,
   venueName,
   ongoing,
+  startingSoon,
+  onStartingSoonBlocked,
 }: RoomCardProps) {
   const navigate = useNavigate();
   const userId = useAuthStore((state) => state.userId);
@@ -285,21 +291,51 @@ export default function RoomCard({
   }, [participants]);
 
   // 꽉 찬 방 여부 및 오버레이 라벨 결정
-  // 진행 중과 최대 인원 둘 다 해당되는 경우, 진행 중이 우선 표시됨
+  // 진행 중 > 시작 준비 중 > 최대 인원 순으로 우선 표시
   const isFull =
     !!participants && participants.current >= participants.capacity;
-  const overlayLabel = ongoing ? "진행 중" : isFull ? "최대 인원" : null;
-  const isDisabled = ongoing || isFull || isJoining;
+
+  // 현재 시각 기준으로 "시작 준비 중"인지 계산하는 헬퍼 (클릭 시에 항상 최신 값으로 계산)
+  const computeIsStartingSoonNow = () => {
+    const now = Date.now();
+    return (
+      startingSoon ||
+      (typeof startAtMs === "number" &&
+        startAtMs > now &&
+        startAtMs - now <= 30 * 1000)
+    );
+  };
+
+  // 렌더링 시점에도 한 번 계산해서 오버레이/스타일에 사용 (실제 차단 여부는 클릭 시에 다시 계산)
+  const isStartingSoonSnapshot = computeIsStartingSoonNow();
+
+  const overlayLabel = ongoing
+    ? "진행 중"
+    : isStartingSoonSnapshot
+      ? "시작 준비 중"
+      : isFull
+        ? "최대 인원"
+        : null;
+  const isDisabled = ongoing || isStartingSoonSnapshot || isFull || isJoining;
 
   // 방 입장 핸들러
   const handleRoomClick = async (e: React.MouseEvent) => {
     e.preventDefault();
 
-    if (isDisabled || !roomId) {
-      if (!roomId) {
-        // roomId가 없으면 기존 동작 (Link로 이동)
-        navigate(to);
-      }
+    if (!roomId) {
+      // roomId가 없으면 기존 동작 (Link로 이동)
+      navigate(to);
+      return;
+    }
+
+    // 시작 준비 중 구간(시작 30초 전)에 클릭한 경우: 입장 차단 + 콜백 실행
+    const isStartingSoonNow = computeIsStartingSoonNow();
+    if (isStartingSoonNow) {
+      onStartingSoonBlocked?.();
+      return;
+    }
+
+    if (isDisabled) {
       return;
     }
 

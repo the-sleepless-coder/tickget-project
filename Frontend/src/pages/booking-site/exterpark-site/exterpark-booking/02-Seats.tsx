@@ -15,7 +15,6 @@ import { useAuthStore } from "@features/auth/store";
 import {
   holdSeat,
   getSectionSeatsStatus,
-  buildSeatMetricsPayload,
   sendSeatStatsFailedForMatch,
 } from "@features/booking-site/api";
 import { paths } from "../../../../app/routes/paths";
@@ -25,10 +24,12 @@ import {
   recordSeatCompleteNow,
   setTotalStartAtMs,
   buildMetricsQueryFromStorage,
+  resetSeatSelectionMetrics,
 } from "../../../../shared/utils/reserveMetrics";
 import { useWebSocketStore } from "../../../../shared/lib/websocket-store";
 import { subscribe, type Subscription } from "../../../../shared/lib/websocket";
 import { useSeatStatsFailedOnUnload } from "../../../../shared/hooks/useSeatStatsFailedOnUnload";
+import { useBlockBackButtonDuringGame } from "../../../../shared/hooks/useBlockBackButtonDuringGame";
 import Viewport from "./_components/Viewport";
 import SeatGrades from "./_components/Side_Grades";
 import SeatSidebarBanner from "./_components/Side_Banner";
@@ -41,7 +42,7 @@ import MediumVenue, {
 import LargeVenue, {
   type LargeVenueRef,
 } from "../../../performance-halls/large-venue/InspireArena";
-import TsxPreview from "../../../../shared/components/TsxPreview";
+import TsxPreview from "../../../user-page/_components/TsxPreview";
 
 type GradeKey = "SR" | "R" | "S" | "A" | "STANDING";
 type SelectedSeat = {
@@ -59,7 +60,7 @@ const GRADE_META: Record<
   R: { name: "R석", color: "#3da14b", price: 132000 },
   S: { name: "S석", color: "#59b3ea", price: 110000 },
   A: { name: "A석", color: "#FB7E4E", price: 80000 },
-  STANDING: { name: "스탠딩석", color: "#9ca3af", price: 170000 },
+  STANDING: { name: "스탠딩석", color: "#d4d4d8", price: 170000 },
 };
 
 // 등급 레이블로 가격 찾기
@@ -125,6 +126,10 @@ export default function SelectSeatPage() {
     document.addEventListener("click", onDocClick);
     return () => document.removeEventListener("click", onDocClick);
   }, [isTrackingSeatClicks]);
+
+  useEffect(() => {
+    resetSeatSelectionMetrics();
+  }, []);
 
   // Captcha modal open time for live measurement (and let HUD pick it up)
   useEffect(() => {
@@ -438,6 +443,9 @@ export default function SelectSeatPage() {
       }
     };
   }, [wsClient]);
+
+  // 브라우저 뒤로가기 시에도 "방 나가기"와 동일하게 실패 처리 후 결과 페이지로 이동
+  useBlockBackButtonDuringGame("02-Seats");
   // TAKEN 좌석 정보 저장 (SmallVenue용, section-row-col 형식)
   const [takenSeats, setTakenSeats] = useState<Set<string>>(new Set());
 
@@ -1493,7 +1501,7 @@ export default function SelectSeatPage() {
                                   }`}
                                   style={{
                                     backgroundColor: isTaken
-                                      ? "#9ca3af"
+                                      ? "#d4d4d8"
                                       : isSelected
                                         ? "#4a4a4a"
                                         : selectedAISection.fillColor,
@@ -1583,7 +1591,7 @@ export default function SelectSeatPage() {
                     </thead>
                   </table>
                   {/* Fixed-height, scrollable body */}
-                  <div className="h-[160px] overflow-y-auto">
+                  <div className="h-[90px] overflow-y-auto">
                     <table className="w-full text-sm">
                       <tbody>
                         {selected.length === 0 ? (

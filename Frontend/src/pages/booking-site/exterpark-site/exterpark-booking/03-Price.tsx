@@ -6,6 +6,7 @@ import { useRoomStore } from "@features/room/store";
 import { useMatchStore } from "@features/booking-site/store";
 import { useAuthStore } from "@features/auth/store";
 import { cancelSeats } from "@features/performance-hall/api";
+import { useBlockBackButtonDuringGame } from "../../../../shared/hooks/useBlockBackButtonDuringGame";
 import dayjs from "dayjs";
 import Thumbnail01 from "../../../../shared/images/thumbnail/Thumbnail01.webp";
 import Thumbnail02 from "../../../../shared/images/thumbnail/Thumbnail02.webp";
@@ -28,6 +29,9 @@ export default function PricePage() {
   const matchIdFromStore = useMatchStore((s) => s.matchId);
   const currentUserId = useAuthStore((s) => s.userId);
   const fee = 2000;
+
+  // 경기 중 브라우저 뒤로가기 차단
+  useBlockBackButtonDuringGame("03-Price");
 
   // 썸네일 번호 -> 이미지 매핑
   const THUMBNAIL_IMAGES: Record<string, string> = {
@@ -245,14 +249,17 @@ export default function PricePage() {
           </div>
           <div className="divide-y">
             {selectedSeats.map((seat, seatIndex) => (
-              <div key={seat.grade} className={seatIndex > 0 ? "border-t-2 border-gray-300" : ""}>
+              <div
+                key={seat.grade}
+                className={seatIndex > 0 ? "border-t-2 border-gray-300" : ""}
+              >
                 {/* 등급별 헤더 */}
                 <div className="px-3 py-3 bg-gray-50 border-b">
                   <div className="font-semibold text-base text-gray-800">
                     {seat.grade} {seat.count}매
                   </div>
                 </div>
-                
+
                 {/* 기본가 */}
                 <Row
                   label={`기본가 (${seat.grade})`}

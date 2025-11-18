@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
-import TsxPreview from "../../../shared/components/TsxPreview";
+import TsxPreview from "./TsxPreview";
 import SmallVenue from "../../performance-halls/small-venue/CharlotteTheater";
 import MediumVenue from "../../performance-halls/medium-venue/OlympicHall";
 import LargeVenue from "../../performance-halls/large-venue/InspireArena";
@@ -76,10 +76,6 @@ export default function MatchDetailContent({
   const selectedUser: UserRank | undefined =
     selectedUserId !== null
       ? users.find((u) => u.id === selectedUserId)
-      : undefined;
-  const hoveredUser: UserRank | undefined =
-    hoveredUserId !== null
-      ? users.find((u) => u.id === hoveredUserId)
       : undefined;
 
   const formatMsToClock = (ms?: number): string => {
@@ -337,7 +333,7 @@ export default function MatchDetailContent({
   const isSoloMode =
     roomType === "SOLO" || (roomType !== "MULTI" && users.length === 1);
 
-  // 공연장별 좌석 ID 변환 함수
+  // 공연장별 좌석 ID 변환 함수 (프리셋 공연장용)
   const convertSeatIdForVenue = useMemo(() => {
     return (
       hallId: number | undefined,
@@ -357,7 +353,6 @@ export default function MatchDetailContent({
       // floor는 1 또는 2인데, 사용자 정보에서 알 수 없으므로 1로 가정
       // row는 displayRowInSection, col은 seatCol
       if (hallId === 2) {
-        // 프리셋 모드에서는 section을 "1"로 설정 (OP는 "0"이지만 일반적으로 "1")
         const displaySection = section === "0" ? "0" : "1";
         const floor = 1; // 기본값, 필요시 조정
         return `small-${floor}-${displaySection}-${row}-${col}`;
@@ -374,7 +369,7 @@ export default function MatchDetailContent({
     };
   }, []);
 
-  // 사용자 좌석 정보를 공연장별 좌석 ID로 변환
+  // 사용자 좌석 정보를 공연장별 좌석 ID로 변환 (프리셋 공연장용)
   // 호버된 유저가 있으면 해당 유저의 좌석만, 없으면 모든 좌석
   const selectedSeatIds = useMemo(() => {
     const targetUsers =
@@ -396,7 +391,7 @@ export default function MatchDetailContent({
       .filter((id): id is string => id !== null);
   }, [users, hallId, convertSeatIdForVenue, hoveredUserId]);
 
-  // 내 좌석 ID
+  // 내 좌석 ID (프리셋 공연장용)
   const mySeatId = useMemo(() => {
     const me = users.find((u) => u.id === 0);
     if (me?.seatSection && me.seatRow && me.seatCol) {
@@ -411,16 +406,51 @@ export default function MatchDetailContent({
     return null;
   }, [users, hallId, convertSeatIdForVenue]);
 
-  // 호버된 유저의 섹션 번호 추출 (AI 생성 맵용, 컴포넌트 최상단에서 호출)
-  const hoveredUserSeatIds = useMemo(() => {
-    if (hoveredUserId === null) return [];
-    const hoveredUser = users.find((u) => u.id === hoveredUserId);
-    if (!hoveredUser || !hoveredUser.seatSection) {
+  // 내 좌석 섹션 번호 추출 (AI/TSX 공연장용, 처음 렌더링 시 사용)
+  const mySeatSectionIds = useMemo(() => {
+    const me = users.find((u) => u.id === 0);
+    if (!me || !me.seatSection) {
+      console.log("[MatchDetailContent] mySeatSectionIds: 내 좌석 정보 없음");
       return [];
     }
     // 섹션 번호만 포함된 좌석 ID 형식으로 전달 (예: "12-0-0")
     // TsxPreview에서 섹션 번호를 추출하여 매칭함
-    return [`${hoveredUser.seatSection}-0-0`];
+    const result = [`${me.seatSection}-0-0`];
+    console.log("[MatchDetailContent] mySeatSectionIds 계산:", {
+      meSeatSection: me.seatSection,
+      result,
+    });
+    return result;
+  }, [users]);
+
+  // 호버된 유저의 섹션 번호 추출 (AI 생성 맵용, 컴포넌트 최상단에서 호출)
+  const hoveredUserSeatIds = useMemo(() => {
+    if (hoveredUserId === null) {
+      console.log(
+        "[MatchDetailContent] hoveredUserSeatIds: hoveredUserId가 null"
+      );
+      return [];
+    }
+    const hoveredUser = users.find((u) => u.id === hoveredUserId);
+    if (!hoveredUser || !hoveredUser.seatSection) {
+      console.log(
+        "[MatchDetailContent] hoveredUserSeatIds: 호버된 유저 정보 없음",
+        {
+          hoveredUserId,
+          hoveredUser,
+        }
+      );
+      return [];
+    }
+    // 섹션 번호만 포함된 좌석 ID 형식으로 전달 (예: "12-0-0")
+    // TsxPreview에서 섹션 번호를 추출하여 매칭함
+    const result = [`${hoveredUser.seatSection}-0-0`];
+    console.log("[MatchDetailContent] hoveredUserSeatIds 계산:", {
+      hoveredUserId,
+      hoveredUserSeatSection: hoveredUser.seatSection,
+      result,
+    });
+    return result;
   }, [hoveredUserId, users]);
 
   // SVG 자동 크기 조정을 위한 ref
@@ -549,9 +579,7 @@ export default function MatchDetailContent({
 
   // 좌석 배치도 렌더링
   const renderSeatMap = () => {
-    // AI 생성인 경우 - 우선순위 1
-    // tsxUrl이 있고 "default"가 아니고 빈 문자열이 아닌 경우 렌더링
-    // isAIGenerated가 false여도 tsxUrl이 있으면 AI 생성으로 간주
+    // 1) tsxUrl이 있으면 TSX 기반 좌석 배치도 렌더링 (AI 공연장 + tsxUrl이 있는 프리셋 모두)
     const isValidTsxUrl =
       tsxUrl &&
       tsxUrl !== "default" &&
@@ -559,20 +587,26 @@ export default function MatchDetailContent({
       typeof tsxUrl === "string" &&
       tsxUrl.trim() !== "";
 
-    // tsxUrl이 있으면 AI 생성으로 간주 (isAIGenerated가 false여도)
-    // tsxUrl이 http:// 또는 https://로 시작하면 AI 생성으로 간주
-    const shouldRenderAI =
-      isValidTsxUrl &&
-      (isAIGenerated ||
-        (typeof tsxUrl === "string" &&
-          (tsxUrl.startsWith("http://") || tsxUrl.startsWith("https://"))));
+    const shouldRenderWithTsx = !!isValidTsxUrl;
 
-    if (shouldRenderAI) {
-      // AI 생성 좌석 배치도에 선택된 좌석 정보 전달
+    if (shouldRenderWithTsx) {
+      // TSX 기반 좌석 배치도에 선택된 좌석 정보 전달
       // selectedSeatIds는 section-row-col 형식
+      // 처음 렌더링 시: 내 좌석만 색상 유지, 나머지 회색 처리
       // 호버 시: 해당 유저의 좌석만 색상 유지, 나머지 회색 처리
-      // 호버 없을 때: 모든 좌석 원래 색상으로 표시
-      // hoveredUserSeatIds는 컴포넌트 최상단에서 이미 계산됨
+      // hoveredUserSeatIds와 mySeatSectionIds는 컴포넌트 최상단에서 이미 계산됨
+      const displaySeatIds =
+        hoveredUserId !== null ? hoveredUserSeatIds : mySeatSectionIds;
+
+      console.log("[MatchDetailContent] renderSeatMap - TSX 맵 렌더링:", {
+        hallId,
+        hoveredUserId,
+        hoveredUserSeatIds,
+        mySeatSectionIds,
+        displaySeatIds,
+        tsxUrl,
+      });
+
       return (
         <div className="w-full h-[400px] flex justify-center items-center bg-white rounded-lg p-4">
           <div
@@ -583,40 +617,26 @@ export default function MatchDetailContent({
               key={`match-detail-${tsxUrl}`}
               src={tsxUrl}
               className="w-full h-full"
-              selectedSeatIds={hoveredUserSeatIds}
-              readOnly={hoveredUserId !== null}
+              selectedSeatIds={displaySeatIds}
+              readOnly={true}
             />
           </div>
         </div>
       );
     }
 
-    // AI 생성이지만 tsxUrl이 없는 경우 디버깅
-    if (isAIGenerated && !isValidTsxUrl) {
-      console.warn(
-        "[MatchDetailContent] AI 생성이지만 tsxUrl이 유효하지 않음:",
-        {
-          isAIGenerated,
-          tsxUrl,
-          isValidTsxUrl,
-        }
-      );
-    }
-
-    // 프리셋인 경우 hallId 기준으로 렌더링 - 우선순위 2
-    // AI 생성이 아니고 hallId가 있는 경우에만 프리셋 렌더링
-    // shouldRenderAI가 false일 때만 프리셋 렌더링
-    if (hallId && !shouldRenderAI) {
+    // 2) tsxUrl이 없고 hallId가 있는 프리셋 공연장인 경우: 프론트 내장 TSX 컴포넌트 사용
+    if (hallId && !isValidTsxUrl) {
       // 모든 사용자의 좌석을 selectedIds에 포함 (내 좌석은 첫 번째로)
       const allSeatIds = mySeatId
         ? [mySeatId, ...selectedSeatIds.filter((id) => id !== mySeatId)]
         : selectedSeatIds;
 
       // hallId 2: 샤롯데씨어터 (SmallVenue)
-      // 호버 시: 해당 유저의 좌석만 색상 유지, 나머지 회색 처리
-      // 호버 없을 때: 모든 좌석 원래 색상으로 표시
+      // 읽기 전용 모드: 모두 회색, 선택된 좌석만 원래 색상 유지
+      // 유저 호버 시: 해당 유저의 좌석만 원래 색상, 나머지는 회색
       if (hallId === 2) {
-        const hoveredUserSeatIds =
+        const hoveredUserSeatIdsForSmall =
           hoveredUserId !== null
             ? users
                 .filter(
@@ -645,10 +665,10 @@ export default function MatchDetailContent({
               className="w-full h-full flex items-center justify-center"
             >
               <SmallVenue
-                selectedIds={hoveredUserSeatIds}
-                takenSeats={new Set(hoveredUserSeatIds)}
+                selectedIds={hoveredUserSeatIdsForSmall}
+                takenSeats={new Set(hoveredUserSeatIdsForSmall)}
                 isPreset={true}
-                readOnly={hoveredUserId !== null}
+                readOnly={true}
               />
             </div>
           </div>
@@ -656,10 +676,10 @@ export default function MatchDetailContent({
       }
 
       // hallId 3: 올림픽홀 (MediumVenue)
-      // 호버 시: 해당 유저의 좌석만 색상 유지, 나머지 회색 처리
-      // 호버 없을 때: 모든 좌석 원래 색상으로 표시 (readOnly=false, selectedIds=[])
+      // 읽기 전용 모드: 전체 뷰에서 선택된 섹션만 원래 색상, 나머지 섹션 회색
+      // 유저 호버 시: 해당 유저의 섹션만 강조
       if (hallId === 3) {
-        const hoveredUserSeatIds =
+        const hoveredUserSeatIdsForMedium =
           hoveredUserId !== null
             ? users
                 .filter(
@@ -679,7 +699,7 @@ export default function MatchDetailContent({
                   return seatId || `${u.seatSection}-${u.seatRow}-${u.seatCol}`;
                 })
                 .filter((id): id is string => id !== null)
-            : [];
+            : allSeatIds;
 
         return (
           <div className="w-full h-[400px] flex justify-center items-center bg-white rounded-lg p-4">
@@ -688,7 +708,7 @@ export default function MatchDetailContent({
               className="w-full h-full flex items-center justify-center"
             >
               <MediumVenue
-                selectedIds={hoveredUserSeatIds}
+                selectedIds={hoveredUserSeatIdsForMedium}
                 onToggleSeat={undefined}
                 readOnly={true}
               />
@@ -698,10 +718,10 @@ export default function MatchDetailContent({
       }
 
       // hallId 4: 인스파이어 아레나 (LargeVenue)
-      // 호버 시: 해당 유저의 좌석만 색상 유지, 나머지 회색 처리
-      // 호버 없을 때: 모든 좌석 원래 색상으로 표시
+      // 읽기 전용 모드: 전체 뷰에서 선택된 섹션만 원래 색상, 나머지 섹션 회색
+      // 유저 호버 시: 해당 유저의 섹션만 강조
       if (hallId === 4) {
-        const hoveredUserSeatIds =
+        const hoveredUserSeatIdsForLarge =
           hoveredUserId !== null
             ? users
                 .filter(
@@ -730,7 +750,7 @@ export default function MatchDetailContent({
               className="w-full h-full flex items-center justify-center"
             >
               <LargeVenue
-                selectedIds={hoveredUserSeatIds}
+                selectedIds={hoveredUserSeatIdsForLarge}
                 onToggleSeat={undefined}
                 readOnly={true}
               />
@@ -740,116 +760,13 @@ export default function MatchDetailContent({
       }
     }
 
-    // 기본 구역 뷰 (기존 코드)
-    return (
-      <div>
-        {/* Stage */}
-        <div className="mb-6 flex justify-center">
-          <div className="h-4 w-64 rounded bg-black" />
-        </div>
-
-        {/* Seating Chart - 구역별 */}
-        <div className="space-y-4">
-          {/* 상단: A구역, B구역 */}
-          <div className="grid grid-cols-2 gap-4">
-            {/* A구역 */}
-            <div>
-              <div className="mb-2 text-center text-sm font-semibold text-neutral-700">
-                A구역
-              </div>
-              <div
-                className={`mx-auto h-24 w-full rounded-lg border-2 transition-colors ${
-                  hoveredUserId === null
-                    ? mySeatSection === "A"
-                      ? "border-purple-300 bg-purple-100"
-                      : "border-neutral-200 bg-neutral-100"
-                    : hoveredUser?.seatSection === "A"
-                      ? "border-blue-300 bg-blue-100"
-                      : mySeatSection === "A"
-                        ? "border-purple-300 bg-purple-100"
-                        : "border-neutral-200 bg-neutral-100"
-                }`}
-              />
-            </div>
-
-            {/* B구역 */}
-            <div>
-              <div className="mb-2 text-center text-sm font-semibold text-neutral-700">
-                B구역
-              </div>
-              <div
-                className={`mx-auto h-24 w-full rounded-lg border-2 transition-colors ${
-                  hoveredUserId === null
-                    ? mySeatSection === "B"
-                      ? "border-purple-300 bg-purple-100"
-                      : "border-neutral-200 bg-neutral-100"
-                    : hoveredUser?.seatSection === "B"
-                      ? "border-blue-300 bg-blue-100"
-                      : mySeatSection === "B"
-                        ? "border-purple-300 bg-purple-100"
-                        : "border-neutral-200 bg-neutral-100"
-                }`}
-              />
-            </div>
-          </div>
-
-          {/* 하단: C구역, D구역 */}
-          <div className="grid grid-cols-2 gap-4">
-            {/* C구역 */}
-            <div>
-              <div className="mb-2 text-center text-sm font-semibold text-neutral-700">
-                C구역
-              </div>
-              <div
-                className={`mx-auto h-24 w-full rounded-lg border-2 transition-colors ${
-                  hoveredUserId === null
-                    ? mySeatSection === "C"
-                      ? "border-purple-300 bg-purple-100"
-                      : "border-neutral-200 bg-neutral-100"
-                    : hoveredUser?.seatSection === "C"
-                      ? "border-blue-300 bg-blue-100"
-                      : mySeatSection === "C"
-                        ? "border-purple-300 bg-purple-100"
-                        : "border-neutral-200 bg-neutral-100"
-                }`}
-              />
-            </div>
-
-            {/* D구역 */}
-            <div>
-              <div className="mb-2 text-center text-sm font-semibold text-neutral-700">
-                D구역
-              </div>
-              <div
-                className={`mx-auto h-24 w-full rounded-lg border-2 transition-colors ${
-                  hoveredUserId === null
-                    ? mySeatSection === "D"
-                      ? "border-purple-300 bg-purple-100"
-                      : "border-neutral-200 bg-neutral-100"
-                    : hoveredUser?.seatSection === "D"
-                      ? "border-blue-300 bg-blue-100"
-                      : mySeatSection === "D"
-                        ? "border-purple-300 bg-purple-100"
-                        : "border-neutral-200 bg-neutral-100"
-                }`}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Legend */}
-        <div className="mt-6 flex items-center justify-end gap-4">
-          <div className="flex items-center gap-2">
-            <div className="h-4 w-4 rounded bg-purple-300" />
-            <span className="text-sm text-neutral-700">나</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="h-4 w-4 rounded bg-blue-300" />
-            <span className="text-sm text-neutral-700">다른 유저</span>
-          </div>
-        </div>
-      </div>
-    );
+    // tsxUrl도 없고 프리셋 매핑도 없으면 좌석 배치도 표시 불가
+    console.warn("[MatchDetailContent] 좌석 배치도를 렌더링할 수 없습니다.", {
+      hallId,
+      isAIGenerated,
+      tsxUrl,
+    });
+    return null;
   };
 
   return (
@@ -865,8 +782,22 @@ export default function MatchDetailContent({
               .map((user) => (
                 <div
                   key={user.id}
-                  onMouseEnter={() => setHoveredUserId(user.id)}
-                  onMouseLeave={() => setHoveredUserId(null)}
+                  onMouseEnter={() => {
+                    console.log(
+                      "[MatchDetailContent] onMouseEnter:",
+                      user.id,
+                      user.nickname
+                    );
+                    setHoveredUserId(user.id);
+                  }}
+                  onMouseLeave={() => {
+                    console.log(
+                      "[MatchDetailContent] onMouseLeave:",
+                      user.id,
+                      user.nickname
+                    );
+                    setHoveredUserId(null);
+                  }}
                   onClick={(e) => {
                     // 더블클릭 또는 컨텍스트 메뉴(우클릭)로 유저 전체 통계 보기
                     if (e.detail === 2 || e.type === "contextmenu") {
@@ -925,7 +856,7 @@ export default function MatchDetailContent({
 
       {/* 우측: 구역 뷰 또는 통계 뷰 */}
       <div className="min-w-[320px] flex-1">
-        <div className="rounded-lg border border-blue-200 bg-blue-50 p-6">
+        <div className="rounded-lg border border-gray-200 bg-white p-6">
           {selectedUserId === null && !isSoloMode ? (
             renderSeatMap()
           ) : (
