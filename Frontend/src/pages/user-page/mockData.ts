@@ -9,6 +9,8 @@ export interface UserRank {
   seatRow?: number;
   seatCol?: number;
   time?: string;
+  isCurrentUser?: boolean;
+  profileImageUrl?: string | null;
   metrics?: {
     bookingClick?: { reactionMs?: number; misclicks?: number };
     captcha?: { durationMs?: number; wrongCount?: number };
