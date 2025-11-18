@@ -354,9 +354,7 @@ export function buildSeatMetricsPayload(userId: number): SeatConfirmRequest {
 }
 
 // ----- Seat Stats Failed (Ticketing) -----
-// POST /api/v1/dev/ticketing/matches/{matchId}/stats/failed
-// 기존 ticketingApi의 베이스(/api/v1/dev/tkt)를 활용하되,
-// 상대 경로에 ".."를 사용해 /api/v1/dev/ticketing 으로 이동한다.
+// POST /api/v1/dev/tkt/ticketing/matches/{matchId}/stats/failed
 export async function sendSeatStatsFailed(
   matchId: string | number,
   payload: SeatStatsFailedRequest
@@ -368,8 +366,8 @@ export async function sendSeatStatsFailed(
   };
 
   // base: /api/v1/dev/tkt
-  // path: ../ticketing/matches/{matchId}/stats/failed
-  const path = `../ticketing/matches/${encodeURIComponent(
+  // path: ticketing/matches/{matchId}/stats/failed
+  const path = `ticketing/matches/${encodeURIComponent(
     String(matchId)
   )}/stats/failed`;
 
