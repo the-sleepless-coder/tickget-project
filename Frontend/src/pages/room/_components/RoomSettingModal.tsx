@@ -47,7 +47,10 @@ export default function CreateRoomModal({
   const [toastOpen, setToastOpen] = useState(false);
   type SizeOption = "소형" | "중형" | "대형";
   const diffOptions = useMemo(() => ["초보", "평균", "뛰어남"] as const, []);
-  const botOptions = useMemo(() => [10, 50, 100, 500, 1000, 2000, 5000, 10000, 20000] as const, []);
+  const botOptions = useMemo(
+    () => [10, 50, 100, 500, 1000, 2000, 2500, 3000, 3500, 4000, 4500] as const,
+    []
+  );
   const sizeToVenues: Record<SizeOption, string[]> = useMemo(
     () => ({
       소형: ["샤롯데씨어터"],
