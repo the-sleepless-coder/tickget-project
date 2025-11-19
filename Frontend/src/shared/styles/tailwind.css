@@ -10,8 +10,10 @@
 
   /* Custom fuchsia Palette */
   --color-c-fuchsia-100: #fad2ff;
+  --color-c-fuchsia-200: #F49FFF;
   --color-c-fuchsia-300: #e464f5;
   --color-c-fuchsia-500: #c219d8;
+  --color-c-fuchsia-600: #960BA9;
 
   /* Custom Blue Palette */
   --color-c-blue-100: #d8e5fe;

@@ -293,6 +293,7 @@ export async function confirmSeat(
     success: false,
     message: "",
     userRank: 0,
+    totalRank: undefined,
     confirmedSeats: [],
     matchId: Number(matchId),
     userId: Number(payload.userId),
@@ -396,7 +397,7 @@ export async function sendSeatStatsFailed(
     // 최근 10개만 유지
     const recentLogs = logs.slice(-10);
     sessionStorage.setItem(logsKey, JSON.stringify(recentLogs));
-  } catch (e) {
+  } catch {
     // sessionStorage 저장 실패는 무시
   }
 
@@ -427,7 +428,7 @@ export async function sendSeatStatsFailed(
     // 최근 10개만 유지
     const recentLogs = logs.slice(-10);
     sessionStorage.setItem(logsKey, JSON.stringify(recentLogs));
-  } catch (e) {
+  } catch {
     // sessionStorage 저장 실패는 무시
   }
 

@@ -70,20 +70,8 @@ export default function HeaderShortcuts() {
   const handleGoWeeklyRanking = async () => {
     const proceed = await confirmAndExitIfInRoom();
     if (!proceed) return;
-    navigate(paths.weeklyRanking);
-  };
 
-  const handleGoMyPage = async () => {
-    const proceed = await confirmAndExitIfInRoom();
-    if (!proceed) return;
-    navigate(paths.mypage.root);
-  };
-
-  const handleCreateRoom = async () => {
-    const proceed = await confirmAndExitIfInRoom();
-    if (!proceed) return;
-
-    // 로그인 여부 체크 (기존 방 만들기 버튼과 동일한 조건)
+    // 로그인 여부 체크 (주간 랭킹은 로그인 유저만 접근)
     if (!userId || !nickname || !accessToken) {
       if (confirm("로그인이 필요합니다. 로그인 페이지로 이동하시겠습니까?")) {
         navigate(paths.auth.login);
@@ -91,10 +79,13 @@ export default function HeaderShortcuts() {
       return;
     }
 
-    // /rooms 페이지로 이동하면서 모달을 열도록 state 전달
-    navigate(paths.rooms, {
-      state: { openCreate: true },
-    });
+    navigate(paths.weeklyRanking);
+  };
+
+  const handleGoMyPage = async () => {
+    const proceed = await confirmAndExitIfInRoom();
+    if (!proceed) return;
+    navigate(paths.mypage.root);
   };
 
   // i-ticket 내부에서는 상단 바로가기 숨김
