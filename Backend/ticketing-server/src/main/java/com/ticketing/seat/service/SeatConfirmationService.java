@@ -22,6 +22,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 @Service
@@ -332,8 +333,19 @@ public class SeatConfirmationService {
             // 5. 이벤트 발행 (트랜잭션 커밋 후 실행됨)
          //   eventPublisher.publishEvent(new MatchEndEvent(matchId, match.getRoomId()));
 
+            // 트랜잭션 커밋될 시간을 주기 위해 비동기로 처리
+            CompletableFuture.runAsync(() -> {
+                try {
+                    Thread.sleep(2500);  // 500ms 대기
+                    statsServerClient.notifyMatchEnd(matchId);
+                } catch (Exception e) {
+                    log.error("매치 종료 알림 실패: matchId={}", matchId, e);
+                }
+            });
+
+
             // 5. 외부 서버 알림
-            statsServerClient.notifyMatchEnd(matchId);
+           // statsServerClient.notifyMatchEnd(matchId);
             roomServerClient.notifyMatchEnd(match.getRoomId());
 
             log.info(" 경기 종료 처리 완료: matchId={}", matchId);
