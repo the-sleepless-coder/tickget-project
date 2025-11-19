@@ -417,6 +417,11 @@ export default function HomePage() {
         autoHideDuration={2500}
         onClose={() => setStartingSoonToastOpen(false)}
         anchorOrigin={{ vertical: "top", horizontal: "center" }}
+        sx={{
+          "&.MuiSnackbar-root": {
+            top: { xs: 16, sm: 24 },
+          },
+        }}
       >
         <Alert
           onClose={() => setStartingSoonToastOpen(false)}
