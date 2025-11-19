@@ -424,7 +424,6 @@ export default function SelectSeatPage() {
                 window.location.replace(target);
               },
             });
-            return; // onConfirm에서 이동하므로 여기서는 return
           }
         })();
       } catch (e) {
@@ -761,6 +760,12 @@ export default function SelectSeatPage() {
   }, [venueKey, matchIdFromStore, currentUserId]);
 
   const complete = async () => {
+    // 캡챠를 통과하지 않았으면 좌석 선점 API를 호출하지 않고 캡챠 모달을 다시 띄움
+    if (!captchaPassed) {
+      setShowCaptcha(true);
+      return;
+    }
+
     const durationSec = recordSeatCompleteNow();
     console.log("[ReserveTiming] Seat complete", {
       durationFromCaptchaSec: durationSec,
@@ -1246,7 +1251,12 @@ export default function SelectSeatPage() {
           setIsTrackingSeatClicks(true);
           setSeatClickMissCount(0);
         }}
+        // 날짜 다시 선택: 01-Schedule로 이동
         onReselect={goPrev}
+        // 잠깐 접어두기: 현재 페이지에 그대로 두고 캡챠 모달만 닫기
+        onFold={() => {
+          setShowCaptcha(false);
+        }}
       />
       <SeatTakenAlert
         open={showSeatTakenAlert}

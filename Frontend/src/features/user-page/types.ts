@@ -42,6 +42,21 @@ export interface MyPageStatsResponse {
   specificsList: SpecificsListItem[];
 }
 
+// 마이페이지 랭킹/퍼센타일 조회 API 응답 타입
+export interface RankingPercentileItem {
+  dateInfo: string; // "2025.11.19 17:15" 형태
+  percentile: number; // 퍼센타일 값 (0~100)
+  points: number; // 점수
+}
+
+export interface RankingPercentileResponse {
+  userId: number;
+  userNickName: string;
+  seasonInfo: string; // 예: "11월 넷째 주"
+  avgPercentile: number; // 평균 퍼센타일
+  percentileData: RankingPercentileItem[];
+}
+
 // 경기 기록 API 응답 타입
 export interface MatchInfo {
   matchId: number;

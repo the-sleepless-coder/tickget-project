@@ -18,9 +18,19 @@ type Props = {
     metrics: { backspaceCount: number; wrongAttempts: number }
   ) => void;
   onReselect: () => void;
+  /**
+   * Called when user wants to temporarily hide captcha (e.g. "접어두기").
+   * If not provided, falls back to onReselect for backward compatibility.
+   */
+  onFold?: () => void;
 };
 
-export default function CaptchaModal({ open, onVerify, onReselect }: Props) {
+export default function CaptchaModal({
+  open,
+  onVerify,
+  onReselect,
+  onFold,
+}: Props) {
   const [seed, setSeed] = useState<number>(0);
   const [input, setInput] = useState<string>("");
   const [error, setError] = useState<string>("");
@@ -50,7 +60,12 @@ export default function CaptchaModal({ open, onVerify, onReselect }: Props) {
       try {
         sessionStorage.setItem("reserve.capBackspaces", "0");
         sessionStorage.setItem("reserve.capWrong", "0");
-      } catch {}
+      } catch (error) {
+        // 세션 스토리지 사용 불가 시 무시 (프라이빗 모드 등)
+        if (import.meta.env.DEV) {
+          console.warn("[CaptchaModal] 세션 스토리지 초기화 실패", error);
+        }
+      }
       // 입력창 자동 포커스
       setTimeout(() => {
         inputRef.current?.focus();
@@ -109,7 +124,14 @@ export default function CaptchaModal({ open, onVerify, onReselect }: Props) {
             const next = w + 1;
             try {
               sessionStorage.setItem("reserve.capWrong", String(next));
-            } catch {}
+            } catch (error) {
+              if (import.meta.env.DEV) {
+                console.warn(
+                  "[CaptchaModal] reserve.capWrong 저장 실패 (401 응답)",
+                  error
+                );
+              }
+            }
             return next;
           });
           return;
@@ -136,10 +158,17 @@ export default function CaptchaModal({ open, onVerify, onReselect }: Props) {
           const next = w + 1;
           try {
             sessionStorage.setItem("reserve.capWrong", String(next));
-          } catch {}
+          } catch (error) {
+            if (import.meta.env.DEV) {
+              console.warn(
+                "[CaptchaModal] reserve.capWrong 저장 실패 (기타 응답)",
+                error
+              );
+            }
+          }
           return next;
         });
-      } catch {
+      } catch (error) {
         setError("입력한 문자를 다시 확인해주세요");
         setInput("");
         setIsFocused(false);
@@ -147,11 +176,21 @@ export default function CaptchaModal({ open, onVerify, onReselect }: Props) {
           const next = w + 1;
           try {
             sessionStorage.setItem("reserve.capWrong", String(next));
-          } catch {}
+          } catch (e) {
+            if (import.meta.env.DEV) {
+              console.warn(
+                "[CaptchaModal] reserve.capWrong 저장 실패 (예외)",
+                e
+              );
+            }
+          }
           return next;
         });
         // 잘못된 경우 새 캡챠 요청
         setSeed((s) => s + 1);
+        if (import.meta.env.DEV) {
+          console.error("[CaptchaModal] 캡챠 검증 중 예외 발생", error);
+        }
       }
     } else {
       setError("입력한 문자를 다시 확인해주세요");
@@ -161,7 +200,14 @@ export default function CaptchaModal({ open, onVerify, onReselect }: Props) {
         const next = w + 1;
         try {
           sessionStorage.setItem("reserve.capWrong", String(next));
-        } catch {}
+        } catch (error) {
+          if (import.meta.env.DEV) {
+            console.warn(
+              "[CaptchaModal] reserve.capWrong 저장 실패 (빈 입력)",
+              error
+            );
+          }
+        }
         return next;
       });
     }
@@ -227,7 +273,9 @@ export default function CaptchaModal({ open, onVerify, onReselect }: Props) {
                     onChange={(e) => setInput(e.target.value)}
                     onInput={(e) => {
                       // 모바일/IME 환경에서 Backspace는 inputType으로 감지
-                      const asAny = e as unknown as { nativeEvent?: any };
+                      const asAny = e as unknown as {
+                        nativeEvent?: { inputType?: string };
+                      };
                       const it = asAny?.nativeEvent?.inputType;
                       if (it === "deleteContentBackward") {
                         const now = Date.now();
@@ -240,7 +288,14 @@ export default function CaptchaModal({ open, onVerify, onReselect }: Props) {
                                 "reserve.capBackspaces",
                                 String(next)
                               );
-                            } catch {}
+                            } catch (error) {
+                              if (import.meta.env.DEV) {
+                                console.warn(
+                                  "[CaptchaModal] reserve.capBackspaces 저장 실패 (onInput)",
+                                  error
+                                );
+                              }
+                            }
                             return next;
                           });
                           lastBackspaceAtRef.current = now;
@@ -260,7 +315,14 @@ export default function CaptchaModal({ open, onVerify, onReselect }: Props) {
                               "reserve.capBackspaces",
                               String(next)
                             );
-                          } catch {}
+                          } catch (error) {
+                            if (import.meta.env.DEV) {
+                              console.warn(
+                                "[CaptchaModal] reserve.capBackspaces 저장 실패 (onKeyDown)",
+                                error
+                              );
+                            }
+                          }
                           return next;
                         });
                       }
@@ -310,7 +372,7 @@ export default function CaptchaModal({ open, onVerify, onReselect }: Props) {
         <div className="text-center text-[12px] text-white">
           <span>좌석 먼저 보고 입력하려면, </span>
           <button
-            onClick={onReselect}
+            onClick={onFold ?? onReselect}
             className="underline hover:cursor-pointer"
           >
             잠깐 접어두기↘

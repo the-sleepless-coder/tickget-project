@@ -3,6 +3,7 @@ import type {
   MyPageStatsResponse,
   MatchDataResponse,
   UserReportLLMResponse,
+  RankingPercentileResponse,
 } from "./types";
 
 /**
@@ -41,6 +42,39 @@ export async function getMyPageStats(
     const errorText = await response.text().catch(() => "");
     throw new Error(
       `마이페이지 통계 조회 실패: ${response.status} ${errorText}`
+    );
+  }
+
+  return response.json();
+}
+
+/**
+ * 마이페이지 랭킹/퍼센타일 통계 조회
+ * - 주간 시즌 정보와 평균 퍼센타일, 퍼센타일 추이 데이터를 반환
+ */
+export async function getRankingPercentile(): Promise<RankingPercentileResponse> {
+  const { accessToken } = useAuthStore.getState();
+
+  const apiUrl = "/api/v1/dev/stats/matchstats/findRanking";
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+  };
+
+  if (accessToken) {
+    headers.Authorization = `Bearer ${accessToken}`;
+  }
+
+  const response = await fetch(apiUrl, {
+    method: "GET",
+    headers,
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => "");
+    throw new Error(
+      `마이페이지 랭킹 통계 조회 실패: ${response.status} ${errorText}`
     );
   }
 

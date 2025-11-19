@@ -162,10 +162,10 @@ export default function UserStats({
 
   return (
     <div className="space-y-6">
-      {/* 평균 성과 카드 */}
+      {/* 기록 평균 카드 */}
       <div className="rounded-xl border border-purple-200 bg-purple-50 p-6">
         <h3 className="mb-4 text-lg font-bold text-neutral-900">
-          {userNickname}님의 평균 성과
+          {userNickname}님의 기록 평균
         </h3>
         <div className="flex flex-col gap-2">
           <div className="flex items-baseline gap-2">
@@ -187,8 +187,8 @@ export default function UserStats({
       {/* 퍼센트 추이 차트 */}
       <div className="rounded-xl border border-neutral-200 bg-white p-6 shadow-sm focus:outline-none focus-visible:outline-none">
         <div className="mb-2 flex items-center justify-between">
-          <h3 className="text-lg font-bold text-neutral-900">성과 추이</h3>
-          <p className="text-xs text-neutral-500">최근 20경기만 표시</p>
+          <h3 className="text-lg font-bold text-neutral-900">기록 추이</h3>
+          <p className="text-xs text-neutral-500">최근 10경기만 표시</p>
         </div>
         <ResponsiveContainer width="100%" height={200}>
           <LineChart data={chartData}>

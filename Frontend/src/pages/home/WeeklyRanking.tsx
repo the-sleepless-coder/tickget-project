@@ -61,7 +61,7 @@ export default function WeeklyRankingPage() {
 
       {loading && (
         <div className="flex h-40 items-center justify-center rounded-xl border border-neutral-200 bg-white text-sm text-neutral-500">
-          불러오는 중...
+          랭킹을 불러오는 중입니다.
         </div>
       )}
 
