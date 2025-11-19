@@ -383,7 +383,7 @@ export async function sendSeatStatsFailed(
     url: `${TICKETING_SERVER_BASE_URL}/${path}`,
     timestamp: new Date().toISOString(),
   };
-  console.log("[seat-stats-failed] API 요청:", requestLog);
+ 
 
   // sessionStorage에 요청 로그 저장 (결과 페이지에서도 확인 가능하도록)
   try {
@@ -414,7 +414,7 @@ export async function sendSeatStatsFailed(
     ...res,
     timestamp: new Date().toISOString(),
   };
-  console.log("[seat-stats-failed] API 응답:", responseLog);
+  
 
   // sessionStorage에 응답 로그 저장
   try {
@@ -502,22 +502,12 @@ export async function sendSeatStatsFailedForMatch(
     const failedKey = `reserve.seatFailed:${matchIdNum}:${userId}`;
 
     if (sessionStorage.getItem(successKey) === "true") {
-      if (import.meta.env.DEV) {
-        console.log(
-          "[seat-stats-failed] 이미 성공 통계가 전송되어 실패 통계를 생략합니다.",
-          { matchId: matchIdNum, userId, trigger }
-        );
-      }
+      
       return null;
     }
 
     if (sessionStorage.getItem(failedKey) === "true") {
-      if (import.meta.env.DEV) {
-        console.log(
-          "[seat-stats-failed] 이미 실패 통계가 전송되어 재전송을 생략합니다.",
-          { matchId: matchIdNum, userId, trigger }
-        );
-      }
+      
       return null;
     }
   } catch {
@@ -527,26 +517,13 @@ export async function sendSeatStatsFailedForMatch(
   recordSeatCompleteNow();
   const payload = buildSeatMetricsPayload(userId);
 
-  if (import.meta.env.DEV) {
-    console.log("[seat-stats-failed] 전송 시도:", {
-      matchId: matchIdNum,
-      userId,
-      trigger,
-      payload,
-    });
-  }
+  
 
   try {
     const res = await sendSeatStatsFailed(matchIdNum, payload);
     return res;
   } catch (err) {
-    if (import.meta.env.DEV) {
-      console.error("[seat-stats-failed] 전송 실패:", err, {
-        matchId: matchIdNum,
-        userId,
-        trigger,
-      });
-    }
+    
     return null;
   }
 }

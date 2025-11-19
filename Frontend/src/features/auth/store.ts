@@ -40,21 +40,21 @@ export const useAuthStore = create<AuthState>()(
           profileImageUrl: data.profileImageUrl ?? null,
         });
         // 개발 환경에서 store 상태 확인용
-        if (import.meta.env.DEV) {
-          console.log("Auth Store 업데이트:", {
-            accessToken: data.accessToken
-              ? `${data.accessToken.substring(0, 20)}...`
-              : null,
-            refreshToken: data.refreshToken
-              ? `${data.refreshToken.substring(0, 20)}...`
-              : null,
-            userId: data.userId,
-            email: data.email,
-            nickname: data.nickname,
-            name: data.name,
-            profileImageUrl: data.profileImageUrl,
-          });
-        }
+        // if (import.meta.env.DEV) {
+        //   console.log("Auth Store 업데이트:", {
+        //     accessToken: data.accessToken
+        //       ? `${data.accessToken.substring(0, 20)}...`
+        //       : null,
+        //     refreshToken: data.refreshToken
+        //       ? `${data.refreshToken.substring(0, 20)}...`
+        //       : null,
+        //     userId: data.userId,
+        //     email: data.email,
+        //     nickname: data.nickname,
+        //     name: data.name,
+        //     profileImageUrl: data.profileImageUrl,
+        //   });
+        // }
       },
 
       clearAuth: () => {

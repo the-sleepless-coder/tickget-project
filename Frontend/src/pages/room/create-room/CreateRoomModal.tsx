@@ -714,24 +714,13 @@ export default function CreateRoomModal({
                       tsxUrl: hallType === "AI_GENERATED" ? aiTsxUrl : null,
                     };
 
-                    console.log("🚀 방 생성 요청 시작");
-                    console.log(
-                      "📦 요청 바디:",
-                      JSON.stringify(payload, null, 2)
-                    );
 
                     const response = await createRoom(
                       payload,
                       thumbnailFile || undefined
                     );
 
-                    console.log("✅ 방 생성 성공!");
-                    console.log(
-                      "📥 응답 데이터:",
-                      JSON.stringify(response, null, 2)
-                    );
-                    console.log("🆔 생성된 방 ID:", response.roomId);
-
+                   
                     // Match Store에 matchId 저장 (응답에 matchId가 있는 경우)
                     // 주의: matchId는 티켓팅 시스템에서 생성되는 별도의 ID입니다.
                     try {
@@ -749,17 +738,9 @@ export default function CreateRoomModal({
                             useMatchStore.getState().matchId;
                           useMatchStore.getState().setMatchId(parsed);
                           if (currentMatchId !== parsed) {
-                            console.log(
-                              "[CreateRoom] matchId 업데이트:",
-                              currentMatchId,
-                              "->",
-                              parsed
-                            );
+                            
                           } else {
-                            console.log(
-                              "[CreateRoom] matchId 저장 완료:",
-                              parsed
-                            );
+                            
                           }
                         } else {
                           console.warn("[CreateRoom] matchId 파싱 실패:", {

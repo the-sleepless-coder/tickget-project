@@ -497,25 +497,22 @@ export default function TsxPreview({
               
               // 컴포넌트 추출 (여러 패턴 시도)
               if (typeof __defaultExport !== 'undefined') {
-                console.log('[TsxPreview] Found __defaultExport');
+                
                 return __defaultExport;
               }
               if (module.exports && module.exports.default) {
-                console.log('[TsxPreview] Found module.exports.default');
                 return module.exports.default;
               }
               if (module.exports && typeof module.exports === 'function') {
-                console.log('[TsxPreview] Found module.exports (function)');
                 return module.exports;
               }
               if (typeof module.exports === 'object' && module.exports !== null) {
-                console.log('[TsxPreview] Found module.exports (object)');
                 return module.exports;
               }
               // 컴포넌트 이름으로 직접 접근 시도
               try {
                 if (typeof ${componentName} !== 'undefined') {
-                  console.log('[TsxPreview] Found component by name:', '${componentName}');
+               
                   return ${componentName};
                 }
               } catch (e) {
@@ -692,20 +689,8 @@ export default function TsxPreview({
         : Math.min(scaleX, scaleY, 1);
       const newScale = maxScale > 0 ? maxScale : 1;
 
-      // 디버깅 로그 (개발 환경에서만)
-      if (import.meta.env.DEV && overflowHidden) {
-        console.log("[TsxPreview] 스케일 계산:", {
-          containerWidth,
-          containerHeight,
-          innerWidth,
-          innerHeight,
-          scaleX,
-          scaleY,
-          maxScale,
-          newScale,
-          currentScale: scaleRef.current,
-        });
-      }
+     
+     
 
       // 스케일 값이 유의미하게 변경된 경우에만 업데이트 (0.05 이상 차이)
       // 작은 변화는 무시하여 깜빡임 방지

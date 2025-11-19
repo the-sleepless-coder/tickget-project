@@ -93,21 +93,21 @@ export function createStompClient(options: WebSocketOptions = {}): Client {
     heartbeatOutgoing,
     debug: (str) => {
       if (import.meta.env.DEV) {
-        console.log("[STOMP]", str);
+       
       }
     },
   });
 
   client.onConnect = () => {
     if (import.meta.env.DEV) {
-      console.log("WebSocket 연결 성공");
+     
     }
     onConnect?.();
   };
 
   client.onDisconnect = () => {
     if (import.meta.env.DEV) {
-      console.log("WebSocket 연결 끊김");
+     
     }
     onDisconnect?.();
   };
@@ -134,7 +134,7 @@ export function createStompClient(options: WebSocketOptions = {}): Client {
 export function connectStompClient(client: Client): void {
   if (!client.active) {
     if (import.meta.env.DEV) {
-      console.log("STOMP 클라이언트 활성화");
+      
     }
     client.activate();
   }

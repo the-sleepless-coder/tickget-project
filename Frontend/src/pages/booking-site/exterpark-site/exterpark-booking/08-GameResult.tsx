@@ -213,10 +213,7 @@ export default function GameResultPage() {
       if (logsJson) {
         const logs = JSON.parse(logsJson);
         if (Array.isArray(logs) && logs.length > 0) {
-          console.log(
-            "[seat-stats-failed] 저장된 로그 (결과 페이지에서 확인):",
-            logs
-          );
+        
         }
       }
     } catch {
