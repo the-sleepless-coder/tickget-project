@@ -1,8 +1,8 @@
-import dayjs, { Dayjs } from "dayjs";
+import { Dayjs } from "dayjs";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { TimePicker } from "@mui/x-date-pickers/TimePicker";
-import { useCallback, useMemo } from "react";
+import { useCallback } from "react";
 
 export default function Step1BasicForm({
   title,
@@ -117,15 +117,18 @@ export default function Step1BasicForm({
               onChange={(e) => {
                 const digits = e.target.value.replace(/[^0-9]/g, "");
                 if (digits === "") return setParticipantCount("");
-                const num = Math.max(2, Math.min(60, parseInt(digits, 10)));
+                // 1도 입력 가능하게 허용 (최소 1, 최대 60)
+                const num = Math.max(1, Math.min(60, parseInt(digits, 10)));
                 setParticipantCount(String(num));
               }}
               className={`w-full text-gray-600 text-lg font-semibold border-b-2 ${
-                showErrors &&
-                matchType === "versus" &&
-                participantCount.trim().length === 0
+                matchType === "versus" && participantCount === "1"
                   ? "border-red-500"
-                  : "border-gray-300"
+                  : showErrors &&
+                      matchType === "versus" &&
+                      participantCount.trim().length === 0
+                    ? "border-red-500"
+                    : "border-gray-300"
               } px-2 py-3 pr-20 outline-none focus:border-purple-600`}
               placeholder="참가 인원"
               inputMode="numeric"

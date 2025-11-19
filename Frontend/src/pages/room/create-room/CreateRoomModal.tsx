@@ -499,8 +499,11 @@ export default function CreateRoomModal({
                 type="button"
                 onClick={() => {
                   const isTitleValid = title.trim().length > 0;
+                  // 멀티 모드일 때: 참가 인원이 있고, 1이 아니어야 함 (2~60명)
                   const isParticipantValid =
-                    matchType === "solo" || participantCount.trim().length > 0;
+                    matchType === "solo" ||
+                    (participantCount.trim().length > 0 &&
+                      participantCount !== "1");
                   if (isTitleValid && isParticipantValid) {
                     setShowStep1Errors(false);
                     setStep(2);
@@ -714,13 +717,11 @@ export default function CreateRoomModal({
                       tsxUrl: hallType === "AI_GENERATED" ? aiTsxUrl : null,
                     };
 
-
                     const response = await createRoom(
                       payload,
                       thumbnailFile || undefined
                     );
 
-                   
                     // Match Store에 matchId 저장 (응답에 matchId가 있는 경우)
                     // 주의: matchId는 티켓팅 시스템에서 생성되는 별도의 ID입니다.
                     try {
@@ -738,9 +739,9 @@ export default function CreateRoomModal({
                             useMatchStore.getState().matchId;
                           useMatchStore.getState().setMatchId(parsed);
                           if (currentMatchId !== parsed) {
-                            
+                            // matchId가 변경된 경우 (추가 처리 없음)
                           } else {
-                            
+                            // matchId가 동일한 경우 (추가 처리 없음)
                           }
                         } else {
                           console.warn("[CreateRoom] matchId 파싱 실패:", {
