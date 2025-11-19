@@ -330,11 +330,11 @@ public class SeatConfirmationService {
             cleanupAllMatchRedis(matchId);
 
             // 5. 이벤트 발행 (트랜잭션 커밋 후 실행됨)
-            eventPublisher.publishEvent(new MatchEndEvent(matchId, match.getRoomId()));
+         //   eventPublisher.publishEvent(new MatchEndEvent(matchId, match.getRoomId()));
 
-//            // 5. 외부 서버 알림
-//            statsServerClient.notifyMatchEnd(matchId);
-//            roomServerClient.notifyMatchEnd(match.getRoomId());
+            // 5. 외부 서버 알림
+            statsServerClient.notifyMatchEnd(matchId);
+            roomServerClient.notifyMatchEnd(match.getRoomId());
 
             log.info(" 경기 종료 처리 완료: matchId={}", matchId);
             log.info("ℹ 미확정 유저는 클라이언트에서 FailedStatsController API 호출 필요");
