@@ -1,11 +1,4 @@
-import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Button,
-  Typography,
-} from "@mui/material";
+import CustomAlert from "../shared/ui/common/CustomAlert";
 
 export default function SeatTakenAlert({
   open,
@@ -18,20 +11,14 @@ export default function SeatTakenAlert({
   message?: string;
 }) {
   return (
-    <Dialog open={open} onClose={onClose} aria-labelledby="seat-taken-title">
-      <DialogContent dividers>
-        <Typography>{message}</Typography>
-      </DialogContent>
-      <DialogActions>
-        <Button
-          variant="contained"
-          color="primary"
-          onClick={onClose}
-          sx={{ borderRadius: "24px", px: 3 }}
-        >
-          확인
-        </Button>
-      </DialogActions>
-    </Dialog>
+    <CustomAlert
+      open={open}
+      onClose={onClose}
+      message={message}
+      type="warning"
+      title="tickget.kr 내용:"
+      variant="simple"
+      confirmColor="#6d28d9"
+    />
   );
 }

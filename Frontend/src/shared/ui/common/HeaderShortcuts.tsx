@@ -2,6 +2,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { exitRoom } from "@features/room/api";
 import { useAuthStore } from "@features/auth/store";
 import { paths } from "../../../app/routes/paths";
+import { showConfirm } from "../../utils/confirm";
 
 function useConfirmExitRoom() {
   const location = useLocation();
@@ -22,7 +23,14 @@ function useConfirmExitRoom() {
     const isInRoom = location.pathname.startsWith("/i-ticket");
     if (!isInRoom) return true;
 
-    const ok = confirm("정말 방을 나가시겠습니까?");
+    const ok = await showConfirm(
+      "정말 방을 나가시겠습니까?\n취소하면 현재 화면을 유지합니다.",
+      {
+        confirmText: "방 나가기",
+        cancelText: "취소",
+        type: "warning",
+      }
+    );
     if (!ok) return false;
 
     try {
@@ -85,7 +93,15 @@ export default function HeaderShortcuts() {
 
     // 로그인 여부 체크 (기존 방 만들기 버튼과 동일한 조건)
     if (!userId || !nickname || !accessToken) {
-      if (confirm("로그인이 필요합니다. 로그인 페이지로 이동하시겠습니까?")) {
+      const shouldLogin = await showConfirm(
+        "로그인이 필요합니다. 로그인 페이지로 이동하시겠습니까?",
+        {
+          confirmText: "로그인",
+          cancelText: "취소",
+          type: "info",
+        }
+      );
+      if (shouldLogin) {
         navigate(paths.auth.login);
       }
       return;

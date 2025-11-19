@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { paths } from "../../../app/routes/paths";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { joinRoom } from "@features/room/api";
+import { showConfirm } from "../../../shared/utils/confirm";
 import { useAuthStore } from "@features/auth/store";
 
 type RoomCardVariant = "purple" | "blue" | "green" | "orange" | "gray";
@@ -340,7 +341,17 @@ export default function RoomCard({
     }
 
     if (!userId || !nickname) {
-      alert("로그인이 필요합니다.");
+      const shouldLogin = await showConfirm(
+        "로그인이 필요합니다. 로그인 페이지로 이동하시겠습니까?",
+        {
+          confirmText: "로그인",
+          cancelText: "취소",
+          type: "info",
+        }
+      );
+      if (shouldLogin) {
+        navigate(paths.auth.login);
+      }
       return;
     }
 

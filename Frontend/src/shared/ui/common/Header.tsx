@@ -6,6 +6,7 @@ import { normalizeProfileImageUrl } from "@shared/utils/profileImageUrl";
 import { useWebSocketStore } from "@shared/lib/websocket-store";
 import { disconnectStompClient } from "@shared/lib/websocket";
 import HeaderShortcuts from "./HeaderShortcuts";
+import { showConfirm } from "../../utils/confirm";
 
 export default function Header() {
   const location = useLocation();
@@ -62,7 +63,14 @@ export default function Header() {
     const isInRoom = location.pathname.startsWith("/i-ticket");
     if (!isInRoom) return true;
 
-    const ok = confirm("정말 방을 나가시겠습니까?");
+    const ok = await showConfirm(
+      "정말 방을 나가시겠습니까?\n취소하면 현재 화면을 유지합니다.",
+      {
+        confirmText: "방 나가기",
+        cancelText: "취소",
+        type: "warning",
+      }
+    );
     if (!ok) return false;
 
     try {

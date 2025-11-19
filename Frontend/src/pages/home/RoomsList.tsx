@@ -20,6 +20,7 @@ import Thumbnail05 from "../../shared/images/thumbnail/Thumbnail05.webp";
 import Thumbnail06 from "../../shared/images/thumbnail/Thumbnail06.webp";
 import RoomSortControls from "./_components/RoomSortButton";
 import { sortRooms } from "./_components/RoomSortUtil";
+import { showConfirm } from "../../shared/utils/confirm";
 
 type SortKey = "start" | "latest";
 
@@ -290,13 +291,17 @@ export default function RoomsPage() {
           </div>
           <button
             type="button"
-            onClick={() => {
+            onClick={async () => {
               if (!userId || !nickname) {
-                if (
-                  confirm(
-                    "로그인이 필요합니다. 로그인 페이지로 이동하시겠습니까?"
-                  )
-                ) {
+                const shouldLogin = await showConfirm(
+                  "로그인이 필요합니다. 로그인 페이지로 이동하시겠습니까?",
+                  {
+                    confirmText: "로그인",
+                    cancelText: "취소",
+                    type: "info",
+                  }
+                );
+                if (shouldLogin) {
                   navigate(paths.auth.login);
                 }
                 return;

@@ -409,12 +409,22 @@ export default function SelectSeatPage() {
             });
           } finally {
             // 알림 후 결과 페이지로 이동
-            alert("경기가 종료되었습니다.\n\n결과 화면으로 이동합니다.");
-            recordSeatCompleteNow();
-            const metricsQs = buildMetricsQueryFromStorage();
-            const prefix = metricsQs ? `${metricsQs}&` : "?";
-            const target = paths.booking.gameResult + `${prefix}failed=true`;
-            window.location.replace(target);
+            const { showAlert } = await import(
+              "../../../../shared/utils/alert"
+            );
+            showAlert("경기가 종료되었습니다.\n\n결과 화면으로 이동합니다.", {
+              type: "info",
+              title: "경기 종료",
+              onConfirm: () => {
+                recordSeatCompleteNow();
+                const metricsQs = buildMetricsQueryFromStorage();
+                const prefix = metricsQs ? `${metricsQs}&` : "?";
+                const target =
+                  paths.booking.gameResult + `${prefix}failed=true`;
+                window.location.replace(target);
+              },
+            });
+            return; // onConfirm에서 이동하므로 여기서는 return
           }
         })();
       } catch (e) {

@@ -30,5 +30,6 @@ export const paths = {
   dashboard: "/dashboard",
   profile: "/profile",
   gameResult: "/game-result",
+  design: "/design",
   notFound: "*",
 } as const;
