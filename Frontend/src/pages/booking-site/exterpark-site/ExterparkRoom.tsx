@@ -628,6 +628,58 @@ export default function ITicketPage() {
           }
           break;
 
+        case "HOST_CHANGED": {
+          try {
+            const p = payload as
+              | {
+                  previousHostId?: string | number;
+                  newHostId?: string | number;
+                }
+              | undefined;
+
+            if (!p || p.newHostId == null) {
+              console.warn(
+                "⚠️ [HOST_CHANGED] payload.newHostId가 없습니다:",
+                event
+              );
+              break;
+            }
+
+            // newHostId를 숫자로 변환
+            const newHostId =
+              typeof p.newHostId === "string"
+                ? Number(p.newHostId)
+                : p.newHostId;
+            const previousHostId =
+              p.previousHostId != null
+                ? typeof p.previousHostId === "string"
+                  ? Number(p.previousHostId)
+                  : p.previousHostId
+                : null;
+
+            if (Number.isNaN(newHostId)) {
+              console.warn(
+                "⚠️ [HOST_CHANGED] newHostId가 유효한 숫자가 아닙니다:",
+                p.newHostId
+              );
+              break;
+            }
+
+            console.log("👑 [HOST_CHANGED] 방장 변경:", {
+              previousHostId,
+              newHostId,
+              message: event.message,
+              timestamp: event.timestamp ?? Date.now(),
+            });
+
+            // 방장 ID 업데이트
+            setHostUserId(newHostId);
+          } catch (e) {
+            console.error("❌ [HOST_CHANGED] 처리 실패:", e, event);
+          }
+          break;
+        }
+
         default:
           console.log("ℹ️ 알 수 없는 이벤트 타입:", eventType, event);
       }
@@ -922,23 +974,45 @@ export default function ITicketPage() {
     })();
   }, [roomId, location.search, roomData?.roomId, joinResponse?.roomMembers]);
 
-  // 방장 userId 결정: 방 생성 유저의 userId 또는 roomDetail의 hostId
-  const hostUserId = useMemo(() => {
-    return roomRequest?.userId || null;
-  }, [roomRequest?.userId]);
+  // 방장 userId 상태 관리 (WebSocket 이벤트로 업데이트 가능)
+  const [hostUserId, setHostUserId] = useState<number | null>(() => {
+    return (
+      joinResponse?.hostId || roomDetail?.hostId || roomRequest?.userId || null
+    );
+  });
 
-  // 입장자 목록 구성: roomMembers를 Participant 형식으로 변환
+  // joinResponse, roomDetail, roomRequest 변경 시 hostUserId 업데이트
+  useEffect(() => {
+    const newHostId =
+      joinResponse?.hostId || roomDetail?.hostId || roomRequest?.userId || null;
+    setHostUserId((prev) => {
+      // 이전 값과 다를 때만 업데이트 (무한 루프 방지)
+      if (prev !== newHostId) {
+        return newHostId;
+      }
+      return prev;
+    });
+  }, [joinResponse?.hostId, roomDetail?.hostId, roomRequest?.userId]);
+
+  // 입장자 목록 구성: roomMembers를 Participant 형식으로 변환하고 방장을 맨 위로 정렬
   const participants: Participant[] = useMemo(() => {
-    return roomMembers.map((member) => {
+    const mapped = roomMembers.map((member) => {
       const fallback = "/profile.png";
       const avatar =
         normalizeProfileImageUrl(member.profileImageUrl, member.userId) ??
         fallback;
       return {
         name: member.username,
-        isHost: hostUserId !== null && member.userId === hostUserId, // 방 생성 유저가 방장
+        isHost: hostUserId !== null && member.userId === hostUserId,
         avatarUrl: avatar,
       };
+    });
+
+    // 방장을 맨 위로 정렬
+    return mapped.sort((a, b) => {
+      if (a.isHost && !b.isHost) return -1; // a가 방장이면 앞으로
+      if (!a.isHost && b.isHost) return 1; // b가 방장이면 앞으로
+      return 0; // 둘 다 방장이거나 둘 다 아니면 순서 유지
     });
   }, [roomMembers, hostUserId]);
 
