@@ -5,12 +5,14 @@ import com.ticketing.seat.dto.SeatConfirmationRequest;
 import com.ticketing.seat.dto.SeatConfirmationResponse;
 import com.ticketing.entity.Match;
 import com.ticketing.entity.UserStats;
+import com.ticketing.seat.event.MatchEndEvent;
 import com.ticketing.seat.exception.MatchNotFoundException;
 import com.ticketing.seat.redis.MatchStatusRepository;
 import com.ticketing.repository.MatchRepository;
 import com.ticketing.repository.UserStatsRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,6 +35,7 @@ public class SeatConfirmationService {
     private final StringRedisTemplate redisTemplate;
     private final RoomServerClient roomServerClient;
     private final StatsServerClient statsServerClient;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public SeatConfirmationResponse confirmSeats(Long matchId, SeatConfirmationRequest request) {
@@ -145,6 +148,7 @@ public class SeatConfirmationService {
                                         .build())
                                 .toList()
                 )
+                .totalRank(-1)
                 .matchId(matchId)
                 .userId(userId)
                 .build();
@@ -291,6 +295,7 @@ public class SeatConfirmationService {
                 .success(true)
                 .message("개인 경기 종료")
                 .userRank(userRank)
+                .totalRank(totalRank)
                 .confirmedSeats(confirmedSeats)
                 .matchId(matchId)
                 .userId(userId)
@@ -324,9 +329,12 @@ public class SeatConfirmationService {
             // 4. Redis 정리
             cleanupAllMatchRedis(matchId);
 
-            // 5. 외부 서버 알림
-            statsServerClient.notifyMatchEnd(matchId);
-            roomServerClient.notifyMatchEnd(match.getRoomId());
+            // 5. 이벤트 발행 (트랜잭션 커밋 후 실행됨)
+            eventPublisher.publishEvent(new MatchEndEvent(matchId, match.getRoomId()));
+
+//            // 5. 외부 서버 알림
+//            statsServerClient.notifyMatchEnd(matchId);
+//            roomServerClient.notifyMatchEnd(match.getRoomId());
 
             log.info(" 경기 종료 처리 완료: matchId={}", matchId);
             log.info("ℹ 미확정 유저는 클라이언트에서 FailedStatsController API 호출 필요");
