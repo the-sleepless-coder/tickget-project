@@ -352,7 +352,7 @@ export default function SocialLogin() {
       setAuth(data);
       const storeState = useAuthStore.getState();
 
-      openSnackbar("테스트 계정이 생성되었습니다!", "success");
+      openSnackbar("게스트 계정이 생성되었습니다!", "success");
       const from =
         (location.state as { from?: { pathname?: string } })?.from?.pathname ||
         "/";
@@ -360,11 +360,11 @@ export default function SocialLogin() {
         navigate(from, { replace: true });
       }, 1500);
     } catch (error) {
-      console.error("테스트 계정 생성 오류:", error);
+      console.error("게스트 계정 생성 오류:", error);
       const errorMessage =
         error instanceof Error
           ? error.message
-          : "테스트 계정 생성 중 오류가 발생했습니다.";
+          : "게스트 계정 생성 중 오류가 발생했습니다.";
       openSnackbar(errorMessage, "error");
     } finally {
       setIsLoading(null);
@@ -470,11 +470,7 @@ export default function SocialLogin() {
             backgroundColor: "transparent",
             color: "#FFFFFF",
             border: "1px solid transparent",
-            "&:hover:not(:disabled)": {
-              backgroundColor: "#ef4444",
-              color: "#ffffff",
-              border: "1px solid #ef4444",
-            },
+            cursor: "default",
             "&:disabled": {
               backgroundColor: "transparent",
               color: "#FFFFFF",
@@ -570,12 +566,12 @@ export default function SocialLogin() {
           {/* 흰색 카드 */}
           <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-sm md:max-w-md">
             {/* 로고와 제목 */}
-            <div className="text-center mb-8">
+            <div className="text-center mb-7">
               <div className="flex justify-center items-center mb-4">
                 <img
                   src="/header-logo-violet.svg"
                   alt="Tickget Logo"
-                  className="h-12 w-auto"
+                  className="h-10 w-auto"
                 />
               </div>
               <p className="text-gray-600 text-sm">
@@ -606,19 +602,32 @@ export default function SocialLogin() {
                 </Button>
               ))}
 
-              {/* 테스트 계정 생성 버튼 */}
-              <Button
-                size="medium"
-                fullWidth
-                className="h-12 flex items-center justify-center rounded-lg font-medium !bg-c-purple-250 hover:!bg-c-purple-300 !text-white"
-                sx={{
-                  textTransform: "none",
-                }}
-                onClick={handleTestAccountCreate}
-                disabled={isLoading !== null}
-              >
-                <span className="text-sm">테스트 계정 생성</span>
-              </Button>
+              {/* 게스트 계정 로그인 버튼 */}
+              <div className="mt-3">
+                <Button
+                  size="medium"
+                  fullWidth
+                  className="h-12 flex items-center justify-center rounded-lg font-medium"
+                  sx={{
+                    backgroundColor: "#ffffff",
+                    color: "#000000",
+                    border: "1px solid #e5e7eb",
+                    textTransform: "none",
+                    "&:hover": { backgroundColor: "#f9fafb" },
+                  }}
+                  onClick={handleTestAccountCreate}
+                  disabled={isLoading !== null}
+                >
+                  <div className="mr-2">
+                    <img
+                      src="/tickget-login-logo.jpg"
+                      alt="Test Account"
+                      className="w-6 h-5"
+                    />
+                  </div>
+                  <span className="text-sm">게스트 계정으로 로그인</span>
+                </Button>
+              </div>
             </div>
 
             {/* 회원가입 링크 */}
