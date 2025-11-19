@@ -11,6 +11,7 @@ export interface RoomResponse {
   botCount: number;
   maxUserCount: number;
   currentUserCount: number;
+  hostId?: number; // 방장 ID
   difficulty: string;
   roomType: RoomType;
   status: RoomStatus;

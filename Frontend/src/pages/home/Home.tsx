@@ -17,6 +17,7 @@ import Thumbnail03 from "../../shared/images/thumbnail/Thumbnail03.webp";
 import Thumbnail04 from "../../shared/images/thumbnail/Thumbnail04.webp";
 import Thumbnail05 from "../../shared/images/thumbnail/Thumbnail05.webp";
 import Thumbnail06 from "../../shared/images/thumbnail/Thumbnail06.webp";
+import { joinRoom } from "@features/room/api";
 
 type SortKey = "start" | "latest" | "all";
 
@@ -44,6 +45,7 @@ export default function HomePage() {
     maxUserCount?: number;
     botCount?: number;
     totalSeat?: number;
+    hostId?: number; // 방장 ID
   };
 
   const [rooms, setRooms] = useState<UiRoom[]>([]);
@@ -174,6 +176,7 @@ export default function HomePage() {
             maxUserCount: r.maxUserCount,
             botCount: r.botCount,
             totalSeat: r.totalSeat,
+            hostId: r.hostId,
           };
         }
       );
@@ -206,16 +209,63 @@ export default function HomePage() {
       activeSort === "latest" ? "latest" : "start"
     );
   }, [rooms, activeSort]);
+
+  // userId가 2인 사람이 생성한 방 찾기
+  const specialHostRoom = useMemo(() => {
+    return rooms.find(
+      (r) => r.hostId === 2 && !r.ongoing && !r.startingSoon && r.startTime
+    );
+  }, [rooms]);
+
+  // 배너 클릭 핸들러
+  const handleBannerClick = useCallback(async () => {
+    if (!specialHostRoom) return;
+
+    if (!userId || !nickname) {
+      if (confirm("로그인이 필요합니다. 로그인 페이지로 이동하시겠습니까?")) {
+        navigate(paths.auth.login);
+      }
+      return;
+    }
+
+    try {
+      const response = await joinRoom(specialHostRoom.id, {
+        userId,
+        userName: nickname,
+      });
+
+      // 방 입장 성공 시 해당 방 페이지로 이동
+      navigate(paths.iTicket, {
+        state: {
+          joinResponse: response,
+        },
+      });
+    } catch (error) {
+      console.error("방 입장 실패:", error);
+      alert("방 입장에 실패했습니다. 다시 시도해주세요.");
+    }
+  }, [specialHostRoom, userId, nickname, navigate]);
+
   return (
     <div className="mx-auto max-w-7xl p-4 sm:p-6">
       {/* Banner */}
       <div className="relative overflow-hidden rounded-2xl">
-        <img
-          src="/banner-get.webp"
-          alt="tickget 배너"
-          className="w-full select-none"
-          draggable={false}
-        />
+        {specialHostRoom ? (
+          <img
+            src="/event.webp"
+            alt="이벤트 배너"
+            className="w-full select-none cursor-pointer hover:opacity-90 transition-opacity"
+            draggable={false}
+            onClick={handleBannerClick}
+          />
+        ) : (
+          <img
+            src="/banner-get.webp"
+            alt="tickget 배너"
+            className="w-full select-none"
+            draggable={false}
+          />
+        )}
       </div>
 
       {/* Full-width Event Banner */}
