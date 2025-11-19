@@ -9,6 +9,7 @@ interface UserRank {
   id: number;
   nickname: string;
   rank: number;
+  rankAmongUsers?: number;
   seatArea: string;
   seatSection?: string;
   seatRow?: number;
@@ -519,6 +520,23 @@ export default function MatchDetailContent({
   })();
 
   const getSeatDetails = (user: UserRank): string[] => {
+    // 1) 여러 좌석이 있는 경우 (예: "1-15-32,1-14-30")
+    if (user.seatArea && user.seatArea.includes(",")) {
+      return user.seatArea
+        .split(/[,\\n]+/)
+        .map((seat) => seat.trim())
+        .filter(Boolean)
+        .map((seat) => {
+          const match = seat.match(/^(\d+)-(\d+)-(\d+)$/);
+          if (match) {
+            const [, section, row, col] = match;
+            return `${section}구역-${row}열-${col}`;
+          }
+          return seat;
+        });
+    }
+
+    // 2) 단일 좌석 정보가 명시된 경우
     if (
       user.seatSection &&
       user.seatSection !== "failed" &&
@@ -528,11 +546,24 @@ export default function MatchDetailContent({
       return [`${user.seatSection}구역-${user.seatRow}열-${user.seatCol}`];
     }
 
+    // 3) seatArea만 있는 경우 (예: "1-15-32" 또는 "실패")
     if (user.seatArea) {
       return user.seatArea
         .split(/[,\\n]+/)
         .map((seat) => seat.trim())
-        .filter(Boolean);
+        .filter(Boolean)
+        .map((seat) => {
+          const match = seat.match(/^(\d+)-(\d+)-(\d+)$/);
+          if (match) {
+            const [, section, row, col] = match;
+            return `${section}구역-${row}열-${col}`;
+          }
+          // 실패 좌석은 '-'로 표시
+          if (seat.toLowerCase() === "failed" || seat === "실패") {
+            return "-";
+          }
+          return seat;
+        });
     }
 
     return [];
@@ -749,12 +780,45 @@ export default function MatchDetailContent({
 
       return sectionUsers
         .map((user) => {
-          const seatInfo =
-            user.seatSection && user.seatRow && user.seatCol
-              ? `${user.seatSection}구역-${user.seatRow}열-${user.seatCol}`
-              : "";
+          const seats: string[] = [];
+
+          // 1) seatArea에 여러 좌석이 있는 경우 (예: "1-15-32,1-14-30")
+          if (user.seatArea) {
+            user.seatArea
+              .split(/[,\\n]+/)
+              .map((s) => s.trim())
+              .filter(Boolean)
+              .forEach((seat) => {
+                const match = seat.match(/^(\d+)-(\d+)-(\d+)$/);
+                if (match) {
+                  const [, sec, row, col] = match;
+                  // 현재 섹션과 일치하는 좌석만 표시
+                  if (String(Number(sec)) === sectionId) {
+                    seats.push(`${sec}구역-${row}열-${col}`);
+                  }
+                }
+              });
+          }
+
+          // 2) fallback: 단일 좌석 정보가 있는 경우
+          if (
+            seats.length === 0 &&
+            user.seatSection &&
+            user.seatSection !== "failed" &&
+            user.seatRow !== undefined &&
+            user.seatCol !== undefined &&
+            String(Number(user.seatSection)) === sectionId
+          ) {
+            seats.push(
+              `${user.seatSection}구역-${user.seatRow}열-${user.seatCol}`
+            );
+          }
+
+          const seatText = seats.length > 0 ? seats.join(", ") : "";
+
+          // 이름과 좌석 번호를 한 줄로 표시
           return `<span style="color: #7c3aed;">${user.nickname}</span>${
-            seatInfo ? ` <span style="color: #acacac;">${seatInfo}</span>` : ""
+            seatText ? ` <span style="color: #acacac;">${seatText}</span>` : ""
           }`;
         })
         .join("<br/>");
@@ -924,7 +988,14 @@ export default function MatchDetailContent({
           <div className="max-h-96 space-y-2 overflow-y-auto pr-2">
             {users
               .slice()
-              .sort((a, b) => a.rank - b.rank)
+              // 랭크 -1(실패한 유저)는 아래로 내리고, 나머지는 랭크 오름차순 정렬
+              .sort((a, b) => {
+                const aFailed = a.rank === -1;
+                const bFailed = b.rank === -1;
+                if (aFailed && !bFailed) return 1;
+                if (!aFailed && bFailed) return -1;
+                return a.rank - b.rank;
+              })
               .map((user) => {
                 const seatDetails = getSeatDetails(user);
                 const resolvedProfileImage =
@@ -961,9 +1032,12 @@ export default function MatchDetailContent({
                         : "border-neutral-200 bg-white hover:bg-neutral-50"
                     }`}
                   >
-                    <span className="text-lg font-bold text-neutral-600">
-                      {user.rank === -1 ? "-" : `${user.rank}등`}{" "}
-                    </span>
+                    {/* 등수 영역: 고정 가로폭을 가진 칼럼 */}
+                    <div className="w-8 flex-shrink-0 text-left">
+                      <span className="text-lg font-bold text-neutral-600">
+                        {user.rank === -1 ? "실패" : `${user.rank}등`}
+                      </span>
+                    </div>
                     <div className="ml-3 mr-3">
                       <UserAvatar
                         nickname={user.nickname}
@@ -975,6 +1049,12 @@ export default function MatchDetailContent({
                         <span className="text-base font-semibold text-neutral-700 group-hover:text-neutral-900">
                           {user.nickname}
                         </span>
+                        {typeof user.rankAmongUsers === "number" &&
+                          user.rankAmongUsers > 0 && (
+                            <span className="font-semibold text-xs text-neutral-800">
+                              (전체랭크 {user.rankAmongUsers}등)
+                            </span>
+                          )}
                       </div>
                       {/* {user.metrics && (
                         <div className="mt-1 text-xs text-neutral-500">

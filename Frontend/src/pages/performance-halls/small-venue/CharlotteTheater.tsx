@@ -91,6 +91,16 @@ export default function SmallVenue({
   };
   const LIGHT_GRAY = "#d4d4d8";
 
+  // 도면상 존재하지 않아야 하는 좌석(강제 비활성/투명 처리)
+  // 키 형식: `${displayRowInSection}-${col}`
+  const FORCE_HIDDEN_SEATS = new Set([
+    "29-30",
+    "31-30",
+    "33-30",
+    "33-27",
+    "33-17",
+  ]);
+
   type BlockPos = "left" | "center" | "right";
   const COLORS = {
     OP: "#A0D53F",
@@ -258,6 +268,10 @@ export default function SmallVenue({
           const isTaken = effectiveTakenSeats.has(takenSeatId);
 
           const opacityVal = (() => {
+            // 도면상 존재하지 않아야 하는 좌석은 강제로 숨김 처리
+            if (FORCE_HIDDEN_SEATS.has(`${displayRowInSection}-${col}`)) {
+              return 0;
+            }
             if (isOpSeat) return 0;
             if (isHiddenRow) return 0;
             if (isTaken) return 0; // TAKEN 또는 MY_RESERVED 좌석은 투명 처리
