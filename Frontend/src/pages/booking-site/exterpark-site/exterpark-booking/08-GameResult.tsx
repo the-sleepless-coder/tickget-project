@@ -13,6 +13,7 @@ import { paths } from "../../../../app/routes/paths";
 import { finalizeTotalNow } from "../../../../shared/utils/reserveMetrics";
 import { useAuthStore } from "@features/auth/store";
 import { useRoomStore } from "@features/room/store";
+import { useMatchStore } from "@features/booking-site/store";
 import { exitRoom } from "@features/room/api";
 import {
   getRoom,
@@ -213,7 +214,7 @@ export default function GameResultPage() {
       if (logsJson) {
         const logs = JSON.parse(logsJson);
         if (Array.isArray(logs) && logs.length > 0) {
-        
+          // 로그가 있으면 처리 (현재는 무시)
         }
       }
     } catch {
@@ -248,10 +249,20 @@ export default function GameResultPage() {
         const roomDetail = await getRoom(targetRoomId);
         const difficulty = roomDetail.difficulty?.toLowerCase() || "medium";
 
+        // matchId 가져오기 (store 우선, 없으면 URL 파라미터)
+        const matchIdParam = searchParams.get("matchId");
+        const matchIdFromStore = useMatchStore.getState().matchId;
+        const matchId =
+          matchIdFromStore ??
+          (matchIdParam && !Number.isNaN(Number(matchIdParam))
+            ? Number(matchIdParam)
+            : undefined);
+
         // API 요청 데이터 구성
         const payload = {
           difficulty,
           select_time: resolvedSeatTime ?? undefined,
+          matchId: matchId,
           miss_count:
             seatClickMiss != null && seatClickMiss > 0
               ? seatClickMiss
