@@ -60,11 +60,14 @@ export interface RoomMember {
 
 export interface JoinRoomResponse {
   roomId: number;
+  matchId: number | null;
+  hostId: number;
   currentUserCount: number;
   roomMembers: RoomMember[];
   roomStatus: string; // e.g., "WAITING"
   subscriptionTopic: string; // e.g., "/topic/rooms/1"
   totalSeat?: number; // 총 좌석 수
+  tsxUrl: string; // e.g., "default" or actual URL
 }
 
 // Room exit - Types

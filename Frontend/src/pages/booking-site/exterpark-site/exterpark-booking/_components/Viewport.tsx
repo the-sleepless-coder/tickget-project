@@ -13,6 +13,7 @@ import {
   buildMetricsQueryFromStorage,
   recordSeatCompleteNow,
 } from "../../../../../shared/utils/reserveMetrics";
+import { showConfirm } from "../../../../../shared/utils/confirm";
 
 type Props = PropsWithChildren<{
   className?: string;
@@ -125,7 +126,14 @@ export default function Viewport({
       return;
     }
 
-    const ok = window.confirm("정말 방을 나가시겠습니까?");
+    const ok = await showConfirm(
+      "정말 방을 나가시겠습니까?\n취소하면 현재 화면을 유지합니다.",
+      {
+        confirmText: "방 나가기",
+        cancelText: "취소",
+        type: "warning",
+      }
+    );
     if (!ok) return;
 
     setIsExiting(true);

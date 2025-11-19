@@ -11,6 +11,7 @@ export interface RoomResponse {
   botCount: number;
   maxUserCount: number;
   currentUserCount: number;
+  hostId?: number; // 방장 ID
   difficulty: string;
   roomType: RoomType;
   status: RoomStatus;
@@ -196,6 +197,7 @@ export interface SeatConfirmResponse {
   success: boolean;
   message: string;
   userRank: number;
+  totalRank?: number;
   confirmedSeats: Array<{
     seatId: string;
     sectionId: string;

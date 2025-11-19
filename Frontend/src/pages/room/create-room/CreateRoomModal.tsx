@@ -26,6 +26,7 @@ import { getRoomDetail } from "@features/room/api";
 import { useRoomStore } from "@features/room/store";
 import type { CreateRoomRequest } from "@features/room/types";
 import type { ConcertHall } from "@/shared/types/search.types";
+import { showConfirm } from "../../../shared/utils/confirm";
 
 export default function CreateRoomModal({
   open,
@@ -76,7 +77,8 @@ export default function CreateRoomModal({
   const botOptions = useMemo(
     () =>
       [
-        0, 10, 50, 100, 500, 1000, 1250, 2000, 2500, 3000, 3500, 4000, 4500, 5000, 6000, 7000
+        0, 10, 50, 100, 500, 1000, 1250, 2000, 2500, 3000, 3500, 4000, 4500,
+        5000, 6000, 7000,
       ] as const,
     []
   );
@@ -540,7 +542,17 @@ export default function CreateRoomModal({
 
                   // 필수 값 검증
                   if (!userId || !username) {
-                    alert("로그인이 필요합니다.");
+                    const shouldLogin = await showConfirm(
+                      "로그인이 필요합니다. 로그인 페이지로 이동하시겠습니까?",
+                      {
+                        confirmText: "로그인",
+                        cancelText: "취소",
+                        type: "info",
+                      }
+                    );
+                    if (shouldLogin) {
+                      navigate(paths.auth.login);
+                    }
                     return;
                   }
                   if (!title.trim()) {

@@ -23,6 +23,8 @@ import { useRoomStore } from "@features/room/store";
 import { useMatchStore } from "@features/booking-site/store";
 import { useNavigate } from "react-router-dom";
 import ExitToAppIcon from "@mui/icons-material/ExitToApp";
+import { showAlert } from "../../../shared/utils/alert";
+import { showConfirm } from "../../../shared/utils/confirm";
 import Thumbnail01 from "../../../shared/images/thumbnail/Thumbnail01.webp";
 import Thumbnail02 from "../../../shared/images/thumbnail/Thumbnail02.webp";
 import Thumbnail03 from "../../../shared/images/thumbnail/Thumbnail03.webp";
@@ -439,13 +441,24 @@ export default function ITicketPage() {
                   trigger: "MATCH_ENDED@ExterparkRoom",
                 });
               } finally {
-                const metricsQs = new URLSearchParams(
-                  window.location.search
-                ).toString();
-                const prefix = metricsQs ? `?${metricsQs}&` : "?";
-                const target =
-                  paths.booking.gameResult + `${prefix}failed=true`;
-                window.location.replace(target);
+                // 알림 후 결과 페이지로 이동
+                showAlert(
+                  "경기가 종료되었습니다.\n\n결과 화면으로 이동합니다.",
+                  {
+                    type: "info",
+                    title: "경기 종료",
+                    onConfirm: () => {
+                      const metricsQs = new URLSearchParams(
+                        window.location.search
+                      ).toString();
+                      const prefix = metricsQs ? `?${metricsQs}&` : "?";
+                      const target =
+                        paths.booking.gameResult + `${prefix}failed=true`;
+                      window.location.replace(target);
+                    },
+                  }
+                );
+                return; // onConfirm에서 이동하므로 여기서는 return
               }
             })();
           } else {
@@ -575,7 +588,10 @@ export default function ITicketPage() {
               } else if (event.message) {
                 exitMessage += `\n사유: ${event.message}`;
               }
-              alert(exitMessage);
+              showAlert(exitMessage, {
+                type: "warning",
+                title: "방 퇴장",
+              });
 
               // Room store 초기화
               useRoomStore.getState().clearRoomInfo();
@@ -627,6 +643,58 @@ export default function ITicketPage() {
             setRoomMembers(event.roomMembers);
           }
           break;
+
+        case "HOST_CHANGED": {
+          try {
+            const p = payload as
+              | {
+                  previousHostId?: string | number;
+                  newHostId?: string | number;
+                }
+              | undefined;
+
+            if (!p || p.newHostId == null) {
+              console.warn(
+                "⚠️ [HOST_CHANGED] payload.newHostId가 없습니다:",
+                event
+              );
+              break;
+            }
+
+            // newHostId를 숫자로 변환
+            const newHostId =
+              typeof p.newHostId === "string"
+                ? Number(p.newHostId)
+                : p.newHostId;
+            const previousHostId =
+              p.previousHostId != null
+                ? typeof p.previousHostId === "string"
+                  ? Number(p.previousHostId)
+                  : p.previousHostId
+                : null;
+
+            if (Number.isNaN(newHostId)) {
+              console.warn(
+                "⚠️ [HOST_CHANGED] newHostId가 유효한 숫자가 아닙니다:",
+                p.newHostId
+              );
+              break;
+            }
+
+            console.log("👑 [HOST_CHANGED] 방장 변경:", {
+              previousHostId,
+              newHostId,
+              message: event.message,
+              timestamp: event.timestamp ?? Date.now(),
+            });
+
+            // 방장 ID 업데이트
+            setHostUserId(newHostId);
+          } catch (e) {
+            console.error("❌ [HOST_CHANGED] 처리 실패:", e, event);
+          }
+          break;
+        }
 
         default:
           console.log("ℹ️ 알 수 없는 이벤트 타입:", eventType, event);
@@ -922,23 +990,45 @@ export default function ITicketPage() {
     })();
   }, [roomId, location.search, roomData?.roomId, joinResponse?.roomMembers]);
 
-  // 방장 userId 결정: 방 생성 유저의 userId 또는 roomDetail의 hostId
-  const hostUserId = useMemo(() => {
-    return roomRequest?.userId || null;
-  }, [roomRequest?.userId]);
+  // 방장 userId 상태 관리 (WebSocket 이벤트로 업데이트 가능)
+  const [hostUserId, setHostUserId] = useState<number | null>(() => {
+    return (
+      joinResponse?.hostId || roomDetail?.hostId || roomRequest?.userId || null
+    );
+  });
 
-  // 입장자 목록 구성: roomMembers를 Participant 형식으로 변환
+  // joinResponse, roomDetail, roomRequest 변경 시 hostUserId 업데이트
+  useEffect(() => {
+    const newHostId =
+      joinResponse?.hostId || roomDetail?.hostId || roomRequest?.userId || null;
+    setHostUserId((prev) => {
+      // 이전 값과 다를 때만 업데이트 (무한 루프 방지)
+      if (prev !== newHostId) {
+        return newHostId;
+      }
+      return prev;
+    });
+  }, [joinResponse?.hostId, roomDetail?.hostId, roomRequest?.userId]);
+
+  // 입장자 목록 구성: roomMembers를 Participant 형식으로 변환하고 방장을 맨 위로 정렬
   const participants: Participant[] = useMemo(() => {
-    return roomMembers.map((member) => {
+    const mapped = roomMembers.map((member) => {
       const fallback = "/profile.png";
       const avatar =
         normalizeProfileImageUrl(member.profileImageUrl, member.userId) ??
         fallback;
       return {
         name: member.username,
-        isHost: hostUserId !== null && member.userId === hostUserId, // 방 생성 유저가 방장
+        isHost: hostUserId !== null && member.userId === hostUserId,
         avatarUrl: avatar,
       };
+    });
+
+    // 방장을 맨 위로 정렬
+    return mapped.sort((a, b) => {
+      if (a.isHost && !b.isHost) return -1; // a가 방장이면 앞으로
+      if (!a.isHost && b.isHost) return 1; // b가 방장이면 앞으로
+      return 0; // 둘 다 방장이거나 둘 다 아니면 순서 유지
     });
   }, [roomMembers, hostUserId]);
 
@@ -1059,11 +1149,22 @@ export default function ITicketPage() {
     }
 
     if (!currentUserId || !currentUserNickname) {
-      alert("로그인이 필요합니다.");
+      showAlert("로그인이 필요합니다. 로그인 페이지로 이동해주세요.", {
+        type: "info",
+        title: "로그인 필요",
+      });
       return;
     }
 
-    if (!confirm("정말 방을 나가시겠습니까?")) {
+    const shouldExit = await showConfirm(
+      "정말 방을 나가시겠습니까?\n취소하면 현재 화면을 유지합니다.",
+      {
+        confirmText: "방 나가기",
+        cancelText: "취소",
+        type: "warning",
+      }
+    );
+    if (!shouldExit) {
       return;
     }
 

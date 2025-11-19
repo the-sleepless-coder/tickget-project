@@ -4,6 +4,7 @@ export const paths = {
   iTicketRoom: (roomId: number) => `/i-ticket/${roomId}`,
   seatsTest: "/seatstest",
   rooms: "/rooms",
+  weeklyRanking: "/weekly-ranking",
   auth: {
     root: "/auth",
     login: "/auth/login",
@@ -29,5 +30,6 @@ export const paths = {
   dashboard: "/dashboard",
   profile: "/profile",
   gameResult: "/game-result",
+  design: "/design",
   notFound: "*",
 } as const;

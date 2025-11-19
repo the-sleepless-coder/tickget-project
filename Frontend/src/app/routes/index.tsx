@@ -79,11 +79,13 @@ const ITicketPage = lazy(
   () => import("../../pages/booking-site/exterpark-site/ExterparkRoom")
 );
 const RoomsPage = lazy(() => import("../../pages/home/RoomsList"));
+const WeeklyRankingPage = lazy(() => import("../../pages/home/WeeklyRanking"));
 const SeatsTestPage = lazy(() => import("../../pages/test/NotFound"));
 const MyPageIndex = lazy(() => import("../../pages/user-page/MyPage"));
 const MyPageReservationsPage = lazy(
   () => import("../../pages/user-page/MockReservations")
 );
+const DesignTestPage = lazy(() => import("../../pages/design/DesignTestPage"));
 const LoginPage = lazy(() => import("../../pages/auth/login/SocialLogin"));
 const SignupPage = lazy(() => import("../../pages/auth/sign-up/SignUp"));
 const LoginSuccessPage = lazy(
@@ -163,6 +165,14 @@ export const router = createBrowserRouter([
       {
         path: "rooms",
         element: withSuspense(<RoomsPage />),
+      },
+      {
+        path: "weekly-ranking",
+        element: withSuspense(<WeeklyRankingPage />),
+      },
+      {
+        path: "design",
+        element: withSuspense(<DesignTestPage />),
       },
       {
         path: "mypage",

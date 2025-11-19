@@ -8,6 +8,7 @@ import {
   recordSeatCompleteNow,
 } from "../utils/reserveMetrics";
 import { paths } from "../../app/routes/paths";
+import { showConfirm } from "../utils/confirm";
 
 /**
  * 경기 중 브라우저 뒤로가기를 막고, 확인 시 실패 API 호출 후 실패 결과 페이지로 이동하는 훅
@@ -74,29 +75,32 @@ export function useBlockBackButtonDuringGame(trigger: string) {
       // 즉시 현재 페이지에 머물도록 다시 푸시 (React Router 라우팅 변경 전에)
       pushState();
 
-      // 확인 다이얼로그 표시 (동기적으로 즉시 실행)
-      const confirmed = confirm("정말 방을 나가시겠습니까?");
-      if (!confirmed) {
+      void (async () => {
+        const confirmed = await showConfirm(
+          "정말 방을 나가시겠습니까?\n취소하면 현재 화면을 유지합니다.",
+          {
+            confirmText: "방 나가기",
+            cancelText: "취소",
+            type: "warning",
+          }
+        );
+        if (!confirmed) {
+          if (import.meta.env.DEV) {
+            console.log(
+              `[useBlockBackButtonDuringGame] ${trigger}: 사용자가 취소함`
+            );
+          }
+          pushState();
+          return;
+        }
+
         if (import.meta.env.DEV) {
           console.log(
-            `[useBlockBackButtonDuringGame] ${trigger}: 사용자가 취소함`
+            `[useBlockBackButtonDuringGame] ${trigger}: 사용자가 확인함, 실패 API 호출 및 결과 페이지로 이동`
           );
         }
-        // 취소 시 다시 pushState (React Router가 이미 라우팅을 변경했을 수 있음)
-        pushState();
-        return;
-      }
 
-      if (import.meta.env.DEV) {
-        console.log(
-          `[useBlockBackButtonDuringGame] ${trigger}: 사용자가 확인함, 실패 API 호출 및 결과 페이지로 이동`
-        );
-      }
-
-      // 확인 시 실패 API 호출 및 실패 결과 페이지로 이동
-      const handleExit = async () => {
         try {
-          // matchId 재확인 (비동기 처리 전에 최신 값 가져오기)
           const currentMatchId =
             useMatchStore.getState().matchId ??
             (() => {
@@ -107,7 +111,6 @@ export function useBlockBackButtonDuringGame(trigger: string) {
                 : null;
             })();
 
-          // 실패 API 호출
           await sendSeatStatsFailedForMatch(currentMatchId ?? undefined, {
             trigger: `BACK@${trigger}`,
           });
@@ -117,16 +120,13 @@ export function useBlockBackButtonDuringGame(trigger: string) {
             error
           );
         } finally {
-          // 실패해도 결과 페이지로 이동
           recordSeatCompleteNow();
           const metricsQs = buildMetricsQueryFromStorage();
           const prefix = metricsQs ? `${metricsQs}&` : "?";
           const target = paths.booking.gameResult + `${prefix}failed=true`;
           navigate(target, { replace: true });
         }
-      };
-
-      void handleExit();
+      })();
     };
 
     // capture 단계에서 이벤트 리스너 등록 (React Router보다 먼저 처리)

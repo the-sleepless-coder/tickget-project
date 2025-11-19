@@ -172,6 +172,13 @@ export default function GameResultPage() {
     return userRankParam || userRankStorage || null;
   }, [searchParams, isFailed]);
 
+  // totalRank를 sessionStorage에서 가져오기
+  const totalRank = useMemo(() => {
+    if (isFailed) return null;
+    const stored = sessionStorage.getItem("reserve.totalRank");
+    return stored || null;
+  }, [isFailed]);
+
   // AI 분석 메시지 상태
   const [analysisMessage, setAnalysisMessage] = useState<string | null>(null);
   const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(false);
@@ -299,17 +306,47 @@ export default function GameResultPage() {
           <h1 className="text-2xl font-extrabold text-gray-900">경기 결과</h1>
         </div>
 
-        {/* 성과 요약 */}
-        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="rounded-lg bg-[#6e8ee3] text-white text-center py-4 text-3xl font-extrabold">
-            {isFailed
-              ? "등수 없음"
-              : userRank
-                ? `${userRank}등`
-                : "등수 측정중"}
+        {/* 성과 요약: 순위(위) + 총 소요시간(아래) */}
+        <div className="mt-4 space-y-3">
+          <div className="px-4 py-2 text-center text-neutral-900">
+            {isFailed ? (
+              <div className="text-xl font-extrabold text-neutral-700">
+                등수 없음
+              </div>
+            ) : (
+              <div className="space-y-1">
+                <div className="text-xs text-neutral-500">내 순위</div>
+                <div className="text-2xl">
+                  {userRank ? (
+                    <>
+                      <span className="font-bold text-c-blue-200">
+                        {userRank}
+                      </span>
+                      <span className="ml-1">등</span>
+                    </>
+                  ) : (
+                    <span className="text-neutral-500">측정중</span>
+                  )}
+                </div>
+                {totalRank && (
+                  <div className="text-sm text-neutral-700">
+                    전체{" "}
+                    <span className="font-bold text-c-blue-200">
+                      {totalRank}
+                    </span>
+                    <span className="ml-0.5">등</span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-          <div className="rounded-lg bg-[#6e8ee3] text-white text-center py-4 text-3xl font-extrabold">
-            {isFailed ? "FAIL" : fmt(totalSec)}
+          <div className="px-4 py-2 text-center">
+            <div className="text-xs font-semibold tracking-wide text-neutral-500">
+              총 소요시간
+            </div>
+            <div className="mt-1 text-3xl font-extrabold text-[#6e8ee3]">
+              {isFailed ? "FAIL" : fmt(totalSec)}
+            </div>
           </div>
         </div>
 

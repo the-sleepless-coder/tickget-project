@@ -1,7 +1,7 @@
 import RoomCard from "./_components/RoomCard";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import dayjs from "dayjs";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Snackbar, Alert } from "@mui/material";
 import Tooltip from "@mui/material/Tooltip";
 import InfoOutlined from "@mui/icons-material/InfoOutlined";
@@ -20,11 +20,13 @@ import Thumbnail05 from "../../shared/images/thumbnail/Thumbnail05.webp";
 import Thumbnail06 from "../../shared/images/thumbnail/Thumbnail06.webp";
 import RoomSortControls from "./_components/RoomSortButton";
 import { sortRooms } from "./_components/RoomSortUtil";
+import { showConfirm } from "../../shared/utils/confirm";
 
 type SortKey = "start" | "latest";
 
 export default function RoomsPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [activeSort, setActiveSort] = useState<SortKey>("start");
   const [query, setQuery] = useState("");
   const [openCreate, setOpenCreate] = useState(false);
@@ -56,10 +58,7 @@ export default function RoomsPage() {
   const [startingSoonToastOpen, setStartingSoonToastOpen] = useState(false);
 
   // hallName을 한글로 변환하는 함수 (AI 생성도 실제 hallName 사용)
-  const convertHallNameToKorean = (
-    hallName: string,
-    _hallType?: string
-  ): string => {
+  const convertHallNameToKorean = (hallName: string): string => {
     const hallNameMap: Record<string, string> = {
       InspireArena: "인스파이어 아레나",
       CharlotteTheater: "샤롯데씨어터",
@@ -146,10 +145,7 @@ export default function RoomsPage() {
             (r.thumbnailType === "UPLOADED" && r.thumbnailValue
               ? normalizeS3Url(r.thumbnailValue)
               : undefined);
-          const localizedHallName = convertHallNameToKorean(
-            r.hallName,
-            r.hallType
-          );
+          const localizedHallName = convertHallNameToKorean(r.hallName);
           const displayHallName =
             r.hallType === "AI_GENERATED"
               ? `${localizedHallName} (AI 생성)`
@@ -194,6 +190,20 @@ export default function RoomsPage() {
   useEffect(() => {
     fetchRooms();
   }, [fetchRooms, availableOnly]);
+
+  // 상단 헤더 '새로운방'에서 전달된 state(openCreate) 처리
+  useEffect(() => {
+    const state = location.state as { openCreate?: boolean } | null;
+    if (state?.openCreate) {
+      setOpenCreate(true);
+      // 한 번만 열리도록 state 초기화
+      navigate(location.pathname, {
+        replace: true,
+        state: { ...state, openCreate: false },
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state]);
 
   // 새로고침 핸들러
   const handleRefresh = useCallback(async () => {
@@ -281,13 +291,17 @@ export default function RoomsPage() {
           </div>
           <button
             type="button"
-            onClick={() => {
+            onClick={async () => {
               if (!userId || !nickname) {
-                if (
-                  confirm(
-                    "로그인이 필요합니다. 로그인 페이지로 이동하시겠습니까?"
-                  )
-                ) {
+                const shouldLogin = await showConfirm(
+                  "로그인이 필요합니다. 로그인 페이지로 이동하시겠습니까?",
+                  {
+                    confirmText: "로그인",
+                    cancelText: "취소",
+                    type: "info",
+                  }
+                );
+                if (shouldLogin) {
                   navigate(paths.auth.login);
                 }
                 return;

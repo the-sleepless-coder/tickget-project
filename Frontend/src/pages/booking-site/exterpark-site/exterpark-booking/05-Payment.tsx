@@ -57,11 +57,17 @@ export default function PaymentPage() {
         const response = await confirmSeat(matchId, payload);
         console.log("[seat-confirm] API 응답:", response);
 
-        // userRank를 URL 파라미터로 전달
-        if (response.body && response.body.userRank) {
+        // userRank / totalRank를 sessionStorage에 저장
+        if (response.body && typeof response.body.userRank === "number") {
           sessionStorage.setItem(
             "reserve.userRank",
             String(response.body.userRank)
+          );
+        }
+        if (response.body && typeof response.body.totalRank === "number") {
+          sessionStorage.setItem(
+            "reserve.totalRank",
+            String(response.body.totalRank)
           );
         }
 
@@ -85,7 +91,7 @@ export default function PaymentPage() {
 
     // 기존 동작: 게임 결과 페이지로 이동
     const qs = buildMetricsQueryFromStorage();
-    // userRank가 있으면 추가
+    // userRank가 있으면 추가 (기존 동작 유지)
     const userRank = sessionStorage.getItem("reserve.userRank");
     const finalQs = userRank
       ? qs + (qs ? "&" : "?") + `userRank=${encodeURIComponent(userRank)}`
