@@ -89,13 +89,14 @@ export async function getRankingPercentile(): Promise<RankingPercentileResponse>
  */
 export async function getMatchHistory(
   mode: "all" | "solo" | "multi" = "all",
-  page: number = 0
+  page: number = 0,
+  size: number = 5
 ): Promise<MatchDataResponse[]> {
   const { accessToken } = useAuthStore.getState();
 
   // 상대 경로 사용 (Vite 프록시를 통해 요청)
   const apiUrl = "/api/v1/dev/stats/mypage/matchData";
-  const url = `${apiUrl}?mode=${mode}&page=${page}`;
+  const url = `${apiUrl}?mode=${mode}&page=${page}&size=${size}`;
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
