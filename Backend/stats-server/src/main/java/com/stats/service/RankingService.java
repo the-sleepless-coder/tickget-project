@@ -171,7 +171,15 @@ public class RankingService {
                 }
             }
 
-            baseScore = (BOT_BASE_SCORE * skillFactor) * peopleFactor * difficultyFactor;
+            // 1) 이론상 최대 baseScore
+            final float MAX_BASE_SCORE =
+                    BOT_BASE_SCORE * (1f + PEOPLE_FACTOR_MAX) * 1.3f;   // 난이도 HARD 기준 최대
+
+            // 2) rawBaseScore 계산
+            float rawBaseScore = (BOT_BASE_SCORE * skillFactor) * peopleFactor * difficultyFactor;
+
+            // 3) Max cap 적용
+            baseScore = Math.min(rawBaseScore, MAX_BASE_SCORE);
 
             /**
              * 2. Speed Bonus
