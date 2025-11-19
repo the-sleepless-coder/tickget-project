@@ -157,7 +157,7 @@ export default function DesignTestPage() {
                 handleShowAlert(
                   "warning",
                   "방 퇴장",
-                  "방에서 퇴장되었습니다.\n\n이벤트: USER_EXITED\n사유: 방장에 의해 퇴장되었습니다."
+                  "방에서 퇴장되었습니다.\n홈 화면으로 이동합니다."
                 )
               }
               sx={{ bgcolor: "#f59e0b", "&:hover": { bgcolor: "#d97706" } }}

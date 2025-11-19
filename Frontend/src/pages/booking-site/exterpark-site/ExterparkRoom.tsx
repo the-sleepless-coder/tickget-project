@@ -581,13 +581,9 @@ export default function ITicketPage() {
                 timestamp: event.timestamp ?? Date.now(),
               });
 
-              // 사용자에게 알림 (이벤트 타입과 사유 포함)
-              let exitMessage = `방에서 퇴장되었습니다.\n\n이벤트: ${eventType}`;
-              if (reason) {
-                exitMessage += `\n사유: ${reason}`;
-              } else if (event.message) {
-                exitMessage += `\n사유: ${event.message}`;
-              }
+              // 사용자에게 알림 (이벤트/사유 노출 없이 고정 메시지)
+              const exitMessage =
+                "방에서 퇴장되었습니다.\n홈 화면으로 이동합니다.";
               showAlert(exitMessage, {
                 type: "warning",
                 title: "방 퇴장",

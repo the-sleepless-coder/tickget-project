@@ -56,10 +56,7 @@ export default function HomePage() {
   const [startingSoonToastOpen, setStartingSoonToastOpen] = useState(false);
 
   // hallName을 한글로 변환하는 함수 (AI 생성도 실제 hallName 사용)
-  const convertHallNameToKorean = (
-    hallName: string,
-    _hallType?: string
-  ): string => {
+  const convertHallNameToKorean = (hallName: string): string => {
     const hallNameMap: Record<string, string> = {
       InspireArena: "인스파이어 아레나",
       CharlotteTheater: "샤롯데씨어터",
@@ -146,10 +143,7 @@ export default function HomePage() {
             (r.thumbnailType === "UPLOADED" && r.thumbnailValue
               ? normalizeS3Url(r.thumbnailValue)
               : undefined);
-          const localizedHallName = convertHallNameToKorean(
-            r.hallName,
-            r.hallType
-          );
+          const localizedHallName = convertHallNameToKorean(r.hallName);
           const displayHallName =
             r.hallType === "AI_GENERATED"
               ? `${localizedHallName} (AI 생성)`
@@ -215,9 +209,7 @@ export default function HomePage() {
 
   // userId가 2인 사람이 생성한 방 찾기
   const specialHostRoom = useMemo(() => {
-    return rooms.find(
-      (r) => r.hostId === 2 && !r.ongoing && !r.startingSoon && r.startTime
-    );
+    return rooms.find((r) => r.hostId === 2 && !r.ongoing && r.startTime);
   }, [rooms]);
 
   // 배너 클릭 핸들러
@@ -239,15 +231,46 @@ export default function HomePage() {
       return;
     }
 
+    if (specialHostRoom.startingSoon) {
+      setStartingSoonToastOpen(true);
+      await handleRefresh();
+      return;
+    }
+
     try {
       const response = await joinRoom(specialHostRoom.id, {
         userId,
         userName: nickname,
       });
 
+      try {
+        const { useMatchStore } = await import("@features/booking-site/store");
+        const raw = (response as { matchId?: unknown })?.matchId;
+        if (raw != null) {
+          const parsed =
+            typeof raw === "string" || typeof raw === "number"
+              ? Number(raw)
+              : NaN;
+          if (Number.isFinite(parsed)) {
+            useMatchStore.getState().setMatchId(parsed);
+          } else {
+            console.warn("[home][banner] matchId 파싱 실패:", { matchId: raw });
+          }
+        }
+      } catch (error) {
+        console.error("[home][banner] matchId 저장 실패:", error);
+      }
+
+      const resolvedRoomId = response.roomId ?? specialHostRoom.id;
+      const roomPath = paths.iTicketRoom(resolvedRoomId);
+
       // 방 입장 성공 시 해당 방 페이지로 이동
-      navigate(paths.iTicket, {
+      navigate(roomPath, {
         state: {
+          roomData: {
+            roomId: resolvedRoomId,
+            subscriptionTopic: response.subscriptionTopic,
+          },
           joinResponse: response,
         },
       });
@@ -255,7 +278,7 @@ export default function HomePage() {
       console.error("방 입장 실패:", error);
       alert("방 입장에 실패했습니다. 다시 시도해주세요.");
     }
-  }, [specialHostRoom, userId, nickname, navigate]);
+  }, [specialHostRoom, userId, nickname, navigate, handleRefresh]);
 
   return (
     <div className="mx-auto max-w-7xl p-4 sm:p-6">
@@ -394,6 +417,11 @@ export default function HomePage() {
         autoHideDuration={2500}
         onClose={() => setStartingSoonToastOpen(false)}
         anchorOrigin={{ vertical: "top", horizontal: "center" }}
+        sx={{
+          "&.MuiSnackbar-root": {
+            top: { xs: 16, sm: 24 },
+          },
+        }}
       >
         <Alert
           onClose={() => setStartingSoonToastOpen(false)}
