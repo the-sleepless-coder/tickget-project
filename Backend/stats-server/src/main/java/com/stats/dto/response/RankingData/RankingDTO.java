@@ -14,9 +14,9 @@ import lombok.extern.slf4j.Slf4j;
 @ToString
 public class RankingDTO {
     // Ranking 정보
-    private Long rankingId;
-    private Integer points;
-    private Integer rankingUser;  // r.userRank와 매칭
+    //private Long rankingId;
+    //private Integer points;
+    //private Integer rankingUser;  // r.userRank와 매칭
     // private Ranking.Grade grade;
 
     // User 정보

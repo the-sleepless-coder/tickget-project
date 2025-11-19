@@ -20,9 +20,6 @@ public interface RankingRepository extends JpaRepository<Ranking, Long> {
 
     @Query("""
     select new com.stats.dto.response.RankingData.RankingDTO(
-        r.id,
-        r.points,
-        r.userRank,
         u.id,
         u.nickname,
         us.userRank,
@@ -44,7 +41,6 @@ public interface RankingRepository extends JpaRepository<Ranking, Long> {
     from Match m
     left join UserStats us on us.matchId = m.matchId
     left join User u on u.id = us.userId
-    left join Ranking r on r.userId = u.id
     left join MatchStats ms on ms.matchId = m.matchId
     where m.matchId = :matchId
     order by us.userRank asc
