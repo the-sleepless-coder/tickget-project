@@ -23,6 +23,7 @@ public class RoomResponse {
 
     private Long roomId;
     private String roomName;
+    private Long hostId;
     private int botCount;
     private int maxUserCount;
 
@@ -52,6 +53,7 @@ public class RoomResponse {
         return RoomResponse.builder()
                 .roomId(room.getId())
                 .roomName(roomInfo.getTitle())
+                .hostId(roomInfo.getHostId())
                 .botCount(room.getBotCount())
                 .maxUserCount(roomInfo.getMaxUserCount())
                 .currentUserCount(roomInfo.getCurrentUserCount())
