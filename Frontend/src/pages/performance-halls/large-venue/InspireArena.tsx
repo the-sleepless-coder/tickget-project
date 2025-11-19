@@ -411,11 +411,11 @@ export default function LargeVenue({
 
     const patternConfig = seatPatternMap[data.id];
     if (patternConfig) {
-      // VIP 좌석인 경우 VIP 색상, R 좌석인 경우 R 색상, STANDING 좌석인 경우 STANDING 색상, 그 외는 좌석의 fill 색상 사용
+      // 기본은 섹션 폴리곤의 fill 색상을 그대로 사용
+      // (상단 useEffect에서 VIP 섹션은 보라색(#7C50E4)으로 강제하고 있음)
       let color = data.fill || "#FFCC10";
-      if (data.level === "VIP") {
-        color = "#68F237";
-      } else if (data.level === "R") {
+      // R, STANDING만 명시적으로 고정 색상 사용
+      if (data.level === "R") {
         color = "#4CA0FF";
       } else if (data.level === "STANDING") {
         color = data.fill || "#FE4AB9"; // STANDING 좌석의 fill 색상 사용 (기본값: #FE4AB9)
