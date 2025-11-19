@@ -46,7 +46,7 @@ public class RankingService {
     private static final double BASE_LOG = 10000.0;
     private static final float PEOPLE_FACTOR_MAX = 0.3f;
 
-    private static final int DIVIDE_BY = 100;
+    private static final int DIVIDE_BY = 10;
 
     // Match 내 플레이어에 대한 랭킹 집계
     public List<RankingDTO> calculateRanking(Long matchIdLong){
@@ -239,7 +239,8 @@ public class RankingService {
             LocalDateTime now = LocalDateTime.now();
 
             finalScore = finalScore/DIVIDE_BY;
-            updateUserScore(userId, now, finalScore);
+            // 정수부만 전달 (double 타입 유지하되 정수 값만)
+            updateUserScore(userId, now, Math.floor(finalScore));
 
             // 일정 주기로 DB에 업데이트 시켜준다.
 
