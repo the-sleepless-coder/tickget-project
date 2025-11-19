@@ -153,16 +153,8 @@ export async function processSeatmapTsx(
     )
   );
   try {
-    console.log("[processSeatmapTsx] Request", {
-      url,
-      headers: maskedHeaders,
-      body: {
-        fileName: file?.name,
-        fileSize: file?.size,
-        capacity,
-        hallName,
-      },
-    });
+    
+    
   } catch {
     // ignore console issues
   }
@@ -183,11 +175,7 @@ export async function processSeatmapTsx(
   }
 
   try {
-    console.log("[processSeatmapTsx] Response", {
-      status: res.status,
-      ok: res.ok,
-      bodyPreview: text.slice(0, 300),
-    });
+    
   } catch {
     // ignore console issues
   }

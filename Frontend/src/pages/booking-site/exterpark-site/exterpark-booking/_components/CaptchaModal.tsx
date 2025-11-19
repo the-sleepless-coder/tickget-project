@@ -83,10 +83,10 @@ export default function CaptchaModal({
         if (alive) {
           setCaptchaImg(data.image);
           setCaptchaId(data.id);
-          console.log("캡챠 이미지 호출 성공, id:", data.id);
+         
         }
       } catch {
-        console.log("캡챠 이미지 호출 실패");
+        
       }
     })();
     return () => {
@@ -108,7 +108,7 @@ export default function CaptchaModal({
           captchaId,
           input: input.trim(),
         });
-        console.log("캡챠 검증 결과:", result.status, result.body);
+        
         if (result.status === 200) {
           const endMs =
             typeof performance !== "undefined" ? performance.now() : Date.now();

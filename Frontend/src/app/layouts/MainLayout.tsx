@@ -65,13 +65,7 @@ export default function MainLayout() {
       const subscription = subscribe(client, userDestination, (message) => {
         try {
           const event = JSON.parse(message.body);
-          if (import.meta.env.DEV) {
-            console.log("📨 [개인 메시지] 수신:", {
-              destination: message.headers.destination,
-              eventType: event.eventType,
-              body: event,
-            });
-          }
+          
 
           // 새로고침 직후 일정 시간 동안 퇴장/강제 종료 이벤트 무시
           const now = Date.now();
@@ -82,16 +76,7 @@ export default function MainLayout() {
               event.eventType === "USER_EXITED" ||
               event.eventType === "FORCE_DISCONNECT")
           ) {
-            if (import.meta.env.DEV) {
-              console.log(
-                "⏭️ [개인 메시지] 새로고침 직후이므로 USER_LEFT/USER_EXITED/FORCE_DISCONNECT 무시:",
-                {
-                  eventType: event.eventType,
-                  remainingMs: reloadIgnoreUntilRef.current - now,
-                  event,
-                }
-              );
-            }
+            
             return;
           }
 
@@ -104,12 +89,6 @@ export default function MainLayout() {
             (event.eventType === "USER_LEFT" ||
               event.eventType === "USER_EXITED")
           ) {
-            if (import.meta.env.DEV) {
-              console.log(
-                "ℹ️ [개인 메시지] 결과 페이지에서 USER_LEFT 이벤트 무시:",
-                event
-              );
-            }
             return; // 결과 페이지에서는 퇴장 알림 무시
           }
 
@@ -140,16 +119,6 @@ export default function MainLayout() {
               currentPathForForce.includes("/game-result");
 
             if (isGameResultForForce) {
-              if (import.meta.env.DEV) {
-                console.log(
-                  "ℹ️ [FORCE_DISCONNECT] 결과 페이지에서 강제 종료 이벤트 무시 (알림 없음)",
-                  {
-                    reason: payload?.reason,
-                    message: disconnectMessage,
-                    timestamp: payload?.timestamp || event.timestamp,
-                  }
-                );
-              }
               // WebSocket 연결만 정리하고 인증 상태는 유지
               disconnectStompClient(client);
               return;
@@ -169,7 +138,7 @@ export default function MainLayout() {
       if (subscription) {
         userSubscriptionRef.current = subscription;
         if (import.meta.env.DEV) {
-          console.log(`✅ [개인 메시지] 구독 성공: ${userDestination}`);
+          
         }
       } else {
         console.warn("⚠️ [개인 메시지] 구독 실패");
@@ -182,46 +151,29 @@ export default function MainLayout() {
 
       if (existingClient && existingClient.connected) {
         // 기존 연결이 있고 연결되어 있으면 재사용
-        if (import.meta.env.DEV) {
-          console.log("✅ [MainLayout] 기존 WebSocket 연결 재사용");
-        }
         clientRef.current = existingClient;
 
         // 개인 메시지 구독이 없으면 구독
         if (!userSubscriptionRef.current) {
-          if (import.meta.env.DEV) {
-            console.log("✅ [개인 메시지] 기존 연결에서 구독 시도");
-          }
           doSubscribeUserMessage(existingClient);
         }
       } else if (!clientRef.current) {
         // 기존 연결이 없거나 끊어진 경우에만 새로 생성
-        if (import.meta.env.DEV) {
-          console.log("🆕 [MainLayout] 새 WebSocket 연결 생성");
-        }
         const client = createStompClient({
           onConnect: () => {
-            if (import.meta.env.DEV) {
-              console.log("✅ 홈 진입: WebSocket 연결 완료");
-            }
 
             // 개인 메시지 구독: /user/{userId}
             doSubscribeUserMessage(client);
           },
           onDisconnect: () => {
-            if (import.meta.env.DEV) {
-              console.log("⚠️ WebSocket 연결 끊김");
-            }
             // 구독만 해제하고, 인증 상태는 유지
             if (userSubscriptionRef.current) {
               userSubscriptionRef.current.unsubscribe();
               userSubscriptionRef.current = null;
             }
           },
-          onError: (err) => {
-            if (import.meta.env.DEV) {
-              console.error("❌ WebSocket 에러:", err);
-            }
+          onError: (_err) => {
+            
             // 에러 발생 시에도 구독만 해제하고, 인증 상태는 유지
             if (userSubscriptionRef.current) {
               userSubscriptionRef.current.unsubscribe();

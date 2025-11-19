@@ -72,11 +72,6 @@ export default function SmallVenue({
       if (onTakenSeatsUpdate) {
         onTakenSeatsUpdate(allTaken);
       }
-      console.log(
-        "[CharlotteTheater] 섹션 좌석 상태 조회 완료:",
-        Array.from(allTaken),
-        `(총 ${allTaken.size}개)`
-      );
     };
 
     fetchAllSections();
@@ -329,10 +324,6 @@ export default function SmallVenue({
                 if (opacityVal === 0) return;
                 // TAKEN 또는 MY_RESERVED 좌석은 클릭 불가
                 if (isTaken) {
-                  console.log(
-                    "[seat-click] TAKEN/MY_RESERVED 좌석은 선택할 수 없습니다:",
-                    takenSeatId
-                  );
                   return;
                 }
                 onToggleSeat?.({

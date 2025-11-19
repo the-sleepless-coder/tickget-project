@@ -61,10 +61,7 @@ export default function PaymentPage() {
           // SeatConfirmRequest와 동일한 메트릭 페이로드 공통 빌더 사용
           const payload = buildSeatMetricsPayload(currentUserId);
 
-          console.log("[seat-confirm] API 호출:", {
-            matchId,
-            payload,
-          });
+        
 
           const response = await confirmSeat(matchId, payload);
           console.log("[seat-confirm] API 응답:", response);

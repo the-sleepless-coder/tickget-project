@@ -72,11 +72,7 @@ export function useSeatStatsFailedOnUnload(trigger: string) {
         if (nav && (nav.type === 1 || nav.type === 2)) {
           // 새로고침 또는 뒤로/앞으로 가기인 경우 플래그 설정
           sessionStorage.setItem("reserve.isReloading", "true");
-          if (import.meta.env.DEV) {
-            console.log(
-              "⏭️ [beforeunload] 새로고침/뒤로가기 감지됨, 실패 API 전송 건너뜀"
-            );
-          }
+          
           return;
         }
       } catch {

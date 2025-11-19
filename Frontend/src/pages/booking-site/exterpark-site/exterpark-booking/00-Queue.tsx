@@ -42,9 +42,9 @@ export default function BookingWaitingPage() {
     (async () => {
       try {
         const captcha = await requestCaptchaImage();
-        console.log("[booking-site][captcha.request] 성공:", captcha);
+        
       } catch (error) {
-        console.error("[booking-site][captcha.request] 실패:", error);
+        
       }
     })();
   }, []);
@@ -105,11 +105,7 @@ export default function BookingWaitingPage() {
           type?: string;
         };
         const evtType = data?.eventType || data?.type;
-        console.log("📨 [waiting][ws] 메시지 수신:", {
-          destination,
-          eventType: evtType,
-          timestamp: new Date().toISOString(),
-        });
+       
         if (evtType === "QUEUE_STATUS_UPDATE") {
           const myUserId = useAuthStore.getState().userId;
           const statuses = data.payload?.queueStatuses;
@@ -161,29 +157,11 @@ export default function BookingWaitingPage() {
                   )
                 : 100;
 
-            console.log("✅ [waiting][QUEUE] 대기열 갱신 성공:", {
-              myUserId,
-              ahead,
-              behind,
-              total,
-              currentRank,
-              currentTotalQueue,
-              baseTotalQueue: baseTotalQueueForLog,
-              widthPercent: `${widthPercentForLog.toFixed(1)}%`,
-              now: Date.now(),
-              wsDestination: destination,
-            });
 
             // 항상 큐 화면 유지: DEQUEUE 이벤트 전까지는 대기열 표시
             setStage("queue");
           } else {
-            console.log(
-              "ℹ️ [waiting][QUEUE] 아직 대기열 미진입(내 userId 미포함):",
-              {
-                myUserId,
-                keys: Object.keys(statuses),
-              }
-            );
+            
           }
         } else if (evtType === "USER_DEQUEUED") {
           const myUserId = useAuthStore.getState().userId;
@@ -213,11 +191,7 @@ export default function BookingWaitingPage() {
             if (numericMatchId != null && !Number.isNaN(numericMatchId)) {
               useMatchStore.getState().setMatchId(numericMatchId as number);
             }
-            console.log("✅ [waiting][DEQUEUE] 본인 티켓팅 성공!", {
-              myUserId,
-              matchId: p.matchId,
-              ts: p.timestamp ?? data.timestamp ?? Date.now(),
-            });
+           
 
             // 즉시 좌석 선택 화면으로 이동
             const rtSec = searchParams.get("rtSec") ?? "0";
@@ -247,10 +221,7 @@ export default function BookingWaitingPage() {
             if (round) nextUrl.searchParams.set("round", round);
             navigate(nextUrl.pathname + nextUrl.search, { replace: true });
           } else {
-            console.log("ℹ️ [waiting][DEQUEUE] 다른 유저 티켓팅 성공:", {
-              dequeuedUserId: p.userId,
-              myUserId,
-            });
+           
           }
         } else if (evtType === "MATCH_ENDED") {
           // 경기 종료 알림 수신 시 실패 통계 전송 후 결과 페이지로 이동
@@ -285,7 +256,7 @@ export default function BookingWaitingPage() {
             }
           })();
         } else {
-          console.log("ℹ️ [waiting][ws] QUEUE 외 이벤트:", evtType);
+         
         }
       } catch (e) {
         console.error("❌ [waiting][QUEUE] 메시지 파싱 실패:", e);
@@ -304,7 +275,7 @@ export default function BookingWaitingPage() {
         });
         if (sub) {
           subscriptionRef.current = sub;
-          console.log(`✅ [waiting][ws] 구독 성공: ${destination}`);
+         
         } else {
           console.error(
             `❌ [waiting][ws] 구독 실패: ${destination} (subscription=null)`
@@ -314,7 +285,7 @@ export default function BookingWaitingPage() {
       }
       retries += 1;
       if (retries <= maxRetries) {
-        console.log(`[waiting][ws] 연결 대기 중... (${retries}/${maxRetries})`);
+        
         setTimeout(trySubscribe, 500);
       } else {
         console.error(`[waiting][ws] 연결 실패: 시간 초과 (${destination})`);
@@ -325,7 +296,7 @@ export default function BookingWaitingPage() {
 
     return () => {
       if (subscriptionRef?.current) {
-        console.log(`🔌 [waiting][ws] 구독 해제: ${destination}`);
+       
         subscriptionRef.current.unsubscribe();
         subscriptionRef.current = null;
       }
@@ -346,18 +317,11 @@ export default function BookingWaitingPage() {
       matchIdFromStore != null
         ? String(matchIdFromStore)
         : (searchParams.get("matchId") ?? null);
-    console.log("[booking-site][queue.enqueue] matchId 확인:", {
-      fromQuery: searchParams.get("matchId"),
-      fromStore: matchIdFromStore,
-      used: matchId,
-    });
+    
     const clickMiss = Number(searchParams.get("nrClicks")) || 0;
     const duration = Number(searchParams.get("rtSec")) || 0;
     if (!matchId) {
-      console.log("[booking-site][queue.enqueue] matchId가 없어 생략합니다.", {
-        clickMiss,
-        duration,
-      });
+      
       return;
     }
     (async () => {
@@ -366,26 +330,17 @@ export default function BookingWaitingPage() {
           return;
         }
         enqueuedRef.current = true;
-        console.log("[booking-site][queue.enqueue] 요청 시작:", {
-          matchId,
-          clickMiss,
-          duration,
-        });
+       
         // startBookingInPage와 동일: API 응답으로 초기 상태 설정
         const res = await enqueueTicketingQueue(matchId, {
           clickMiss,
           duration,
         });
-        console.log("[booking-site][queue.enqueue] API 호출 완료");
-        console.log("[booking-site][queue.enqueue] API 응답:", res);
+       
 
         // API 응답으로 초기 상태 설정 (startBookingInPage와 동일한 로직)
         if (res) {
-          console.log("[booking-site][queue.enqueue] API 응답 처리 시작:", {
-            totalNum: res.totalNum,
-            positionAhead: res.positionAhead,
-            positionBehind: res.positionBehind,
-          });
+         
           // 나의 대기순서: ahead + 1
           setRank(res.positionAhead + 1);
           // positionAhead 저장 (게이지바 계산용)
@@ -399,9 +354,7 @@ export default function BookingWaitingPage() {
           }
           // queue stage로 전환
           setStage("queue");
-          console.log(
-            "[booking-site][queue.enqueue] 상태 설정 완료, queue stage로 전환"
-          );
+          
         } else {
           console.warn("[booking-site][queue.enqueue] API 응답이 없습니다.");
         }

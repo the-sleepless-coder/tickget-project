@@ -197,15 +197,8 @@ export default function SelectSeatPage() {
   const hallSizeParam = searchParams.get("hallSize");
 
   // 디버깅: AI 생성 방 정보 확인
-  if (isAIGenerated) {
-    console.log("[02-Seats] AI Generated Room:", {
-      hallId,
-      hallType,
-      tsxUrl,
-      isAIGenerated,
-      hallSize: hallSizeParam,
-    });
-  }
+  
+  
   const getAIVenueFromHallSize = (size: string | null): VenueKind => {
     if (size === "LARGE" || size === "large") return "large";
     return "medium"; // MEDIUM, medium 또는 기본값
@@ -444,9 +437,7 @@ export default function SelectSeatPage() {
         );
         if (sub) {
           wsSubscriptionRef.current = sub;
-          if (import.meta.env.DEV) {
-            console.log("[02-Seats][ws] MATCH_ENDED 구독 성공:", destination);
-          }
+          
         }
         return;
       }
@@ -498,14 +489,9 @@ export default function SelectSeatPage() {
 
     const handlePolygonClick = async (e: MouseEvent) => {
       const target = e.target as SVGPolygonElement | null;
-      console.log("[AI-section-click] 클릭 이벤트 발생:", {
-        target,
-        tagName: target?.tagName,
-        isPolygon: target?.tagName === "polygon",
-      });
+      
 
       if (!target || target.tagName !== "polygon") {
-        console.log("[AI-section-click] polygon이 아닙니다:", target?.tagName);
         return;
       }
 
@@ -522,18 +508,7 @@ export default function SelectSeatPage() {
         target.getAttribute("totalcols");
       const fillColor = target.getAttribute("fill") || "#CF0098";
 
-      console.log("[AI-section-click] polygon 속성:", {
-        sectionId,
-        grade,
-        totalRowsStr,
-        totalColsStr,
-        fillColor,
-        allAttributes: Array.from(target.attributes).map((attr) => ({
-          name: attr.name,
-          value: attr.value,
-        })),
-      });
-
+      
       if (!sectionId || !totalRowsStr || !totalColsStr) {
         console.warn("[AI-section-click] 섹션 정보가 불완전합니다:", {
           sectionId,
@@ -558,14 +533,7 @@ export default function SelectSeatPage() {
         return;
       }
 
-      console.log("[AI-section-click] 섹션 클릭 성공:", {
-        sectionId,
-        grade,
-        totalRows,
-        totalCols,
-        fillColor,
-      });
-
+      
       // 섹션 선택
       setSelectedAISection({
         sectionId,
@@ -583,7 +551,7 @@ export default function SelectSeatPage() {
             sectionId,
             currentUserId
           );
-          console.log("[AI-section-click] 섹션 좌석 현황:", response);
+          
 
           const taken = new Set<string>();
           if (response.seats) {
@@ -595,11 +563,7 @@ export default function SelectSeatPage() {
             });
           }
           setAITakenSeats(taken);
-          console.log(
-            "[AI-section-click] TAKEN 좌석 저장:",
-            Array.from(taken),
-            `(총 ${taken.size}개)`
-          );
+          
         } catch (error) {
           console.error(
             `[AI-section-click] 섹션 ${sectionId} 좌석 현황 조회 실패:`,
@@ -627,9 +591,7 @@ export default function SelectSeatPage() {
           return true; // 이미 추가됨
         }
 
-        console.log("[AI-section-click] SVG 요소 찾음, 이벤트 리스너 추가");
         const polygons = svgElement.querySelectorAll("polygon");
-        console.log("[AI-section-click] 발견된 polygon 개수:", polygons.length);
 
         // AI 생성 공연장: 섹션들의 grade / 색상 정보를 한 번에 수집
         const gradeColorMap: Partial<Record<GradeKey, string>> = {};
@@ -727,9 +689,7 @@ export default function SelectSeatPage() {
     const observer = new MutationObserver(() => {
       retryCount++;
       if (checkAndAttachListener()) {
-        console.log(
-          `[AI-section-click] SVG 찾음 (시도 ${retryCount}회), observer 해제`
-        );
+        
         observer.disconnect();
         if (intervalId) clearInterval(intervalId);
       } else if (retryCount >= maxRetries) {
@@ -804,10 +764,7 @@ export default function SelectSeatPage() {
       }
 
       setTakenSeats(allTaken);
-      console.log(
-        "[seat-status] SmallVenue TAKEN 좌석 저장:",
-        Array.from(allTaken)
-      );
+     
     };
 
     fetchAllSections();
@@ -821,13 +778,7 @@ export default function SelectSeatPage() {
     }
 
     const durationSec = recordSeatCompleteNow();
-    console.log("[ReserveTiming] Seat complete", {
-      durationFromCaptchaSec: durationSec,
-      captchaBackspaces,
-      captchaWrongAttempts,
-      seatClickMissCount,
-      seatTakenAlertCount,
-    });
+   
 
     // 좌석 선택 완료 시 API 호출
     if (selected.length > 0) {
@@ -905,18 +856,7 @@ export default function SelectSeatPage() {
                   grade: grade,
                 };
                 seats.push(seatData);
-                console.log(`[seat-hold] 좌석 정보 추출:`, {
-                  seatId: seat.id,
-                  elementAttributes: {
-                    section: sectionId,
-                    row: row,
-                    col: colValue,
-                    seat: seatElement.getAttribute("seat"),
-                    grade: grade,
-                    active: active,
-                  },
-                  extractedData: seatData,
-                });
+                
               } else {
                 console.warn(`[seat-hold] 좌석 정보 불완전:`, {
                   seatId: seat.id,
@@ -957,24 +897,11 @@ export default function SelectSeatPage() {
               seats,
               totalSeats,
             };
-            console.log("[seat-hold] API 요청:", {
-              matchId,
-              url: `/ticketing/matches/${matchId}/hold`,
-              payload: requestPayload,
-              venueName,
-              isMediumOrLargeVenue:
-                venueName === "OlympicHall" || venueName === "InspireArena",
-            });
+          
 
             const response = await holdSeat(matchId, requestPayload);
 
-            console.log("[seat-hold] API 응답:", {
-              status: response.status,
-              body: response.body,
-              success: response.body.success,
-              heldSeats: response.body.heldSeats,
-              failedSeats: response.body.failedSeats,
-            });
+           
 
             // 409 응답 또는 실패한 좌석이 있는 경우
             if (
@@ -990,7 +917,7 @@ export default function SelectSeatPage() {
                 new Set(seats.map((seat) => String(seat.sectionId)))
               );
 
-              console.log("[seat-hold] 섹션 좌석 현황 새로고침:", sectionIds);
+             
 
               // 각 섹션의 좌석 현황을 다시 가져오기
               if (matchId && currentUserId) {
@@ -1005,10 +932,7 @@ export default function SelectSeatPage() {
                         sectionId,
                         currentUserId
                       );
-                      console.log(
-                        `[seat-hold] AI 공연장 섹션 ${sectionId} 좌석 현황:`,
-                        statusResponse
-                      );
+                    
 
                       if (statusResponse.seats) {
                         statusResponse.seats.forEach((seat) => {
@@ -1029,10 +953,7 @@ export default function SelectSeatPage() {
                   }
 
                   setAITakenSeats(allTaken);
-                  console.log(
-                    "[seat-hold] AI 공연장 TAKEN 좌석 업데이트:",
-                    Array.from(allTaken)
-                  );
+               
                 } else if (venueKey === "small") {
                   // SmallVenue: 모든 섹션의 좌석 현황 가져오기
                   const allTaken = new Set<string>();
@@ -1061,10 +982,7 @@ export default function SelectSeatPage() {
                   }
 
                   setTakenSeats(allTaken);
-                  console.log(
-                    "[seat-hold] SmallVenue TAKEN 좌석 업데이트:",
-                    Array.from(allTaken)
-                  );
+                 
                 } else {
                   // MediumVenue/LargeVenue: 해당 섹션들의 좌석 현황 가져오기
                   const venueRef =
@@ -1078,10 +996,7 @@ export default function SelectSeatPage() {
                         sectionId,
                         currentUserId
                       );
-                      console.log(
-                        `[seat-hold] 섹션 ${sectionId} 좌석 현황:`,
-                        statusResponse
-                      );
+                    
 
                       // TAKEN 또는 MY_RESERVED 좌석 ID 추출
                       // MY_RESERVED는 다른 사용자가 예약한 좌석이므로 선택할 수 없음
@@ -1103,11 +1018,7 @@ export default function SelectSeatPage() {
                           sectionId,
                           takenSeatIds
                         );
-                        console.log(
-                          `[seat-hold] 섹션 ${sectionId} 좌석 상태 업데이트 완료:`,
-                          takenSeatIds.length,
-                          "개"
-                        );
+                       
                       } else {
                         console.warn(
                           `[seat-hold] venueRef 또는 refreshSeatStatus를 찾을 수 없음`
@@ -1137,7 +1048,7 @@ export default function SelectSeatPage() {
             }
 
             // 성공한 경우에만 다음 페이지로 이동
-            console.log("[seat-hold] 좌석 선점 성공, 다음 페이지로 이동");
+           
           } else {
             console.warn(
               "[seat-hold] 좌석 정보를 찾을 수 없어 API 호출을 건너뜁니다."
@@ -1271,10 +1182,7 @@ export default function SelectSeatPage() {
     const rtSec = searchParams.get("rtSec");
     const nrClicks = searchParams.get("nrClicks");
     const tStart = searchParams.get("tStart");
-    console.log("[ReserveTiming] Captcha input stage", {
-      reactionSec: rtSec ? Number(rtSec) : null,
-      nonReserveClickCount: nrClicks ? Number(nrClicks) : null,
-    });
+    
     saveInitialReaction(rtSec, nrClicks);
     // 총 시간 시작 시각 전달 받으면 저장 (없으면 초기 진입 시점으로 설정)
     if (tStart && !Number.isNaN(Number(tStart))) {
@@ -1295,11 +1203,7 @@ export default function SelectSeatPage() {
           setCaptchaEndNow(sec, backspaceCount, wrongAttempts);
           // 캡챠 통과 시 room store에 true로 저장
           setCaptchaPassed(true);
-          console.log("[ReserveTiming] Captcha verified", {
-            captchaSec: sec,
-            backspaceCount,
-            wrongAttempts,
-          });
+        
           setShowCaptcha(false);
           // 보안문자 통과 후 클릭 실수 추적 시작
           setIsTrackingSeatClicks(true);
@@ -1518,14 +1422,7 @@ export default function SelectSeatPage() {
                                   data-active={active}
                                   onClick={() => {
                                     if (isTaken || isSeatBlocked) {
-                                      console.log(
-                                        "[AI-seat-click] 좌석 클릭 차단:",
-                                        {
-                                          isTaken,
-                                          isSeatBlocked,
-                                          seatId,
-                                        }
-                                      );
+                                    
                                       return;
                                     }
 
@@ -1541,33 +1438,20 @@ export default function SelectSeatPage() {
                                     const price =
                                       getPriceByGradeLabel(gradeLabel);
 
-                                    console.log("[AI-seat-click] 좌석 클릭:", {
-                                      seatId,
-                                      grade,
-                                      gradeLabel,
-                                      sectionId,
-                                      row,
-                                      col,
-                                      price,
-                                    });
+                                  
 
                                     setSelected((prev) => {
                                       const exists = prev.some(
                                         (x) => x.id === seatId
                                       );
                                       if (exists) {
-                                        console.log(
-                                          "[AI-seat-click] 좌석 해제:",
-                                          seatId
-                                        );
+                                        
                                         return prev.filter(
                                           (x) => x.id !== seatId
                                         );
                                       }
                                       if (prev.length >= 2) {
-                                        console.log(
-                                          "[AI-seat-click] 최대 2개까지 선택 가능"
-                                        );
+                                       
                                         return prev;
                                       }
 
@@ -1579,15 +1463,7 @@ export default function SelectSeatPage() {
                                         price,
                                       };
 
-                                      console.log(
-                                        "[AI-seat-click] 좌석 선택 완료:",
-                                        newSeat,
-                                        "이전 선택:",
-                                        prev,
-                                        "새로운 선택:",
-                                        [...prev, newSeat]
-                                      );
-
+                                      
                                       return [...prev, newSeat];
                                     });
                                   }}
