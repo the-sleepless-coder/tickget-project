@@ -379,7 +379,7 @@ export default function PaymentPage() {
               aria-busy={isSubmitting}
               className="flex-1 bg-[linear-gradient(to_bottom,#4383fb,#104bb7)] text-white rounded-md py-2 font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              {isSubmitting ? "결제 중..." : "결제하기"}
+              {isSubmitting ? "결제중" : "결제하기"}
             </button>
           </div>
         </aside>

@@ -11,8 +11,11 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import { getMyPageStats } from "@features/user-page/api";
-import type { MyPageStatsResponse } from "@features/user-page/types";
+import { getMyPageStats, getRankingPercentile } from "@features/user-page/api";
+import type {
+  MyPageStatsResponse,
+  RankingPercentileResponse,
+} from "@features/user-page/types";
 
 export default function PersonalStats() {
   const [matchFilter, setMatchFilter] = useState<"all" | "match" | "solo">(
@@ -24,6 +27,12 @@ export default function PersonalStats() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // 랭킹/퍼센타일 통계 상태
+  const [rankingStats, setRankingStats] =
+    useState<RankingPercentileResponse | null>(null);
+  const [rankingError, setRankingError] = useState<string | null>(null);
+  const [rankingLoading, setRankingLoading] = useState(true);
 
   // API 데이터 로드 (초기 로드)
   useEffect(() => {
@@ -54,6 +63,42 @@ export default function PersonalStats() {
 
     fetchStats();
   }, [matchFilter]);
+
+  // 랭킹/퍼센타일 통계 로드 (마운트 시 1회)
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchRankingStats = async () => {
+      try {
+        setRankingLoading(true);
+        setRankingError(null);
+
+        const data = await getRankingPercentile();
+        if (!cancelled) {
+          setRankingStats(data);
+        }
+      } catch (err) {
+        console.error("랭킹 통계 로드 실패:", err);
+        if (!cancelled) {
+          setRankingError(
+            err instanceof Error
+              ? err.message
+              : "랭킹 데이터를 불러오는데 실패했습니다."
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setRankingLoading(false);
+        }
+      }
+    };
+
+    void fetchRankingStats();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // 더보기 버튼 클릭 시 다음 페이지 데이터 로드
   const handleLoadMore = async () => {
@@ -196,24 +241,32 @@ export default function PersonalStats() {
     matchFilter,
   ]);
 
-  // 평균 상위 비율 계산
-  const averageTopPercentile =
-    specificsData.length > 0
-      ? (
-          specificsData.reduce(
-            (sum, item) => sum + parseFloat(item.topPercentile),
-            0
-          ) / specificsData.length
-        ).toFixed(2)
-      : "-";
+  // 랭킹 API 기반 평균 퍼센타일 / 문구
+  const avgPercentile =
+    rankingStats && typeof rankingStats.avgPercentile === "number"
+      ? rankingStats.avgPercentile
+      : null;
+
+  const formattedAvgPercentile =
+    avgPercentile !== null ? avgPercentile.toFixed(2) : "-";
 
   // 상위/하위 텍스트 결정 (50% 기준)
   const percentileText =
-    averageTopPercentile !== "-"
-      ? parseFloat(averageTopPercentile) <= 50
-        ? `상위 ${averageTopPercentile}%`
-        : `하위 ${(100 - parseFloat(averageTopPercentile)).toFixed(2)}%`
-      : "-";
+    avgPercentile !== null ? `상위 ${avgPercentile.toFixed(2)}%` : "-";
+
+  // 랭킹 API 기반 순위 차트 데이터 (최근 데이터가 위에서 아래로 오도록 정렬)
+  const rankingChartData =
+    rankingStats?.percentileData && rankingStats.percentileData.length > 0
+      ? [...rankingStats.percentileData]
+          .slice()
+          .reverse() // 오래된 데이터부터 왼쪽에 표시
+          .map((item, index) => ({
+            matchNumber: index + 1,
+            percentile: item.percentile,
+            dateTime: item.dateInfo,
+            points: item.points,
+          }))
+      : [];
 
   if (loading) {
     return (
@@ -241,56 +294,86 @@ export default function PersonalStats() {
 
   return (
     <div className="space-y-6">
-      {/* 평균 퍼센트 카드 */}
+      {/* 평균 퍼센트 카드 (랭킹 API 기준) */}
       <div className="rounded-xl border border-purple-200 bg-purple-50 p-6">
-        <h3 className="mb-4 text-lg font-bold text-neutral-900">평균 성과</h3>
+        <h3 className="mb-4 text-lg font-bold text-neutral-900">
+          {rankingStats?.seasonInfo
+            ? `${rankingStats.seasonInfo} 기록 평균`
+            : "기록 평균"}
+        </h3>
         <div className="flex flex-col gap-2">
           <div className="flex items-baseline gap-2">
             <span className="text-4xl font-bold text-purple-600">
               {percentileText}
             </span>
-            <span className="text-sm text-neutral-600">
-              (총 {specificsData.length}회 참여)
-            </span>
           </div>
-          {averageTopPercentile !== "-" && (
+          {formattedAvgPercentile !== "-" && (
             <p className="text-sm text-neutral-500">
-              전체 참가자 중 평균 {averageTopPercentile}% 위치
+              전체 참가자 중 {formattedAvgPercentile}%를 기록했습니다.
+            </p>
+          )}
+          {rankingLoading && (
+            <p className="text-xs text-neutral-400">
+              랭킹 데이터를 불러오는 중입니다.
+            </p>
+          )}
+          {rankingError && (
+            <p className="text-xs text-red-500">
+              랭킹 데이터를 불러오는데 실패했습니다.
             </p>
           )}
         </div>
       </div>
 
-      {/* 퍼센트 추이 차트 */}
-      {specificsData.length > 0 && (
+      {/* 퍼센트 추이 차트 (랭킹 API 기준) */}
+      {rankingChartData.length > 0 && (
         <div className="rounded-xl border border-neutral-200 bg-white p-6 shadow-sm focus:outline-none focus-visible:outline-none">
           <div className="mb-2 flex items-center justify-between">
-            <h3 className="text-lg font-bold text-neutral-900">성과 추이</h3>
-            <p className="text-xs text-neutral-500">
-              {specificsData.length}경기 표시
-            </p>
+            <h3 className="text-lg font-bold text-neutral-900">
+              나의 기록 그래프
+            </h3>
           </div>
           <ResponsiveContainer width="100%" height={200}>
-            <LineChart
-              data={specificsData.map((item, index) => ({
-                matchNumber: specificsData.length - index,
-                percentile: item.topPercentile,
-                dateTime: item.dateTime,
-              }))}
-            >
+            <LineChart data={rankingChartData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis
                 dataKey="matchNumber"
-                label={{ value: "경기", position: "insideBottom", offset: -5 }}
+                label={{ value: "", position: "insideBottom", offset: -5 }}
               />
               <YAxis />
               <Tooltip
-                formatter={(
-                  value: string,
-                  _name: string,
-                  props: { payload?: { dateTime?: string } }
-                ) => [`${value}%`, props.payload?.dateTime || ""]}
                 cursor={{ fill: "#F5EFFD" }}
+                content={({ active, payload }) => {
+                  if (!active || !payload || !payload[0]) return null;
+                  const data = payload[0].payload as {
+                    dateTime?: string;
+                    percentile?: number;
+                  };
+                  const rawDateTime = data.dateTime ?? "";
+                  const [datePart, timePart] = rawDateTime.split(" ");
+                  const displayDate = datePart || "";
+                  const displayTime = timePart || "";
+                  const value = data.percentile ?? payload[0].value;
+                  const numeric =
+                    typeof value === "number"
+                      ? value
+                      : Number.parseFloat(String(value));
+
+                  return (
+                    <div className="rounded-lg border border-neutral-200 bg-white p-2 shadow-lg text-xs">
+                      <p className="font-semibold text-neutral-900">
+                        {displayDate}
+                        {displayTime && ` (${displayTime})`}
+                      </p>
+                      <p className="mt-1 text-neutral-700">
+                        경기 성과{" "}
+                        {Number.isFinite(numeric)
+                          ? `${numeric.toFixed(2)}%`
+                          : "-"}
+                      </p>
+                    </div>
+                  );
+                }}
               />
               <Legend />
               <Line
@@ -298,7 +381,7 @@ export default function PersonalStats() {
                 dataKey="percentile"
                 stroke="#9333ea"
                 strokeWidth={2}
-                name="퍼센트"
+                name="퍼센트(%)"
               />
             </LineChart>
           </ResponsiveContainer>
@@ -333,7 +416,7 @@ export default function PersonalStats() {
                   return (
                     <div className="rounded-lg border border-neutral-200 bg-white p-2 shadow-lg">
                       <p className="font-semibold text-neutral-900">
-                        {time ? `${shortDate}(${time})` : shortDate}
+                        {time ? `20${shortDate} (${time})` : shortDate}
                       </p>
                       <p className="text-neutral-600">
                         소요시간 :{" "}
@@ -374,7 +457,7 @@ export default function PersonalStats() {
                   return (
                     <div className="rounded-lg border border-neutral-200 bg-white p-2 shadow-lg">
                       <p className="font-semibold text-neutral-900">
-                        {time ? `${shortDate}(${time})` : shortDate}
+                        {time ? `20${shortDate} (${time})` : shortDate}
                       </p>
                       <p className="text-neutral-600">
                         소요시간 :{" "}
@@ -415,7 +498,7 @@ export default function PersonalStats() {
                   return (
                     <div className="rounded-lg border border-neutral-200 bg-white p-2 shadow-lg">
                       <p className="font-semibold text-neutral-900">
-                        {time ? `${shortDate}(${time})` : shortDate}
+                        {time ? `20${shortDate} (${time})` : shortDate}
                       </p>
                       <p className="text-neutral-600">
                         소요시간 :{" "}

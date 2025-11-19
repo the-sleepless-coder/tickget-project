@@ -12,7 +12,6 @@ export default function Step2AdvancedForm({
   diffOptions,
   difficulty,
   setDifficulty,
-  botOptions,
   botCount,
   setBotCount,
   onSelectVenue,
@@ -29,7 +28,6 @@ export default function Step2AdvancedForm({
   diffOptions: readonly ("초보" | "평균" | "뛰어남")[];
   difficulty: "초보" | "평균" | "뛰어남";
   setDifficulty: (d: "초보" | "평균" | "뛰어남") => void;
-  botOptions: readonly number[];
   botCount: string;
   setBotCount: (v: string) => void;
   onSelectVenue: (v: string) => void;
@@ -221,18 +219,23 @@ export default function Step2AdvancedForm({
 
         <div>
           <div className="text-white font-semibold mb-2">봇 인원수</div>
-          <select
-            value={botCount}
-            onChange={(e) => setBotCount(e.target.value)}
-            className="w-full border-b-2 border-gray-300 px-2 py-3 text-gray-600 outline-none focus:border-purple-600"
-          >
-            <option value="">봇 인원 선택</option>
-            {botOptions.map((opt) => (
-              <option key={opt} value={opt}>
-                {opt} 명
-              </option>
-            ))}
-          </select>
+          <div className="flex items-center gap-2">
+            <input
+              value={botCount}
+              onChange={(e) => {
+                const digits = e.target.value.replace(/[^0-9]/g, "");
+                if (digits === "") {
+                  setBotCount("");
+                  return;
+                }
+                const num = Math.max(0, Math.min(5000, parseInt(digits, 10)));
+                setBotCount(String(num));
+              }}
+              className="w-full text-gray-600 text-lg font-semibold border-b-2 border-gray-300 px-2 py-3 outline-none focus:border-purple-600"
+              placeholder="봇 수 입력 (0 ~ 5000)"
+              inputMode="numeric"
+            />
+          </div>
         </div>
       </div>
     </div>

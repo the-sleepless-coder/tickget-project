@@ -439,7 +439,16 @@ export default function SocialLogin() {
     }
   };
 
-  const adminNames = ["승수", "유나", "채준", "재석", "휘", "종환", "재원"];
+  const adminNames = [
+    "승수",
+    "유나",
+    "채준",
+    "재석",
+    "휘",
+    "종환",
+    "재원",
+    "김싸피",
+  ];
 
   const socialButtons = [
     {
