@@ -82,7 +82,7 @@ export default function Step1BasicForm({
               onChange={(e) => {
                 const digits = e.target.value.replace(/[^0-9]/g, "");
                 if (digits === "") return setParticipantCount("");
-                const num = Math.max(2, Math.min(10, parseInt(digits, 10)));
+                const num = Math.max(2, Math.min(60, parseInt(digits, 10)));
                 setParticipantCount(String(num));
               }}
               className={`w-full text-gray-600 text-lg font-semibold border-b-2 ${
@@ -96,7 +96,7 @@ export default function Step1BasicForm({
               inputMode="numeric"
             />
             <div className="pointer-events-none text-lg absolute right-0 top-1/2 -translate-y-1/2 text-sm text-gray-400">
-              (2 ~ 10 명)
+              (2 ~ 60 명)
             </div>
           </div>
         </div>
