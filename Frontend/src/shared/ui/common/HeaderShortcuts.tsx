@@ -101,6 +101,23 @@ export default function HeaderShortcuts() {
   const handleGoMyPage = async () => {
     const proceed = await confirmAndExitIfInRoom();
     if (!proceed) return;
+
+    // 로그인 여부 체크 (마이페이지는 로그인 유저만 접근)
+    if (!userId || !nickname || !accessToken) {
+      const shouldLogin = await showConfirm(
+        "로그인이 필요합니다. 로그인 페이지로 이동하시겠습니까?",
+        {
+          confirmText: "로그인",
+          cancelText: "취소",
+          type: "info",
+        }
+      );
+      if (shouldLogin) {
+        navigate(paths.auth.login);
+      }
+      return;
+    }
+
     navigate(paths.mypage.root);
   };
 
