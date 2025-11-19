@@ -28,7 +28,7 @@ public class LuaReservationExecutor {
 
     private final StringRedisTemplate redisTemplate;
 
-    private static final int MATCH_REDIS_TTL_SECONDS = 1800; // 10분
+    private static final int MATCH_REDIS_TTL_SECONDS = 900; // 15분
 
     private final DefaultRedisScript<Long> reserveSeatsLuaScript = new DefaultRedisScript<>(
             """
