@@ -45,7 +45,7 @@ export default function BookingLayout({ activeStep, children }: Props) {
       </div>
 
       {/* 컨텐츠 영역 */}
-      <div className="w-[880px] flex-1">{children}</div>
+      <div className="w-[880px] flex-1 min-h-0">{children}</div>
     </Viewport>
   );
 }

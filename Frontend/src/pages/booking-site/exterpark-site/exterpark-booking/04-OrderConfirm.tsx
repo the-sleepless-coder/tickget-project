@@ -19,7 +19,11 @@ export default function OrderConfirmPage() {
   // 경기 중 브라우저 뒤로가기 차단
   useBlockBackButtonDuringGame("04-OrderConfirm");
 
-  const goPrev = () => navigate(paths.booking.price);
+  const goPrev = () => {
+    const prevParams = searchParams.toString();
+    const target = paths.booking.price + (prevParams ? `?${prevParams}` : "");
+    navigate(target);
+  };
   const goNext = () => {
     const nextUrl = new URL(window.location.origin + paths.booking.payment);
     // 선택 좌석 정보 전달

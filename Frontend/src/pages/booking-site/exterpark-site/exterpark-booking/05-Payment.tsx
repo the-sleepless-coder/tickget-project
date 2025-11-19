@@ -34,7 +34,12 @@ export default function PaymentPage() {
   // 경기 중 브라우저 뒤로가기 차단
   useBlockBackButtonDuringGame("05-Payment");
 
-  const goPrev = () => navigate(paths.booking.orderConfirm);
+  const goPrev = () => {
+    const prevParams = searchParams.toString();
+    const target =
+      paths.booking.orderConfirm + (prevParams ? `?${prevParams}` : "");
+    navigate(target);
+  };
   const complete = async () => {
     if (isSubmitting) {
       console.warn("[seat-confirm] 이미 결제 요청을 처리 중입니다.");

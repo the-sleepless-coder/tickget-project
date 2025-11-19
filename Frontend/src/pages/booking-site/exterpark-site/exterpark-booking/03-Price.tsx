@@ -242,12 +242,12 @@ export default function PricePage() {
 
   return (
     <BookingLayout activeStep={2}>
-      <div className="p-3 flex gap-3">
-        <div className="flex-1 bg-white rounded-md shadow border border-[#e3e3e3]">
+      <div className="p-3 flex gap-3 h-full min-h-0">
+        <div className="flex-1 bg-white rounded-md shadow border border-[#e3e3e3] flex flex-col min-h-0">
           <div className="px-3 py-2 text-sm border-b bg-[#fafafa]">
             {selectedSeatsText || "좌석을 선택해주세요."}
           </div>
-          <div className="divide-y">
+          <div className="divide-y flex-1 overflow-y-auto min-h-0">
             {selectedSeats.map((seat, seatIndex) => (
               <div
                 key={seat.grade}
