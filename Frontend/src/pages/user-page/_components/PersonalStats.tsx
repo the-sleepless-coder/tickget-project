@@ -113,7 +113,7 @@ export default function PersonalStats() {
       return {
         date,
         time,
-        clickTime: item.clickTime,
+        clickTime: Math.max(0, item.clickTime),
         dateTime: `${date} ${time}`,
       };
     })
@@ -126,7 +126,7 @@ export default function PersonalStats() {
       return {
         date,
         time,
-        selectTime: item.selectTime,
+        selectTime: Math.max(0, item.selectTime),
         dateTime: `${date} ${time}`,
       };
     })
@@ -141,7 +141,7 @@ export default function PersonalStats() {
       return {
         date,
         time,
-        selectTime: item.selectTime,
+        selectTime: Math.max(0, item.selectTime),
         dateTime: `${date} ${time}`,
       };
     })
@@ -152,6 +152,8 @@ export default function PersonalStats() {
     .map((item) => {
       const { date, time } = formatDate(item.date);
       const gameType = item.gameType === "MULTI" ? "대결" : "솔로";
+      const totalParticipants =
+        (item.userTotCount ?? 0) + (item.playerTotCount ?? 0);
       const topPercentile =
         item.playerTotCount > 0
           ? ((item.totRank / item.playerTotCount) * 100).toFixed(2)
@@ -166,13 +168,17 @@ export default function PersonalStats() {
         userRank: item.userRank,
         userTotCount: item.userTotCount,
         playerTotCount: item.playerTotCount,
-        queueClickTime: item.queueClickTime.toFixed(2),
-        captchaClickTime: item.captchaClickTime.toFixed(2),
-        seatClickTime: item.seatClickTime.toFixed(2),
-        totalDuration: item.totalDuration.toFixed(2),
+        totRank: item.totRank,
+        totalParticipants,
+        queueClickTime: Math.max(0, item.queueClickTime).toFixed(2),
+        captchaClickTime: Math.max(0, item.captchaClickTime).toFixed(2),
+        seatClickTime: Math.max(0, item.seatClickTime).toFixed(2),
+        totalDuration: Math.max(0, item.totalDuration).toFixed(2),
+        timestamp: new Date(item.date).getTime(),
       };
     })
-    .reverse();
+    // 최신 순 정렬 (가장 최근 경기가 위로 오도록)
+    .sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0));
 
   // 필터링된 상세 기록
   const filteredSpecificsData = specificsData.filter((item) => {
@@ -257,7 +263,7 @@ export default function PersonalStats() {
 
       {/* 퍼센트 추이 차트 */}
       {specificsData.length > 0 && (
-        <div className="rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
+        <div className="rounded-xl border border-neutral-200 bg-white p-6 shadow-sm focus:outline-none focus-visible:outline-none">
           <div className="mb-2 flex items-center justify-between">
             <h3 className="text-lg font-bold text-neutral-900">성과 추이</h3>
             <p className="text-xs text-neutral-500">
@@ -284,6 +290,7 @@ export default function PersonalStats() {
                   _name: string,
                   props: { payload?: { dateTime?: string } }
                 ) => [`${value}%`, props.payload?.dateTime || ""]}
+                cursor={{ fill: "#F5EFFD" }}
               />
               <Legend />
               <Line
@@ -301,7 +308,7 @@ export default function PersonalStats() {
       {/* 예매 성능 분석 */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         {/* 예매 버튼 클릭 */}
-        <div className="rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
+        <div className="rounded-xl border border-neutral-200 bg-white p-6 shadow-sm focus:outline-none focus-visible:outline-none">
           <h4 className="mb-4 text-base font-bold text-neutral-900">
             예매 버튼 클릭
           </h4>
@@ -311,6 +318,7 @@ export default function PersonalStats() {
               <XAxis dataKey="date" hide />
               <YAxis />
               <Tooltip
+                cursor={{ fill: "#F5EFFD" }}
                 content={({ active, payload }) => {
                   if (!active || !payload || !payload[0]) return null;
                   const data = payload[0].payload as {
@@ -335,13 +343,13 @@ export default function PersonalStats() {
                   );
                 }}
               />
-              <Bar dataKey="clickTime" fill="#3b82f6" />
+              <Bar dataKey="clickTime" fill="#F483F7" />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
         {/* 보안 문자 */}
-        <div className="rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
+        <div className="rounded-xl border border-neutral-200 bg-white p-6 shadow-sm focus:outline-none focus-visible:outline-none">
           <h4 className="mb-4 text-base font-bold text-neutral-900">
             보안 문자
           </h4>
@@ -351,6 +359,7 @@ export default function PersonalStats() {
               <XAxis dataKey="date" hide />
               <YAxis />
               <Tooltip
+                cursor={{ fill: "#F5EFFD" }}
                 content={({ active, payload }) => {
                   if (!active || !payload || !payload[0]) return null;
                   const data = payload[0].payload as {
@@ -375,13 +384,13 @@ export default function PersonalStats() {
                   );
                 }}
               />
-              <Bar dataKey="selectTime" fill="#10b981" />
+              <Bar dataKey="selectTime" fill="#A634FB" />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
         {/* 좌석 선택 */}
-        <div className="rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
+        <div className="rounded-xl border border-neutral-200 bg-white p-6 shadow-sm focus:outline-none focus-visible:outline-none">
           <h4 className="mb-4 text-base font-bold text-neutral-900">
             좌석 선택
           </h4>
@@ -391,6 +400,7 @@ export default function PersonalStats() {
               <XAxis dataKey="date" hide />
               <YAxis />
               <Tooltip
+                cursor={{ fill: "#F5EFFD" }}
                 content={({ active, payload }) => {
                   if (!active || !payload || !payload[0]) return null;
                   const data = payload[0].payload as {
@@ -415,7 +425,7 @@ export default function PersonalStats() {
                   );
                 }}
               />
-              <Bar dataKey="selectTime" fill="#f59e0b" />
+              <Bar dataKey="selectTime" fill="#5920D4" />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -465,39 +475,39 @@ export default function PersonalStats() {
             <thead className="bg-neutral-50">
               <tr>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-neutral-700">
-                  날짜/시간
+                  경기 일시
                 </th>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-neutral-700">
-                  경기 정보
+                  경기 모드
+                </th>
+                <th className="px-6 py-3 text-left text-sm font-semibold text-neutral-700">
+                  유저 랭크
                 </th>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-neutral-700">
                   <span className="relative flex items-center gap-1">
-                    상위 비율
+                    토탈 랭크
                     <div className="group relative">
                       <span className="cursor-help text-neutral-400 hover:text-neutral-600">
                         (?)
                       </span>
                       <div className="absolute left-1/2 top-full z-50 mt-2 hidden -translate-x-1/2 transform rounded-md bg-neutral-800 px-2 py-1 text-xs text-white shadow-lg group-hover:block whitespace-nowrap">
-                        봇 + 사용자
+                        봇 + 사용자 전체 기준
                         <div className="absolute -top-1 left-1/2 h-2 w-2 -translate-x-1/2 rotate-45 bg-neutral-800"></div>
                       </div>
                     </div>
                   </span>
                 </th>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-neutral-700">
-                  등수 정보
+                  예매 클릭
                 </th>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-neutral-700">
-                  예매 클릭 (초)
+                  보안 문자
                 </th>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-neutral-700">
-                  보안 문자 (초)
+                  좌석 선택
                 </th>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-neutral-700">
-                  좌석 선택 (초)
-                </th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-neutral-700">
-                  총 소요시간 (초)
+                  총 소요시간
                 </th>
               </tr>
             </thead>
@@ -507,7 +517,7 @@ export default function PersonalStats() {
                   <tr key={index} className="hover:bg-neutral-50">
                     <td className="px-6 py-4 text-sm text-neutral-900">
                       <div className="flex flex-col">
-                        <span>
+                        <span className="font-extrabold">
                           {data.date
                             ? data.date.length >= 3
                               ? data.date.slice(2)
@@ -519,15 +529,31 @@ export default function PersonalStats() {
                         </span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-sm text-neutral-900">
-                      {data.gameType}
-                    </td>
-                    <td className="px-6 py-4 text-sm font-semibold text-purple-600">
-                      {data.topPercentile}%
+                    <td className="px-6 py-4 text-sm">
+                      {data.gameType === "솔로" ? (
+                        <span className="inline-block rounded-md bg-c-blue-100 px-2 py-1 text-xs font-medium text-c-blue-200">
+                          솔로
+                        </span>
+                      ) : data.gameType === "대결" ? (
+                        <span className="inline-block rounded-md bg-c-blue-200 px-2 py-1 text-xs font-medium text-white">
+                          대결
+                        </span>
+                      ) : (
+                        <span className="text-neutral-900">
+                          {data.gameType}
+                        </span>
+                      )}
                     </td>
                     <td className="px-6 py-4 text-sm text-neutral-700">
-                      {data.userTotCount !== null && data.userTotCount > 0 ? (
-                        <div className="text-sm text-purple-600">
+                      {data.userRank === -1 ? (
+                        <div className="text-sm text-red-500 font-extrabold">
+                          실패
+                        </div>
+                      ) : data.userTotCount !== null &&
+                        data.userTotCount > 0 &&
+                        data.userRank !== null &&
+                        data.userRank !== undefined ? (
+                        <div className="text-sm text-green-600 font-extrabold">
                           {data.userRank}/{data.userTotCount}등
                         </div>
                       ) : (
@@ -535,15 +561,31 @@ export default function PersonalStats() {
                       )}
                     </td>
                     <td className="px-6 py-4 text-sm text-neutral-700">
+                      {data.totRank === -1 ? (
+                        <div className="text-sm text-red-500 font-extrabold">
+                          실패
+                        </div>
+                      ) : data.totalParticipants &&
+                        data.totalParticipants > 0 &&
+                        data.totRank !== null &&
+                        data.totRank !== undefined ? (
+                        <div className="text-sm text-green-600 font-extrabold">
+                          {data.totRank}/{data.totalParticipants}등
+                        </div>
+                      ) : (
+                        <div className="text-sm text-neutral-500">-</div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-400 font-extrabold">
                       {data.queueClickTime}초
                     </td>
-                    <td className="px-6 py-4 text-sm text-neutral-700">
+                    <td className="px-6 py-4 text-sm text-gray-400 font-extrabold">
                       {data.captchaClickTime}초
                     </td>
-                    <td className="px-6 py-4 text-sm text-neutral-700">
+                    <td className="px-6 py-4 text-sm text-gray-400 font-extrabold">
                       {data.seatClickTime}초
                     </td>
-                    <td className="px-6 py-4 text-sm text-neutral-700">
+                    <td className="px-6 py-4 text-sm text-gray-400 font-extrabold">
                       {data.totalDuration}초
                     </td>
                   </tr>
@@ -570,7 +612,7 @@ export default function PersonalStats() {
               disabled={loadingMore}
               className="rounded-lg border border-purple-500 bg-white px-6 py-2 text-sm font-medium text-purple-500 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 hover:bg-purple-500 hover:text-white disabled:hover:bg-white disabled:hover:text-purple-500"
             >
-              {loadingMore ? "로딩 중..." : "더보기"}
+              {loadingMore ? "로딩중" : "더보기"}
             </button>
           </div>
         )}

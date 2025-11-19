@@ -8,6 +8,11 @@
   --font-family-suite: "SUITE Variable", sans-serif;
   --font-sans: var(--font-family-suite);
 
+  /* Custom fuchsia Palette */
+  --color-c-fuchsia-100: #fad2ff;
+  --color-c-fuchsia-300: #e464f5;
+  --color-c-fuchsia-500: #c219d8;
+
   /* Custom Blue Palette */
   --color-c-blue-100: #d8e5fe;
   --color-c-blue-200: #4383fb;
@@ -52,6 +57,22 @@ svg polygon:focus {
 
 svg polygon:focus-visible {
   outline: none;
+}
+
+/* Recharts 차트 요소의 포커스 아웃라인 제거 */
+.recharts-wrapper,
+.recharts-wrapper:focus,
+.recharts-wrapper:focus-visible,
+.recharts-surface,
+.recharts-surface:focus,
+.recharts-surface:focus-visible {
+  outline: none !important;
+}
+
+svg.recharts-surface,
+svg.recharts-surface:focus,
+svg.recharts-surface:focus-visible {
+  outline: none !important;
 }
 
 #root {

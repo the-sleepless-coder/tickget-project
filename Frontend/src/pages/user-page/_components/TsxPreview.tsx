@@ -35,7 +35,7 @@ export default function TsxPreview({
   const scaleRef = React.useRef(1);
   const lastReadOnlyRef = React.useRef<boolean | undefined>(undefined);
   const lastSelectedSeatIdsRef = React.useRef<string>("");
-
+  const PURPLE_COLOR = "#7c3aed";
   const LIGHT_GRAY = "#d4d4d8";
 
   // readOnly 모드일 때 선택되지 않은 좌석을 회색으로 처리

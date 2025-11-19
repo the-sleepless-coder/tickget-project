@@ -5,6 +5,7 @@ import { exitRoom } from "@features/room/api";
 import { normalizeProfileImageUrl } from "@shared/utils/profileImageUrl";
 import { useWebSocketStore } from "@shared/lib/websocket-store";
 import { disconnectStompClient } from "@shared/lib/websocket";
+import HeaderShortcuts from "./HeaderShortcuts";
 
 export default function Header() {
   const location = useLocation();
@@ -132,21 +133,32 @@ export default function Header() {
     <header className="mt-1">
       <div className="w-full px-5 py-3">
         <div className="flex items-center justify-between">
-          <button
-            type="button"
-            className="flex items-center gap-3 transition-opacity hover:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400 focus-visible:ring-offset-2 rounded cursor-pointer"
-            onClick={handleHomeClick}
-            aria-label="홈"
-          >
-            <img
-              src={
-                isITicket ? "/header-logo-blue.svg" : "/header-logo-violet.svg"
-              }
-              alt="Tickget"
-              className="h-7 w-auto ml-2"
-            />
-          </button>
+          {/* Left: 로고 */}
+          <div className="flex items-center">
+            <button
+              type="button"
+              className="flex items-center gap-3 transition-opacity hover:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400 focus-visible:ring-offset-2 rounded cursor-pointer"
+              onClick={handleHomeClick}
+              aria-label="홈"
+            >
+              <img
+                src={
+                  isITicket
+                    ? "/header-logo-blue.svg"
+                    : "/header-logo-violet.svg"
+                }
+                alt="Tickget"
+                className="h-7 w-auto ml-2"
+              />
+            </button>
+          </div>
 
+          {/* Center: 상단 바로가기 */}
+          <div className="flex-1 flex justify-center">
+            <HeaderShortcuts />
+          </div>
+
+          {/* Right: 프로필 / 로그인 */}
           <div className="flex items-center gap-3">
             {isLoggedIn ? (
               <>
