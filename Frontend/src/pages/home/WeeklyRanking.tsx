@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { getLiveWeeklyRanking } from "@features/stats/api";
-import type { WeeklyRankingItem, WeeklyRankingResponse } from "@features/stats/types";
+import type {
+  WeeklyRankingItem,
+  WeeklyRankingResponse,
+} from "@features/stats/types";
 
 export default function WeeklyRankingPage() {
   const [data, setData] = useState<WeeklyRankingResponse | null>(null);
@@ -22,7 +25,9 @@ export default function WeeklyRankingPage() {
           if (import.meta.env.DEV) {
             console.error("주간 랭킹 불러오기 실패:", e);
           }
-          setError("주간 랭킹을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.");
+          setError(
+            "주간 랭킹을 불러오지 못했어요. 잠시 후 다시 시도해 주세요."
+          );
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -86,10 +91,10 @@ export default function WeeklyRankingPage() {
                       item.rank === 1
                         ? "text-lg font-extrabold text-c-fuchsia-600"
                         : item.rank === 2
-                        ? "text-lg font-extrabold text-c-fuchsia-300"
-                        : item.rank === 3
-                        ? "text-lg font-extrabold text-c-fuchsia-200"
-                        : "text-base font-semibold text-neutral-700"
+                          ? "text-lg font-extrabold text-c-fuchsia-300"
+                          : item.rank === 3
+                            ? "text-lg font-extrabold text-c-fuchsia-200"
+                            : "text-base font-semibold text-neutral-700"
                     }
                   >
                     {item.rank}
@@ -136,5 +141,3 @@ export default function WeeklyRankingPage() {
     </div>
   );
 }
-
-
