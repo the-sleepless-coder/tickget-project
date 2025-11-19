@@ -23,6 +23,7 @@ export default function PaymentPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [method, setMethod] = useState<string>("kakao");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   // 카드 할부 등 추가 옵션이 생기면 확장 예정
   const matchIdFromStore = useMatchStore((s) => s.matchId);
   const currentUserId = useAuthStore((s) => s.userId);
@@ -35,89 +36,98 @@ export default function PaymentPage() {
 
   const goPrev = () => navigate(paths.booking.orderConfirm);
   const complete = async () => {
-    // matchId 결정: store 우선, 없으면 URL 파라미터에서 가져오기
-    const matchIdParam = searchParams.get("matchId");
-    const matchId =
-      matchIdFromStore ??
-      (matchIdParam && !Number.isNaN(Number(matchIdParam))
-        ? Number(matchIdParam)
-        : null);
-
-    // API 호출: 좌석 확정
-    if (matchId && currentUserId) {
-      try {
-        // SeatConfirmRequest와 동일한 메트릭 페이로드 공통 빌더 사용
-        const payload = buildSeatMetricsPayload(currentUserId);
-
-        console.log("[seat-confirm] API 호출:", {
-          matchId,
-          payload,
-        });
-
-        const response = await confirmSeat(matchId, payload);
-        console.log("[seat-confirm] API 응답:", response);
-
-        // userRank / totalRank를 sessionStorage에 저장
-        if (response.body && typeof response.body.userRank === "number") {
-          sessionStorage.setItem(
-            "reserve.userRank",
-            String(response.body.userRank)
-          );
-        }
-        if (response.body && typeof response.body.totalRank === "number") {
-          sessionStorage.setItem(
-            "reserve.totalRank",
-            String(response.body.totalRank)
-          );
-        }
-
-        // matchId를 store에 업데이트
-        if (response.body && response.body.matchId) {
-          const responseMatchId = Number(response.body.matchId);
-          if (!Number.isNaN(responseMatchId)) {
-            useMatchStore.getState().setMatchId(responseMatchId);
-            console.log("[seat-confirm] matchId 업데이트:", responseMatchId);
-          }
-        }
-      } catch (error) {
-        console.error("[seat-confirm] API 호출 실패:", error);
-      }
-    } else {
-      console.warn(
-        "[seat-confirm] matchId 또는 userId가 없어 API 호출을 건너뜁니다.",
-        { matchId, currentUserId }
-      );
+    if (isSubmitting) {
+      console.warn("[seat-confirm] 이미 결제 요청을 처리 중입니다.");
+      return;
     }
-
-    // 기존 동작: 게임 결과 페이지로 이동
-    const qs = buildMetricsQueryFromStorage();
-    // userRank가 있으면 추가 (기존 동작 유지)
-    const userRank = sessionStorage.getItem("reserve.userRank");
-    const finalQs = userRank
-      ? qs + (qs ? "&" : "?") + `userRank=${encodeURIComponent(userRank)}`
-      : qs;
-    // 경로 수정: paths.booking.gameResult 사용 (실제 게임 결과 페이지 경로)
-    const target = paths.booking.gameResult + finalQs;
-
-    // window.opener가 있어도 현재 창에서 navigate 사용 (세션 유지)
-    // 부모 창이 있으면 postMessage로 알림 (선택사항)
+    setIsSubmitting(true);
     try {
-      if (window.opener && !window.opener.closed) {
-        // 부모 창에 결과 페이지로 이동하라는 메시지 전달
-        window.opener.postMessage(
-          {
-            type: "booking-complete",
-            targetUrl: target,
-          },
-          window.location.origin
+      // matchId 결정: store 우선, 없으면 URL 파라미터에서 가져오기
+      const matchIdParam = searchParams.get("matchId");
+      const matchId =
+        matchIdFromStore ??
+        (matchIdParam && !Number.isNaN(Number(matchIdParam))
+          ? Number(matchIdParam)
+          : null);
+
+      // API 호출: 좌석 확정
+      if (matchId && currentUserId) {
+        try {
+          // SeatConfirmRequest와 동일한 메트릭 페이로드 공통 빌더 사용
+          const payload = buildSeatMetricsPayload(currentUserId);
+
+          console.log("[seat-confirm] API 호출:", {
+            matchId,
+            payload,
+          });
+
+          const response = await confirmSeat(matchId, payload);
+          console.log("[seat-confirm] API 응답:", response);
+
+          // userRank / totalRank를 sessionStorage에 저장
+          if (response.body && typeof response.body.userRank === "number") {
+            sessionStorage.setItem(
+              "reserve.userRank",
+              String(response.body.userRank)
+            );
+          }
+          if (response.body && typeof response.body.totalRank === "number") {
+            sessionStorage.setItem(
+              "reserve.totalRank",
+              String(response.body.totalRank)
+            );
+          }
+
+          // matchId를 store에 업데이트
+          if (response.body && response.body.matchId) {
+            const responseMatchId = Number(response.body.matchId);
+            if (!Number.isNaN(responseMatchId)) {
+              useMatchStore.getState().setMatchId(responseMatchId);
+              console.log("[seat-confirm] matchId 업데이트:", responseMatchId);
+            }
+          }
+        } catch (error) {
+          console.error("[seat-confirm] API 호출 실패:", error);
+        }
+      } else {
+        console.warn(
+          "[seat-confirm] matchId 또는 userId가 없어 API 호출을 건너뜁니다.",
+          { matchId, currentUserId }
         );
       }
-    } catch (error) {
-      console.warn("[Payment] 부모 창에 메시지 전달 실패:", error);
-    }
 
-    // 현재 창에서 결과 페이지로 이동 (세션 유지)
-    navigate(target);
+      // 기존 동작: 게임 결과 페이지로 이동
+      const qs = buildMetricsQueryFromStorage();
+      // userRank가 있으면 추가 (기존 동작 유지)
+      const userRank = sessionStorage.getItem("reserve.userRank");
+      const finalQs = userRank
+        ? qs + (qs ? "&" : "?") + `userRank=${encodeURIComponent(userRank)}`
+        : qs;
+      // 경로 수정: paths.booking.gameResult 사용 (실제 게임 결과 페이지 경로)
+      const target = paths.booking.gameResult + finalQs;
+
+      // window.opener가 있어도 현재 창에서 navigate 사용 (세션 유지)
+      // 부모 창이 있으면 postMessage로 알림 (선택사항)
+      try {
+        if (window.opener && !window.opener.closed) {
+          // 부모 창에 결과 페이지로 이동하라는 메시지 전달
+          window.opener.postMessage(
+            {
+              type: "booking-complete",
+              targetUrl: target,
+            },
+            window.location.origin
+          );
+        }
+      } catch (error) {
+        console.warn("[Payment] 부모 창에 메시지 전달 실패:", error);
+      }
+
+      // 현재 창에서 결과 페이지로 이동 (세션 유지)
+      navigate(target);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // URL에서 선택 좌석 정보 가져오기
@@ -365,9 +375,11 @@ export default function PaymentPage() {
             </button>
             <button
               onClick={complete}
-              className="flex-1 bg-[linear-gradient(to_bottom,#4383fb,#104bb7)] text-white rounded-md py-2 font-semibold"
+              disabled={isSubmitting}
+              aria-busy={isSubmitting}
+              className="flex-1 bg-[linear-gradient(to_bottom,#4383fb,#104bb7)] text-white rounded-md py-2 font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              결제하기
+              {isSubmitting ? "결제 중..." : "결제하기"}
             </button>
           </div>
         </aside>
