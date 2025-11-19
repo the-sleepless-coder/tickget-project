@@ -1,5 +1,6 @@
 package com.stats.controller;
 
+import com.stats.dto.MyPageRankingDTO;
 import com.stats.dto.response.IndividualData.MyPageDTO;
 import com.stats.dto.response.IndividualData.SpecificStatsDTO;
 import com.stats.dto.response.MatchData.MatchDataDTO;
@@ -132,7 +133,8 @@ public class StatsController {
     // 가져올 수 있는 사람 수에 제한 두기.
     /**
      * 업데이트 시, 여러 번 올라가지 않게 ranking version
-     * point/100
+     * 한번 Ranking이 올라가면 version 1.
+     * 그 이후에 더하는 것은 불가능하게 만들어야 해.
      * */
     @GetMapping("/matchstats/ranking/live")
     public ResponseEntity<?> rankingLive(@RequestParam(defaultValue="20")int limit){
@@ -141,10 +143,6 @@ public class StatsController {
 
         return ResponseEntity.ok(result);
     }
-
-    // 마이페이지에서 보여줄 랭킹 데이터 최대 10개 가져오기
-
-
 
     // 수동으로 Redis의 Ranking 스냅샷 찍기
     @PostMapping("/matchstats/ranking/dbFlush")
@@ -175,14 +173,20 @@ public class StatsController {
 
     }
 
-
     // Match 관련 데이터 가져오기
-    // 해당 userId에 맞게 한 페이지에 5개씩 가져오기
-    @GetMapping("/matchstats/{matchId}")
-    public ResponseEntity<?> getMatchStats(@PathVariable("matchId")Long matchId){
+    // 해당 userId에 대한 해당 시즌 데이터 10개 가져오기.
+    @GetMapping("/matchstats/findRanking")
+    public ResponseEntity<?> getMatchStats(HttpServletRequest request, @RequestParam(defaultValue="0") int page, @RequestParam(defaultValue="10") int size){
+        String userId = request.getHeader("X-User-Id");
+        if(userId==null){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("잘못된 요청입니다.");
+        }
 
+        Long userIdLong = Long.valueOf(userId);
 
-        return null;
+        MyPageRankingDTO data = rankingService.getRecentMatchDatas(userIdLong, page, size);
+
+        return ResponseEntity.ok(data);
     }
 
     /**
@@ -222,6 +226,14 @@ public class StatsController {
             return ResponseEntity.status(HttpStatus.NO_CONTENT).body("Something Wrong");
         }
         return ResponseEntity.ok("Great");
+    }
+
+
+    // 마이페이지에서 보여줄 랭킹 데이터 최대 10개 가져오기
+    @GetMapping("/matchstats/ranking")
+    public ResponseEntity<?> getRankingData(){
+
+        return null;
     }
 
 }

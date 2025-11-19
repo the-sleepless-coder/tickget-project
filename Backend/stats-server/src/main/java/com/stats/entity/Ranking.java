@@ -45,6 +45,9 @@ public class Ranking {
     @Column(name = "snapshot_no", nullable = false)
     private Integer snapshotNo;
 
+    @Column(name ="tot_player", nullable = false)
+    private Integer totPlayer;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

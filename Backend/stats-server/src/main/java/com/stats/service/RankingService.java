@@ -1,5 +1,7 @@
 package com.stats.service;
 
+import com.stats.dto.MyPageRankingDTO;
+import com.stats.dto.RankingPercentileDTO;
 import com.stats.dto.response.RankingData.RankingDTO;
 import com.stats.dto.response.RankingData.RankingPreviewDTO;
 import com.stats.dto.response.RankingData.RankingWeeklyDTO;
@@ -13,6 +15,9 @@ import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cglib.core.Local;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.stereotype.Service;
@@ -40,6 +45,8 @@ public class RankingService {
     private static final int USER_BASE_SCORE = 500;
     private static final double BASE_LOG = 10000.0;
     private static final float PEOPLE_FACTOR_MAX = 0.3f;
+
+    private static final int DIVIDE_BY = 10;
 
     // Match 내 플레이어에 대한 랭킹 집계
     public List<RankingDTO> calculateRanking(Long matchIdLong){
@@ -278,7 +285,7 @@ public class RankingService {
         int rank = 1;
         for (ZSetOperations.TypedTuple<String> tuple : topNList) {
             Long userId = Long.valueOf(tuple.getValue());
-            int score = (int) (tuple.getScore()/10);
+            int score = (int) (tuple.getScore()/DIVIDE_BY);
 
             User u = userRepository.findById(userId).orElseThrow(() -> new IllegalStateException("User not found: " + userId));
             String nickName = u.getNickname();
@@ -354,6 +361,7 @@ public class RankingService {
             // Tuple내 userId, SeasonId에 대한 정보를,
             // 차례대로 DB에 저장한다.
             int rank = 1;
+            int totPlayers = all.size();
             for (ZSetOperations.TypedTuple<String> tuple : all) {
                 Long userId = Long.valueOf(tuple.getValue());
                 int points = tuple.getScore().intValue();
@@ -366,6 +374,7 @@ public class RankingService {
                         .snapshotAt(snapshotAt)
                         .snapshotRound(round)  // MORNING / EVENING
                         .snapshotNo(nextSeq)
+                        .totPlayer(totPlayers)
                         .build();
 
                 rankingRepository.save(r);
@@ -380,7 +389,63 @@ public class RankingService {
     }
 
 
+    // 해당 시즌에서, 주어진 userId의 가장 최근 N개의 Match 데이터를 가져온다.
+    public MyPageRankingDTO getRecentMatchDatas(Long userIdLong, int page, int size){
+        Pageable pageable = PageRequest.of(page, size);
+        LocalDateTime now = LocalDateTime.now();
+        String seasonCode = StatsCalculator.buildRankKeyByLocalDateTime(now);
+        Long seasonIdLong = seasonRepository.findByCode(seasonCode)
+                .orElseThrow(() -> new IllegalStateException("No Season Code found for Season Id: " + seasonCode))
+                .getId();
 
+        Page<Ranking> pageResult = rankingRepository.findByUserIdAndSeasonIdOrderBySnapshotAtDesc(userIdLong, seasonIdLong, pageable);
+        List<Ranking> totalSeason =  rankingRepository.findByUserIdAndSeasonIdOrderBySnapshotAtDesc(userIdLong, seasonIdLong);
+        List<Ranking> list = pageResult.getContent();
+
+        // 평균 상위 % 데이터 집계
+        int singleUserPercentile = 0;
+        int totUserPercentile = 0;
+        for(Ranking singleData: totalSeason){
+            singleUserPercentile += singleData.getUserRank();
+            totUserPercentile += singleData.getTotPlayer();
+        }
+
+        Float avgPercentile = RoundBy.decimal( (float) singleUserPercentile/totUserPercentile *100 ,2);
+
+        // userId
+        // userNickName
+        // 시즌 정보
+        // snapShotAt 특정 날짜 포멧
+        // userRank / totalPlayer -> 상위 % (둘째 짜리)
+        User u = userRepository.findById(userIdLong).orElseThrow(()->new IllegalStateException("There is no nickname for given userId" + userIdLong));
+        String nickName = u.getNickname();
+        String seasonParsed = StatsParser.dateParser(seasonCode, "-");
+
+        List<RankingPercentileDTO> percentileData = new ArrayList<>();
+        for(Ranking single:list){
+            String dateInfo  = StatsParser.formatKoreanDateTime(single.getSnapshotAt());
+            Float percentile =  RoundBy.decimal((single.getUserRank() * 100f) / single.getTotPlayer(), 2);
+            int points = (Integer)(single.getPoints() / DIVIDE_BY);
+
+            RankingPercentileDTO singleData =  RankingPercentileDTO.dtobuilder(dateInfo, percentile,points);
+
+            percentileData.add(singleData);
+        }
+
+        MyPageRankingDTO totalResult = MyPageRankingDTO.dtobuilder(userIdLong, nickName, seasonParsed, avgPercentile, percentileData);
+
+        if(list.isEmpty()){
+            return null;
+        }
+
+        return totalResult;
+    }
+
+
+    /**
+     * 집계 안된 Match 데이터를 찾아서 다시 재집계하는 로직 구현.
+     * */
     // BTree에서 빨리 찾을 수 있게 CREATE_INDEX
+
 
 }

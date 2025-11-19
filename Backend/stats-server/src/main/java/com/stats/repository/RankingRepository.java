@@ -5,6 +5,8 @@ import com.stats.dto.response.RankingData.RankingDTO;
 import com.stats.entity.MatchStats;
 import com.stats.entity.Ranking;
 import io.lettuce.core.dynamic.annotation.Param;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
@@ -62,5 +64,16 @@ public interface RankingRepository extends JpaRepository<Ranking, Long> {
             @Param("date") LocalDate date
     );
 
+    // 해당 Season 내, 주어진 userId의 기록 최대 N개
+    Page<Ranking> findByUserIdAndSeasonIdOrderBySnapshotAtDesc(
+            Long userId,
+            Long seasonId,
+            Pageable pageable
+    );
 
+    // 해당 Season 내, 주어진 userId의 모든 데이터 가져오기.
+    List<Ranking> findByUserIdAndSeasonIdOrderBySnapshotAtDesc(
+            Long userId,
+            Long seasonId
+    );
 }
