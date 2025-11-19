@@ -197,6 +197,7 @@ export interface SeatConfirmResponse {
   success: boolean;
   message: string;
   userRank: number;
+  totalRank?: number;
   confirmedSeats: Array<{
     seatId: string;
     sectionId: string;
