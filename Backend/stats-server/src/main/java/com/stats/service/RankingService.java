@@ -46,7 +46,7 @@ public class RankingService {
     private static final double BASE_LOG = 10000.0;
     private static final float PEOPLE_FACTOR_MAX = 0.3f;
 
-    private static final int DIVIDE_BY = 100;
+    private static final int DIVIDE_BY = 10;
 
     // Match 내 플레이어에 대한 랭킹 집계
     public List<RankingDTO> calculateRanking(Long matchIdLong){
@@ -147,7 +147,7 @@ public class RankingService {
             /**
              * 1. baseScore
              * */
-            int finalScore = 0;
+            double finalScore = 0;
             float baseScore = 0f;
             float ratio = (float) basePlayerCount / baseTotCount; // 반드시 둘 중 하나는 float로 바꿔주야, Casting 시 문제가 발생 안함.
             float skillFactor = RoundBy.decimal((1f - ratio), 2);
@@ -237,7 +237,10 @@ public class RankingService {
             // Redis에 보내서 해당 시즌의 Key에 정렬 시킨다.
             Long userId = singleUser.getUserId();
             LocalDateTime now = LocalDateTime.now();
-            updateUserScore(userId, now, finalScore);
+
+            finalScore = finalScore/DIVIDE_BY;
+            // 정수부만 전달 (double 타입 유지하되 정수 값만)
+            updateUserScore(userId, now, Math.floor(finalScore));
 
             // 일정 주기로 DB에 업데이트 시켜준다.
 
@@ -293,7 +296,7 @@ public class RankingService {
         int rank = 1;
         for (ZSetOperations.TypedTuple<String> tuple : topNList) {
             Long userId = Long.valueOf(tuple.getValue());
-            int score = (int) (tuple.getScore()/DIVIDE_BY);
+            int score = (tuple.getScore()).intValue();
 
             User u = userRepository.findById(userId).orElseThrow(() -> new IllegalStateException("User not found: " + userId));
             String nickName = u.getNickname();
@@ -433,7 +436,7 @@ public class RankingService {
         for(Ranking single:list){
             String dateInfo  = StatsParser.formatKoreanDateTime(single.getSnapshotAt());
             Float percentile =  RoundBy.decimal((single.getUserRank() * 100f) / single.getTotPlayer(), 2);
-            int points = (Integer)(single.getPoints() / DIVIDE_BY);
+            int points = (Integer)(single.getPoints());
 
             RankingPercentileDTO singleData =  RankingPercentileDTO.dtobuilder(dateInfo, percentile,points);
 

@@ -2170,7 +2170,7 @@ function BookingCalendarCard({
         </button>
         <button
           type="button"
-          onClick={onBook}
+          // onClick={onBook}
           className="w-full py-3 rounded-xl border text-indigo-600 border-indigo-200 hover:bg-indigo-50 text-sm font-semibold"
         >
           BOOKING / 外國語
