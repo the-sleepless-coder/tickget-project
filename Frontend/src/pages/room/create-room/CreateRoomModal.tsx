@@ -74,14 +74,6 @@ export default function CreateRoomModal({
   const [hasGenerated, setHasGenerated] = useState(false); // 생성 완료 여부
   type SizeOption = "소형" | "중형" | "대형";
   const diffOptions = useMemo(() => ["초보", "평균", "뛰어남"] as const, []);
-  const botOptions = useMemo(
-    () =>
-      [
-        0, 10, 50, 100, 500, 1000, 1250, 2000, 2500, 3000, 3500, 4000, 4500,
-        5000, 6000, 7000,
-      ] as const,
-    []
-  );
   const sizeToVenues: Record<SizeOption, string[]> = useMemo(
     () => ({
       소형: ["샤롯데씨어터"],
@@ -432,7 +424,6 @@ export default function CreateRoomModal({
                 diffOptions={diffOptions}
                 difficulty={difficulty}
                 setDifficulty={setDifficulty}
-                botOptions={botOptions}
                 botCount={botCount}
                 setBotCount={setBotCount}
                 onSelectVenue={(v) => {
