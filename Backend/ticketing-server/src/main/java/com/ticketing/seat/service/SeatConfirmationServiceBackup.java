@@ -366,7 +366,7 @@ public class SeatConfirmationServiceBackup {
             redisTemplate.expire(statusKey, Duration.ofSeconds(600));
 
             // 4. Redis 정리
-            cleanupAllMatchRedis(matchId);
+            //cleanupAllMatchRedis(matchId);
 
             // 5. 외부 서버 알림
             statsServerClient.notifyMatchEnd(matchId);

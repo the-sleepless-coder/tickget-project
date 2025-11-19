@@ -238,7 +238,7 @@ public class MatchStatusSyncService {
                     matchRepository.save(match);
 
                     // Redis 전체 정리
-                    cleanupAllMatchRedis(matchId);
+                  //  cleanupAllMatchRedis(matchId);
 
                     // Stats 서버 알림
                     boolean statsNotificationSuccess = statsServerClient.notifyMatchEnd(matchId);

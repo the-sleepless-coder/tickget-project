@@ -328,7 +328,7 @@ public class SeatConfirmationService {
             redisTemplate.expire(statusKey, Duration.ofSeconds(1800));
 
             // 4. Redis 정리
-            cleanupAllMatchRedis(matchId);
+            //  cleanupAllMatchRedis(matchId);
 
             // 5. 이벤트 발행 (트랜잭션 커밋 후 실행됨)
          //   eventPublisher.publishEvent(new MatchEndEvent(matchId, match.getRoomId()));
