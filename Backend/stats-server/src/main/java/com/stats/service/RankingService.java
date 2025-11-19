@@ -46,7 +46,7 @@ public class RankingService {
     private static final double BASE_LOG = 10000.0;
     private static final float PEOPLE_FACTOR_MAX = 0.3f;
 
-    private static final int DIVIDE_BY = 10;
+    private static final int DIVIDE_BY = 100;
 
     // Match 내 플레이어에 대한 랭킹 집계
     public List<RankingDTO> calculateRanking(Long matchIdLong){
@@ -171,7 +171,15 @@ public class RankingService {
                 }
             }
 
-            baseScore = (BOT_BASE_SCORE * skillFactor) * peopleFactor * difficultyFactor;
+            // 1) 이론상 최대 baseScore
+            final float MAX_BASE_SCORE =
+                    BOT_BASE_SCORE * (1f + PEOPLE_FACTOR_MAX) * 1.3f;   // 난이도 HARD 기준 최대
+
+            // 2) rawBaseScore 계산
+            float rawBaseScore = (BOT_BASE_SCORE * skillFactor) * peopleFactor * difficultyFactor;
+
+            // 3) Max cap 적용
+            baseScore = Math.min(rawBaseScore, MAX_BASE_SCORE);
 
             /**
              * 2. Speed Bonus
