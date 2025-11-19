@@ -19,11 +19,13 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -37,6 +39,7 @@ public class StatsController {
     private final StatsBatchService statsBatchService;
     private final RankingService rankingService;
     private final MatchEndService matchEndService;
+    private final RedisTemplate redisTemplate;
 
     /**
      * 개인 통계
@@ -101,9 +104,28 @@ public class StatsController {
     /**
      * 경기 종료 후, 경기 평균 집계/ 랭킹 집계
      * */
+    /**
+     * 업데이트 시, 여러 번 올라가지 않게 ranking version
+     * 한번 Ranking이 올라가면 version 1.
+     * 그 이후에 더하는 것은 불가능하게 만들어야 해.
+     * */
     // 경기 종료 후, 매치별 통계 및 랭킹 집계
     @PostMapping("/matchstats/{matchId}/end")
     public ResponseEntity<?> endMatchProcess(@PathVariable("matchId") Long matchId){
+        String lockKey = "match:end:lock:" + matchId;
+
+        // Redis에 이미 처리된 매치인지 확인
+        Boolean isProcessed = redisTemplate.opsForValue().setIfAbsent(
+                lockKey,
+                "processed",
+                Duration.ofSeconds(600)
+        );
+
+        if (Boolean.FALSE.equals(isProcessed)) {
+            log.warn("Match {} already processed", matchId);
+            return ResponseEntity.ok("Match already processed");
+        }
+
         // 반드시 하나로 묶어서 Transactional로 수행해줘야 해.
         // match에 대한 평균 집계 + 개인별 랭킹 집계
 
@@ -131,11 +153,6 @@ public class StatsController {
     // 실시간 랭킹 데이터 가져오기
     // 상위 N명 가져오기.
     // 가져올 수 있는 사람 수에 제한 두기.
-    /**
-     * 업데이트 시, 여러 번 올라가지 않게 ranking version
-     * 한번 Ranking이 올라가면 version 1.
-     * 그 이후에 더하는 것은 불가능하게 만들어야 해.
-     * */
     @GetMapping("/matchstats/ranking/live")
     public ResponseEntity<?> rankingLive(@RequestParam(defaultValue="20")int limit){
 
