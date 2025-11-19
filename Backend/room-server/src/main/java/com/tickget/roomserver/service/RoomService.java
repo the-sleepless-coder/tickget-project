@@ -175,15 +175,16 @@ public class RoomService {
 
         List<RoomMember> roomMembers = roomCacheRepository.getRoomMembers(roomId);
         Long matchId = roomCacheRepository.getMatchIdByRoomId(roomId);
+        RoomInfo roomInfo = roomCacheRepository.getRoomInfo(roomId);
+        Long hostId = roomInfo.getHostId();
+
 
         log.info("사용자  {}(id:{})(이)가 방 {}(매치 {} 대기 중)에 입장 성공 - 현재 인원: {}",userName, userId, roomId,matchId, currentUserCount);
 
         UserJoinedRoomEvent event = UserJoinedRoomEvent.of(userId,userName, roomId, currentUserCount);
         roomEventProducer.publishUserJoinedEvent(event);
 
-
-
-        return JoinRoomResponse.of(room, currentUserCount, roomMembers,matchId);
+        return JoinRoomResponse.of(room, currentUserCount, roomMembers,matchId,hostId);
 
     }
 
@@ -282,7 +283,8 @@ public class RoomService {
         Room room = roomRepository.findById(roomId).orElseThrow(
                 () -> new RoomNotFoundException(roomId));
 
-        room.setStatus(RoomStatus.WAITING);
+        room.setStatus(RoomStatus.CLOSED);
+        roomCacheRepository.deleteRoom(roomId);
         roomEventProducer.publishRoomPlayingEndedEvent(RoomPlayingEndedEvent.builder().roomId(roomId).build());
         log.debug("방 {}에서 매치 종료. status를 {} 로 변경", roomId, room.getStatus());
     }

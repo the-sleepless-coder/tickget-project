@@ -18,17 +18,19 @@ import lombok.NoArgsConstructor;
 public class JoinRoomResponse {
     private Long roomId;
     private Long matchId;
+    private Long hostId;
     private int currentUserCount;
     private List<RoomMember> roomMembers ; // id:name
     private RoomStatus roomStatus;
     private String subscriptionTopic;
     private String tsxUrl;
 
-    public static JoinRoomResponse of (Room room, int currentUserCount , List<RoomMember> roomMembers, Long matchId) {
+    public static JoinRoomResponse of (Room room, int currentUserCount , List<RoomMember> roomMembers, Long matchId, Long hostId) {
 
         return JoinRoomResponse.builder()
                 .roomId(room.getId())
                 .matchId(matchId)
+                .hostId(hostId)
                 .currentUserCount(currentUserCount)
                 .subscriptionTopic("/topic/rooms/" + room.getId())
                 .roomMembers(roomMembers)
