@@ -25,9 +25,11 @@ type SortKey = "start" | "latest" | "all";
 export default function HomePage() {
   const navigate = useNavigate();
   const [activeSort, setActiveSort] = useState<SortKey>("start");
-  const [openCreate, setOpenCreate] = useState(false);
   const userId = useAuthStore((s) => s.userId);
   const nickname = useAuthStore((s) => s.nickname);
+  const [openCreate, setOpenCreate] = useState(false);
+  const canCreateRoom =
+    typeof userId === "number" && userId >= 1 && userId <= 7;
 
   type UiRoom = {
     id: number;
@@ -299,29 +301,31 @@ export default function HomePage() {
             전체 방 보기
           </Link>
 
-          <button
-            type="button"
-            onClick={async () => {
-              if (!userId || !nickname) {
-                const shouldLogin = await showConfirm(
-                  "로그인이 필요합니다. 로그인 페이지로 이동하시겠습니까?",
-                  {
-                    confirmText: "로그인",
-                    cancelText: "취소",
-                    type: "info",
+          {canCreateRoom ? (
+            <button
+              type="button"
+              onClick={async () => {
+                if (!userId || !nickname) {
+                  const shouldLogin = await showConfirm(
+                    "로그인이 필요합니다. 로그인 페이지로 이동하시겠습니까?",
+                    {
+                      confirmText: "로그인",
+                      cancelText: "취소",
+                      type: "info",
+                    }
+                  );
+                  if (shouldLogin) {
+                    navigate(paths.auth.login);
                   }
-                );
-                if (shouldLogin) {
-                  navigate(paths.auth.login);
+                  return;
                 }
-                return;
-              }
-              setOpenCreate(true);
-            }}
-            className="rounded-full bg-purple-500 px-4 py-2 text-sm font-medium text-white hover:bg-purple-600 cursor-pointer"
-          >
-            + 방 만들기
-          </button>
+                setOpenCreate(true);
+              }}
+              className="rounded-full bg-purple-500 px-4 py-2 text-sm font-medium text-white hover:bg-purple-600 cursor-pointer"
+            >
+              + 방 만들기
+            </button>
+          ) : null}
         </div>
 
         <div className="flex items-center gap-3">
