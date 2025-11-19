@@ -79,6 +79,7 @@ const ITicketPage = lazy(
   () => import("../../pages/booking-site/exterpark-site/ExterparkRoom")
 );
 const RoomsPage = lazy(() => import("../../pages/home/RoomsList"));
+const WeeklyRankingPage = lazy(() => import("../../pages/home/WeeklyRanking"));
 const SeatsTestPage = lazy(() => import("../../pages/test/NotFound"));
 const MyPageIndex = lazy(() => import("../../pages/user-page/MyPage"));
 const MyPageReservationsPage = lazy(
@@ -163,6 +164,10 @@ export const router = createBrowserRouter([
       {
         path: "rooms",
         element: withSuspense(<RoomsPage />),
+      },
+      {
+        path: "weekly-ranking",
+        element: withSuspense(<WeeklyRankingPage />),
       },
       {
         path: "mypage",

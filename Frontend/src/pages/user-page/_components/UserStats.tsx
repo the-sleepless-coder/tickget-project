@@ -102,9 +102,15 @@ export default function UserStats({
         rankAmongUsers: derivedRankAmongUsers,
         totalParticipants,
         percentile,
-        bookingClick: myUser?.metrics?.bookingClick?.reactionMs ?? 0,
-        captcha: myUser?.metrics?.captcha?.durationMs ?? 0,
-        seatSelection: myUser?.metrics?.seatSelection?.durationMs ?? 0,
+        bookingClick: Math.max(
+          0,
+          myUser?.metrics?.bookingClick?.reactionMs ?? 0
+        ),
+        captcha: Math.max(0, myUser?.metrics?.captcha?.durationMs ?? 0),
+        seatSelection: Math.max(
+          0,
+          myUser?.metrics?.seatSelection?.durationMs ?? 0
+        ),
       };
     })
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) // 역순 정렬
@@ -143,11 +149,13 @@ export default function UserStats({
       rankAmongBots: data.rankAmongBots,
       rankAmongUsers: data.rankAmongUsers,
       percentile: data.percentile.toFixed(2),
-      bookingClick: (data.bookingClick / 1000).toFixed(2),
-      captcha: (data.captcha / 1000).toFixed(2),
-      seatSelection: (data.seatSelection / 1000).toFixed(2),
+      bookingClick: (Math.max(0, data.bookingClick) / 1000).toFixed(2),
+      captcha: (Math.max(0, data.captcha) / 1000).toFixed(2),
+      seatSelection: (Math.max(0, data.seatSelection) / 1000).toFixed(2),
       totalTime: (
-        (data.bookingClick + data.captcha + data.seatSelection) /
+        (Math.max(0, data.bookingClick) +
+          Math.max(0, data.captcha) +
+          Math.max(0, data.seatSelection)) /
         1000
       ).toFixed(2),
     }));
@@ -177,7 +185,7 @@ export default function UserStats({
       </div>
 
       {/* 퍼센트 추이 차트 */}
-      <div className="rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
+      <div className="rounded-xl border border-neutral-200 bg-white p-6 shadow-sm focus:outline-none focus-visible:outline-none">
         <div className="mb-2 flex items-center justify-between">
           <h3 className="text-lg font-bold text-neutral-900">성과 추이</h3>
           <p className="text-xs text-neutral-500">최근 20경기만 표시</p>
@@ -196,6 +204,7 @@ export default function UserStats({
                 _name: string,
                 props: { payload?: { dateTime?: string } }
               ) => [`${value}%`, props.payload?.dateTime || ""]}
+              cursor={{ fill: "#F5EFFD" }}
             />
             <Legend />
             <Line
@@ -212,7 +221,7 @@ export default function UserStats({
       {/* 예매 성능 분석 */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         {/* 예매 버튼 클릭 */}
-        <div className="rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
+        <div className="rounded-xl border border-neutral-200 bg-white p-6 shadow-sm focus:outline-none focus-visible:outline-none">
           <h4 className="mb-4 text-base font-bold text-neutral-900">
             예매 버튼 클릭
           </h4>
@@ -222,6 +231,7 @@ export default function UserStats({
               <XAxis dataKey="date" hide />
               <YAxis />
               <Tooltip
+                cursor={{ fill: "#F5EFFD" }}
                 content={({ active, payload }) => {
                   if (!active || !payload || !payload[0]) return null;
                   const data = payload[0].payload as {
@@ -246,13 +256,13 @@ export default function UserStats({
                   );
                 }}
               />
-              <Bar dataKey="bookingClick" fill="#3b82f6" />
+              <Bar dataKey="bookingClick" fill="#FAD2FF" />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
         {/* 보안 문자 */}
-        <div className="rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
+        <div className="rounded-xl border border-neutral-200 bg-white p-6 shadow-sm focus:outline-none focus-visible:outline-none">
           <h4 className="mb-4 text-base font-bold text-neutral-900">
             보안 문자
           </h4>
@@ -262,6 +272,7 @@ export default function UserStats({
               <XAxis dataKey="date" hide />
               <YAxis />
               <Tooltip
+                cursor={{ fill: "#F5EFFD" }}
                 content={({ active, payload }) => {
                   if (!active || !payload || !payload[0]) return null;
                   const data = payload[0].payload as {
@@ -286,13 +297,13 @@ export default function UserStats({
                   );
                 }}
               />
-              <Bar dataKey="captcha" fill="#10b981" />
+              <Bar dataKey="captcha" fill="#F483F7" />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
         {/* 좌석 선택 */}
-        <div className="rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
+        <div className="rounded-xl border border-neutral-200 bg-white p-6 shadow-sm focus:outline-none focus-visible:outline-none">
           <h4 className="mb-4 text-base font-bold text-neutral-900">
             좌석 선택
           </h4>
@@ -302,6 +313,7 @@ export default function UserStats({
               <XAxis dataKey="date" hide />
               <YAxis />
               <Tooltip
+                cursor={{ fill: "#F5EFFD" }}
                 content={({ active, payload }) => {
                   if (!active || !payload || !payload[0]) return null;
                   const data = payload[0].payload as {
@@ -326,7 +338,7 @@ export default function UserStats({
                   );
                 }}
               />
-              <Bar dataKey="seatSelection" fill="#f59e0b" />
+              <Bar dataKey="seatSelection" fill="#C219D8" />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -379,13 +391,13 @@ export default function UserStats({
                   className="px-2 py-3 text-left text-sm font-semibold text-neutral-700"
                   style={{ width: "12px" }}
                 >
-                  날짜/시간
+                  경기 일시
                 </th>
                 <th
                   className="px-2 py-3 text-left text-sm font-semibold text-neutral-700"
                   style={{ width: "16px" }}
                 >
-                  경기 정보
+                  경기 모드
                 </th>
                 <th
                   className="px-2 py-3 text-left text-sm font-semibold text-neutral-700"
@@ -414,25 +426,25 @@ export default function UserStats({
                   className="px-2 py-3 text-left text-sm font-semibold text-neutral-700"
                   style={{ width: "21px" }}
                 >
-                  예매 클릭 (초)
+                  예매 클릭
                 </th>
                 <th
                   className="px-2 py-3 text-left text-sm font-semibold text-neutral-700"
                   style={{ width: "22px" }}
                 >
-                  보안 문자 (초)
+                  보안 문자
                 </th>
                 <th
                   className="px-2 py-3 text-left text-sm font-semibold text-neutral-700"
                   style={{ width: "24px" }}
                 >
-                  좌석 선택 (초)
+                  좌석 선택
                 </th>
                 <th
                   className="px-2 py-3 text-left text-sm font-semibold text-neutral-700"
                   style={{ width: "31px" }}
                 >
-                  총 소요시간 (초)
+                  총 소요시간
                 </th>
                 <th
                   className="px-2 py-3 text-left text-sm font-semibold text-neutral-700"

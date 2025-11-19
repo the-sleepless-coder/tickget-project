@@ -4,6 +4,7 @@ export const paths = {
   iTicketRoom: (roomId: number) => `/i-ticket/${roomId}`,
   seatsTest: "/seatstest",
   rooms: "/rooms",
+  weeklyRanking: "/weekly-ranking",
   auth: {
     root: "/auth",
     login: "/auth/login",
