@@ -1,25 +1,28 @@
 package com.stats.service;
 
 import com.stats.dto.response.RankingData.RankingDTO;
+import com.stats.dto.response.RankingData.RankingPreviewDTO;
+import com.stats.dto.response.RankingData.RankingWeeklyDTO;
 import com.stats.entity.Match;
-import com.stats.repository.MatchStatsRepository;
-import com.stats.repository.RankingRepository;
-import com.stats.repository.UserStatsRepository;
+import com.stats.entity.Ranking;
+import com.stats.entity.Season;
+import com.stats.entity.User;
+import com.stats.repository.*;
 import com.stats.util.RoundBy;
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cglib.core.Local;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.temporal.WeekFields;
-import java.util.List;
-import java.util.Locale;
+import java.util.*;
 
-import static java.lang.Math.log;
 import com.stats.util.*;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
@@ -28,6 +31,8 @@ public class RankingService {
     private final RankingRepository rankingRepository;
     private final UserStatsRepository userStatsRepository;
     private final MatchStatsRepository matchStatsRepository;
+    private final UserRepository userRepository;
+    private final SeasonRepository seasonRepository;
     private final StringRedisTemplate redisTemplate;
     private final SeasonService seasonService;
 
@@ -37,7 +42,7 @@ public class RankingService {
     private static final float PEOPLE_FACTOR_MAX = 0.3f;
 
     // Match 내 플레이어에 대한 랭킹 집계
-    public Object calculateRanking(Long matchIdLong){
+    public List<RankingDTO> calculateRanking(Long matchIdLong){
         List<RankingDTO> givenMatchData = rankingRepository.findRankingByMatchId(matchIdLong);
 
         // Data 자체가 집계 안됨.
@@ -161,7 +166,6 @@ public class RankingService {
 
             baseScore = (BOT_BASE_SCORE * skillFactor) * peopleFactor * difficultyFactor;
 
-
             /**
              * 2. Speed Bonus
              * */
@@ -215,7 +219,7 @@ public class RankingService {
 
             log.info("userId: {} finalScore: {}", singleUser.getUserId(), finalScore);
 
-            // Redis에 보내서 해당 시즌의 Key에  정렬 시킨다.
+            // Redis에 보내서 해당 시즌의 Key에 정렬 시킨다.
             Long userId = singleUser.getUserId();
             LocalDateTime now = LocalDateTime.now();
             updateUserScore(userId, now, finalScore);
@@ -239,7 +243,7 @@ public class RankingService {
      * score:deltaScore
      */
     public void updateUserScore(Long userId, LocalDateTime now , double deltaScore) {
-        String redisKey = StatsCalculator.buildRankKey(now); // ex) rank:2025-11-3W
+        String redisKey = StatsCalculator.buildRankKeyByLocalDateTime(now); // ex) rank:2025-11-3W
         // Key Type, Member Type
         ZSetOperations<String, String> zset = redisTemplate.opsForZSet();
 
@@ -249,8 +253,132 @@ public class RankingService {
         log.info("redisKey: {}, userId:{}, deltaScore: {}", redisKey, userId.toString(), deltaScore);
     }
 
+    /**
+     * Redis내 상위 N명의 사람을 보여준다.
+     * */
+    public RankingWeeklyDTO getTopN(int topNInt) {
+        // 주어진 시간으로 Redis 키를 만들어준다.
+        LocalDateTime now = LocalDateTime.now();
+        String redisKey = StatsCalculator.buildRankKeyByLocalDateTime(now);
 
-    // Redis에 있는 값을 일정 시간마다 가져와서 DB에 집계
+        // n은 최대 100으로 제한
+        int limit = Math.min(topNInt, 100);
+        ZSetOperations<String, String> zset = redisTemplate.opsForZSet();
+
+        // 예: n=50 → 0~49
+        Set<ZSetOperations.TypedTuple<String>> topNList =
+                zset.reverseRangeWithScores(redisKey, 0, limit - 1);
+
+        List<RankingPreviewDTO> rankingData = new ArrayList<>();
+
+        if (topNList == null || topNList.isEmpty()) {
+            return new RankingWeeklyDTO();
+        }
+
+        int rank = 1;
+        for (ZSetOperations.TypedTuple<String> tuple : topNList) {
+            Long userId = Long.valueOf(tuple.getValue());
+            int score = (int) (tuple.getScore()/10);
+
+            User u = userRepository.findById(userId).orElseThrow(() -> new IllegalStateException("User not found: " + userId));
+            String nickName = u.getNickname();
+            String imageUrl = u.getProfileImageUrl();
+
+            rankingData.add(new RankingPreviewDTO(rank++, userId, nickName,imageUrl, score));
+        }
+
+        String[] parsedKey = redisKey.split("-");
+        String year = String.format("%s년",parsedKey[0]);
+        String monthString = String.format("%s월",parsedKey[1]);
+        String week = parsedKey[2].replace("W","");
+        int weekInt = Integer.valueOf(week);
+        String weekString ="";
+        switch(weekInt){
+            case 1:
+                weekString = "첫째 주";
+                break;
+            case 2:
+                weekString = "둘째 주";
+                break;
+            case 3:
+                weekString = "셋째 주";
+                break;
+            case 4:
+                weekString = "넷째 주";
+                break;
+            case 5:
+                weekString = "다섯째 주";
+                break;
+        }
+
+        LocalDateTime localNow = LocalDateTime.now();
+        String localNowString = StatsCalculator.formatKoreanDateTime(localNow);
+
+        String weeklyInfo = String.format("%s %s", monthString, weekString);
+        RankingWeeklyDTO result = new RankingWeeklyDTO(weeklyInfo, rankingData, localNowString);
+
+        return result;
+    }
+
+    // Redis에 있는 값을 DB에 집계
+    // Automatic, Manual 모두 구현.
+    @Transactional
+    public boolean flushSeasonRanking(String seasonCode, LocalDateTime snapshotAt, Ranking.SnapshotRound round) {
+        // ZSet 내 점수가 높은 순서대로,
+        // Tuple 형태의 userId, MMR을 가져온다.
+        // String redisKey = StatsCalculator.buildRankKeyBySeasonCode(seasonCode);
+        try{
+            LocalDateTime now = LocalDateTime.now();
+            LocalDate dateNow = now.toLocalDate();
+            String redisKey = StatsCalculator.buildRankKeyByLocalDateTime(now);
+
+            ZSetOperations<String, String> zset = redisTemplate.opsForZSet();
+            Set<ZSetOperations.TypedTuple<String>> all = zset.reverseRangeWithScores(redisKey, 0, -1);
+
+            if( all == null || all.isEmpty()){
+                log.info("There is no ranking data to flush in redis");
+                return false;
+            }
+
+            // SeasonId 코드를 가져온다.
+            Season season = seasonRepository.findByCode(seasonCode)
+                    .orElseThrow(() -> new EntityNotFoundException("Season not found: " + seasonCode));
+
+
+            Long seasonId = season.getId();
+            round = StatsCalculator.calRound(snapshotAt);
+            int nextSeq = rankingRepository
+                                  .findMaxSnapshotSeq(seasonId, dateNow)
+                                  .orElse(0) + 1;
+
+            // Tuple내 userId, SeasonId에 대한 정보를,
+            // 차례대로 DB에 저장한다.
+            int rank = 1;
+            for (ZSetOperations.TypedTuple<String> tuple : all) {
+                Long userId = Long.valueOf(tuple.getValue());
+                int points = tuple.getScore().intValue();
+
+                Ranking r = Ranking.builder()
+                        .seasonId(seasonId)
+                        .userId(userId)
+                        .points(points)
+                        .userRank(rank++)
+                        .snapshotAt(snapshotAt)
+                        .snapshotRound(round)  // MORNING / EVENING
+                        .snapshotNo(nextSeq)
+                        .build();
+
+                rankingRepository.save(r);
+            }
+
+            return true;
+        }catch(Exception e){
+            log.error("Failed to Flush Rankings", e);
+            return false;
+        }
+
+    }
+
 
 
     // BTree에서 빨리 찾을 수 있게 CREATE_INDEX

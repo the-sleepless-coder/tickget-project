@@ -1,5 +1,6 @@
 package com.stats.util;
 
+import com.stats.entity.Ranking;
 import com.stats.entity.UserStats;
 
 import java.time.LocalDate;
@@ -146,7 +147,8 @@ public class StatsCalculator {
         return (avg - my) / std;  // 빠를수록 z가 커짐
     }
 
-    public static String buildRankKey(LocalDateTime now) {
+    // LocalDateTime으로 RankKey 생성
+    public static String buildRankKeyByLocalDateTime(LocalDateTime now) {
         LocalDate today = LocalDate.now();
         WeekFields weekFields = WeekFields.of(Locale.KOREA);
 
@@ -156,6 +158,29 @@ public class StatsCalculator {
                 today.getYear(),
                 today.getMonthValue(),
                 week
+        );
+    }
+
+    public static String buildRankKeyBySeasonCode(String seasonCode){
+        return "rank:%s".formatted(seasonCode);
+    }
+
+    public static Ranking.SnapshotRound calRound(LocalDateTime time) {
+        int hour = time.getHour();
+        return (hour < 12) ? Ranking.SnapshotRound.MORNING : Ranking.SnapshotRound.EVENING;
+    }
+
+
+    public static String formatKoreanDateTime(LocalDateTime dt) {
+
+        int hour = dt.getHour();
+        int minute = dt.getMinute();
+
+        return String.format("%d월 %d일 %d시 %d분",
+                dt.getMonthValue(),
+                dt.getDayOfMonth(),
+                hour,
+                minute
         );
     }
 

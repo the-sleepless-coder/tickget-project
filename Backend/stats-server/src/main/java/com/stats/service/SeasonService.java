@@ -20,7 +20,7 @@ public class SeasonService {
     // 해당되는 SeasonCode를 찾아서,
     // 없으면 새로운 SeasonCode 생성.
     public String getOrCreateSeasonCode(LocalDateTime now) {
-        String seasonCode = StatsCalculator.buildRankKey(now);  // 아까 만든 거 재사용
+        String seasonCode = StatsCalculator.buildRankKeyByLocalDateTime(now);  // 아까 만든 거 재사용
 
         return seasonRepository.findByCode(seasonCode)
                 .map(Season::getCode)

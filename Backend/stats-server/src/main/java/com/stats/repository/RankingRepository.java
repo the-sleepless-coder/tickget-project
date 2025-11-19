@@ -8,6 +8,7 @@ import io.lettuce.core.dynamic.annotation.Param;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -47,5 +48,19 @@ public interface RankingRepository extends JpaRepository<Ranking, Long> {
     order by us.userRank asc
 """)
     List<RankingDTO> findRankingByMatchId(@Param("matchId") Long matchId);
+
+    // 하루 내 몇번째 Snapshot인지 확인한다.
+    // 해당 날짜에 동일한 시즌일 경우, 몇번째인지 확인한다.
+    @Query(value = """
+        SELECT COALESCE(MAX(r.snapshot_no), 0)
+        FROM ranking r
+        WHERE r.season_id = :seasonId
+          AND DATE(r.snapshot_at) = :date
+    """, nativeQuery = true)
+    Optional<Integer> findMaxSnapshotSeq(
+            @Param("seasonId") Long seasonId,
+            @Param("date") LocalDate date
+    );
+
 
 }

@@ -3,9 +3,14 @@ package com.stats.controller;
 import com.stats.dto.response.IndividualData.MyPageDTO;
 import com.stats.dto.response.IndividualData.SpecificStatsDTO;
 import com.stats.dto.response.MatchData.MatchDataDTO;
+import com.stats.dto.response.RankingData.RankingPreviewDTO;
+import com.stats.dto.response.RankingData.RankingWeeklyDTO;
+import com.stats.entity.Ranking;
+import com.stats.service.MatchEndService;
 import com.stats.service.RankingService;
 import com.stats.service.StatsBatchService;
 import com.stats.service.StatsService;
+import com.stats.util.StatsCalculator;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -18,6 +23,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -29,6 +35,7 @@ public class StatsController {
     private final StatsService statsService;
     private final StatsBatchService statsBatchService;
     private final RankingService rankingService;
+    private final MatchEndService matchEndService;
 
     /**
      * 개인 통계
@@ -97,34 +104,92 @@ public class StatsController {
     @PostMapping("/matchstats/{matchId}/end")
     public ResponseEntity<?> endMatchProcess(@PathVariable("matchId") Long matchId){
         // 반드시 하나로 묶어서 Transactional로 수행해줘야 해.
-        // match에 대한 평균 집계
+        // match에 대한 평균 집계 + 개인별 랭킹 집계
+
         // 1. 경기 종료 시 즉시 매치 통계 계산
-        boolean updateState = statsBatchService.updateMatchStats(matchId);
-
-        if(updateState){
-            String message = "Match Updated for %s".formatted(matchId);
-            log.info("Game ended and stats updated for matchId: {}", matchId);
-            return ResponseEntity.ok(Map.of("message", message));
-
-        }else{
-            String errorMsg = "No UserStats found for matchId: %d".formatted(matchId);
-            log.warn(errorMsg);
-
-            return ResponseEntity
-                    .status(HttpStatus.NOT_FOUND)
-                    .body(Map.of("message", errorMsg));
-        }
-
         // 2.개인 별 랭킹 집계
+        try {
+            matchEndService.processMatchEnd(matchId);
 
+            return ResponseEntity.ok(
+                    "Match " + matchId + " stats & ranking processed successfully."
+            );
+
+        } catch (IllegalStateException e) {
+            return ResponseEntity
+                    .status(HttpStatus.BAD_REQUEST)
+                    .body(e.getMessage());
+
+        } catch (Exception e) {
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Internal server error while processing matchId=" + matchId);
+        }
     }
 
     // 실시간 랭킹 데이터 가져오기
     // 상위 N명 가져오기.
     // 가져올 수 있는 사람 수에 제한 두기.
+    /**
+     * 업데이트 시, 여러 번 올라가지 않게 ranking version
+     * point/100
+     * */
+    @GetMapping("/matchstats/ranking/live")
+    public ResponseEntity<?> rankingLive(@RequestParam(defaultValue="20")int limit){
+
+        RankingWeeklyDTO result = rankingService.getTopN(limit);
+
+        return ResponseEntity.ok(result);
+    }
+
+    // 마이페이지에서 보여줄 랭킹 데이터 최대 10개 가져오기
 
 
 
+    // 수동으로 Redis의 Ranking 스냅샷 찍기
+    @PostMapping("/matchstats/ranking/dbFlush")
+    public ResponseEntity<?> flushRankingDB(){
+        LocalDateTime snapshotTime = LocalDateTime.now();
+        String seasonCode = StatsCalculator.buildRankKeyByLocalDateTime(snapshotTime);
+        Ranking.SnapshotRound round = StatsCalculator.calRound(snapshotTime);
+
+        boolean success = rankingService.flushSeasonRanking( seasonCode, snapshotTime, round);
+
+        if (success) {
+            return ResponseEntity.ok(
+                    Map.of(
+                            "status", "success",
+                            "message", seasonCode + " ranking flushed successfully",
+                            "snapshotAt", snapshotTime.toString()
+                    )
+            );
+        }
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                Map.of(
+                        "status", "failure",
+                        "message", "No ranking data found or update failed",
+                        "snapshotAt", snapshotTime.toString()
+                )
+        );
+
+    }
+
+
+    // Match 관련 데이터 가져오기
+    // 해당 userId에 맞게 한 페이지에 5개씩 가져오기
+    @GetMapping("/matchstats/{matchId}")
+    public ResponseEntity<?> getMatchStats(@PathVariable("matchId")Long matchId){
+
+
+        return null;
+    }
+
+    /**
+     * 수동 실행 함수
+     * Match별 통계 집계 함수
+     * Ranking 집계 함수
+     * */
     // 게임 끝났을 때, match average 집계 작업 수행.
     @PostMapping("/matchstats/{matchId}")
     public ResponseEntity<?> onGameEnd(@PathVariable("matchId")Long matchId) {
@@ -157,15 +222,6 @@ public class StatsController {
             return ResponseEntity.status(HttpStatus.NO_CONTENT).body("Something Wrong");
         }
         return ResponseEntity.ok("Great");
-    }
-
-    // Match 관련 데이터 가져오기
-    // 해당 userId에 맞게 한 페이지에 5개씩 가져오기
-    @GetMapping("/matchstats/{matchId}")
-    public ResponseEntity<?> getMatchStats(@PathVariable("matchId")Long matchId){
-
-
-        return null;
     }
 
 }
