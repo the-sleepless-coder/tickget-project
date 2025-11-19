@@ -314,6 +314,24 @@ public class SeatConfirmationService {
      */
     private void handleFullMatchAtConfirm(Long matchId, Match match) {
         try {
+
+            // ✅ 멱등성 보장: Redis 락으로 중복 실행 방지
+            String finishLockKey = "match:" + matchId + ":finish_lock";
+            Boolean acquired = redisTemplate.opsForValue()
+                    .setIfAbsent(finishLockKey, "1", Duration.ofSeconds(60));
+
+            if (Boolean.FALSE.equals(acquired)) {
+                log.info("이미 경기 종료 처리 중 (스킵): matchId={}", matchId);
+                return;
+            }
+
+            // ✅ DB에서 최신 상태 재확인
+            Match freshMatch = matchRepository.findById(matchId).orElse(null);
+            if (freshMatch == null || freshMatch.getStatus() == Match.MatchStatus.FINISHED) {
+                log.info("이미 종료된 경기 (스킵): matchId={}", matchId);
+                return;
+            }
+
             // 1. Redis 카운터에서 통계 수집 및 DB 저장
             saveMatchStatisticsFromRedis(matchId, match);
 
