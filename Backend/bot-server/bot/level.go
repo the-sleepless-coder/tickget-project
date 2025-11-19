@@ -30,30 +30,30 @@ func (l Level) GetDelayConfig() DelayConfig {
 	switch l {
 	case LevelBeginner:
 		return DelayConfig{
-			SelectDayBase:      2500, // 2.5초
-			SelectDayVariance:  300,  // ±0.3초
-			CaptchaBase:        5000, // 10초
-			CaptchaVariance:    500,  // ±0.5초
-			SelectSeatBase:     2000, // 5초
-			SelectSeatVariance: 300,  // ±0.3초
+			SelectDayBase:      2000,  // 2.0초
+			SelectDayVariance:  400,   // ±0.4초
+			CaptchaBase:        15000, // 15초
+			CaptchaVariance:    3000,  // ±3초
+			SelectSeatBase:     5000,  // 5초
+			SelectSeatVariance: 3000,  // ±2초
 		}
 	case LevelExpert:
 		return DelayConfig{
-			SelectDayBase:      1500, // 1.5초
-			SelectDayVariance:  200,  // ±0.2초
-			CaptchaBase:        5000, // 6초
-			CaptchaVariance:    300,  // ±0.3초
-			SelectSeatBase:     3500, // 3.5초
-			SelectSeatVariance: 200,  // ±0.2초
+			SelectDayBase:      1300,  // 1.3초
+			SelectDayVariance:  300,   // ±0.3초
+			CaptchaBase:        10000, // 10초
+			CaptchaVariance:    2000,  // ±2초
+			SelectSeatBase:     4000,  // 4초
+			SelectSeatVariance: 1000,  // ±1초
 		}
 	case LevelPro:
 		return DelayConfig{
 			SelectDayBase:      800,  // 0.8초
-			SelectDayVariance:  100,  // ±0.1초
-			CaptchaBase:        3000, // 3초
-			CaptchaVariance:    150,  // ±0.15초
-			SelectSeatBase:     2000, // 2초
-			SelectSeatVariance: 100,  // ±0.1초
+			SelectDayVariance:  100,  // ±0.2초
+			CaptchaBase:        6500, // 6.5초
+			CaptchaVariance:    1500, // ±1.5초
+			SelectSeatBase:     2500, // 2.5초
+			SelectSeatVariance: 500,  // ±0.5초
 		}
 	default:
 		return LevelBeginner.GetDelayConfig()
