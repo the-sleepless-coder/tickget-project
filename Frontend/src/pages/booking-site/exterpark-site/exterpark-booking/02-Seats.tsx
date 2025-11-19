@@ -485,6 +485,11 @@ export default function SelectSeatPage() {
   } | null>(null);
   // AI 공연장 섹션별 TAKEN 좌석 정보 (sectionId-row-col 형식)
   const [aiTakenSeats, setAITakenSeats] = useState<Set<string>>(new Set());
+  // AI 공연장 좌석등급/색상 정보 (좌측 SVG 섹션으로부터 추출)
+  const [aiGradeOrder, setAiGradeOrder] = useState<GradeKey[] | null>(null);
+  const [aiGradeColors, setAiGradeColors] = useState<
+    Partial<Record<GradeKey, string>>
+  >({});
 
   // AI 공연장 SVG polygon 클릭 이벤트 처리
   // selectedAISection이 null일 때만 SVG 전체 보기가 표시되므로 이때만 리스너 추가
@@ -625,6 +630,55 @@ export default function SelectSeatPage() {
         console.log("[AI-section-click] SVG 요소 찾음, 이벤트 리스너 추가");
         const polygons = svgElement.querySelectorAll("polygon");
         console.log("[AI-section-click] 발견된 polygon 개수:", polygons.length);
+
+        // AI 생성 공연장: 섹션들의 grade / 색상 정보를 한 번에 수집
+        const gradeColorMap: Partial<Record<GradeKey, string>> = {};
+        polygons.forEach((polygon) => {
+          const rawGrade =
+            polygon.getAttribute("grade") ||
+            polygon.getAttribute("data-grade") ||
+            "";
+          const gradeUpper = rawGrade.toUpperCase();
+          let key: GradeKey | null = null;
+          if (gradeUpper === "STANDING") key = "STANDING";
+          else if (gradeUpper === "VIP" || gradeUpper === "SR") key = "SR";
+          else if (gradeUpper === "R") key = "R";
+          else if (gradeUpper === "S") key = "S";
+          else if (gradeUpper === "A") key = "A";
+
+          if (!key) return;
+
+          const fill =
+            polygon.getAttribute("fill") ||
+            (polygon as SVGPolygonElement).style.fill ||
+            "";
+          if (!fill) return;
+
+          if (!gradeColorMap[key]) {
+            gradeColorMap[key] = fill;
+          }
+        });
+
+        const distinctGrades = Object.keys(gradeColorMap) as GradeKey[];
+        if (distinctGrades.length > 0) {
+          const count = distinctGrades.length;
+          let desiredOrder: GradeKey[] = [];
+          // 섹션(등급)이 1개일 때: R석
+          if (count === 1) desiredOrder = ["R"];
+          // 2개일 때: VIP석, R석
+          else if (count === 2) desiredOrder = ["SR", "R"];
+          // 3개일 때: VIP석, R석, S석
+          else if (count === 3) desiredOrder = ["SR", "R", "S"];
+          // 4개 이상일 때: 스탠딩, VIP석, R석, S석
+          else desiredOrder = ["STANDING", "SR", "R", "S"];
+
+          const filteredOrder = desiredOrder.filter(
+            (k) => gradeColorMap[k] != null
+          );
+
+          setAiGradeColors(gradeColorMap);
+          setAiGradeOrder(filteredOrder);
+        }
 
         if (polygons.length === 0) {
           // polygon이 아직 렌더링되지 않았을 수 있으므로 경고 제거
@@ -1610,7 +1664,15 @@ export default function SelectSeatPage() {
               <div className="bg-white rounded-md border border-[#e3e3e3] shadow">
                 <div className="px-3 py-2 font-semibold">좌석등급 / 가격</div>
                 <div className="px-3 pb-3 text-xs">
-                  <SeatGrades hallId={hallId} gradeMeta={GRADE_META} />
+                  <SeatGrades
+                    hallId={hallId}
+                    gradeMeta={GRADE_META}
+                    isAIGenerated={isAIGenerated}
+                    aiGradeOrder={
+                      isAIGenerated ? (aiGradeOrder ?? undefined) : undefined
+                    }
+                    aiGradeColors={isAIGenerated ? aiGradeColors : undefined}
+                  />
                 </div>
               </div>
 
