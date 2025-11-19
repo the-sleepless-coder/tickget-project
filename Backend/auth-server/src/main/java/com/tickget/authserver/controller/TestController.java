@@ -45,10 +45,10 @@ public class TestController {
      */
     @PostMapping("/login")
     public ResponseEntity<TestLoginResponse> createTestUserAndLogin(HttpServletResponse httpResponse) {
-        log.info("테스트 유저 생성 및 로그인 API 호출");
+        log.info("게스트 유저 생성 및 로그인 API 호출");
 
         try {
-            // 테스트 유저 생성 및 로그인 처리
+            // 게스트 유저 생성 및 로그인 처리
             TestLoginResponse response = testUserService.createTestUserAndLogin();
 
             // Refresh Token을 HttpOnly Cookie로 설정
@@ -68,16 +68,16 @@ public class TestController {
             // Response에서 refreshToken 제거 (보안상 Cookie에만 포함)
             response.setRefreshToken(null);
 
-            log.info("테스트 유저 생성 및 로그인 성공: userId={}, email={}, nickname={}",
+            log.info("게스트 유저 생성 및 로그인 성공: userId={}, email={}, nickname={}",
                     response.getUserId(), response.getEmail(), response.getNickname());
 
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
-            log.error("테스트 유저 생성 실패", e);
+            log.error("게스트 유저 생성 실패", e);
             return ResponseEntity.status(500)
                     .body(TestLoginResponse.builder()
-                            .message("테스트 유저 생성 실패: " + e.getMessage())
+                            .message("게스트 유저 생성 실패: " + e.getMessage())
                             .build());
         }
     }

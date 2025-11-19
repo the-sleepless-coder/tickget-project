@@ -49,14 +49,14 @@ public class TestUserService {
                 .name(name)
                 .gender(User.Gender.UNKNOWN)
                 .birthDate(LocalDate.of(2000, 1, 1))  // 기본 생년월일
-                .address("Test Address")
+                .address("Geust Address")
                 .phone("010-0000-0000")
                 .profileImageUrl(null)  // 일단 null로 저장
                 .build();
 
         // 2. DB에 저장하여 ID 생성
         User savedUser = userRepository.save(testUser);
-        log.info("테스트 유저 생성 완료: id={}, email={}, nickname={}, name={}",
+        log.info("게스트 유저 생성 완료: id={}, email={}, nickname={}, name={}",
                 savedUser.getId(), savedUser.getEmail(), savedUser.getNickname(), savedUser.getName());
 
         // 3. 기본 프로필 이미지를 S3에 업로드
@@ -77,7 +77,7 @@ public class TestUserService {
         // Refresh Token을 Redis에 저장
         tokenService.saveRefreshToken(savedUser.getId(), refreshToken);
 
-        log.info("테스트 유저 로그인 완료: userId={}", savedUser.getId());
+        log.info("게스트 유저 로그인 완료: userId={}", savedUser.getId());
 
         return TestLoginResponse.builder()
                 .accessToken(accessToken)
@@ -86,13 +86,13 @@ public class TestUserService {
                 .email(savedUser.getEmail())
                 .nickname(savedUser.getNickname())
                 .name(savedUser.getName())
-                .message("테스트 유저 생성 및 로그인 성공")
+                .message("게스트 유저 생성 및 로그인 성공")
                 .build();
     }
 
     /**
      * 유니크한 이메일 생성
-     * 형식: test-{uniqueId}@tickget.test
+     * 형식: guest-{uniqueId}@tickget.guest
      */
     private String generateUniqueEmail(String uniqueId) {
         String email;
@@ -101,9 +101,9 @@ public class TestUserService {
         do {
             if (attempt > 0) {
                 // 만약 중복이면 추가 랜덤 문자열 붙이기
-                email = String.format("test-%s-%d@tickget.test", uniqueId, attempt);
+                email = String.format("guest-%s-%d@tickget.guest", uniqueId, attempt);
             } else {
-                email = String.format("test-%s@tickget.test", uniqueId);
+                email = String.format("guest-%s@tickget.guest", uniqueId);
             }
             attempt++;
         } while (userRepository.findByEmail(email).isPresent() && attempt < 10);
@@ -113,17 +113,17 @@ public class TestUserService {
 
     /**
      * 유니크한 닉네임 생성
-     * 형식: TestUser_{uniqueId}
+     * 형식: Guest_{uniqueId}
      */
     private String generateUniqueNickname(String uniqueId) {
-        return String.format("TestUser_%s", uniqueId);
+        return String.format("Guest_%s", uniqueId);
     }
 
     /**
      * 유니크한 이름 생성
-     * 형식: 테스트유저{uniqueId}
+     * 형식: 게스트유저{uniqueId}
      */
     private String generateUniqueName(String uniqueId) {
-        return String.format("테스트유저%s", uniqueId);
+        return String.format("게스트유저%s", uniqueId);
     }
 }
