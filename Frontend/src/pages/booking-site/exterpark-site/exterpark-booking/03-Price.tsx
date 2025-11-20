@@ -203,14 +203,9 @@ export default function PricePage() {
 
     if (matchId && currentUserId) {
       try {
-        console.log("[seat-cancel] API 호출:", {
-          matchId,
-          userId: currentUserId,
-          endpoint: `/ticketing/matches/${matchId}/seats/cancel?userId=${currentUserId}`,
-          method: "DELETE",
-        });
+       
         const response = await cancelSeats(matchId, currentUserId);
-        console.log("[seat-cancel] API 응답:", response);
+       
       } catch (err) {
         console.error("[seat-cancel] API 에러:", err);
       }

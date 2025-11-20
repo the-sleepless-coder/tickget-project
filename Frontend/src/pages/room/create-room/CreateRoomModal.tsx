@@ -499,8 +499,11 @@ export default function CreateRoomModal({
                 type="button"
                 onClick={() => {
                   const isTitleValid = title.trim().length > 0;
+                  // 멀티 모드일 때: 참가 인원이 있고, 1이 아니어야 함 (2~60명)
                   const isParticipantValid =
-                    matchType === "solo" || participantCount.trim().length > 0;
+                    matchType === "solo" ||
+                    (participantCount.trim().length > 0 &&
+                      participantCount !== "1");
                   if (isTitleValid && isParticipantValid) {
                     setShowStep1Errors(false);
                     setStep(2);
@@ -714,23 +717,10 @@ export default function CreateRoomModal({
                       tsxUrl: hallType === "AI_GENERATED" ? aiTsxUrl : null,
                     };
 
-                    console.log("🚀 방 생성 요청 시작");
-                    console.log(
-                      "📦 요청 바디:",
-                      JSON.stringify(payload, null, 2)
-                    );
-
                     const response = await createRoom(
                       payload,
                       thumbnailFile || undefined
                     );
-
-                    console.log("✅ 방 생성 성공!");
-                    console.log(
-                      "📥 응답 데이터:",
-                      JSON.stringify(response, null, 2)
-                    );
-                    console.log("🆔 생성된 방 ID:", response.roomId);
 
                     // Match Store에 matchId 저장 (응답에 matchId가 있는 경우)
                     // 주의: matchId는 티켓팅 시스템에서 생성되는 별도의 ID입니다.
@@ -749,17 +739,9 @@ export default function CreateRoomModal({
                             useMatchStore.getState().matchId;
                           useMatchStore.getState().setMatchId(parsed);
                           if (currentMatchId !== parsed) {
-                            console.log(
-                              "[CreateRoom] matchId 업데이트:",
-                              currentMatchId,
-                              "->",
-                              parsed
-                            );
+                            // matchId가 변경된 경우 (추가 처리 없음)
                           } else {
-                            console.log(
-                              "[CreateRoom] matchId 저장 완료:",
-                              parsed
-                            );
+                            // matchId가 동일한 경우 (추가 처리 없음)
                           }
                         } else {
                           console.warn("[CreateRoom] matchId 파싱 실패:", {

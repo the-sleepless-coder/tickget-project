@@ -32,17 +32,12 @@ export function useBlockBackButtonDuringGame(trigger: string) {
     // matchId가 없으면 경기 중이 아니므로 리스너 등록하지 않음
     if (matchId === null) {
       if (import.meta.env.DEV) {
-        console.log(
-          `[useBlockBackButtonDuringGame] ${trigger}: matchId가 없어 뒤로가기 차단 비활성화`
-        );
+      
       }
       return;
     }
 
     if (import.meta.env.DEV) {
-      console.log(
-        `[useBlockBackButtonDuringGame] ${trigger}: 경기 중 감지, 뒤로가기 차단 활성화 (matchId: ${matchId})`
-      );
     }
 
     // 현재 위치를 한 번 더 쌓아 뒤로가기를 중단시킴
@@ -66,10 +61,6 @@ export function useBlockBackButtonDuringGame(trigger: string) {
 
     const onPopState = (event: PopStateEvent) => {
       if (import.meta.env.DEV) {
-        console.log(
-          `[useBlockBackButtonDuringGame] ${trigger}: popstate 이벤트 감지`,
-          event
-        );
       }
 
       // 즉시 현재 페이지에 머물도록 다시 푸시 (React Router 라우팅 변경 전에)

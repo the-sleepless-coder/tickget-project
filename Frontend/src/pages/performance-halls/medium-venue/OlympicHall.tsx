@@ -48,17 +48,13 @@ export default function MediumVenue({
         backToOverview: () => {
           setShowDetailView(false);
         },
-        refreshSeatStatus: (sectionId: string, takenSeatIds: string[]) => {
+        refreshSeatStatus: (_sectionId: string, takenSeatIds: string[]) => {
           // 특정 섹션의 TAKEN 또는 MY_RESERVED 좌석 상태를 업데이트
           setTakenSeats((prev) => {
             const merged = new Set(prev);
             takenSeatIds.forEach((id) => merged.add(id));
             return merged;
           });
-          console.log(
-            `[refresh-seat-status] 섹션 ${sectionId} TAKEN/MY_RESERVED 좌석 업데이트:`,
-            takenSeatIds
-          );
         },
       };
     }
@@ -369,29 +365,16 @@ export default function MediumVenue({
           // userId 확인
           if (matchId && currentUserId) {
             try {
-              console.log(
-                `[section-click] API 호출: matchId=${matchId}, sectionId=${sectionId}, userId=${currentUserId}`
-              );
               const response = await getSectionSeatsStatus(
                 matchId,
                 sectionId,
                 currentUserId
               );
-              console.log("[section-click] API 응답:", response);
 
               // TAKEN 또는 MY_RESERVED 상태인 좌석들을 Set에 저장 (section-row-col 형식)
               // MY_RESERVED는 다른 사용자가 예약한 좌석이므로 선택할 수 없음
               if (response.seats && response.seats.length > 0) {
                 const taken = new Set<string>();
-                // API 응답의 seatId 형식 확인을 위한 샘플 로그
-                if (response.seats.length > 0) {
-                  console.log(
-                    "[section-click] API 응답 seatId 샘플:",
-                    response.seats[0].seatId,
-                    "전체 좌석 수:",
-                    response.seats.length
-                  );
-                }
                 response.seats.forEach((seat) => {
                   if (
                     seat.status === "TAKEN" ||
@@ -405,11 +388,6 @@ export default function MediumVenue({
                   taken.forEach((id) => merged.add(id));
                   return merged;
                 });
-                console.log(
-                  "[section-click] TAKEN 좌석 저장:",
-                  Array.from(taken),
-                  `(총 ${taken.size}개)`
-                );
               } else {
                 console.warn(
                   "[section-click] API 응답에 좌석 데이터가 없습니다:",
@@ -833,20 +811,6 @@ export default function MediumVenue({
         const takenSeatId = `${selectedMeta.id}-${row}-${col}`;
         const isTaken = takenSeats.has(takenSeatId);
 
-        // 디버깅: 첫 번째 좌석에서만 매칭 확인 로그 출력
-        if (index === 0 || (isTaken && !el.hasAttribute("data-debug-logged"))) {
-          console.log("[seat-match] 좌석 ID 매칭 확인:", {
-            seatId: seatId,
-            takenSeatId,
-            isTaken,
-            takenSeatsSample: Array.from(takenSeats).slice(0, 5),
-            section: selectedMeta.id,
-            row,
-            col,
-          });
-          el.setAttribute("data-debug-logged", "true");
-        }
-
         // 선택된 좌석인지 확인하고 색상 업데이트
         const isSelected = selectedIds.includes(seatId);
         if (isTaken) {
@@ -890,10 +854,6 @@ export default function MediumVenue({
         const clickHandler = () => {
           // TAKEN 좌석은 클릭 불가
           if (isTaken) {
-            console.log(
-              "[seat-click] TAKEN 좌석은 선택할 수 없습니다:",
-              takenSeatId
-            );
             return;
           }
           if (onToggleSeat) {
@@ -945,8 +905,6 @@ export default function MediumVenue({
       }
     }
 
-    const currentIsFlipped = isFlipped;
-
     // 같은 패턴을 flip: false로 사용하는 섹션들
     const nonFlippedSectionsWithSamePattern: string[] = [];
     if (currentPatternName && patternToSectionsMap[currentPatternName]) {
@@ -958,23 +916,7 @@ export default function MediumVenue({
       );
     }
 
-    // 섹션 정보 및 active가 0인 좌석 정보 출력
-    console.log({
-      section: selectedMeta.id,
-      grade: selectedMeta.level,
-      totalRows: selectedMeta.rows,
-      totalCols: selectedMeta.columns,
-      isFlipped: currentIsFlipped,
-      inactiveSeatsCount: inactiveSeatNumbers.length,
-      inactiveSeatNumbers: inactiveSeatNumbers,
-      nonFlippedSectionsWithSamePattern: nonFlippedSectionsWithSamePattern,
-    });
-    // 값만 쉼표로 구분된 문자열로 출력 (복사용)
-    console.log("inactiveSeatNumbers:", inactiveSeatNumbers.join(", "));
-    console.log(
-      "nonFlippedSectionsWithSamePattern:",
-      nonFlippedSectionsWithSamePattern.join(", ")
-    );
+    // 섹션 정보 및 inactive 좌석 정보는 디버깅용 로그만 제거
   }, [
     showDetailView,
     SelectedPattern,

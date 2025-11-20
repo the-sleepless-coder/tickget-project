@@ -362,7 +362,7 @@ export default function RoomCard({
         userName: nickname,
       });
 
-      console.log("📋 방 멤버 목록:", response.roomMembers);
+      
       // Match Store에 matchId 저장 (다른 경기 API에서 재사용)
       // 주의: matchId는 티켓팅 시스템에서 생성되는 별도의 ID입니다.
       // roomId와는 다른 개념이므로, matchId가 없으면 저장하지 않습니다.
@@ -379,14 +379,9 @@ export default function RoomCard({
             const currentMatchId = useMatchStore.getState().matchId;
             useMatchStore.getState().setMatchId(parsed);
             if (currentMatchId !== null && currentMatchId !== parsed) {
-              console.log(
-                "[booking-site] matchId 업데이트:",
-                currentMatchId,
-                "->",
-                parsed
-              );
+             
             } else {
-              console.log("[booking-site] matchId 저장 완료:", parsed);
+              
             }
           } else {
             console.warn("[booking-site] matchId 파싱 실패:", { matchId: raw });

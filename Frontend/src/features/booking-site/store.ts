@@ -14,15 +14,11 @@ export const useMatchStore = create<MatchState>()(
       matchId: null,
       setMatchId: (matchId: number) => {
         set({ matchId });
-        if (import.meta.env.DEV) {
-          console.log("[MatchStore] matchId 저장:", matchId);
-        }
+        
       },
       clearMatch: () => {
         set({ matchId: null });
-        if (import.meta.env.DEV) {
-          console.log("[MatchStore] matchId 초기화");
-        }
+        
       },
       getMatchId: () => get().matchId,
     }),

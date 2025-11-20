@@ -235,6 +235,7 @@ export interface SeatCancelResult {
 export interface SessionToastLLMRequest {
   difficulty: string; // required: "easy" | "medium" | "hard"
   select_time?: number; // optional: 좌석 선택 시간(초)
+  matchId?: number; // optional: 매치 ID
   miss_count?: number; // optional: 좌석 미스 클릭 수
   success: boolean; // required: 성공 여부
   final_rank?: number; // optional: 최종 순위

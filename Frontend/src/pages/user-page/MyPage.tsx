@@ -16,6 +16,8 @@ import type { MatchDataResponse } from "@features/user-page/types";
 import dayjs from "dayjs";
 
 export default function MyPageIndex() {
+  // 경기 기록 한 페이지에 표시할 개수
+  const MATCH_HISTORY_PAGE_SIZE = 5;
   const [activePrimaryTab, setActivePrimaryTab] = useState("stats");
   const [activeSecondaryTab, setActiveSecondaryTab] = useState("all");
   const [expandedCardIndex, setExpandedCardIndex] = useState<number | null>(
@@ -291,9 +293,14 @@ export default function MyPageIndex() {
               : "all";
         // 프론트엔드는 1-based, API는 0-based이므로 변환 (1 -> 0, 2 -> 1, ...)
         const backendPage = currentPage - 1;
-        const data = await getMatchHistory(mode, backendPage);
+        // 다음 페이지 존재 여부를 알기 위해 한 페이지 표기 개수 + 1 만큼 조회
+        const rawData = await getMatchHistory(
+          mode,
+          backendPage,
+          MATCH_HISTORY_PAGE_SIZE + 1
+        );
         if (!cancelled && storeUserId) {
-          const converted = data
+          const convertedAll = rawData
             .map((matchData) =>
               convertMatchDataToMatchHistory(matchData, storeUserId)
             )
@@ -304,9 +311,13 @@ export default function MyPageIndex() {
               const dateB = new Date(b.date).getTime();
               return dateB - dateA;
             });
-          setMatchHistoryData(converted);
-          // 다음 페이지가 있는지 확인 (데이터가 비어있으면 더 이상 없음)
-          setHasMorePages(converted.length > 0);
+          // 한 페이지에 표시할 개수만 잘라서 사용
+          const pageItems = convertedAll.slice(0, MATCH_HISTORY_PAGE_SIZE);
+          // 다음 페이지에 표시할 항목이 하나 이상 있는지 여부 (초과분이 있으면 true)
+          const hasNextPage = convertedAll.length > MATCH_HISTORY_PAGE_SIZE;
+
+          setMatchHistoryData(pageItems);
+          setHasMorePages(hasNextPage);
         }
       } catch (error) {
         console.error("경기 기록 불러오기 실패:", error);

@@ -25,9 +25,7 @@ export default function WeeklyRankingPage() {
           if (import.meta.env.DEV) {
             console.error("주간 랭킹 불러오기 실패:", e);
           }
-          setError(
-            "주간 랭킹을 불러오지 못했어요. 잠시 후 다시 시도해 주세요."
-          );
+          setError("아직 집계된 랭킹이 없습니다.");
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -66,7 +64,7 @@ export default function WeeklyRankingPage() {
       )}
 
       {!loading && error && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-500">
           {error}
         </div>
       )}

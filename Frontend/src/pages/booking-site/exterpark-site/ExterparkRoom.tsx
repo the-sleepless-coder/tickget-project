@@ -285,10 +285,7 @@ export default function ITicketPage() {
             if (p.userId === myUserId) {
               // 본인 성공
               if (p.matchId == null) {
-                console.log("✅ [DEQUEUE] 본인 대기열 통과 (matchId 없음)", {
-                  myUserId,
-                  timestamp: p.timestamp ?? event.timestamp ?? Date.now(),
-                });
+                
               } else {
                 // matchId는 store에 보관 (이후 단계에서 사용)
                 const numericMatchId =
@@ -296,12 +293,7 @@ export default function ITicketPage() {
                 if (!Number.isNaN(numericMatchId)) {
                   useMatchStore.getState().setMatchId(numericMatchId as number);
                 }
-                console.log("✅ [DEQUEUE] 본인 대기열 통과!", {
-                  myUserId,
-                  matchId: p.matchId,
-                  timestamp: p.timestamp ?? event.timestamp ?? Date.now(),
-                  message: event.message,
-                });
+               
               }
 
               // 현재 페이지에서 경기 진행 중인 경우 좌석 선택 페이지로 이동
@@ -358,11 +350,7 @@ export default function ITicketPage() {
               }
             } else {
               // 타인 성공
-              console.log("ℹ️ [DEQUEUE] 다른 유저 대기열 통과:", {
-                dequeuedUserId: p.userId,
-                myUserId,
-                timestamp: p.timestamp ?? event.timestamp ?? Date.now(),
-              });
+              
             }
           } catch (e) {
             console.error("❌ [DEQUEUE] 처리 실패:", e, event);
@@ -410,19 +398,9 @@ export default function ITicketPage() {
 
               setMyQueueStatus(next);
 
-              console.log("✅ [QUEUE] 내 대기열 상태 업데이트 성공:", {
-                myUserId,
-                ...next,
-                timestamp: event.timestamp ?? Date.now(),
-              });
+              
             } else {
-              console.log(
-                "ℹ️ [QUEUE] 아직 대기열에 진입하지 않음 (내 userId 미포함)",
-                {
-                  myUserId,
-                  keys: Object.keys(queueStatuses),
-                }
-              );
+              
             }
           } catch (e) {
             console.error("❌ [QUEUE] 대기열 상태 처리 실패:", e, event);
@@ -431,7 +409,9 @@ export default function ITicketPage() {
         }
 
         case "MATCH_ENDED": {
-          const payloadMatchId = payload?.matchId;
+          const payloadMatchId =
+            (payload as { matchId?: number | string } | undefined)?.matchId ??
+            null;
           // 방 대기 화면에서는 "예매하기" 버튼이 실제로 활성화된 이후(=reserveAppearedAt 세팅 후)에만
           // 실패 통계를 전송한다.
           if (reserveAppearedAt !== null) {
@@ -480,10 +460,7 @@ export default function ITicketPage() {
           const totalUsersInRoom = payload?.totalUsersInRoom;
 
           if (userId) {
-            console.log(
-              `✅ 유저 입장: userId=${userId}, username=${username || "알 수 없음"}, 총 인원=${totalUsersInRoom || "알 수 없음"}`
-            );
-            console.log(`📝 메시지: ${event.message || ""}`);
+            
 
             setRoomMembers((prev) => {
               // 이미 존재하는지 확인
@@ -491,9 +468,7 @@ export default function ITicketPage() {
               if (existingIndex !== -1) {
                 // 이미 존재하는 유저인 경우 이름 업데이트
                 if (username) {
-                  console.log(
-                    `🔄 유저 이름 업데이트: userId=${userId}, 새 이름=${username}`
-                  );
+                  
                   const updated = [...prev];
                   updated[existingIndex] = {
                     ...updated[existingIndex],
@@ -501,7 +476,7 @@ export default function ITicketPage() {
                   };
                   return updated;
                 } else {
-                  console.log("⚠️ 이미 존재하는 유저입니다:", userId);
+                  
                   return prev;
                 }
               }
@@ -513,12 +488,10 @@ export default function ITicketPage() {
                 enteredAt: event.timestamp || Date.now(),
               };
 
-              console.log("➕ 새 멤버 추가:", newMember);
               return [...prev, newMember];
             });
           } else if (event.roomMembers && Array.isArray(event.roomMembers)) {
             // roomMembers 배열로 전체 업데이트 (기존 형식)
-            console.log("👥 방 멤버 목록 전체 업데이트 (roomMembers 배열)");
             setRoomMembers(event.roomMembers);
           } else {
             console.warn("⚠️ USER_JOINED 이벤트에 userId가 없습니다:", event);
@@ -539,32 +512,17 @@ export default function ITicketPage() {
             reloadIgnoreUntilRef.current > 0 &&
             now < reloadIgnoreUntilRef.current
           ) {
-            if (import.meta.env.DEV) {
-              console.log(
-                "⏭️ [ExterparkRoom] 새로고침 직후이므로 본인 USER_EXITED/USER_LEFT 무시:",
-                {
-                  userId,
-                  remainingMs: reloadIgnoreUntilRef.current - now,
-                  event,
-                }
-              );
-            }
+            
             break;
           }
 
           if (userId) {
-            console.log(
-              `👋 유저 퇴장: userId=${userId}, 남은 인원=${totalUsersInRoom || "알 수 없음"}`
-            );
-            console.log(`📝 메시지: ${event.message || ""}`);
-
+            
             // 본인이 퇴장당한 경우
             if (userId === myUserId) {
               // 새 창이 열린 경우 USER_LEFT 이벤트 무시 (새 창에서 웹소켓 세션 연결됨)
               if (hasOpenedNewWindowRef.current) {
-                console.log(
-                  "ℹ️ [퇴장] 새 창이 열린 상태이므로 USER_LEFT 이벤트 무시 (새 창에서 세션 유지)"
-                );
+                
                 break;
               }
 
@@ -604,7 +562,7 @@ export default function ITicketPage() {
 
               // WebSocket 구독 해제
               if (subscriptionRef.current) {
-                console.log(`🔌 [퇴장] 방 구독 해제`);
+                
                 subscriptionRef.current.unsubscribe();
                 subscriptionRef.current = null;
               }
@@ -617,14 +575,10 @@ export default function ITicketPage() {
             // 다른 유저가 퇴장한 경우
             setRoomMembers((prev) => {
               const filtered = prev.filter((m) => m.userId !== userId);
-              console.log(
-                `➖ 멤버 제거: ${userId}, 이전 인원: ${prev.length}, 현재 인원: ${filtered.length}`
-              );
               return filtered;
             });
           } else if (event.roomMembers && Array.isArray(event.roomMembers)) {
             // roomMembers 배열로 전체 업데이트 (기존 형식)
-            console.log("👥 방 멤버 목록 전체 업데이트 (roomMembers 배열)");
             setRoomMembers(event.roomMembers);
           } else {
             console.warn("⚠️ USER_LEFT 이벤트에 userId가 없습니다:", event);
@@ -635,7 +589,6 @@ export default function ITicketPage() {
         case "ROOM_UPDATE":
         case "MEMBERS_UPDATE":
           if (event.roomMembers && Array.isArray(event.roomMembers)) {
-            console.log("🔄 방 멤버 목록 전체 업데이트");
             setRoomMembers(event.roomMembers);
           }
           break;
@@ -677,13 +630,7 @@ export default function ITicketPage() {
               break;
             }
 
-            console.log("👑 [HOST_CHANGED] 방장 변경:", {
-              previousHostId,
-              newHostId,
-              message: event.message,
-              timestamp: event.timestamp ?? Date.now(),
-            });
-
+            
             // 방장 ID 업데이트
             setHostUserId(newHostId);
           } catch (e) {
@@ -693,7 +640,7 @@ export default function ITicketPage() {
         }
 
         default:
-          console.log("ℹ️ 알 수 없는 이벤트 타입:", eventType, event);
+          
       }
     },
     [
@@ -718,28 +665,11 @@ export default function ITicketPage() {
   // 방 생성/입장 응답 데이터 로그
   useEffect(() => {
     if (joinResponse) {
-      console.log(
-        "🎮 게임룸 데이터 (방 입장 응답):",
-        JSON.stringify(joinResponse, null, 2)
-      );
-      console.log("📋 방 멤버 목록:", joinResponse.roomMembers);
-      console.log("🆔 Room ID:", roomId || joinResponse.roomId);
+      
     } else if (roomData) {
-      console.log(
-        "🎮 게임룸 데이터 (방 생성 응답):",
-        JSON.stringify(roomData, null, 2)
-      );
-      console.log("📋 요청 데이터:", JSON.stringify(roomRequest, null, 2));
-      console.log("🆔 Room ID:", roomId || "없음");
-      console.log("🤖 botCount 값:", {
-        roomData: roomData.botCount,
-        roomRequest: roomRequest?.botCount,
-      });
+      
     } else if (roomId) {
-      console.log("🆔 Room ID (URL 파라미터):", roomId);
-      console.log(
-        "⚠️ location state에 roomData나 joinResponse가 없습니다. API로 데이터를 가져와야 할 수 있습니다."
-      );
+      
     }
   }, [roomData, roomRequest, joinResponse, roomId]);
 
@@ -773,39 +703,21 @@ export default function ITicketPage() {
 
     // Bridge는 현재 페이지에서만 처리하므로 생성하지 않음
 
-    console.log("🚀 [구독] 구독 프로세스 시작:", {
-      targetRoomId,
-      destination,
-      wsClientConnected: wsClient.connected,
-      wsClientActive: wsClient.active,
-    });
-
+    
     // WebSocket이 연결될 때까지 대기
     const checkConnection = () => {
       if (wsClient.connected) {
-        console.log(`📡 [구독] 방 구독 시도: ${destination}`);
+        
 
         // handleRoomEvent를 직접 참조하여 항상 최신 함수 사용
         const subscription = subscribe(wsClient, destination, (message) => {
-          console.log("📨 [메시지 수신] 방 메시지 수신:", {
-            destination: message.headers.destination,
-            body: message.body,
-            headers: message.headers,
-            timestamp: new Date().toISOString(),
-          });
+          
           try {
             const data = JSON.parse(message.body);
-            console.log(
-              "📦 [메시지 수신] 파싱된 메시지 데이터:",
-              JSON.stringify(data, null, 2)
-            );
-
+            
             // 백엔드 메시지 형식: { eventType, roomId, timestamp, message, payload }
             if (data.eventType) {
-              console.log(
-                `🔔 [메시지 수신] 이벤트 타입: ${data.eventType}`,
-                data
-              );
+              
               // 현재 페이지에서만 처리하므로 Bridge 전달 불필요
               // ref를 통해 최신 handleRoomEvent 함수 사용
               if (handleRoomEventRef.current) {
@@ -814,15 +726,11 @@ export default function ITicketPage() {
             }
             // roomMembers 배열이 있으면 무조건 업데이트 (기존 형식 지원)
             else if (data.roomMembers && Array.isArray(data.roomMembers)) {
-              console.log(
-                "👥 [메시지 수신] 방 멤버 목록 업데이트 (roomMembers 배열):",
-                data.roomMembers
-              );
               setRoomMembers(data.roomMembers);
             }
             // 기타 형식
             else {
-              console.log("ℹ️ [메시지 수신] 알 수 없는 메시지 형식:", data);
+             
             }
           } catch (e) {
             console.error(
@@ -835,14 +743,7 @@ export default function ITicketPage() {
 
         if (subscription) {
           subscriptionRef.current = subscription;
-          console.log(`✅ [구독] 방 구독 성공: ${destination}`);
-          console.log("📋 [구독] 구독 정보:", {
-            id: subscription.id,
-            destination: destination,
-            subscribed: true,
-            timestamp: new Date().toISOString(),
-          });
-
+          
           // 구독 후 현재 구독 목록 확인
           {
             const subs = (
@@ -851,7 +752,7 @@ export default function ITicketPage() {
               }
             ).subscriptions;
             if (subs) {
-              console.log("📋 [구독] 현재 활성 구독 목록:", Object.keys(subs));
+             
             }
           }
         } else {
@@ -862,13 +763,7 @@ export default function ITicketPage() {
       } else {
         retryCount++;
         if (retryCount < maxRetries) {
-          console.log(
-            `⏳ [구독] WebSocket 연결 대기 중... (${retryCount}/${maxRetries})`,
-            {
-              connected: wsClient.connected,
-              active: wsClient.active,
-            }
-          );
+          
           setTimeout(checkConnection, 500);
         } else {
           console.error(
@@ -890,15 +785,12 @@ export default function ITicketPage() {
     return () => {
       // 현재 페이지에서 경기 진행 중이고 DEQUEUE된 경우 구독 유지
       if (hasDequeuedInPageRef.current) {
-        console.log(`🔌 [구독] 경기 진행 중이므로 구독 유지: ${destination}`);
+        
         return;
       }
 
       if (subscriptionRef.current) {
-        console.log(`🔌 [구독] 방 구독 해제: ${destination}`, {
-          subscriptionId: subscriptionRef.current.id,
-          timestamp: new Date().toISOString(),
-        });
+        
         subscriptionRef.current.unsubscribe();
         subscriptionRef.current = null;
       }
@@ -1087,10 +979,7 @@ export default function ITicketPage() {
       setReserveAppearedAt(appearedTs);
       setNonReserveClickCount(0);
       setIsTrackingClicks(true);
-      console.log("[ReserveTiming] Button appeared (secondsLeft 1→0)", {
-        appearedAt: new Date(appearedTs).toISOString(),
-        isJoinedUser: !!joinResponse,
-      });
+     
     }
 
     prevSecondsLeftRef.current = secondsLeft;
@@ -1111,7 +1000,7 @@ export default function ITicketPage() {
       if (!isReserveButton && !isEnabledDateButton) {
         setNonReserveClickCount((prev) => {
           const next = prev + 1;
-          console.log("[ReserveTiming] Non-reserve click", { count: next });
+          
           return next;
         });
       }
@@ -1166,20 +1055,11 @@ export default function ITicketPage() {
 
     setIsExiting(true);
     try {
-      console.log("🚪 방 나가기 요청 시작:", {
-        roomId: targetRoomId,
-        userId: currentUserId,
-        userName: currentUserNickname,
-      });
-
+      
       const response = await exitRoom(Number(targetRoomId), {
         userId: currentUserId,
         userName: currentUserNickname,
       });
-
-      console.log("✅ 방 나가기 성공:", JSON.stringify(response, null, 2));
-      console.log("📊 남은 인원:", response.leftUserCount);
-      console.log("📊 방 상태:", response.roomStatus);
 
       // Room store 초기화
       useRoomStore.getState().clearRoomInfo();
@@ -1196,7 +1076,7 @@ export default function ITicketPage() {
 
       // WebSocket 구독 해제
       if (subscriptionRef.current) {
-        console.log(`🔌 방 구독 해제: ${response.unsubscriptionTopic}`);
+        
         subscriptionRef.current.unsubscribe();
         subscriptionRef.current = null;
       }
@@ -1322,19 +1202,11 @@ export default function ITicketPage() {
       // 밀리초 단위로 계산 후 초 단위로 변환 (소수점 2자리까지)
       const reactionSec = Number((reactionMs / 1000).toFixed(2));
       // Log: reaction time between appearance and click
-      console.log("[ReserveTiming] Reaction time until click", {
-        reactionMs,
-        reactionSec,
-        appearedAt: new Date(reserveAppearedAt).toISOString(),
-        clickedAt: new Date(clickedTs).toISOString(),
-        nonReserveClickCount,
-      });
+      
       setIsTrackingClicks(false);
       finalUrl = `${baseUrl}?rtSec=${encodeURIComponent(String(reactionSec))}&nrClicks=${encodeURIComponent(String(nonReserveClickCount))}&tStart=${encodeURIComponent(String(totalStartAt))}&matchId=${encodeURIComponent(matchIdParam)}${hallIdParam}${hallTypeParam}${tsxUrlParam}${hallSizeParam}${dateParam}${roundParam}${roomIdParam}`;
     } else {
-      console.log(
-        "[ReserveTiming] Click without appearance timestamp (possibly test click)"
-      );
+      
       finalUrl = `${baseUrl}?rtSec=0&nrClicks=${encodeURIComponent(String(nonReserveClickCount))}&tStart=${encodeURIComponent(String(totalStartAt))}&matchId=${encodeURIComponent(matchIdParam)}${hallIdParam}${hallTypeParam}${tsxUrlParam}${hallSizeParam}${dateParam}${roundParam}${roomIdParam}`;
     }
 
@@ -1360,7 +1232,7 @@ export default function ITicketPage() {
 
     // 새 창이 열렸음을 표시 (USER_LEFT 이벤트 무시를 위해)
     hasOpenedNewWindowRef.current = true;
-    console.log("[booking] 새 창 열기:", finalUrl);
+    
 
     window.open(
       finalUrl,
