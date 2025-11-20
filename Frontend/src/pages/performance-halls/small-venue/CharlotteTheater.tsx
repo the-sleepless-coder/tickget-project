@@ -255,7 +255,13 @@ export default function SmallVenue({
                   : 22 + (rowNo - 1) // 2층 1행: 22부터 시작
               : rowNo;
           const seatId = `small-${floor}-${displaySection}-${row}-${col}`;
-          const isSelected = selectedIds.includes(seatId);
+          // 선택 여부는 두 가지 형식을 모두 지원한다.
+          // 1) 기존 티켓팅 로직: "small-floor-section-row-col"
+          // 2) 기록/리플레이 로직: "section-row-col"
+          const logicalSeatId = `${displaySection}-${displayRowInSection}-${col}`;
+          const isSelected =
+            selectedIds.includes(seatId) ||
+            selectedIds.includes(logicalSeatId);
 
           // TAKEN 또는 MY_RESERVED 좌석 확인 (API 응답은 section-row-col 형식)
           // MY_RESERVED는 다른 사용자가 예약한 좌석이므로 선택할 수 없음
