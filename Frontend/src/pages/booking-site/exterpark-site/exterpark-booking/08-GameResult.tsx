@@ -13,6 +13,7 @@ import { paths } from "../../../../app/routes/paths";
 import { finalizeTotalNow } from "../../../../shared/utils/reserveMetrics";
 import { useAuthStore } from "@features/auth/store";
 import { useRoomStore } from "@features/room/store";
+import { useMatchStore } from "@features/booking-site/store";
 import { exitRoom } from "@features/room/api";
 import {
   getRoom,
@@ -204,6 +205,24 @@ export default function GameResultPage() {
     // 총 소요 시간 최종 마킹
     finalizeTotalNow();
   }, []);
+
+  // 성공한 경기인 경우 matchId 초기화 (실패 API 호출 방지)
+  useEffect(() => {
+    if (!isFailed) {
+      // 성공한 경기인 경우 matchId를 초기화하여
+      // 결과 페이지에서 뒤로가기나 다른 이벤트로 인한 실패 API 호출을 방지
+      const currentMatchId = useMatchStore.getState().matchId;
+      if (currentMatchId != null) {
+        if (import.meta.env.DEV) {
+          console.log(
+            "[GameResult] 성공한 경기이므로 matchId 초기화:",
+            currentMatchId
+          );
+        }
+        useMatchStore.getState().clearMatch();
+      }
+    }
+  }, [isFailed]);
 
   // 실패 API 로그 확인 (sessionStorage에서 읽어서 콘솔에 출력)
   useEffect(() => {
