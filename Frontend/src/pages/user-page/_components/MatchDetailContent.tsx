@@ -808,7 +808,12 @@ export default function MatchDetailContent({
       const sectionUsers = getUsersInSection(sectionId);
       if (sectionUsers.length === 0) return "";
 
-      return sectionUsers
+      // 10명 이상이면 처음 10명만 표시하고 나머지는 "..."으로 표시
+      const displayUsers =
+        sectionUsers.length > 10 ? sectionUsers.slice(0, 10) : sectionUsers;
+      const hasMore = sectionUsers.length > 10;
+
+      const userLines = displayUsers
         .map((user) => {
           const seats: string[] = [];
 
@@ -852,6 +857,11 @@ export default function MatchDetailContent({
           }`;
         })
         .join("<br/>");
+
+      // 10명 이상인 경우 "..." 추가
+      return hasMore
+        ? `${userLines}<br/><span style="color: #acacac;">...</span>`
+        : userLines;
     };
 
     // 마우스 이동 이벤트 핸들러
