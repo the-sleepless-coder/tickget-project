@@ -340,7 +340,7 @@ export default function PersonalStats() {
                 dataKey="matchNumber"
                 label={{ value: "", position: "insideBottom", offset: -5 }}
               />
-              <YAxis />
+              <YAxis reversed />
               <Tooltip
                 cursor={{ fill: "#F5EFFD" }}
                 content={({ active, payload }) => {

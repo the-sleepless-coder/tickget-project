@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { getSectionSeatsStatus } from "@features/booking-site/api";
 import { useAuthStore } from "@features/auth/store";
 
@@ -29,15 +29,30 @@ export default function SmallVenue({
   const currentUserId = useAuthStore((s) => s.userId);
   const [internalTakenSeats, setInternalTakenSeats] =
     useState<Set<string>>(takenSeats);
+  const onTakenSeatsUpdateRef = useRef(onTakenSeatsUpdate);
+
+  // onTakenSeatsUpdate ref 업데이트 (의존성 루프 방지)
+  useEffect(() => {
+    onTakenSeatsUpdateRef.current = onTakenSeatsUpdate;
+  }, [onTakenSeatsUpdate]);
+
+  // takenSeats prop의 내용이 변경되었는지 확인 (Set 참조 비교 대신)
+  const takenSeatsString = useMemo(
+    () => Array.from(takenSeats).sort().join(","),
+    [takenSeats]
+  );
 
   // takenSeats prop이 변경되면 내부 상태 업데이트
+  // takenSeatsString을 사용하여 Set 내용 비교 (참조 비교 대신)
   useEffect(() => {
     setInternalTakenSeats(takenSeats);
-  }, [takenSeats]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [takenSeatsString]);
 
   // 컴포넌트가 렌더링될 때마다 섹션 좌석 상태 조회
   useEffect(() => {
-    if (!matchId || !currentUserId) return;
+    // readOnly 모드이거나 matchId가 없으면 API 호출하지 않음
+    if (readOnly || !matchId || !currentUserId) return;
 
     const fetchAllSections = async () => {
       const allTaken = new Set<string>();
@@ -68,14 +83,14 @@ export default function SmallVenue({
       }
 
       setInternalTakenSeats(allTaken);
-      // 부모 컴포넌트에 업데이트된 TAKEN 좌석 전달
-      if (onTakenSeatsUpdate) {
-        onTakenSeatsUpdate(allTaken);
+      // 부모 컴포넌트에 업데이트된 TAKEN 좌석 전달 (ref 사용으로 무한 루프 방지)
+      if (onTakenSeatsUpdateRef.current) {
+        onTakenSeatsUpdateRef.current(allTaken);
       }
     };
 
     fetchAllSections();
-  }, [matchId, currentUserId, onTakenSeatsUpdate]);
+  }, [matchId, currentUserId, readOnly]);
 
   // 내부 상태를 사용하도록 변경
   const effectiveTakenSeats = internalTakenSeats;
@@ -260,8 +275,7 @@ export default function SmallVenue({
           // 2) 기록/리플레이 로직: "section-row-col"
           const logicalSeatId = `${displaySection}-${displayRowInSection}-${col}`;
           const isSelected =
-            selectedIds.includes(seatId) ||
-            selectedIds.includes(logicalSeatId);
+            selectedIds.includes(seatId) || selectedIds.includes(logicalSeatId);
 
           // TAKEN 또는 MY_RESERVED 좌석 확인 (API 응답은 section-row-col 형식)
           // MY_RESERVED는 다른 사용자가 예약한 좌석이므로 선택할 수 없음
