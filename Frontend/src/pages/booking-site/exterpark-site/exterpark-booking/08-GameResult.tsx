@@ -206,6 +206,24 @@ export default function GameResultPage() {
     finalizeTotalNow();
   }, []);
 
+  // 성공한 경기인 경우 matchId 초기화 (실패 API 호출 방지)
+  useEffect(() => {
+    if (!isFailed) {
+      // 성공한 경기인 경우 matchId를 초기화하여
+      // 결과 페이지에서 뒤로가기나 다른 이벤트로 인한 실패 API 호출을 방지
+      const currentMatchId = useMatchStore.getState().matchId;
+      if (currentMatchId != null) {
+        if (import.meta.env.DEV) {
+          console.log(
+            "[GameResult] 성공한 경기이므로 matchId 초기화:",
+            currentMatchId
+          );
+        }
+        useMatchStore.getState().clearMatch();
+      }
+    }
+  }, [isFailed]);
+
   // 실패 API 로그 확인 (sessionStorage에서 읽어서 콘솔에 출력)
   useEffect(() => {
     try {
