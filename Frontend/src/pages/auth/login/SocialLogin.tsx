@@ -467,7 +467,7 @@ export default function SocialLogin() {
       style={{ backgroundColor: "#E9EBF4" }}
     >
       {/* 관리자 계정 선택 버튼 */}
-      <div className="fixed top-1.5 right-1.5 z-50" style={{ zIndex: 9999 }}>
+      <div className="fixed bottom-1.5 right-1.5 z-50" style={{ zIndex: 9999 }}>
         <Button
           size="small"
           sx={{
@@ -477,14 +477,19 @@ export default function SocialLogin() {
             fontSize: "0.875rem",
             fontWeight: 600,
             backgroundColor: "transparent",
-            color: "#FFFFFF",
+            color: "transparent",
             border: "1px solid transparent",
             cursor: "default",
+            opacity: 0,
+            "&:hover": {
+              backgroundColor: "transparent",
+              color: "transparent",
+            },
             "&:disabled": {
               backgroundColor: "transparent",
-              color: "#FFFFFF",
+              color: "transparent",
               border: "1px solid transparent",
-              opacity: 0.5,
+              opacity: 0,
             },
           }}
           onClick={handleAdminButtonClick}
