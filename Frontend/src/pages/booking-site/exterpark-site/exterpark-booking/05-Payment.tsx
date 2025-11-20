@@ -12,6 +12,12 @@ import {
 import { useSeatStatsFailedOnUnload } from "../../../../shared/hooks/useSeatStatsFailedOnUnload";
 import { useBlockBackButtonDuringGame } from "../../../../shared/hooks/useBlockBackButtonDuringGame";
 import dayjs from "dayjs";
+import Dialog from "@mui/material/Dialog";
+import DialogTitle from "@mui/material/DialogTitle";
+import DialogContent from "@mui/material/DialogContent";
+import TextField from "@mui/material/TextField";
+import Button from "@mui/material/Button";
+import { adminAccountLoginByName } from "@features/auth/api";
 
 type SeatData = {
   grade: string;
@@ -27,6 +33,13 @@ export default function PaymentPage() {
   // 카드 할부 등 추가 옵션이 생기면 확장 예정
   const matchIdFromStore = useMatchStore((s) => s.matchId);
   const currentUserId = useAuthStore((s) => s.userId);
+
+  // 관리자 로그인 관련 상태
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [adminSelectModalOpen, setAdminSelectModalOpen] = useState(false);
+  const [password, setPassword] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [isAdminLoading, setIsAdminLoading] = useState<string | null>(null);
 
   // 결제 단계에서 창을 닫는 경우에도 실패 통계 전송 시도
   useSeatStatsFailedOnUnload("05-Payment");
@@ -60,8 +73,6 @@ export default function PaymentPage() {
         try {
           // SeatConfirmRequest와 동일한 메트릭 페이로드 공통 빌더 사용
           const payload = buildSeatMetricsPayload(currentUserId);
-
-        
 
           const response = await confirmSeat(matchId, payload);
           console.log("[seat-confirm] API 응답:", response);
@@ -173,8 +184,226 @@ export default function PaymentPage() {
     return `${date.format("YYYY.MM.DD")} (${weekday}) ${time}`;
   }, [dateParam, timeParam]);
 
+  // 관리자 계정 목록
+  const adminNames = [
+    "승수",
+    "유나",
+    "채준",
+    "재석",
+    "휘",
+    "종환",
+    "재원",
+    "김싸피",
+  ];
+
+  // 관리자 계정 로그인 버튼 클릭
+  const handleAdminLoginClick = () => {
+    setPasswordModalOpen(true);
+    setPassword("");
+    setPasswordError("");
+  };
+
+  // 비밀번호 확인
+  const handlePasswordSubmit = () => {
+    if (password === "hiiiiky") {
+      setPasswordModalOpen(false);
+      setAdminSelectModalOpen(true);
+      setPassword("");
+      setPasswordError("");
+    } else {
+      setPasswordError("비밀번호가 올바르지 않습니다.");
+    }
+  };
+
+  // 관리자 계정 선택
+  const handleAdminAccountSelect = async (name: string) => {
+    setIsAdminLoading(name);
+    try {
+      const data = await adminAccountLoginByName(name);
+      const setAuth = useAuthStore.getState().setAuth;
+      setAuth(data);
+
+      // 프로필 이미지 조회 및 auth store 업데이트
+      const API_ORIGIN = import.meta.env.VITE_API_ORIGIN ?? "";
+      const PROFILE_URL = `${API_ORIGIN}/api/v1/dev/user/myprofile`;
+      const accessToken = data.accessToken;
+      let profileImageUrl: string | null = null;
+
+      if (accessToken) {
+        try {
+          const res = await fetch(PROFILE_URL, {
+            method: "GET",
+            headers: { Authorization: `Bearer ${accessToken}` },
+          });
+          if (res.ok) {
+            const profileData = await res.json();
+            profileImageUrl = profileData?.profileImageUrl || null;
+          }
+        } catch (error) {
+          if (import.meta.env.DEV) {
+            console.warn("프로필 이미지 조회 실패:", error);
+          }
+        }
+      }
+
+      // 프로필 이미지 조회 후 auth store 업데이트
+      if (profileImageUrl !== null) {
+        const current = useAuthStore.getState();
+        setAuth({
+          accessToken: current.accessToken || data.accessToken,
+          refreshToken: current.refreshToken || data.refreshToken,
+          userId: current.userId || data.userId,
+          email: current.email || data.email,
+          nickname: current.nickname || data.nickname,
+          name: current.name || data.name,
+          profileImageUrl: profileImageUrl,
+          message: data.message || "프로필 이미지 업데이트",
+        });
+      }
+
+      setAdminSelectModalOpen(false);
+      alert(`${name} 관리자 계정으로 로그인되었습니다!`);
+    } catch (error) {
+      console.error(`${name} 관리자 계정 로그인 오류:`, error);
+      alert("관리자 계정 로그인 중 오류가 발생했습니다.");
+    } finally {
+      setIsAdminLoading(null);
+    }
+  };
+
   return (
     <BookingLayout activeStep={4}>
+      {/* 관리자 계정 로그인 버튼 */}
+      <div className="fixed bottom-4 right-4 z-50">
+        <button
+          onClick={handleAdminLoginClick}
+          className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md text-sm font-semibold shadow-lg"
+        >
+          관리자 계정 로그인
+        </button>
+      </div>
+
+      {/* 비밀번호 입력 모달 */}
+      <Dialog
+        open={passwordModalOpen}
+        onClose={() => {
+          setPasswordModalOpen(false);
+          setPassword("");
+          setPasswordError("");
+        }}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: "16px",
+            padding: "24px",
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            textAlign: "center",
+            fontSize: "1.5rem",
+            fontWeight: 700,
+            paddingBottom: "16px",
+          }}
+        >
+          관리자 비밀번호 입력
+        </DialogTitle>
+        <DialogContent>
+          <div className="space-y-4">
+            <TextField
+              fullWidth
+              type="password"
+              label="비밀번호"
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setPasswordError("");
+              }}
+              error={!!passwordError}
+              helperText={passwordError}
+              onKeyPress={(e) => {
+                if (e.key === "Enter") {
+                  handlePasswordSubmit();
+                }
+              }}
+              autoFocus
+            />
+            <div className="flex gap-2 justify-end">
+              <Button
+                variant="outlined"
+                onClick={() => {
+                  setPasswordModalOpen(false);
+                  setPassword("");
+                  setPasswordError("");
+                }}
+              >
+                취소
+              </Button>
+              <Button
+                variant="contained"
+                onClick={handlePasswordSubmit}
+                disabled={!password}
+              >
+                확인
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* 관리자 계정 선택 모달 */}
+      <Dialog
+        open={adminSelectModalOpen}
+        onClose={() => setAdminSelectModalOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: "16px",
+            padding: "24px",
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            textAlign: "center",
+            fontSize: "1.5rem",
+            fontWeight: 700,
+            paddingBottom: "16px",
+          }}
+        >
+          관리자 계정 선택
+        </DialogTitle>
+        <DialogContent>
+          <div className="grid grid-cols-2 gap-3">
+            {adminNames.map((name) => (
+              <Button
+                key={name}
+                variant="outlined"
+                fullWidth
+                onClick={() => handleAdminAccountSelect(name)}
+                disabled={isAdminLoading !== null}
+                sx={{
+                  padding: "16px",
+                  fontSize: "1rem",
+                  fontWeight: 600,
+                  borderRadius: "8px",
+                  borderColor: "#e5e7eb",
+                  "&:hover": {
+                    borderColor: "#3b82f6",
+                    backgroundColor: "#eff6ff",
+                  },
+                }}
+              >
+                {isAdminLoading === name ? "로그인 중..." : name}
+              </Button>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <div className="p-3 grid grid-cols-[200px_1fr_260px] gap-3">
         {/* 좌측: 결제방식 선택 */}
         <section className="bg-white rounded-md shadow border border-[#e3e3e3] h-full">
