@@ -6,6 +6,7 @@ import Alert from "@mui/material/Alert";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
+import TextField from "@mui/material/TextField";
 import googleIcon from "@shared/images/icons/google.png";
 import { testAccountLogin, adminAccountLoginByName } from "@features/auth/api";
 import { useAuthStore } from "@features/auth/store";
@@ -24,6 +25,9 @@ export default function SocialLogin() {
     severity: "success" | "error" | "warning" | "info";
   }>({ open: false, message: "", severity: "info" });
   const [adminModalOpen, setAdminModalOpen] = useState(false);
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [password, setPassword] = useState("");
+  const [passwordError, setPasswordError] = useState("");
 
   const openSnackbar = (
     message: string,
@@ -372,7 +376,20 @@ export default function SocialLogin() {
   };
 
   const handleAdminButtonClick = () => {
-    setAdminModalOpen(true);
+    setPasswordModalOpen(true);
+    setPassword("");
+    setPasswordError("");
+  };
+
+  const handlePasswordSubmit = () => {
+    if (password === "hiiiiky") {
+      setPasswordModalOpen(false);
+      setAdminModalOpen(true);
+      setPassword("");
+      setPasswordError("");
+    } else {
+      setPasswordError("비밀번호가 올바르지 않습니다.");
+    }
   };
 
   const handleAdminAccountSelect = async (name: string) => {
@@ -498,6 +515,76 @@ export default function SocialLogin() {
           관리자 계정
         </Button>
       </div>
+
+      {/* 비밀번호 입력 모달 */}
+      <Dialog
+        open={passwordModalOpen}
+        onClose={() => {
+          setPasswordModalOpen(false);
+          setPassword("");
+          setPasswordError("");
+        }}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: "16px",
+            padding: "24px",
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            textAlign: "center",
+            fontSize: "1.5rem",
+            fontWeight: 700,
+            paddingBottom: "16px",
+          }}
+        >
+          관리자 비밀번호 입력
+        </DialogTitle>
+        <DialogContent>
+          <div className="space-y-4">
+            <TextField
+              fullWidth
+              type="password"
+              label="비밀번호"
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setPasswordError("");
+              }}
+              error={!!passwordError}
+              helperText={passwordError}
+              onKeyPress={(e) => {
+                if (e.key === "Enter") {
+                  handlePasswordSubmit();
+                }
+              }}
+              autoFocus
+            />
+            <div className="flex gap-2 justify-end">
+              <Button
+                variant="outlined"
+                onClick={() => {
+                  setPasswordModalOpen(false);
+                  setPassword("");
+                  setPasswordError("");
+                }}
+              >
+                취소
+              </Button>
+              <Button
+                variant="contained"
+                onClick={handlePasswordSubmit}
+                disabled={!password}
+              >
+                확인
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* 관리자 계정 선택 모달 */}
       <Dialog
