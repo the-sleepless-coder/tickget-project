@@ -8,7 +8,7 @@ import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import AdsClickIcon from "@mui/icons-material/AdsClick";
 import CloseIcon from "@mui/icons-material/Close";
 import EventSeatIcon from "@mui/icons-material/EventSeat";
-import MeetingRoomOutlinedIcon from "@mui/icons-material/MeetingRoomOutlined";
+import ExitToAppIcon from "@mui/icons-material/ExitToApp";
 import { paths } from "../../../../app/routes/paths";
 import { finalizeTotalNow } from "../../../../shared/utils/reserveMetrics";
 import { useAuthStore } from "@features/auth/store";
@@ -246,8 +246,8 @@ export default function GameResultPage() {
         }
 
         // 방 상세 정보 가져오기 (difficulty를 위해)
-        const roomDetail = await getRoom(targetRoomId);
-        const difficulty = roomDetail.difficulty?.toLowerCase() || "medium";
+        const detail = await getRoom(targetRoomId);
+        const difficulty = detail.difficulty?.toLowerCase() || "medium";
 
         // matchId 가져오기 (store 우선, 없으면 URL 파라미터)
         const matchIdParam = searchParams.get("matchId");
@@ -309,53 +309,73 @@ export default function GameResultPage() {
     <>
       {showBanner && <TopBanner onClose={handleBannerClose} />}
       <div className="mx-auto max-w-6xl px-4 md:px-6 py-6">
-        {/* 타이틀 + 예매확인 버튼 */}
+        {/* 타이틀 + 방 나가기 버튼 */}
         <div className="mt-6 flex items-center justify-between">
           <h1 className="text-2xl font-extrabold text-gray-900">경기 결과</h1>
+          <button
+            type="button"
+            onClick={handleExitRoom}
+            disabled={isExiting}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <ExitToAppIcon fontSize="small" />
+            <span>{isExiting ? "나가는 중..." : "방 나가기"}</span>
+          </button>
         </div>
 
-        {/* 성과 요약: 순위(위) + 총 소요시간(아래) */}
-        <div className="mt-4 space-y-3">
-          <div className="px-4 py-2 text-center text-neutral-900">
+        {/* 성과 요약: 유저랭크 / 전체랭크 / 총 소요시간 */}
+        <div className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-3">
+          {/* 유저랭크 */}
+          <section className="rounded-2xl bg-white px-6 py-6 text-center">
+            <div className="text-sm font-semibold text-neutral-500">
+              유저랭크
+            </div>
             {isFailed ? (
-              <div className="text-xl font-extrabold text-neutral-700">
+              <div className="mt-4 text-xl font-extrabold text-neutral-600">
                 등수 없음
               </div>
             ) : (
-              <div className="space-y-1">
-                <div className="text-xs text-neutral-500">내 순위</div>
-                <div className="text-2xl">
-                  {userRank ? (
-                    <>
-                      <span className="font-bold text-c-blue-200">
-                        {userRank}
-                      </span>
-                      <span className="ml-1">등</span>
-                    </>
-                  ) : (
-                    <span className="text-neutral-500">측정중</span>
-                  )}
-                </div>
-                {totalRank && (
-                  <div className="text-sm text-neutral-700">
-                    전체{" "}
-                    <span className="font-bold text-c-blue-200">
-                      {totalRank}
-                    </span>
-                    <span className="ml-0.5">등</span>
-                  </div>
-                )}
+              <div className="mt-3 flex items-baseline justify-center gap-2">
+                <span className="text-5xl font-extrabold text-[#6e8ee3]">
+                  {userRank ? Number(userRank) : "-"}
+                </span>
+                <span className="text-2xl font-semibold text-[#6e8ee3]">
+                  등
+                </span>
               </div>
             )}
-          </div>
-          <div className="px-4 py-2 text-center">
-            <div className="text-xs font-semibold tracking-wide text-neutral-500">
+          </section>
+
+          {/* 전체랭크 (봇 포함) */}
+          <section className="rounded-2xl bg-white px-6 py-6 text-center">
+            <div className="text-sm font-semibold text-neutral-500">
+              전체랭크 (봇 포함)
+            </div>
+            {isFailed ? (
+              <div className="mt-4 text-xl font-extrabold text-neutral-600">
+                등수 없음
+              </div>
+            ) : (
+              <div className="mt-3 flex items-baseline justify-center gap-2">
+                <span className="text-5xl font-extrabold text-[#6e8ee3]">
+                  {totalRank ? Number(totalRank) : "-"}
+                </span>
+                <span className="text-2xl font-semibold text-[#6e8ee3]">
+                  등
+                </span>
+              </div>
+            )}
+          </section>
+
+          {/* 총 소요시간 */}
+          <section className="rounded-2xl bg-white px-6 py-6 text-center">
+            <div className="text-sm font-semibold text-neutral-500">
               총 소요시간
             </div>
-            <div className="mt-1 text-3xl font-extrabold text-[#6e8ee3]">
+            <div className="mt-5 md:mt-6 text-3xl md:text-4xl font-extrabold text-[#6e8ee3]">
               {isFailed ? "FAIL" : fmt(totalSec)}
             </div>
-          </div>
+          </section>
         </div>
 
         {/* 카드 3개 */}
@@ -470,25 +490,6 @@ export default function GameResultPage() {
               </div>
             </div>
           ) : null}
-        </div>
-
-        {/* 하단 버튼 */}
-        <div className="mt-8 flex items-center justify-center gap-6">
-          {/* <button
-          type="button"
-          onClick={() => navigate(paths.iTicket)}
-          className="inline-flex items-center gap-2 rounded-xl bg-[#e9efff] text-[#143eab] px-6 py-4 text-lg font-extrabold hover:bg-[#dbe6ff]"
-        >
-          <RestartAltIcon /> 다시하기
-        </button> */}
-          <button
-            type="button"
-            onClick={handleExitRoom}
-            disabled={isExiting}
-            className="inline-flex items-center gap-2 rounded-xl bg-[#5b7ae7] text-white px-8 py-4 text-lg font-extrabold hover:bg-[#4d6ad6] disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <MeetingRoomOutlinedIcon />방 나가기
-          </button>
         </div>
       </div>
     </>
