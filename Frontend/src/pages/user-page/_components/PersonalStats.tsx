@@ -314,12 +314,12 @@ export default function PersonalStats() {
           )}
           {rankingLoading && (
             <p className="text-xs text-neutral-400">
-              랭킹 데이터를 불러오는 중입니다.
+              기록 평균을 불러오는 중입니다.
             </p>
           )}
           {rankingError && (
-            <p className="text-xs text-red-500">
-              랭킹 데이터를 불러오는데 실패했습니다.
+            <p className="text-xs text-neutral-500">
+              기록 평균을 보려면 더 많은 경기에 참여해보세요!
             </p>
           )}
         </div>
@@ -340,7 +340,7 @@ export default function PersonalStats() {
                 dataKey="matchNumber"
                 label={{ value: "", position: "insideBottom", offset: -5 }}
               />
-              <YAxis />
+              <YAxis reversed />
               <Tooltip
                 cursor={{ fill: "#F5EFFD" }}
                 content={({ active, payload }) => {

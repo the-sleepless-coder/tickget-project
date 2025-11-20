@@ -446,11 +446,12 @@ export default function MatchDetailContent({
     const row = String(seatRow);
     const col = String(seatCol);
 
-    // SmallVenue (hallId === 2): small-${floor}-${displaySection}-${row}-${col}
+    // SmallVenue (hallId === 2):
+    // - 예약/기록 API에서는 "section-row-col" 형식의 seatId를 사용
+    // - CharlotteTheater(SmallVenue) 컴포넌트에서도 동일한 형식을 사용해
+    //   좌석을 식별하므로, 여기서는 그대로 반환한다.
     if (hallId === 2) {
-      const displaySection = section === "0" ? "0" : "1";
-      const floor = 1;
-      return `small-${floor}-${displaySection}-${row}-${col}`;
+      return `${section}-${row}-${col}`;
     }
 
     // MediumVenue & LargeVenue (hallId === 3 or 4): ${section}-${row}-${seat}
@@ -494,7 +495,7 @@ export default function MatchDetailContent({
     return sortedSections.map((s) => `${s}-0-0`);
   })();
 
-  // 프리셋 공연장용: 실제 좌표 기반 seatId 목록 (모든 참가자)
+  // 프리셋 공연장용: 실제 좌표 기반 seatId 목록 (모든 참가자, 여러 좌석 지원)
   const presetSelectedSeatIds: string[] = (() => {
     // 모든 유저가 failed이면, 존재하지 않는 섹션 ID를 하나 넣어서
     // 공연장 컴포넌트 내부 로직이 "선택된 섹션 없음"으로 판단하게 함 → 전체 회색 처리
@@ -502,21 +503,50 @@ export default function MatchDetailContent({
       return ["9999-0-0"];
     }
 
-    return users
-      .filter(
-        (u) =>
-          u.seatSection && u.seatSection !== "failed" && u.seatRow && u.seatCol
-      )
-      .map((u) => {
-        const seatId = convertSeatIdForVenue(
-          hallId,
-          u.seatSection!,
-          u.seatRow!,
-          u.seatCol!
-        );
-        return seatId || `${u.seatSection}-${u.seatRow}-${u.seatCol}`;
-      })
-      .filter((id): id is string => id !== null);
+    const ids: string[] = [];
+
+    users.forEach((u) => {
+      if (!u.seatArea) return;
+
+      // seatArea 예시: "1-24-38" 또는 "1-24-38,1-24-39"
+      u.seatArea
+        .split(/[,\\n]+/)
+        .map((seat) => seat.trim())
+        .filter(Boolean)
+        .forEach((seat) => {
+          const match = seat.match(/^(\d+)-(\d+)-(\d+)$/);
+          if (!match) return;
+          const [, section, row, col] = match;
+          const seatId = convertSeatIdForVenue(hallId, section, row, col);
+          if (seatId) {
+            ids.push(seatId);
+          }
+        });
+    });
+
+    // seatArea 기반으로 하나도 만들어지지 않았다면, 기존 단일 좌석 로직을 fallback으로 사용
+    if (ids.length === 0) {
+      return users
+        .filter(
+          (u) =>
+            u.seatSection &&
+            u.seatSection !== "failed" &&
+            u.seatRow &&
+            u.seatCol
+        )
+        .map((u) => {
+          const seatId = convertSeatIdForVenue(
+            hallId,
+            u.seatSection!,
+            u.seatRow!,
+            u.seatCol!
+          );
+          return seatId || `${u.seatSection}-${u.seatRow}-${u.seatCol}`;
+        })
+        .filter((id): id is string => id !== null);
+    }
+
+    return ids;
   })();
 
   const getSeatDetails = (user: UserRank): string[] => {
@@ -778,7 +808,12 @@ export default function MatchDetailContent({
       const sectionUsers = getUsersInSection(sectionId);
       if (sectionUsers.length === 0) return "";
 
-      return sectionUsers
+      // 10명 이상이면 처음 10명만 표시하고 나머지는 "..."으로 표시
+      const displayUsers =
+        sectionUsers.length > 10 ? sectionUsers.slice(0, 10) : sectionUsers;
+      const hasMore = sectionUsers.length > 10;
+
+      const userLines = displayUsers
         .map((user) => {
           const seats: string[] = [];
 
@@ -822,6 +857,11 @@ export default function MatchDetailContent({
           }`;
         })
         .join("<br/>");
+
+      // 10명 이상인 경우 "..." 추가
+      return hasMore
+        ? `${userLines}<br/><span style="color: #acacac;">...</span>`
+        : userLines;
     };
 
     // 마우스 이동 이벤트 핸들러
@@ -914,7 +954,9 @@ export default function MatchDetailContent({
 
     // 2) tsxUrl이 없고 hallId가 있는 프리셋 공연장인 경우: 프론트 내장 TSX 컴포넌트 사용
     if (hallId && !isValidTsxUrl) {
-      // hallId 2: 샤롯데씨어터 (SmallVenue) - 선택된 섹션만 원래 색상
+      // hallId 2: 샤롯데씨어터 (SmallVenue)
+      // - selectedIds: "section-row-col" 형식의 좌석 ID 사용
+      // - SmallVenue 내부에서 section/row/col 기반으로 매칭함
       if (hallId === 2) {
         return (
           <div className="w-full h-[400px] flex justify-center items-center bg-white rounded-lg p-4">
@@ -924,7 +966,6 @@ export default function MatchDetailContent({
             >
               <SmallVenue
                 selectedIds={presetSelectedSeatIds}
-                takenSeats={new Set(presetSelectedSeatIds)}
                 isPreset={true}
                 readOnly={true}
               />
@@ -980,11 +1021,11 @@ export default function MatchDetailContent({
   };
 
   return (
-    <div className={`flex overflow-x-auto ${isSoloMode ? "" : "gap-6"}`}>
-      {/* 좌측: 전체 등수 - 솔로 모드가 아니고 선택되지 않았을 때만 표시 */}
-      {!isSoloMode && selectedUserId === null && (
+    <div className="flex overflow-x-auto gap-6">
+      {/* 좌측: 전체 등수 - 선택되지 않았을 때만 표시 */}
+      {selectedUserId === null && (
         <div className="min-w-[224px] w-56 shrink-0 md:min-w-[256px] md:w-64 lg:min-w-[288px] lg:w-72">
-          <h4 className="mb-4 text-base font-bold">전체 등수</h4>
+          <h4 className="mb-4 text-base font-bold">경기 결과</h4>
           <div className="max-h-96 space-y-2 overflow-y-auto pr-2">
             {users
               .slice()
@@ -1034,7 +1075,7 @@ export default function MatchDetailContent({
                   >
                     {/* 등수 영역: 고정 가로폭을 가진 칼럼 */}
                     <div className="w-8 flex-shrink-0 text-left">
-                      <span className="text-lg font-bold text-neutral-600">
+                      <span className="text-lg font-bold text-blue-600">
                         {user.rank === -1 ? "실패" : `${user.rank}등`}
                       </span>
                     </div>
@@ -1045,14 +1086,14 @@ export default function MatchDetailContent({
                       />
                     </div>
                     <div className="flex-1">
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-col">
                         <span className="text-base font-semibold text-neutral-700 group-hover:text-neutral-900">
                           {user.nickname}
                         </span>
                         {typeof user.rankAmongUsers === "number" &&
                           user.rankAmongUsers > 0 && (
-                            <span className="font-semibold text-xs text-neutral-800">
-                              (전체랭크 {user.rankAmongUsers}등)
+                            <span className="font-semibold text-xs text-blue-600">
+                              전체랭크 {user.rankAmongUsers}등
                             </span>
                           )}
                       </div>
@@ -1095,7 +1136,7 @@ export default function MatchDetailContent({
       {/* 우측: 구역 뷰 또는 통계 뷰 */}
       <div className="min-w-[320px] flex-1">
         <div className="rounded-lg border border-gray-200 bg-white p-6">
-          {selectedUserId === null && !isSoloMode ? (
+          {selectedUserId === null ? (
             renderSeatMap()
           ) : (
             <div className="space-y-6">
@@ -1131,9 +1172,6 @@ export default function MatchDetailContent({
                     <div className="h-3 w-3 rounded bg-purple-400" />
                     <span className="text-sm font-medium text-neutral-700">
                       {meUser.nickname}
-                    </span>
-                    <span className="text-sm text-neutral-500">
-                      ({mySeatSection}-{mySeatArea.replace("-", "번 ")}번)
                     </span>
                   </div>
                   {renderUserStats(meUser)}
