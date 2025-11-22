@@ -66,6 +66,7 @@ public class RankingService {
         Float stddevCaptchaTime = -100f;
         Float stddevSeatTime = -100f;
 
+        // 1. 데이터 존재 여부 검증하는 제어문.
         for(RankingDTO singleData: givenMatchData){
             avgQueueTime = singleData.getAvgDateSelectTime();
             avgCaptchaTime = singleData.getAvgSeccodeSelectTime();
@@ -113,10 +114,23 @@ public class RankingService {
 
         }
 
-        // Match내 개별 사용자에 대한 Ranking 상정
+        // 2. Match내 개별 사용자에 대한 Ranking 산정
         // BASE SCORE + SPEED BONUS로 MMR산정(MatchMakingRating)
         for(RankingDTO singleUser : givenMatchData) {
             log.info("single user info {}", singleUser.toString());
+            Boolean successFlag = singleUser.getIsSuccess();
+            // 성공 실패시 0점.
+            double finalScore = 0;
+
+            // Redis에 보내서 해당 시즌의 Key에 정렬 시킨다.
+            Long userId = singleUser.getUserId();
+            LocalDateTime now = LocalDateTime.now();
+
+            if(!successFlag){
+                updateUserScore(userId, now, Math.floor(finalScore));
+                continue;
+            }
+
             int point = 0;
             int usedBots = singleUser.getUsedBotCount();
 
@@ -147,7 +161,6 @@ public class RankingService {
             /**
              * 1. baseScore
              * */
-            double finalScore = 0;
             float baseScore = 0f;
             float ratio = (float) basePlayerCount / baseTotCount; // 반드시 둘 중 하나는 float로 바꿔주야, Casting 시 문제가 발생 안함.
             float skillFactor = RoundBy.decimal((1f - ratio), 2);
@@ -231,20 +244,14 @@ public class RankingService {
              * 시간 있으면 좌석선점 보너스까지 제공.
              **/
             finalScore = (int) (baseScore + speedBonus);
+            finalScore = finalScore/DIVIDE_BY;
 
             log.info("userId: {} finalScore: {}", singleUser.getUserId(), finalScore);
 
-            // Redis에 보내서 해당 시즌의 Key에 정렬 시킨다.
-            Long userId = singleUser.getUserId();
-            LocalDateTime now = LocalDateTime.now();
-
-            finalScore = finalScore/DIVIDE_BY;
             // 정수부만 전달 (double 타입 유지하되 정수 값만)
             updateUserScore(userId, now, Math.floor(finalScore));
 
             // 일정 주기로 DB에 업데이트 시켜준다.
-
-
             // 업데이트 안된 것들 FULLTEXT SEARCH를 안 조지기 위해서, INDEX를 만들어준다.
 
 

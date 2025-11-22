@@ -216,6 +216,8 @@ public class StatsController {
     public ResponseEntity<?> onGameEnd(@PathVariable("matchId")Long matchId) {
 
         // 1. 경기 종료 시 즉시 매치 통계 계산
+        // user_stats가 저장이 되는 것이 확정되고 나서,
+        // 일정 시간 대기를 하고 match_stats 및 ranking 업데이트를 하도록 한다.
         boolean updateState = statsBatchService.updateMatchStats(matchId);
 
         if(updateState){
