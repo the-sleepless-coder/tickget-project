@@ -120,14 +120,14 @@ public class RankingService {
             log.info("single user info {}", singleUser.toString());
             Boolean successFlag = singleUser.getIsSuccess();
             // 성공 실패시 0점.
-            double finalScore = 0;
+            double deltaScore = 0;
 
             // Redis에 보내서 해당 시즌의 Key에 정렬 시킨다.
             Long userId = singleUser.getUserId();
             LocalDateTime now = LocalDateTime.now();
 
             if(!successFlag){
-                updateUserScore(userId, now, Math.floor(finalScore));
+                updateUserScore(userId, now, Math.floor(deltaScore));
                 continue;
             }
 
@@ -243,13 +243,13 @@ public class RankingService {
             /**
              * 시간 있으면 좌석선점 보너스까지 제공.
              **/
-            finalScore = (int) (baseScore + speedBonus);
-            finalScore = finalScore/DIVIDE_BY;
+            deltaScore = (int) (baseScore + speedBonus);
+            deltaScore = deltaScore/DIVIDE_BY;
 
-            log.info("userId: {} finalScore: {}", singleUser.getUserId(), finalScore);
+            log.info("userId: {} deltaScore: {}", singleUser.getUserId(), deltaScore);
 
             // 정수부만 전달 (double 타입 유지하되 정수 값만)
-            updateUserScore(userId, now, Math.floor(finalScore));
+            updateUserScore(userId, now, Math.floor(deltaScore));
 
             // 일정 주기로 DB에 업데이트 시켜준다.
             // 업데이트 안된 것들 FULLTEXT SEARCH를 안 조지기 위해서, INDEX를 만들어준다.
