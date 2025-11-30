@@ -57,7 +57,7 @@ public class QueueService {
         this.Client = Client;
     }
 
-    // Redis에 Queue에 대한 순서 정보 저장
+    // Redis에 대기열 진입 및 시간에 따른 등수 감소하는 코드 작성.
     public QueueDTO enqueue(Long matchId, Long userIdLong, QueueUserInfoDTO userInfo ) throws ExecutionException, InterruptedException {
         String userId = String.valueOf(userIdLong);
 
