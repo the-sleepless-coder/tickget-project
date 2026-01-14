@@ -114,10 +114,15 @@ Frontend 컨테이너 내에서 SPA 라우팅을 처리하며, Gzip 압축 및 �
 
 ### 본인 구현 사항
 ·  Redis ZSET을 활용한, 대기열 기능 구현 
+
 ·  Match 메타 데이터 및 Ranking 집계하는, 통계 서버 구현 
+
 · Kafka/Redis 기반 Event-Driven 데이터 처리 파이프라인 구축
+
 ·  Explain/Analyze문을 통해 쿼리 실행 계획, 실행문을 확인해, 쿼리 성능 최적화
+
 ·  보안문자 기능 구현
+
 ·  Grafana, Loki 등 모니터링 툴을 통한 문제 상황 진단 및 디버깅 
 
 
