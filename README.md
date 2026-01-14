@@ -31,7 +31,7 @@
 ### 🔧 주요 기술 스택 및 역할
 <img width="1937" height="2657" alt="image" src="https://github.com/user-attachments/assets/66344999-75e5-41e5-b73b-720b98747cf4" />
 
-### 1)Backend
+### 1) Backend
 1) Spring Boot (Java)
 
 서비스의 핵심 비즈니스 로직을 담당하는 백엔드 프레임워크
@@ -75,7 +75,7 @@ REST API 기반으로 프론트엔드 및 타 서비스와 통신
 
 검색 서버에서 사용되어 티켓팅 좌석 배치도를 선택할 때 빠른 검색 가능
 
-#### 2)Frontend
+### 2)Frontend
 1) React
 
 SPA(Single Page Application) 기반 사용자 인터페이스 구현
