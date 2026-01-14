@@ -31,7 +31,7 @@
 ### 🔧 주요 기술 스택 및 역할
 <img width="1937" height="2657" alt="image" src="https://github.com/user-attachments/assets/66344999-75e5-41e5-b73b-720b98747cf4" />
 
-#### 1. Backend
+### 1)Backend
 1) Spring Boot (Java)
 
 서비스의 핵심 비즈니스 로직을 담당하는 백엔드 프레임워크
@@ -75,14 +75,14 @@ REST API 기반으로 프론트엔드 및 타 서비스와 통신
 
 검색 서버에서 사용되어 티켓팅 좌석 배치도를 선택할 때 빠른 검색 가능
 
-#### 2. Frontend
+#### 2)Frontend
 1) React
 
 SPA(Single Page Application) 기반 사용자 인터페이스 구현
 
 컴포넌트 단위 설계를 통해 UI 재사용성과 유지보수성 향상
 
-### 3.Infrastructure / DevOps
+### 3)Infrastructure / DevOps
 1) Kubernetes (K3s)
 전체 시스템을 컨테이너 기반으로 운영하는 오케스트레이션 플랫폼으로, 경량 Kubernetes 배포판인 K3s를 사용하여 리소스 효율적인 클러스터를 구성.
 
