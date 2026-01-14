@@ -131,8 +131,10 @@ Frontend 컨테이너 내에서 SPA 라우팅을 처리하며, Gzip 압축 및 �
 [BackEnd]
 <br>
 1) Redis ZSET을 활용한, 대기열 순서 및 Dequeue 기능 구현
+   
 · Redis ZSET을 활용,
 Packet의 메시지 큐 도착 시간이 아닌 Timestamp 기준 정렬
+
 대기열 내 실시간 순위 조회, 클릭 순서에 따른 대기열 구현 코드 작성
 
 · Kafka/Redis 기반, Event-Driven 데이터 처리 파이프라인 구축
