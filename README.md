@@ -167,7 +167,8 @@ Packet의 메시지 큐 도착 시간이 아닌 Timestamp 기준 정렬
 
 
 ### ERD
-<img width="2000" height="1200" alt="TickGet_ERD" src="https://github.com/user-attachments/assets/105563f0-08f7-4673-8f75-70110c6c49f0" />
+<img width="1536" height="1024" alt="자율프로젝트_ERD" src="https://github.com/user-attachments/assets/9b315e4e-60c8-41f2-b241-89c72762b815" />
+
 
 - 참고 사이트
 [1] https://kopis.or.kr/
