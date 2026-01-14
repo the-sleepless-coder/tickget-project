@@ -28,79 +28,137 @@
 
  
 
-### 주요 기술 스택
+### 🔧 주요 기술 스택 및 역할
 <img width="1937" height="2657" alt="image" src="https://github.com/user-attachments/assets/66344999-75e5-41e5-b73b-720b98747cf4" />
 
-1) Spring Boot 
- 웹 백엔드 서버 구축
- 
-2) Python        
-Fragrantica 향수 데이터 웹 스크래핑
+#### 1. Backend
+1) Spring Boot (Java)
 
-3) C               
-IoT기기 제어
+서비스의 핵심 비즈니스 로직을 담당하는 백엔드 프레임워크
 
-4) MySQL
-ERD 생성 및 DB구축
+사용자, 티켓팅, 룸, 검색, 통계 등 기능별로 마이크로서비스 구조로 분리하여 구현
 
-5) React Native
-모바일 앱 제작
+REST API 기반으로 프론트엔드 및 타 서비스와 통신
 
-6) Docker/Jenkins
-Docker를 활용한 백엔드 서버 이미지 컨테이너화 
-Jenkins를 활용한 EC2에 배포하는 CI/CD파이프라인 구축
+서비스 단위로 독립적인 배포 및 스케일링이 가능하도록 설계
+
+2) Flask (Python)
+
+경량 Python 웹 프레임워크를 이용한 보안문자 서버 기능 구현
+
+
+3) Redis
+
+인메모리 데이터 저장소: 캐싱, 세션 관리, 실시간 데이터 처리에 활용
+
+대기열 구현 시, 각 사용자(봇 포함)의 대기열 진입 시점과 시간이 지남에 따라 대기열 내 등수를 Key값으로 저장.
+
+4) Kafka
+
+이벤트 기반 비동기 메시징 시스템을 이용해, 대기열을 빠져나갔다는 이벤트를 발행
+
+프론트엔드에서 보안문자 페이지로 넘어갈 수 있게 해줌.
+
+5) MySQL
+
+방, 게임 데이터, 각 사용자별 통계 데이터 등 관계형 데이터를 저장하기 사용
+
+6) MongoDB
+
+각 단계별 사용자의 기록 데이터를 저장하기 위한 비정형 데이터베이스 사용
+
+로그, 분석 결과 등 유연한 스키마가 필요한 데이터 처리
+
+7) ElasticSearch
+
+대용량 데이터 검색 및 분석 엔진
+
+검색 서버에서 사용되어 티켓팅 좌석 배치도를 선택할 때 빠른 검색 가능
+
+#### 2. Frontend
+1) React
+
+SPA(Single Page Application) 기반 사용자 인터페이스 구현
+
+컴포넌트 단위 설계를 통해 UI 재사용성과 유지보수성 향상
+
+### 3.Infrastructure / DevOps
+1) Kubernetes (K3s)
+전체 시스템을 컨테이너 기반으로 운영하는 오케스트레이션 플랫폼으로, 경량 Kubernetes 배포판인 K3s를 사용하여 리소스 효율적인 클러스터를 구성.
+
+11개의 마이크로서비스를 독립적인 Pod 단위로 배포하며, ARM64 아키텍처에 최적화된 이미지를 사용.
+
+2) Traefik (Ingress Controller)
+외부 트래픽을 클러스터 내부 서비스로 라우팅하는 Ingress Controller 사용
+
+IngressRoute와 StripPrefix 미들웨어를 활용하여 도메인 기반 라우팅(tickget.kr) 및 서비스별 경로 분산(/api/v1/{env}/{service})을 처리
+
+3) Auth Server
+Google OAuth2 기반 사용자 인증 및 JWT 토큰 발급을 담당합니다. Access Token(7일) 및 Refresh Token(30일) 관리를 통해 인증 로직을 중앙 집중화하여 보안성과 확장성을 확보했습니다.
+
+4) Prometheus & Grafana
+Spring Boot Actuator를 통해 시스템 및 애플리케이션 메트릭을 수집하고(/actuator/metrics, /actuator/health), Grafana 대시보드에서 서비스 상태 및 리소스 사용량을 실시간으로 모니터링
+
+Loki를 활용한 로그 수집 및 쿼리도 지원.
+
+7) MinIO
+S3 호환 오브젝트 스토리지로 사용자 프로필 이미지, 공연장 썸네일, AI 분석 결과물 등을 저장.
+
+Java(MinioClient) 및 Python(minio) 클라이언트를 통해 각 마이크로서비스와 통합.
+
+8) Nginx
+Frontend 컨테이너 내에서 SPA 라우팅을 처리하며, Gzip 압축 및 정적 파일 캐싱(1년)을 통해 성능을 최적화.
+
+모든 클라이언트 라우트를 index.html로 리다이렉트하여 React/Vue SPA를 지원.
+
 
 ### 본인 구현 사항
--ERD 구축 및 반정규화를 통한 DB 성능 최적화
+·  Redis ZSET을 활용한, 대기열 기능 구현 
+·  Match 메타 데이터 및 Ranking 집계하는, 통계 서버 구현 
+· Kafka/Redis 기반 Event-Driven 데이터 처리 파이프라인 구축
+·  Explain/Analyze문을 통해 쿼리 실행 계획, 실행문을 확인해, 쿼리 성능 최적화
+·  보안문자 기능 구현
+·  Grafana, Loki 등 모니터링 툴을 통한 문제 상황 진단 및 디버깅 
 
-: 평균 평점 계산에서 읽기 성능 최적화를 위한 DB 반정규화 
-
--Docker 이미지 컨테이너화 및 Jenkins를 활용한 CI/CD 파이프라인 구축
-
--Fragrantica에서 7000개에 달하는 대량 향수 데이터 웹 스크래핑
-
-: 향수의 향조(향수가 내는 대표적인 향의 계열), 브랜드, 평점, 댓글 등 세부 정보까지 저장
 
 
 ### 기술적 세부 사항
 [BackEnd]
 <br>
--ERD 구축 및 반정규화를 통한 DB 성능 최적화
+1) Redis ZSET을 활용한, 대기열 순서 및 Dequeue 기능 구현
+· Redis ZSET을 활용,
+Packet의 메시지 큐 도착 시간이 아닌 Timestamp 기준 정렬
+대기열 내 실시간 순위 조회, 클릭 순서에 따른 대기열 구현 코드 작성
 
-: 평균 평점 계산에서 읽기 성능 최적화를 위한 DB 반정규화 
+· Kafka/Redis 기반, Event-Driven 데이터 처리 파이프라인 구축
 
--평균 계산 최적화 전략
+-> 일정 주기 마다 N명이 빠져나가는 상태를 구현
 
-: 전체 평점 데이터를 매번 집계하지 않고, 평점 추가 시 델타(delta) 값만 반영하여 평균을 갱신
+-> 대기열 내 순서를 전파하기 위해 Redis에 각 사용자의 등수 업데이트
 
-: 삽입 시점에 평균을 계산하여, 사용자–향수 관계 테이블에 **평균 평점 컬럼을 반정규화하여 저장**
+-> 대기열 빠져나감 상태를 전파하기 위해 Kafka에 Dequeue 상태를 발행
 
-: 조회 시에는 복잡한 `AVG`, `GROUP BY` 연산 없이 **사전 계산된 평균 값만 읽도록 설계**
-
-[CI/CD]
 <br>
--Docker Compose를 활용해 Spring Boot 및 MySQL 컨테이너화를 통한, 서버 실행 환경 구축
+2) Match Meta 데이터 및 Ranking 집계하는, 통계 서버 구축
 
--GitLab Webhook을 이용한, Jenkins 기반의 Spring Boot 코드 CI/CD 파이프라인 구성
+· Ranking 알고리즘 구현
 
-[AI]
+->등수 점수 기반, 총 인원수, 난이도, 구간별 기록 등 반영해 랭킹 점수에 반영
+
+· 매치 메타 데이터 및 랭킹 집계 경기가 끝날 때마다, 경기에 대한 메타 데이터 및 랭킹 집계
+
+· 일정 시간에 배치 단위로 DB에 삽입해서, 영속적인 데이터로 적재
+
 <br>
-- 느낌 <-> 향조 <-> 원료 비율 추천
+ 3)Explain/Analyze 이용 쿼리 실행계획/실행문 확인,쿼리 성능 최적화 
+    
+·  미집계된 match stats 정보 조회 시, user stats, match stats에서 필요한 colum에 인덱스를 부여
+    
+·  읽어야 할 데이터에 대한 I/O 비용 하락으로 DB 탐색 성능 대폭 증가
 
-사용자가 고른 느낌에 따라 상관 관계가 높은 향조(향수가 내는 대표적인 향의 계열)를 3개 추출.
-
-그리고 IoT기기에 전송되는 원료를 뽑아내기 위해서 해당 향조와 상관 관계가 높은 원료를 Top,Middle,Base(원료에 따른 향의 지속 시간과 원료의 역할에 따른 분류)의 비율을 계산해서 추천.
-
-각 원료 별로 골라진 향조를 가장 잘 나타내는 것을 상관관계 수치에 따라서 높은 순으로 뽑아낸다.
-
-- 구체적인 원료 비율 추천 방식
-  
-기본적으로 Top, Middle, Base(20%, 40%, 20%)를 배정한다. 그리고 나머지 20%의 원료는 위에서 계산한 향조-원료 상관관계 수치를 이용해, 해당 비중을 이용한 가중평균 수치를 이용해 남은 비율(20%)을 배정한다. 
-
-사용자는 추천 받은 원료의 양을 자기 자신이 원하는 배합에 따라 조정할 수 있다.
 
 ### ERD
-<img width="1177" height="800" alt="Pasted image 20260114151612" src="https://github.com/user-attachments/assets/c109c6e2-3905-4262-a5e4-c16a5a56ceb6" />
+<img width="1604" height="836" alt="TickGet_ERD" src="https://github.com/user-attachments/assets/105563f0-08f7-4673-8f75-70110c6c49f0" />
 
 - 참고 사이트
-[1] https://www.fragrantica.com/
+[1] https://kopis.or.kr/
