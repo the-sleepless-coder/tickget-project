@@ -94,7 +94,9 @@ SPA(Single Page Application) 기반 사용자 인터페이스 구현
 IngressRoute와 StripPrefix 미들웨어를 활용하여 도메인 기반 라우팅(tickget.kr) 및 서비스별 경로 분산(/api/v1/{env}/{service})을 처리
 
 3) Auth Server
-Google OAuth2 기반 사용자 인증 및 JWT 토큰 발급을 담당합니다. Access Token(7일) 및 Refresh Token(30일) 관리를 통해 인증 로직을 중앙 집중화하여 보안성과 확장성을 확보했습니다.
+Google OAuth2 기반 사용자 인증 및 JWT 토큰 발급을 담당
+
+Access Token(7일) 및 Refresh Token(30일) 관리를 통해 인증 로직을 중앙 집중화하여 보안성과 확장성을 확보
 
 4) Prometheus & Grafana
 Spring Boot Actuator를 통해 시스템 및 애플리케이션 메트릭을 수집하고(/actuator/metrics, /actuator/health), Grafana 대시보드에서 서비스 상태 및 리소스 사용량을 실시간으로 모니터링
