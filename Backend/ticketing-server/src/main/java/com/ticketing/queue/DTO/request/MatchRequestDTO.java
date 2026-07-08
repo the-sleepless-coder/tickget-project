@@ -20,7 +20,10 @@ public class MatchRequestDTO {
     private Match.Difficulty difficulty;     // 난이도 (EASY, NORMAL, HARD)
     private LocalDateTime startedAt;                // 경기 시작 시간
     private Long hallId;
+<<<<<<< HEAD
     private String idempotencyKey;           // 멱등성 키 (room이 생성, 재시도 중복 방지)
+=======
+>>>>>>> e1f44780889de7e80e679e0aad6239bb33f59795
     // private int totalSeat;
 
 }
