@@ -1,162 +1,113 @@
 ### 프로젝트 개요
-대용량 트래픽을 발생시켜 실제와 유사한 환경에서 티켓팅을 연습할 수 있는 사이트
+Tickget은 실제와 유사한 환경에서 티켓팅을 연습할 수 있는 트래픽 시뮬레이터입니다. 
 
+최대 5만 개의 봇이 실제 유저와 함께 대기열에 진입하고, Redis ZSET이 실시간 등수를 매기고, 경기가 끝나면 통계 서버가 랭킹을 집계합니다.
 
-### 어플리케이션 주요 기능 
-    · 봇을 추가해 (최대 1만개) 최대한 실제와 유사한 환경에서 티켓팅 연습
-    · 전체 인원에서 나의 등수 및 각 구간별 시간 확인 가능
+## Overview
+ 
+대용량 트래픽을 직접 발생시켜 티켓팅 전 과정(대기열 → 보안문자 → 좌석 선택 → 결과 확인)을 연습하고, 전체 참가자 중 나의 등수와 구간별 소요 시간을 확인할 수 있는 서비스입니다. 
 
-   1. 정해진 티켓팅 이벤트가 시작될 때까지 대기한다.
-<img width="1154" height="569" alt="image" src="https://github.com/user-attachments/assets/cc0839e8-0d77-4838-b8b4-ff26f2fa61ea" />
+**"수만 명이 동시에 몰리는 대기열에서, 등수를 실시간으로, 정확하게, 유실 없이 보여주도록 구현하였습니다."**
 
-   2. 입장한 순서대로 대기열에 진입한다.
+   1. 대기열 단계
 <img width="530" height="408" alt="image" src="https://github.com/user-attachments/assets/749b7cae-300c-444c-9a9a-6c0292bb1b6e" />
 
-   3. 보안문자를 입력한다.
+   2. 보안문자 단계
 <img width="554" height="449" alt="image" src="https://github.com/user-attachments/assets/f7cf69b2-ee3c-41ee-a5ff-7164b0148c27" />
 
-  4. 좌석을 선택한다.
+  3. 좌석 선택 단계
  <img width="530" height="409" alt="image" src="https://github.com/user-attachments/assets/6c6d5e3e-8d35-42c9-8701-db3e99be211e" />
 
-  5. 전체 사용자 및 봇 포함 사용자 중에서 내가 몇등한지 확인한다. 각 구간별 기록도 함께 확인한다.
-<img width="1145" height="566" alt="image" src="https://github.com/user-attachments/assets/72014c5a-35f5-4da1-8448-f964bad8b35e" />
- 
-  6.마이페이지에서 나의 기록을 확인할 수 있다. 한편 매주 업데이트 되는 랭킹을 실시간으로 조회 가능하다.
-  <img width="951" height="1122" alt="image" src="https://github.com/user-attachments/assets/1f914bb3-006b-4cd3-ad8d-04c56937b38e" />
+  4. 기록 확인 단계
+  <img width="1145" height="566" alt="image" src="https://github.com/user-attachments/assets/72014c5a-35f5-4da1-8448-f964bad8b35e" /> 
 
-  <img width="922" height="1121" alt="image" src="https://github.com/user-attachments/assets/86bc5855-e95d-4f83-98d7-c331fa91cc6b" />
-
+## Key Features
  
+- **실전형 대기열** — 봇 최대 5만 개를 투입해 실제 티켓팅과 유사한 경쟁 환경 재현
+- **실시간 등수 조회** — Redis ZSET 기반 정렬 삽입/조회로 나의 대기 순번을 즉시 확인
+- **이벤트 기반 상태 전파** — 대기열 이탈 이벤트를 Kafka로 발행, Room Server가 구독 후 STOMP로 프론트엔드에 재발행
+- **구간별 기록 측정** — 대기열/보안문자/좌석선택 각 단계의 소요 시간을 MongoDB에 로그로 적재
+- **랭킹 집계** — 등수·총 인원·난이도·구간별 기록을 차등 반영한 랭킹 점수 산정, 주간 랭킹 제공
+- **분산 정합성** — Saga 패턴(보상 트랜잭션) + Kafka Outbox + HTTP Retry로 DB/Redis/Kafka 간 상태 일관성 유지
+
+
+## Data Flow
+ 
+```
+User / Bot (최대 10,000)
+      ↓  대기열 진입
+Redis ZSET  ──  진입 시각 score → 실시간 등수 삽입/조회
+      ↓  dequeue
+Kafka  ──  대기열 이탈 이벤트 발행
+      ↓
+Room Server  ──  Kafka 구독 → 세션 확인된 사용자에게 STOMP 재발행
+      ↓  티켓팅 진행 (보안문자 → 좌석 선택)
+Kafka → MongoDB  ──  단계별 소요 시간 로그 (비동기 적재)
+      ↓  경기 종료
+Stats Server  ──  랭킹 점수 산정 (등수·총인원·난이도·구간 기록)
+      ↓  스케줄러 배치
+MySQL  ──  경기 메타데이터·랭킹 영속 적재 → 주간 랭킹 조회
+```
+
+ ## Repository Structure
+ 
+```
+tickget-project/             (branch: dev)
+├── AI/                      # AI 분석 (Python)
+├── Backend/                 # 마이크로서비스 9종
+│   ├── ticketing-server/    # Java — 대기열(ZSET·Kafka·Outbox·스케줄러) + 좌석(동시성 제어·Redis·MongoDB)
+│   ├── room-server/         # Java — 방 생성/관리 · Kafka 구독 → STOMP 세션 전파 · Redis Lua 스크립트
+│   ├── stats-server/        # Java — 경기/개인/랭킹 집계 · 미집계 재처리 스케줄러
+│   ├── auth-server/         # Java — Google OAuth2 · JWT 발급/검증 필터
+│   ├── user-server/         # Java — 사용자 정보 · 마이페이지
+│   ├── search-server/       # Java — ElasticSearch 기반 검색
+│   ├── bot-server/          # Go — 봇 트래픽 생성 (match · scheduler · kafka · stats)
+│   ├── catpcha-server/      # Python/Flask — 보안문자 생성/검증
+│   └── test-server/         # 실험용 — MySQL/MongoDB 연동 검증
+├── Frontend/                # React SPA (Nginx 서빙)
+├── infra/                   # MySQL 초기화 스크립트
+├── .gitlab-ci.yml           # GitLab CI 파이프라인
+├── docker-compose.yml       # 로컬 인프라 구성
+├── requirements.txt         # Python 의존성 (Captcha/AI)
+└── README.md
+```
+
+## Design Patterns
+ 
+| 패턴 | 설명 |
+|---|---|
+| **Redis ZSET Ranking** | 정렬된 상태로 삽입/조회 — Kafka 구독 데이터 재정렬에 드는 시간 복잡도 제거 |
+| **Event-Driven Propagation** | Kafka 이벤트 → Room Server → STOMP 재발행으로 대기열 상태를 프론트까지 전파 |
+| **Saga (보상 트랜잭션)** | 방 설정 저장/경기 시작 상태 변경을 서버별 로컬 트랜잭션 + 보상 트랜잭션으로 구성, DB·Redis·Kafka 상태를 일관 관리 |
+| **Outbox + HTTP Retry** | 비동기(Kafka Outbox — ticketing-server queue 모듈에 구현)와 동기(HTTP retry)를 상황별로 적용해 재시도·멱등성 확보 |
+| **Batch Aggregation** | 경기 종료마다 메타데이터·랭킹 집계, 일정 주기 배치로 DB 영속 적재 |
 
 ### 🔧 주요 기술 스택 및 역할
 <img width="1937" height="2657" alt="image" src="https://github.com/user-attachments/assets/66344999-75e5-41e5-b73b-720b98747cf4" />
 
-### 1) Backend
-1) Spring Boot (Java)
-
-서비스의 핵심 비즈니스 로직을 담당하는 백엔드 프레임워크
-
-사용자, 티켓팅, 룸, 검색, 통계 등 기능별로 마이크로서비스 구조로 분리하여 구현
-
-REST API 기반으로 프론트엔드 및 타 서비스와 통신
-
-서비스 단위로 독립적인 배포 및 스케일링이 가능하도록 설계
-
-2) Flask (Python)
-
-경량 Python 웹 프레임워크를 이용한 보안문자 서버 기능 구현
-
-
-3) Redis
-
-인메모리 데이터 저장소: 캐싱, 세션 관리, 실시간 데이터 처리에 활용
-
-대기열 구현 시, 각 사용자(봇 포함)의 대기열 진입 시점과 시간이 지남에 따라 대기열 내 등수를 Key값으로 저장.
-
-4) Kafka
-
-이벤트 기반 비동기 메시징 시스템을 이용해, 대기열을 빠져나갔다는 이벤트를 발행
-
-한편 티켓팅이 진행될 때 각 단계에서 넘어갈 시, 사용자의 기록을 MongoDB에 저장하기 위한 데이터를 저장하는 비동기적 처리 구현
-
-5) MySQL
-
-게임방, 경기 데이터, 각 사용자별 통계 데이터 등 관계형 데이터를 저장하기 사용
-
-6) MongoDB
-
-각 단계별 사용자의 기록 데이터를 저장하기 위한 비정형 데이터베이스 사용
-
-로그, 분석 결과 등 유연한 스키마가 필요한 데이터 처리
-
-7) ElasticSearch
-
-대용량 데이터 검색 및 분석 엔진
-
-검색 서버에서 사용되어 티켓팅 좌석 배치도를 선택할 때 빠른 검색 가능
-
-### 2)Frontend
-1) React
-
-SPA(Single Page Application) 기반 사용자 인터페이스 구현
-
-컴포넌트 단위 설계를 통해 UI 재사용성과 유지보수성 향상
-
-### 3)Infrastructure / DevOps
-1) Kubernetes (K3s)
-전체 시스템을 컨테이너 기반으로 운영하는 오케스트레이션 플랫폼으로, 경량 Kubernetes 배포판인 K3s를 사용하여 리소스 효율적인 클러스터를 구성.
-
-11개의 마이크로서비스를 독립적인 Pod 단위로 배포하며, ARM64 아키텍처에 최적화된 이미지를 사용.
-
-2) Traefik (Ingress Controller)
-외부 트래픽을 클러스터 내부 서비스로 라우팅하는 Ingress Controller 사용
-
-IngressRoute와 StripPrefix 미들웨어를 활용하여 도메인 기반 라우팅(tickget.kr) 및 서비스별 경로 분산(/api/v1/{env}/{service})을 처리
-
-3) Auth Server
-Google OAuth2 기반 사용자 인증 및 JWT 토큰 발급을 담당
-
-Access Token(7일) 및 Refresh Token(30일) 관리를 통해 인증 로직을 중앙 집중화하여 보안성과 확장성을 확보
-
-4) Prometheus & Grafana
-Spring Boot Actuator를 통해 시스템 및 애플리케이션 메트릭을 수집하고(/actuator/metrics, /actuator/health), Grafana 대시보드에서 서비스 상태 및 리소스 사용량을 실시간으로 모니터링
-
-Loki를 활용한 로그 수집 및 쿼리도 지원.
-
-5) MinIO
-S3 호환 오브젝트 스토리지로 사용자 프로필 이미지, 공연장 썸네일, AI 분석 결과물 등을 저장.
-
-Java(MinioClient) 및 Python(minio) 클라이언트를 통해 각 마이크로서비스와 통합.
-
-6) Nginx
-Frontend 컨테이너 내에서 SPA 라우팅을 처리하며, Gzip 압축 및 정적 파일 캐싱(1년)을 통해 성능을 최적화.
-
-모든 클라이언트 라우트를 index.html로 리다이렉트하여 React/Vue SPA를 지원.
-
-
-### 본인 구현 사항
- · Redis / Kafka기반, 대기열 내 등수 업데이트 /  빠져나감 기능 구현 (100%)
+## My Contributions
  
- · MongoDB기반, 각 단계별 소요 시간 로그 기록 (33%)
+| 구현 항목 | 기여도 |
+|---|---|
+| Redis/Kafka 기반 대기열 등수 업데이트·dequeue | 100% |
+| 경기 메타데이터/랭킹 집계 통계 서버 구축 | 100% |
+| Captcha 서버 보안문자 생성 | 100% |
+| Redis 기반 최종 사용자 등수 집계 | 100% |
+| MongoDB 기반 단계별 소요 시간 로그 | 33% |
+| Grafana·Loki 모니터링 기반 문제 진단/디버깅 | — |
+
+## Tech Stack
  
- · Redis 기반, 최종적인 사용자의 등수 집계 기능 구현 (40%)
+```
+Backend   : Spring Boot (Java) · Flask (Python) · Redis · Kafka · MySQL · MongoDB · ElasticSearch
+Frontend  : React · Nginx
+Infra     : Kubernetes (K3s) · Traefik · MinIO · Prometheus · Grafana · Loki · GitLab CI
+Auth      : Google OAuth2 · JWT (Access 7d / Refresh 30d)
+```
  
- · 경기 메타 데이터/랭킹 집계 통계서버 구축 (100%)
+## License
  
- · Captcha 서버를 통한 보안문자 생성 기능 구현. (100%)
- 
-·  Grafana, Loki 등 모니터링 툴을 통한 문제 상황 진단 및 디버깅 
-
-
-### 기술적 세부 사항
-[BackEnd]
-
-1)Ticketing Server
-   
-· Redis / Kafka 기반, 대기열 기능 / 분산 처리 환경에서 이벤트 기반 처리 구현
-
-· 멀티 스레드 처리 기반 방별 등수 처리 로직 구현 - 대용량 트래픽 처리 속도 향상 
-
-· 비동기 멀티 스레드 처리 - 경기 시작 시 설정 관련 API 요청, 저장 관련 데이터에 대한 응답 속도 향상
-
-· Redis 기반 경기 경기 종료 후 사용자 등수 집계 시, 데이터 업데이트 유실 문제 해결
-
-· 등수 업데이트 스케줄러를 위한 전용 스레드 풀 생성 – 효율적인 스레드 관리 구현
-
-2) Stats Server
-   
-· Ranking 알고리즘 구현
-
-->등수 점수 기반, 총 인원수, 난이도, 구간별 기록 등 반영해 랭킹 점수에 반영
-
-· 매치 메타 데이터 및 랭킹 집계 경기가 끝날 때마다, 경기에 대한 메타 데이터 및 랭킹 집계
-
-· 일정 시간에 배치 단위로 DB에 삽입해서, 영속적인 데이터로 적재
-
- 3)Explain/Analyze 이용 쿼리 실행계획/실행문 분석한 인덱스 설계 및 쿼리 구조 개선  
-    
-·  미집계된 match stats 정보 조회 시, user stats, match stats에서 필요한 colum에 인덱스를 부여
-
+None declared — team project (SSAFY).
 
 ### ERD
 <img width="1536" height="1024" alt="자율프로젝트_ERD" src="https://github.com/user-attachments/assets/9b315e4e-60c8-41f2-b241-89c72762b815" />
