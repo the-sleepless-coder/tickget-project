@@ -105,13 +105,10 @@ Infra     : Kubernetes (K3s) · Traefik · MinIO · Prometheus · Grafana · Lok
 Auth      : Google OAuth2 · JWT (Access 7d / Refresh 30d)
 ```
  
-## License
- 
-None declared — team project (SSAFY).
-
 ### ERD
 <img width="1536" height="1024" alt="자율프로젝트_ERD" src="https://github.com/user-attachments/assets/9b315e4e-60c8-41f2-b241-89c72762b815" />
 
 
-- 참고 사이트
-[1] https://kopis.or.kr/
+## License
+ 
+None declared — team project (SSAFY).
