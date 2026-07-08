@@ -16,7 +16,7 @@ public class MatchStartScheduler {
     private final ThreadPoolTaskScheduler taskScheduler;
     private final MatchStatusChanger changer; // 실행 로직 (아래)
 
-    private static final int START_BEFORE_SECONDS = 30;
+    private static final int START_BEFORE_SECONDS = 10;
 
     // 시작 N초 전에 Scheduler를 이용해서,
     // Bot 호출, Redis 키 값 업데이트
