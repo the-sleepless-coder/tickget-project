@@ -10,3 +10,6 @@ build/
 # OS
 .DS_Store
 Thumbs.db
+
+# Large 3D model assets (GitHub 100MB file limit)
+*.glb
