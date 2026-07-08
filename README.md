@@ -97,6 +97,7 @@ tickget-project/             (branch: dev)
 | Grafana·Loki 모니터링 기반 문제 진단/디버깅 | — |
 
 본인 구현 도메인 
+
 **ticketing-server/**    # Java — 대기열(ZSET·Kafka·Outbox·스케줄러) + 좌석(동시성 제어·Redis·MongoDB)
 
 **stats-server/**        # Java — 경기/개인/랭킹 집계 · 미집계 재처리 스케줄러
