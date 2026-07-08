@@ -98,7 +98,9 @@ tickget-project/             (branch: dev)
 
 본인 구현 도메인 
 **ticketing-server/**    # Java — 대기열(ZSET·Kafka·Outbox·스케줄러) + 좌석(동시성 제어·Redis·MongoDB)
+
 **stats-server/**        # Java — 경기/개인/랭킹 집계 · 미집계 재처리 스케줄러
+
 **catpcha-server/**      # Python/Flask — 보안문자 생성/검증
 
 ## Tech Stack
