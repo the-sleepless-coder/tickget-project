@@ -9,7 +9,7 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: ${DB_URL:jdbc:mysql://localhost:3306/ticketing_db?serverTimezone=Asia/Seoul&characterEncoding=UTF-8}
     username: ${DB_USERNAME:root}
-    password: ${DB_PASSWORD}
+    password: ${DB_PASSWORD:jsonsvalue!}
 
   data:
     # Redis
@@ -73,6 +73,8 @@ logging:
     com.ticketing: ${LOG_APP_LEVEL:info}
     org.springframework.data.mongodb.core.MongoTemplate: ${LOG_MONGO_LEVEL:info}
     org.springframework.kafka: ${LOG_KAFKA_LEVEL:info}
+    org.apache.kafka.clients.admin: ${LOG_KAFKA_ADMIN_LEVEL:warn}
+    org.apache.kafka.clients.admin.internals: ${LOG_KAFKA_ADMIN_LEVEL_INTERNALS:warn}
 
 app:
   kafka:
@@ -114,6 +116,24 @@ stats-server:
    url: ${STATS_SERVICE_URL:http://localhost:8084}
 
 consume-rate:
-  per-second: ${PER_SECOND_CONSUME_RATE}
-  kafka-emit: ${PER_SECOND_KAFKA_EMIT}
-  redis-emit: ${PER_SECOND_REDIS_EMIT}
+  per-second: ${PER_SECOND_CONSUME_RATE:100}
+  kafka-emit: ${PER_SECOND_KAFKA_EMIT:20}
+  redis-emit: ${PER_SECOND_REDIS_EMIT:2000}
+
+resilience4j:
+  retry:
+    instances:
+      roomStart:
+        max-attempts: ${ROOM_SYNC_RETRY_MAX:3}
+        wait-duration: ${ROOM_SYNC_RETRY_WAIT:2s}
+        retry-exceptions:
+          - org.springframework.web.client.RestClientException
+          - java.io.IOException
+          - java.net.ConnectException
+      botDataRequest:
+        max-attempts: ${BOT_RETRY_MAX:3}
+        wait-duration: ${BOT_RETRY_WAIT:2s}
+        retry-exceptions:
+          - org.springframework.web.client.RestClientException
+          - java.io.IOException
+          - java.net.ConnectException

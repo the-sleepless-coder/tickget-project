@@ -11,7 +11,8 @@ public class QueueKeys {
         return "queue:%s:waiting".formatted(matchId);
     }
 
-    // 방별 사용자 상태 키 변수
+    // 방별 사용자의 대기열에서 상태를 나타내는 변수
+    // String (matchId:userId): String (State)
     public static String userStateKey(Long matchId, String userId){
         return "queue:%s:%s".formatted(matchId, userId);
     }
@@ -29,5 +30,11 @@ public class QueueKeys {
     // 빠진 사람만큼 방 내 최대 인원 반영을 위한 변수
     public static String roomTotal(Long matchId){
         return "queue:%s:total".formatted(matchId);
+    }
+
+    // 등수 갱신 대상(실제 사람, 봇 제외)만 담는 SET.
+    // 전체 ZSET 스캔 없이 이 사람들만 ZRANK 로 등수를 구하기 위함.
+    public static String humansSet(Long matchId){
+        return "queue:%s:humans".formatted(matchId);
     }
 }

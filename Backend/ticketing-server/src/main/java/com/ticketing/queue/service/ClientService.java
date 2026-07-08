@@ -2,6 +2,10 @@ package com.ticketing.queue.service;
 
 import com.ticketing.queue.DTO.request.BotRequestDTO;
 import com.ticketing.queue.DTO.response.BotResponseDTO;
+import com.ticketing.queue.exception.BotDataRequestFailedException;
+import com.ticketing.queue.exception.GetUserNumFailedException;
+import com.ticketing.queue.exception.RoomStartStateChangeFailedException;
+import io.github.resilience4j.retry.annotation.Retry;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
@@ -26,70 +30,77 @@ public class ClientService {
         this.restTemplate = restTemplate;
     }
     /**
-     * 봇 서버
+     * Bot 서버 HTTP요청
      * */
+    @Retry(name = "botDataRequest", fallbackMethod = "sendBotRequestFallback")
     public ResponseEntity<?> sendBotRequest(Long matchId, int botCount, LocalDateTime startTime, String difficulty, Long hallId) {
         String url = botServerUrl + "/matches/" + matchId + "/bots";
 
-        // 요청 바디
         BotRequestDTO body = new BotRequestDTO(botCount, startTime, difficulty, hallId);
-
-        // 헤더
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-
         HttpEntity<BotRequestDTO> entity = new HttpEntity<>(body, headers);
 
-        try {
-            ResponseEntity<BotResponseDTO> response = restTemplate.exchange(
-                    url,
-                    HttpMethod.POST,
-                    entity,
-                    BotResponseDTO.class
-            );
+        ResponseEntity<BotResponseDTO> response = restTemplate.exchange(
+                url, HttpMethod.POST, entity, BotResponseDTO.class
+        );
+        log.info("봇 요청 전송 완료 | matchId={} | status={}", matchId, response.getStatusCode());
+        return response;
+    }
 
-            log.info("🤖 Bot 요청 전송 완료 | matchId={} | status={}", matchId, response.getStatusCode());
-            log.debug("➡️ 응답 본문: {}", response.getBody());
-            return response;
-        } catch (Exception e) {
-            log.error("⚠️ Bot 요청 실패 | matchId={} | reason={}", matchId, e.getMessage(), e);
-            // 필요 시 예외 래핑해서 던지거나, 실패 응답 생성해 반환
-            return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
-                    .body("{\"message\":\"bot request failed\"}");
-        }
+    // 3회의 retry이후 fallback 예외 생성.
+    private ResponseEntity<?> sendBotRequestFallback(Long matchId, int botCount, LocalDateTime startTime, String difficulty, Long hallId, Exception e) {
+        log.error("봇 서버 요청 폴백 실행: matchId={}, error={}", matchId, e.getMessage());
+        throw new BotDataRequestFailedException("봇 서버 호출 실패", e);
     }
 
     /**
-     * 룸 서버
+     * Room 서버 HTTP요청
      * */
+    @Retry(name = "roomStart", fallbackMethod = "changeStartStateFallback")
     public ResponseEntity<?> changeStartState(Long roomId){
         String url = roomServerUrl + "/rooms/" + roomId + "/start";
 
-        // 헤더
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         HttpEntity<Void> entity = new HttpEntity<>(headers);
 
-        try {
-            ResponseEntity<String> response = restTemplate.exchange(
-                    url,
-                    HttpMethod.PATCH,
-                    entity,
-                    String.class
-            );
-
-            log.info(" Room 서버 시작 요청 전송 완료 | roomId={} | status={}", roomId, response.getStatusCode());
-            log.debug("➡️ 응답 본문: {}", response.getBody());
-            return response;
-        } catch (Exception e) {
-            log.error("⚠️ Bot 시작 요청 실패 | matchId={} | reason={}", roomId, e.getMessage(), e);
-            // 필요 시 예외 래핑해서 던지거나, 실패 응답 생성해 반환
-            return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
-                    .body("{\"message\":\"bot request failed\"}");
-        }
+        ResponseEntity<String> response = restTemplate.exchange(
+                url,
+                HttpMethod.PATCH,
+                entity,
+                String.class
+        );
+        log.info("Room 서버 시작 요청 전송 완료 | roomId={} | status={}", roomId, response.getStatusCode());
+        return response;
     }
 
-    // 주어진 방의 사용자 정보를 가져온다.
+    private ResponseEntity<?> changeStartStateFallback(Long roomId, Exception e) {
+        log.error("Room 서버 시작 요청 폴백 실행: roomId={}, error={}", roomId, e.getMessage());
+        throw new RoomStartStateChangeFailedException("room 서버 상태 변경 실패", e);
+    }
+
+    /**
+     * Room 서버에 경기 취소 알림
+     * */
+    public ResponseEntity<?> cancelMatch(Long roomId) {
+        String url = roomServerUrl + "/rooms/" + roomId + "/cancel";
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<Void> entity = new HttpEntity<>(headers);
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                url,
+                HttpMethod.PATCH,
+                entity,
+                String.class
+        );
+        log.info("Room 서버 경기 취소 요청 완료 | roomId={} | status={}", roomId, response.getStatusCode());
+        return response;
+    }
+
+    // Room Server에 요청을 보내수 roomId에 대한 사용자 정보를 가져온다.
     public ResponseEntity<?> getUserNum(Long roomId){
         String url = roomServerUrl + "/rooms/" + roomId;
 
@@ -117,9 +128,8 @@ public class ClientService {
         }catch(Exception e){
             e.printStackTrace();
             log.info("사용자 수를 가져오지 못했습니다.");
-
-            return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
-                    .body("{\"message\":\"failed to get user numbers\"}");
+            
+            throw new GetUserNumFailedException("사용자 수 조회 실패", e);
         }
 
     }

@@ -1,6 +1,7 @@
-package com.ticketing.queue.service;
+package com.ticketing.queue.scheduler;
 
 import com.ticketing.queue.DTO.MatchInsertedEventDTO;
+import com.ticketing.queue.service.MatchStatusChanger;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.stereotype.Component;
@@ -15,7 +16,7 @@ public class MatchStartScheduler {
     private final ThreadPoolTaskScheduler taskScheduler;
     private final MatchStatusChanger changer; // 실행 로직 (아래)
 
-    private static final int START_BEFORE_SECONDS = 10;
+    private static final int START_BEFORE_SECONDS = 30;
 
     // 시작 N초 전에 Scheduler를 이용해서,
     // Bot 호출, Redis 키 값 업데이트

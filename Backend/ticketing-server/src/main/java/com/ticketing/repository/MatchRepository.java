@@ -22,4 +22,7 @@ public interface MatchRepository extends JpaRepository<Match, Long> {
     // roomId로 가장 최근 매치 조회 (경기 중 유저 퇴장 처리용)
     Optional<Match> findTopByRoomIdOrderByCreatedAtDesc(Long roomId);
 
+    // 멱등성 키로 매치 조회 (createMatch 재시도 중복 방지)
+    Optional<Match> findByIdempotencyKey(String idempotencyKey);
+
 }

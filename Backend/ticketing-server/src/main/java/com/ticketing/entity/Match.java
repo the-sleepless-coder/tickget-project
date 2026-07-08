@@ -5,7 +5,10 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "matches")
+@Table(name = "matches", indexes = {
+        // roomId + status 조회 최적화 (WAITING 매치 중복 확인용)
+        @Index(name = "idx_matches_room_status", columnList = "room_id, status")
+})
 @Getter
 @Setter
 @NoArgsConstructor
@@ -17,6 +20,10 @@ public class Match {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "match_id")
     private Long matchId;
+
+    // 멱등성 키 (room이 생성해 전달, createMatch 재시도 중복 방지). 유니크 = 보조 인덱스 겸용.
+    @Column(name = "idempotency_key", unique = true, length = 36)
+    private String idempotencyKey;
 
     @Column(name = "room_id", nullable = false)
     private Long roomId;
@@ -71,6 +78,6 @@ public class Match {
     }
 
     public enum MatchStatus {
-        WAITING, PLAYING, FINISHED
+        WAITING, PLAYING, FINISHED, CANCELLED
     }
 }

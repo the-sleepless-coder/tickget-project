@@ -1,11 +1,10 @@
 package com.ticketing.queue.controller;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.ticketing.queue.DTO.*;
 import com.ticketing.queue.DTO.request.MatchRequestDTO;
 import com.ticketing.queue.DTO.response.MatchIdResponseDTO;
 import com.ticketing.queue.DTO.response.MatchResponseDTO;
-import com.ticketing.queue.service.QueueLogProducerKafka;
+import com.ticketing.queue.Kafka.QueueLogProducerKafka;
 import com.ticketing.queue.service.QueueService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -36,7 +35,7 @@ public class QueueController {
     public String testController(){
         return "Testing API";
     }
-
+    /**
     // 부하 테스트용 API
     @PostMapping("/testQueue/{playerNum}")
     public ResponseEntity<?> testProducer(@PathVariable("playerNum") int playerNum) throws ExecutionException, InterruptedException {
@@ -61,8 +60,9 @@ public class QueueController {
 
         return ResponseEntity.ok(result);
     }
+     */
 
-    // 사용자 Enqueue하는 API
+    // 사용자를 대기열에 넣는다.
     @PostMapping("/queue/{matchId}")
     public ResponseEntity<?> enterQueue(@PathVariable Long matchId, HttpServletRequest request, @RequestBody QueueUserInfoDTO dto) throws ExecutionException, InterruptedException {
         Long userId = Long.valueOf(request.getHeader("X-User-Id"));
@@ -70,7 +70,7 @@ public class QueueController {
         return ResponseEntity.ok(result);
     }
 
-
+    // 경기 시작 시, 필요한 데이터를 생성한다.
     @PostMapping("/matches")
     @Operation(
             summary = "경기 시작 시, DB, Kafka, Redis, 다른 서버에 요청 등 관련 데이터 처리",

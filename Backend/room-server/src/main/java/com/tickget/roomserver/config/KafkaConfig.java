@@ -79,6 +79,29 @@ public class KafkaConfig {
         return props;
     }
 
+    // ticketing 이 발행한 match.room.cancelled 컨슈머용 팩토리.
+    // payload 직렬화 형식(순수 JSON / 이중 인코딩 문자열)에 무관하게 처리하려고 value 를 String 으로 받아
+    // 컨슈머에서 tolerant 하게 파싱한다.
+    // 경기 취소는 상태 변경 command 이므로 POD 별 브로드캐스트가 아닌 고정 group-id 로 "단 한 번" 처리한다.
+    // (per-pod 로 받으면 pod 수만큼 RoomPlayingEnded 가 중복 발행됨)
+    @Bean
+    public ConcurrentKafkaListenerContainerFactory<String, String>
+    matchRoomCancelKafkaListenerContainerFactory() {
+
+        ConcurrentKafkaListenerContainerFactory<String, String> factory =
+                new ConcurrentKafkaListenerContainerFactory<>();
+
+        Map<String, Object> props = new HashMap<>();
+        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        props.put(ConsumerConfig.GROUP_ID_CONFIG, "room-server-match-cancel");
+        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+
+        factory.setConsumerFactory(new DefaultKafkaConsumerFactory<>(props));
+
+        return factory;
+    }
+
     @Bean
     public ConcurrentKafkaListenerContainerFactory<String, UserDequeuedEvent>
     noTypeHeadersKafkaListenerContainerFactory() {

@@ -207,6 +207,27 @@ func (s *Service) GetMatch(matchID int64) (*MatchContext, bool) {
 	return matchCtx, exists
 }
 
+// CancelMatch 경기 시작 실패 등으로 매치를 취소하고 준비된 봇을 정리한다.
+//
+// Cancel() → ctx 취소 → ScheduleAt 이 즉시 리턴 → SetBotsForMatch goroutine 종료
+//   → defer cleanupMatch 가 botService.Release(BotCount) 로 봇 리소스 반환 + 맵 제거.
+// (여기서 Release 를 직접 호출하면 cleanupMatch 와 이중 해제되므로 Cancel 만 호출한다.)
+//
+// 멱등: 대상 매치가 없으면(이미 완료됐거나 요청이 아직 도착 안 함) no-op.
+func (s *Service) CancelMatch(matchID int64) error {
+	matchCtx, exists := s.GetMatch(matchID)
+	if !exists {
+		logger.WithMatchContext(matchID).Info("취소 대상 매치 없음 (스킵)")
+		return nil
+	}
+
+	matchCtx.SetStatus(StatusCanceled)
+	matchCtx.Cancel()
+
+	logger.WithMatchContext(matchID).Info("매치 취소됨 - 봇 teardown")
+	return nil
+}
+
 // getBotWaitChannelKey matchID와 userID를 조합한 대기 채널 키 생성
 func getBotWaitChannelKey(matchID int64, userID int64) string {
 	return fmt.Sprintf("%d:%d", matchID, userID)

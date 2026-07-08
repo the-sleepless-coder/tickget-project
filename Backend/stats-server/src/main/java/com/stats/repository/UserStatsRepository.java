@@ -122,8 +122,9 @@ public interface UserStatsRepository extends JpaRepository<UserStats, Long> {
     @Query("""
         SELECT DISTINCT us.matchId
         FROM UserStats us
-        WHERE us.matchId NOT IN (
-            SELECT ms.matchId FROM MatchStats ms
+        WHERE NOT EXISTS (
+            SELECT 1 FROM MatchStats ms
+            WHERE ms.matchId = us.matchId
         )
         ORDER BY us.matchId DESC
         """)

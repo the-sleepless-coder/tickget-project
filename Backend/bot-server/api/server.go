@@ -21,11 +21,13 @@ import (
 
 // Server HTTP 서버 구조체
 type Server struct {
-	config        *config.Config
-	engine        *gin.Engine
-	httpServer    *http.Server
-	kafkaConsumer *kafka.Consumer
-	cancelKafka   context.CancelFunc
+	config             *config.Config
+	engine             *gin.Engine
+	httpServer         *http.Server
+	kafkaConsumer       *kafka.Consumer
+	matchKafkaConsumer  *kafka.MatchConsumer
+	matchCancelConsumer *kafka.MatchCancelConsumer
+	cancelKafka         context.CancelFunc
 }
 
 // NewServer 새로운 서버 인스턴스를 생성
@@ -79,10 +81,22 @@ func NewServer(cfg *config.Config) *Server {
 		logger.Fatal("Kafka Consumer 생성 실패", zap.Error(err))
 	}
 
+	matchKafkaConsumer, err := kafka.NewMatchConsumer(brokers, cfg.KafkaGroupID+"-match", cfg.KafkaMatchTopic, matchService)
+	if err != nil {
+		logger.Fatal("Match Kafka Consumer 생성 실패", zap.Error(err))
+	}
+
+	matchCancelConsumer, err := kafka.NewMatchCancelConsumer(brokers, cfg.KafkaGroupID+"-match-cancel", cfg.KafkaCancelTopic, matchService)
+	if err != nil {
+		logger.Fatal("Match Cancel Kafka Consumer 생성 실패", zap.Error(err))
+	}
+
 	server := &Server{
-		config:        cfg,
-		engine:        engine,
-		kafkaConsumer: kafkaConsumer,
+		config:              cfg,
+		engine:              engine,
+		kafkaConsumer:       kafkaConsumer,
+		matchKafkaConsumer:  matchKafkaConsumer,
+		matchCancelConsumer: matchCancelConsumer,
 	}
 
 	return server
@@ -97,6 +111,18 @@ func (s *Server) Start() error {
 	go func() {
 		if err := s.kafkaConsumer.Start(kafkaCtx); err != nil {
 			logger.Error("Kafka Consumer 에러", zap.Error(err))
+		}
+	}()
+
+	go func() {
+		if err := s.matchKafkaConsumer.Start(kafkaCtx); err != nil {
+			logger.Error("Match Kafka Consumer 에러", zap.Error(err))
+		}
+	}()
+
+	go func() {
+		if err := s.matchCancelConsumer.Start(kafkaCtx); err != nil {
+			logger.Error("Match Cancel Kafka Consumer 에러", zap.Error(err))
 		}
 	}()
 

@@ -1,0 +1,393 @@
+version: '3.8'
+
+services:
+  # =====================
+  # INFRASTRUCTURE
+  # =====================
+
+  mysql:
+    image: mysql:8.0
+    container_name: tickget-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: tickget
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./infra/mysql/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tickget-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: tickget-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tickget-network
+
+  mongodb:
+    image: mongo:7
+    container_name: tickget-mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tickget-network
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: tickget-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    networks:
+      - tickget-network
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: tickget-kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+    networks:
+      - tickget-network
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: tickget-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tickget-network
+
+  minio:
+    image: minio/minio:latest
+    container_name: tickget-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tickget-network
+
+  # =====================
+  # BACKEND SERVICES
+  # =====================
+
+  auth-server:
+    build:
+      context: ./Backend/auth-server
+      dockerfile: Dockerfile
+    container_name: tickget-auth-server
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/tickget?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+      MINIO_URL: http://minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      MINIO_BUCKET_NAME: tickget-dev
+      JWT_SECRET: your-jwt-secret-key-change-in-production
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-placeholder}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-placeholder}
+      FRONTEND_URL: http://localhost:3000
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - tickget-network
+
+  room-server:
+    build:
+      context: ./Backend/room-server
+      dockerfile: Dockerfile
+    container_name: tickget-room-server
+    ports:
+      - "8081:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/tickget?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      MINIO_URL: http://minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      MINIO_BUCKET_NAME: tickget-dev
+      TICKETING_SERVICE_URL: http://ticketing-server:8080
+      POD_NAME: local-docker
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    networks:
+      - tickget-network
+
+  ticketing-server:
+    build:
+      context: ./Backend/ticketing-server
+      dockerfile: Dockerfile
+    container_name: tickget-ticketing-server
+    ports:
+      - "8082:8080"
+    environment:
+      SERVER_PORT: 8080
+      DB_URL: jdbc:mysql://mysql:3306/ticketing_db?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+      DB_USERNAME: root
+      DB_PASSWORD: root
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      MONGO_URI: mongodb://mongodb:27017/ticketing_logs
+      MONGO_DATABASE: ticketing_logs
+      KAFKA_BOOTSTRAP: kafka:9092
+      APP_KAFKA_BOOTSTRAP: kafka:9092
+      CAPTCHA_ADDRESS: http://captcha-server:8080/api/v1.0/captcha/
+      BOT_SERVICE_URL: http://bot-server:8080
+      ROOM_SERVICE_URL: http://room-server:8080
+      STATS_SERVICE_URL: http://stats-server:8084
+      POD_NAME: local-docker
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    networks:
+      - tickget-network
+
+  user-server:
+    build:
+      context: ./Backend/user-server
+      dockerfile: Dockerfile
+    container_name: tickget-user-server
+    ports:
+      - "8083:8084"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/tickget?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - tickget-network
+
+  search-server:
+    build:
+      context: ./Backend/search-server
+      dockerfile: Dockerfile
+    container_name: tickget-search-server
+    ports:
+      - "8084:8084"
+    environment:
+      SPRING_ELASTICSEARCH_URIS: http://elasticsearch:9200
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    networks:
+      - tickget-network
+
+  stats-server:
+    build:
+      context: ./Backend/stats-server
+      dockerfile: Dockerfile
+    container_name: tickget-stats-server
+    ports:
+      - "8085:8084"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/tickget?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+      SPRING_DATA_MONGODB_URI: mongodb://mongodb:27017/tickget_stats
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      POD_NAME: local-docker
+    depends_on:
+      mysql:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    networks:
+      - tickget-network
+
+  bot-server:
+    build:
+      context: ./Backend/bot-server
+      dockerfile: Dockerfile
+    container_name: tickget-bot-server
+    ports:
+      - "8086:8080"
+    environment:
+      KAFKA_BROKERS: kafka:9092
+      TICKETING_SERVER_URL: http://ticketing-server:8080
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    depends_on:
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - tickget-network
+
+  captcha-server:
+    build:
+      context: ./Backend/catpcha-server
+      dockerfile: Dockerfile
+    container_name: tickget-captcha-server
+    ports:
+      - "8087:8080"
+    environment:
+      CAPTCHA_API_CONFIG: /app/captcha_api/captcha.cfg
+    networks:
+      - tickget-network
+
+  # =====================
+  # AI SERVICES
+  # =====================
+
+  ai-analyst:
+    build:
+      context: ./AI/AI_analyst
+      dockerfile: Dockerfile
+    container_name: tickget-ai-analyst
+    ports:
+      - "8088:8000"
+    environment:
+      STATS_SERVER_URL: http://stats-server:8084
+      MINIO_URL: http://minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+    depends_on:
+      - minio
+    networks:
+      - tickget-network
+
+  seatmap-to-html:
+    build:
+      context: ./AI/seatmap_to_html
+      dockerfile: Dockerfile
+    container_name: tickget-seatmap-to-html
+    ports:
+      - "8089:8000"
+    environment:
+      MINIO_URL: http://minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+    depends_on:
+      - minio
+    networks:
+      - tickget-network
+
+  # =====================
+  # FRONTEND
+  # =====================
+
+  frontend:
+    build:
+      context: ./Frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_PREFIX_DEV: /api/v1/dev
+        VITE_API_ORIGIN: http://localhost:8080
+    container_name: tickget-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - auth-server
+      - room-server
+      - ticketing-server
+    networks:
+      - tickget-network
+
+# =====================
+# NETWORKS & VOLUMES
+# =====================
+
+networks:
+  tickget-network:
+    driver: bridge
+
+volumes:
+  mysql_data:
+  redis_data:
+  mongo_data:
+  es_data:
+  minio_data:

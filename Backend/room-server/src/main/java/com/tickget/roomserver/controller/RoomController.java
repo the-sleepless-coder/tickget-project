@@ -86,6 +86,12 @@ public class RoomController {
         return ResponseEntity.ok().build();
     }
 
+    @PatchMapping("/{roomId}/cancel")
+    public ResponseEntity<?> cancelRoomMatch(@PathVariable("roomId") Long roomId) {
+        roomService.cancelRoomMatch(roomId);
+        return ResponseEntity.ok().build();
+    }
+
     @PatchMapping("/{roomId}/end")
     public ResponseEntity<?> endRoomMatch(@PathVariable("roomId") Long roomId)  {
 

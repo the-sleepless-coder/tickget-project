@@ -34,11 +34,9 @@ public class SeatReservationService {
     private final MatchStatusRepository matchStatusRepository;
     private final LuaReservationExecutor luaReservationExecutor;
 
-    @Transactional
     public SeatReservationResponse reserveSeats(Long matchId, SeatReservationRequest req) {
         Long userId = req.getUserId();
-        boolean isBot = userId < 0;  // 봇 여부 판단
-
+        
         // 1. 좌석 개수 검증
         int requested = (req.getSeats() == null) ? 0 : req.getSeats().size();
         if (requested == 0 || requested > MAX_SEATS_PER_REQUEST) {
@@ -62,18 +60,41 @@ public class SeatReservationService {
 //            log.info("매치 status 키 초기화: matchId={}, status=OPEN", matchId);
 //        }
 
-        // 2. DB에서 경기 정보 조회
-        Match match = matchRepository.findById(matchId)
-                .orElseThrow(() -> new IllegalArgumentException("Match not found: " + matchId));
-
-        if (match.getStatus() != Match.MatchStatus.PLAYING) {
+        // 3. Redis 경기 상태 확인 (OPEN 이면 예약 가능)
+        boolean redisOpen = matchStatusRepository.isOpen(matchId);
+        if (!redisOpen) {
             throw new MatchClosedException(matchId);
         }
 
         // 2-1. Room 서버에서 totalSeats 조회
-        Long roomId = match.getRoomId();
-        Integer totalSeats = roomServerClient.getTotalSeats(roomId);
+        // 경기에 대한 roomId를 레디스 키에서 찾고,
+        // 없다면 HTTP요청을 통해 최초 한번만 레디스 키에 캐싱한다.
+        String roomIdStr = redisTemplate.opsForValue().get("match:" + matchId+ ":room");
+        if(roomIdStr==null)
+        {
+            throw new IllegalStateException("매치 roomId를 찾을 수 없습니다 : " + matchId );
+        }
+        Long roomId = Long.parseLong(roomIdStr);
 
+
+        String totalSeatsStr = redisTemplate.opsForValue().get("match:"+matchId+":totalSeats");
+        Integer totalSeats = null;
+        if(totalSeatsStr==null)
+        {
+            totalSeats = roomServerClient.getTotalSeats(roomId);
+            if(totalSeats!=null && totalSeats > 0)
+            {
+                redisTemplate.opsForValue().set(
+                    "match:"+matchId+":totalSeats",
+                    String.valueOf(totalSeats), 
+                    Duration.ofSeconds(MATCH_REDIS_TTL_SECONDS)
+                );
+            }
+        }else
+        {
+            totalSeats = Integer.parseInt(totalSeatsStr);
+        }
+        
         if (totalSeats == null || totalSeats <= 0) {
             log.error("전체 좌석 수 조회 실패: matchId={}, roomId={}", matchId, roomId);
             throw new IllegalStateException("전체 좌석 수를 조회할 수 없습니다.");
@@ -82,11 +103,6 @@ public class SeatReservationService {
         log.info("전체 좌석 수 조회 성공: matchId={}, roomId={}, totalSeats={}",
                 matchId, roomId, totalSeats);
 
-        // 3. Redis 경기 상태 확인 (OPEN이면 예약 가능)
-        boolean redisOpen = matchStatusRepository.isOpen(matchId);
-        if (!redisOpen) {
-            throw new MatchClosedException(matchId);
-        }
 
         // 4. SeatInfo -> rowNumber, grade 변환
         String sectionId = req.extractSectionId();  // Long → String 변환 (Redis 키용)

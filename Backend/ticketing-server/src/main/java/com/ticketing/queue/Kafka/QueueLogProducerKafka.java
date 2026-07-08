@@ -1,8 +1,7 @@
-package com.ticketing.queue.service;
+package com.ticketing.queue.Kafka;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.ticketing.KafkaTopic;
 import com.ticketing.queue.DTO.QueueDTO;
 import com.ticketing.queue.DTO.QueueLogDTO;
 import lombok.RequiredArgsConstructor;

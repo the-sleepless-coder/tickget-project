@@ -43,6 +43,11 @@ dependencies {
     annotationProcessor 'org.projectlombok:lombok'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    // 부하 테스트용: 도커 없이 in-process Redis 구동
+    testImplementation 'com.github.codemonstur:embedded-redis:1.4.3'
+    // Lettuce 커넥션 풀(GenericObjectPool) 활성화 — 풀 max-active 튜닝/측정에 필요
+    testImplementation 'org.apache.commons:commons-pool2'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'org.springframework.boot:spring-boot-starter-log4j2'
     implementation 'org.apache.kafka:kafka-clients:4.1.0'
@@ -64,10 +69,20 @@ dependencies {
     // API 문서화
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.0'
 
+    // Resilience4j (Retry)
+    implementation 'io.github.resilience4j:resilience4j-spring-boot3:2.1.0'
+
 }
 
 tasks.named('test') {
     useJUnitPlatform()
+
+    // 부하 테스트 노브를 gradle -D 에서 포크된 테스트 JVM 으로 전달
+    ['rooms', 'bots', 'users', 'durationSec', 'redis.pool.maxActive', 'redis.port'].each { k ->
+        if (System.getProperty(k) != null) {
+            systemProperty k, System.getProperty(k)
+        }
+    }
 
     testLogging {
         events "passed", "skipped", "failed", "standardOut", "standardError"

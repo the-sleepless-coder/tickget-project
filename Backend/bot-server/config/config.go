@@ -24,7 +24,9 @@ type Config struct {
 	MinioUseSSL       bool
 	KafkaBrokers      string // Kafka 브로커 주소 (쉼표로 구분)
 	KafkaGroupID      string // Kafka Consumer Group ID
-	KafkaTopic        string // Kafka Topic
+	KafkaTopic        string // Kafka Topic (BotDequeued)
+	KafkaMatchTopic   string // Kafka Topic (match.bot.requested)
+	KafkaCancelTopic  string // Kafka Topic (match.bot.cancelled)
 }
 
 // 환경변수에서 설정을 로드합니다
@@ -47,6 +49,8 @@ func Load() *Config {
 		KafkaBrokers:      getEnv("KAFKA_BROKERS", "localhost:9092"),
 		KafkaGroupID:      getEnv("KAFKA_GROUP_ID", "bot-server-group"),
 		KafkaTopic:        getEnv("KAFKA_TOPIC", "bot-dequeued-publish"),
+		KafkaMatchTopic:   getEnv("KAFKA_MATCH_TOPIC", "match.bot.requested"),
+		KafkaCancelTopic:  getEnv("KAFKA_CANCEL_TOPIC", "match.bot.cancelled"),
 	}
 
 	logger.Info("설정 로드됨",

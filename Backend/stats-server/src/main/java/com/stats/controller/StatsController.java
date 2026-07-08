@@ -42,7 +42,7 @@ public class StatsController {
     private final RedisTemplate redisTemplate;
 
     /**
-     * 개인 통계
+     * 개인 통계 데이터 가져오기.
      */
     @GetMapping("/mypage")
     @Operation(
@@ -67,7 +67,7 @@ public class StatsController {
 
     }
 
-    // 데이터 추가 API offset 이용
+    // 사용자의 추가 데이터 가져오기 
     @GetMapping("/mypage/specificsData")
     public ResponseEntity<?> getAdditionalSpecificData(HttpServletRequest request, @RequestParam(defaultValue="0") int page){
         String userIdString = request.getHeader("X-User-Id");
@@ -130,7 +130,7 @@ public class StatsController {
         // match에 대한 평균 집계 + 개인별 랭킹 집계
 
         // 1. 경기 종료 시 즉시 매치 통계 계산
-        // 2.개인 별 랭킹 집계
+        // 2. 개인 별 랭킹 집계
         try {
             matchEndService.processMatchEnd(matchId);
 

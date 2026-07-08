@@ -21,9 +21,10 @@ public class CreateMatchRequest {
 
     private Difficulty difficulty;
     private LocalDateTime startedAt;
+    private String idempotencyKey;
 
 
-    public static CreateMatchRequest of(CreateRoomRequest request, Long roomId) {
+    public static CreateMatchRequest of(CreateRoomRequest request, Long roomId, String idempotencyKey) {
         return CreateMatchRequest.builder()
                 .roomId(roomId)
                 .hallId(request.getHallId())
@@ -33,6 +34,7 @@ public class CreateMatchRequest {
                 .totalSeats(request.getTotalSeat())
                 .difficulty(request.getDifficulty())
                 .startedAt(request.getGameStartTime())
+                .idempotencyKey(idempotencyKey)
                 .build();
     }
 }

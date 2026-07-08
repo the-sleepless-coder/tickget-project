@@ -84,7 +84,10 @@ public class RoomService {
             }
 
             // 매치 생성 요청
-            MatchResponse matchResponse = ticketingServiceClient.createMatch(CreateMatchRequest.of(request, room.getId()));
+            // 멱등성 키: @Retry 호출 "전에" 한 번만 생성 → 재시도들이 같은 키를 보내 중복 매치 방지
+            String idempotencyKey = java.util.UUID.randomUUID().toString();
+            MatchResponse matchResponse = ticketingServiceClient.createMatch(
+                    CreateMatchRequest.of(request, room.getId(), idempotencyKey));
 
             // 매치의 startTime을 Redis에 업데이트
             if (matchResponse != null && matchResponse.getStartTime() != null) {
@@ -273,9 +276,35 @@ public class RoomService {
         Room room = roomRepository.findById(roomId).orElseThrow(
                 () -> new RoomNotFoundException(roomId));
 
+        // 멱등적인 처리 보장을 위한 상태 처리.
+        // 이미 방 상태 변경이 PLAYING으로 바뀌었다면, 
+        // Websocket이 소비하는 Kafka 토픽 발행을 하지 않는다.
+        if (room.getStatus() == RoomStatus.PLAYING) {
+            log.info("방 {} 이미 PLAYING 상태 - 중복 요청 무시", roomId);
+            return;
+        }
+
         room.setStatus(RoomStatus.PLAYING);
         roomEventProducer.publishRoomPlayingStartedEvent(RoomPlayingStartedEvent.builder().roomId(roomId).build());
         log.debug("방 {}에서 매치 시작. status를 {} 로 변경", roomId, room.getStatus());
+    }
+
+    @Transactional
+    public void cancelRoomMatch(Long roomId) {
+        Room room = roomRepository.findById(roomId).orElseThrow(
+                () -> new RoomNotFoundException(roomId));
+
+        // 멱등 처리: 이미 종료(CLOSED)된 방이면 중복 처리/ended 이벤트 중복 발행 방지
+        // (Kafka at-least-once 재전달 대비)
+        if (room.getStatus() == RoomStatus.CLOSED) {
+            log.info("방 {} 이미 CLOSED 상태 - 취소 중복 요청 무시", roomId);
+            return;
+        }
+
+        room.setStatus(RoomStatus.CLOSED);
+        roomCacheRepository.deleteRoom(roomId);
+        roomEventProducer.publishRoomPlayingEndedEvent(RoomPlayingEndedEvent.builder().roomId(roomId).build());
+        log.info("방 {} 경기 취소 - 봇 서버 연결 실패", roomId);
     }
 
     @Transactional

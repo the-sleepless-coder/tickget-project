@@ -64,4 +64,22 @@ public class KafkaConfig {
                 .replicas(1)
                 .build();
     }
+
+    // 봇 취소 토픽 (경기 시작 실패 시 이미 준비된 봇 teardown)
+    @Bean
+    public NewTopic botCancelledTopic() {
+        return TopicBuilder.name(com.ticketing.KafkaTopic.MATCH_BOT_CANCELLED.getTopicName())
+                .partitions(3)
+                .replicas(1)
+                .build();
+    }
+
+    // room 취소 토픽 (경기 취소 시 room 통지 — best-effort HTTP 대체)
+    @Bean
+    public NewTopic roomCancelledTopic() {
+        return TopicBuilder.name(com.ticketing.KafkaTopic.MATCH_ROOM_CANCELLED.getTopicName())
+                .partitions(3)
+                .replicas(1)
+                .build();
+    }
 }

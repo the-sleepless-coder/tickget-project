@@ -19,7 +19,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -28,7 +30,7 @@ import java.util.concurrent.CompletableFuture;
 @Service
 @RequiredArgsConstructor
 public class SeatConfirmationService {
-
+    static int MATCH_REDIS_TTL_SECONDS = 900;
     private final MatchRepository matchRepository;
     private final MatchStatusRepository matchStatusRepository;
     private final EventPublisherService eventPublisherService;
@@ -37,8 +39,8 @@ public class SeatConfirmationService {
     private final RoomServerClient roomServerClient;
     private final StatsServerClient statsServerClient;
     private final ApplicationEventPublisher eventPublisher;
+    private final HandleFullMatchService handleFullMatchService;
 
-    @Transactional
     public SeatConfirmationResponse confirmSeats(Long matchId, SeatConfirmationRequest request) {
         long startTime = System.currentTimeMillis();
 
@@ -119,8 +121,7 @@ public class SeatConfirmationService {
                 matchId, userId, totalRank, reservedCount, seatCount);
 
         // 5. 경기 종료 조건 체크 (유저와 동일한 로직)
-        Long roomId = match.getRoomId();
-        Integer totalSeats = roomServerClient.getTotalSeats(roomId);
+        Integer totalSeats = getTotalSeats(matchId);
         boolean isFull = reservedCount != null && totalSeats != null && reservedCount >= totalSeats;
 
         // humanusers 확인 (봇은 humanusers에 영향 안 줌)
@@ -132,7 +133,7 @@ public class SeatConfirmationService {
             if (match.getStatus() == Match.MatchStatus.PLAYING) {
                 log.info("봇 Confirm으로 경기 종료 조건 만족: matchId={}, remainingHumanUsers={}, isFull={}",
                         matchId, remainingHumanUsers, isFull);
-                handleFullMatchAtConfirm(matchId, match);
+                handleFullMatchService.handleFullMatchAtConfirm(matchId, match);
             }
         }
 
@@ -170,230 +171,198 @@ public class SeatConfirmationService {
                                                        Match match, long startTime) {
         Long userId = request.getUserId();
 
-        // 1. 중복 Confirm 체크 (DB)
-        boolean alreadyConfirmed = !userStatsRepository
-                .findByMatchIdAndUserId(matchId, userId)
-                .isEmpty();
+        // 1. 중복 Confirm 체크 (Redis)
+        // matchId, userId에 대한 멱등키를 설정, 
+        // Redis에 저장된 데이터를 DB에 영속적인 형태로 저장한다.
+        String idempotencyKey = "confirm:processed:" + matchId + ":" + userId;
+        Boolean acquired = redisTemplate.opsForValue()
+                            .setIfAbsent(idempotencyKey, "1", Duration.ofSeconds(MATCH_REDIS_TTL_SECONDS));
+        if(!acquired) return buildErrorResponse("이미 처리 중입니다.");
 
-        if (alreadyConfirmed) {
-            SeatConfirmationResponse response = buildErrorResponse("이미 확정된 좌석입니다.");
-            publishConfirmationEvent(userId, matchId, List.of(), null,
-                    false, response.getMessage(), startTime);
-            return response;
-        }
-
-        // 2. Redis에서 해당 유저가 선점한 좌석 조회
-        List<String> seatIds = findUserSeats(matchId, userId);
-
-        if (seatIds.isEmpty()) {
-            SeatConfirmationResponse response = buildErrorResponse("선점된 좌석이 없습니다.");
-            publishConfirmationEvent(userId, matchId, List.of(), null,
-                    false, response.getMessage(), startTime);
-            return response;
-        }
-
-        // 3. 좌석 정보 추출 및 리스트에 모으기
-        List<ConfirmedSeatDto> confirmedSeats = new ArrayList<>();
-        List<String> sectionIds = new ArrayList<>();
-        List<String> allSectionIds = new ArrayList<>();  // 모든 sectionId 수집
-        List<String> allSeatIds = new ArrayList<>();     // 모든 seatId 수집
-
-        for (String seatId : seatIds) {
-            String sectionId = extractSection(seatId);
-
-            // ConfirmedSeat 리스트에 추가
-            confirmedSeats.add(ConfirmedSeatDto.builder()
-                    .seatId(seatId)
-                    .sectionId(sectionId)
-                    .build());
-            sectionIds.add(sectionId);
-
-            // UserStats용 정보 수집
-            allSectionIds.add(sectionId);
-            allSeatIds.add(seatId);
-        }
-
-        int seatCount = seatIds.size();
-
-        // 4. reserved_count 증가 (좌석 수만큼)
-        String reservedCountKey = "match:" + matchId + ":reserved_count";
-        Long reservedCount = redisTemplate.opsForValue().increment(reservedCountKey, seatCount);
-        redisTemplate.expire(reservedCountKey, Duration.ofSeconds(900));
-
-        // ===== Confirm 시점에 등수 계산 =====
-
-        // 5. human_rank_counter 증가 → userRank
+        // 카운터 키 (보상 람다에서 캡처하므로 effectively final)
+        String reservedCountKey    = "match:" + matchId + ":reserved_count";
         String humanRankCounterKey = "match:" + matchId + ":human_rank_counter";
-        Long userRankLong = redisTemplate.opsForValue().increment(humanRankCounterKey);
-        redisTemplate.expire(humanRankCounterKey, Duration.ofSeconds(900));
-        Integer userRank = userRankLong.intValue();
-
-        // 6. total_rank_counter 증가 → totalRank
         String totalRankCounterKey = "match:" + matchId + ":total_rank_counter";
-        Long totalRankLong = redisTemplate.opsForValue().increment(totalRankCounterKey);
-        redisTemplate.expire(totalRankCounterKey, Duration.ofSeconds(900));
-        Integer totalRank = totalRankLong.intValue();
+        String humanUsersKey       = "humanusers:match:" + matchId;
 
-        log.info("Confirm 시점 등수 계산: matchId={}, userId={}, userRank={}, totalRank={}",
-                matchId, userId, userRank, totalRank);
+        // 실제로 성공한 상태 변경만 역순(LIFO)으로 되돌리기 위한 보상 스택.
+        // 각 카운터를 올린 "직후"에만 되돌리는 람다를 push 하므로,
+        // 예외가 어느 구간에서 터지든 그 시점까지 실제로 적용된 것만 보상된다.
+        Deque<Runnable> rollback = new ArrayDeque<>();
 
-        // 7. humanusers 감소
-        String humanUsersKey = "humanusers:match:" + matchId;
-        Long remainingHumanUsers = redisTemplate.opsForValue().decrement(humanUsersKey);
-        redisTemplate.expire(humanUsersKey, Duration.ofSeconds(900));
-        log.info("실제 유저 Confirm: matchId={}, userId={}, 남은 실제 유저={}",
-                matchId, userId, remainingHumanUsers);
+        try{
+            // 2. Redis에서 해당 유저가 선점한 좌석 조회 (실패해도 부작용 없음 → rollback 비어있음)
+            List<String> seatIds = findUserSeats(matchId, userId);
 
-        // 9. UserStats 저장 (좌석 정보를 콤마로 연결하여 1개 레코드로 저장)
-        String selectedSections = String.join(",", allSectionIds);  // 예: "8,8" 또는 "8,9"
-        String selectedSeats = String.join(",", allSeatIds);        // 예: "8-9-15,8-9-16"
+            if (seatIds.isEmpty()) {
+                redisTemplate.delete(idempotencyKey);   // 되돌릴 카운터 없음 + 재시도 허용
+                SeatConfirmationResponse response = buildErrorResponse("선점된 좌석이 없습니다.");
+                publishConfirmationEvent(userId, matchId, List.of(), null,
+                        false, response.getMessage(), startTime);
+                return response;
+            }
 
-        UserStats userStats = UserStats.builder()
-                .userId(userId)
-                .matchId(matchId)
-                .isSuccess(true)
-                .selectedSection(selectedSections)  // 모든 섹션 ID (콤마 구분)
-                .selectedSeat(selectedSeats)        // 모든 좌석 ID (콤마 구분)
-                .dateSelectTime(request.getDateSelectTime())
-                .dateMissCount(request.getDateMissCount() != null ? request.getDateMissCount() : 0)
-                .seccodeSelectTime(request.getSeccodeSelectTime())
-                .seccodeBackspaceCount(request.getSeccodeBackspaceCount() != null ? request.getSeccodeBackspaceCount() : 0)
-                .seccodeTryCount(request.getSeccodeTryCount() != null ? request.getSeccodeTryCount() : 0)
-                .seatSelectTime(request.getSeatSelectTime())
-                .seatSelectTryCount(request.getSeatSelectTryCount() != null ? request.getSeatSelectTryCount() : 0)
-                .seatSelectClickMissCount(request.getSeatSelectClickMissCount() != null ? request.getSeatSelectClickMissCount() : 0)
-                .userRank(userRank)
-                .totalRank(totalRank)
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
-                .build();
+            // 3. 좌석 정보 추출 및 리스트에 모으기
+            List<ConfirmedSeatDto> confirmedSeats = new ArrayList<>();
+            List<String> sectionIds = new ArrayList<>();
+            List<String> allSectionIds = new ArrayList<>();  // 모든 sectionId 수집
+            List<String> allSeatIds = new ArrayList<>();     // 모든 seatId 수집
 
-        userStatsRepository.save(userStats);
-        log.info("유저 통계 저장 완료: userId={}, matchId={}, 좌석수={}, selectedSeats={}, userRank={}, totalRank={}",
-                userId, matchId, allSeatIds.size(), selectedSeats, userRank, totalRank);
+            for (String seatId : seatIds) {
+                String sectionId = extractSection(seatId);
 
-        // 10. 경기 종료 조건 체크
-        // 조건 1: 모든 실제 유저 confirm 완료 (remainingHumanUsers <= 0)
-        // 조건 2: 만석(reservedCount >= totalSeats)
-        Long roomId = match.getRoomId();
+                // ConfirmedSeat 리스트에 추가
+                confirmedSeats.add(ConfirmedSeatDto.builder()
+                        .seatId(seatId)
+                        .sectionId(sectionId)
+                        .build());
+                sectionIds.add(sectionId);
+
+                // UserStats용 정보 수집
+                allSectionIds.add(sectionId);
+                allSeatIds.add(seatId);
+            }
+
+            final int seatCount = seatIds.size();
+
+            // ===== 여기서부터 상태 변경. 성공한 "직후"에만 보상을 push =====
+            // (push 를 expire 보다 앞에 두어, expire 가 실패해도 increment 는 보상됨)
+
+            // 4. reserved_count 증가 (좌석 수만큼)
+            Long reservedCount = redisTemplate.opsForValue().increment(reservedCountKey, seatCount);
+            rollback.push(() -> redisTemplate.opsForValue().decrement(reservedCountKey, seatCount));
+            redisTemplate.expire(reservedCountKey, Duration.ofSeconds(900));
+
+            // ===== Confirm 시점에 등수 계산 =====
+
+            // 5. human_rank_counter 증가 → userRank
+            Long userRankLong = redisTemplate.opsForValue().increment(humanRankCounterKey);
+            rollback.push(() -> redisTemplate.opsForValue().decrement(humanRankCounterKey));
+            redisTemplate.expire(humanRankCounterKey, Duration.ofSeconds(900));
+            Integer userRank = userRankLong.intValue();
+
+            // 6. total_rank_counter 증가 → totalRank
+            Long totalRankLong = redisTemplate.opsForValue().increment(totalRankCounterKey);
+            rollback.push(() -> redisTemplate.opsForValue().decrement(totalRankCounterKey));
+            redisTemplate.expire(totalRankCounterKey, Duration.ofSeconds(900));
+            Integer totalRank = totalRankLong.intValue();
+
+            log.info("Confirm 시점 등수 계산: matchId={}, userId={}, userRank={}, totalRank={}",
+                    matchId, userId, userRank, totalRank);
+
+            // 7. humanusers 감소
+            Long remainingHumanUsers = redisTemplate.opsForValue().decrement(humanUsersKey);
+            rollback.push(() -> redisTemplate.opsForValue().increment(humanUsersKey));
+            redisTemplate.expire(humanUsersKey, Duration.ofSeconds(900));
+            log.info("실제 유저 Confirm: matchId={}, userId={}, 남은 실제 유저={}",
+                    matchId, userId, remainingHumanUsers);
+
+            // 9. UserStats 저장 (좌석 정보를 콤마로 연결하여 1개 레코드로 저장)
+            String selectedSections = String.join(",", allSectionIds);  // 예: "8,8" 또는 "8,9"
+            String selectedSeats = String.join(",", allSeatIds);        // 예: "8-9-15,8-9-16"
+
+            UserStats userStats = UserStats.builder()
+                    .userId(userId)
+                    .matchId(matchId)
+                    .isSuccess(true)
+                    .selectedSection(selectedSections)  // 모든 섹션 ID (콤마 구분)
+                    .selectedSeat(selectedSeats)        // 모든 좌석 ID (콤마 구분)
+                    .dateSelectTime(request.getDateSelectTime())
+                    .dateMissCount(request.getDateMissCount() != null ? request.getDateMissCount() : 0)
+                    .seccodeSelectTime(request.getSeccodeSelectTime())
+                    .seccodeBackspaceCount(request.getSeccodeBackspaceCount() != null ? request.getSeccodeBackspaceCount() : 0)
+                    .seccodeTryCount(request.getSeccodeTryCount() != null ? request.getSeccodeTryCount() : 0)
+                    .seatSelectTime(request.getSeatSelectTime())
+                    .seatSelectTryCount(request.getSeatSelectTryCount() != null ? request.getSeatSelectTryCount() : 0)
+                    .seatSelectClickMissCount(request.getSeatSelectClickMissCount() != null ? request.getSeatSelectClickMissCount() : 0)
+                    .userRank(userRank)
+                    .totalRank(totalRank)
+                    .createdAt(LocalDateTime.now())
+                    .updatedAt(LocalDateTime.now())
+                    .build();
+
+            // 트랜잭션이 없으므로 save는 이 시점에 즉시 커밋된다.
+            // 이후 단계(getTotalSeats/handleFullMatch/publish)가 실패하면 DB 롤백이 불가능하므로,
+            // save에 대한 보상(행 삭제)도 스택에 push 해 Redis와 동일하게 되돌린다.
+            UserStats savedStats = userStatsRepository.save(userStats);
+            rollback.push(() -> userStatsRepository.deleteById(savedStats.getId()));
+            log.info("유저 통계 저장 완료: userId={}, matchId={}, 좌석수={}, selectedSeats={}, userRank={}, totalRank={}",
+                    userId, matchId, allSeatIds.size(), selectedSeats, userRank, totalRank);
+
+            // 10. 경기 종료 조건 체크
+            // 조건 1: 모든 실제 유저 confirm 완료 (remainingHumanUsers <= 0)
+            // 조건 2: 만석(reservedCount >= totalSeats)
+            Integer totalSeats = getTotalSeats(matchId);
+
+            boolean isFull = reservedCount != null && totalSeats != null && reservedCount >= totalSeats;
+            boolean humanUsersEnded = remainingHumanUsers != null && remainingHumanUsers <=0 ;
+
+            if (( humanUsersEnded || isFull)
+                    && match.getStatus() == Match.MatchStatus.PLAYING) {
+
+                log.info("경기 종료 조건 만족 (모든 유저 확정 또는 만석): matchId={}, remainingHumanUsers={}, reservedCount={}, totalSeats={}",
+                        matchId, remainingHumanUsers, reservedCount, totalSeats);
+
+                handleFullMatchService.handleFullMatchAtConfirm(matchId, match);
+            } else {
+                log.debug("아직 경기 계속 진행: matchId={}, remainingHumanUsers={}, reservedCount={}, totalSeats={}",
+                        matchId, remainingHumanUsers, reservedCount, totalSeats);
+            }
+
+            // 11. 성공 응답 생성
+            SeatConfirmationResponse response = SeatConfirmationResponse.builder()
+                    .success(true)
+                    .message("개인 경기 종료")
+                    .userRank(userRank)
+                    .totalRank(totalRank)
+                    .confirmedSeats(confirmedSeats)
+                    .matchId(matchId)
+                    .userId(userId)
+                    .build();
+
+            // 12. Kafka 이벤트 발행
+            publishConfirmationEvent(userId, matchId, seatIds, sectionIds,
+                    true, "개인 경기 종료", startTime);
+
+            return response;
+        }
+        catch(Exception e)
+        {
+            // 실제로 성공한 상태 변경만 역순(LIFO)으로 보상.
+            // Zone 0(좌석 조회/파싱)에서 터지면 스택이 비어있어 아무것도 되돌리지 않는다.
+            rollback.forEach(Runnable::run);
+
+            redisTemplate.delete(idempotencyKey);
+
+            throw new RuntimeException(e);
+        }
+
+    }
+
+    /**
+     * Redis에서 roomId를 읽고, totalSeats를 캐시-어사이드 패턴으로 반환
+     */
+    private Integer getTotalSeats(Long matchId) {
+        String roomIdStr = redisTemplate.opsForValue().get("match:" + matchId + ":room");
+        if (roomIdStr == null) {
+            throw new IllegalStateException("매치 roomId를 찾을 수 없습니다: " + matchId);
+        }
+        Long roomId = Long.parseLong(roomIdStr);
+
+        String totalSeatsStr = redisTemplate.opsForValue().get("match:" + matchId + ":totalSeats");
+        if (totalSeatsStr != null) {
+            return Integer.parseInt(totalSeatsStr);
+        }
         Integer totalSeats = roomServerClient.getTotalSeats(roomId);
-        boolean isFull = reservedCount != null && totalSeats != null && reservedCount >= totalSeats;
-
-        if ((remainingHumanUsers != null && remainingHumanUsers <= 0 || isFull)
-                && match.getStatus() == Match.MatchStatus.PLAYING) {
-
-            log.info("경기 종료 조건 만족 (모든 유저 확정 또는 만석): matchId={}, remainingHumanUsers={}, reservedCount={}, totalSeats={}",
-                    matchId, remainingHumanUsers, reservedCount, totalSeats);
-
-            handleFullMatchAtConfirm(matchId, match);
-        } else {
-            log.debug("아직 경기 계속 진행: matchId={}, remainingHumanUsers={}, reservedCount={}, totalSeats={}",
-                    matchId, remainingHumanUsers, reservedCount, totalSeats);
+        if (totalSeats != null && totalSeats > 0) {
+            redisTemplate.opsForValue().set(
+                "match:" + matchId + ":totalSeats",
+                String.valueOf(totalSeats),
+                Duration.ofSeconds(MATCH_REDIS_TTL_SECONDS)
+            );
         }
-
-        // 11. 성공 응답 생성
-        SeatConfirmationResponse response = SeatConfirmationResponse.builder()
-                .success(true)
-                .message("개인 경기 종료")
-                .userRank(userRank)
-                .totalRank(totalRank)
-                .confirmedSeats(confirmedSeats)
-                .matchId(matchId)
-                .userId(userId)
-                .build();
-
-        // 12. 이벤트 발행
-        publishConfirmationEvent(userId, matchId, seatIds, sectionIds,
-                true, "개인 경기 종료", startTime);
-
-        return response;
+        return totalSeats;
     }
-
-    /**
-     * Confirm 시점에서 만석 또는 모든 유저 Confirm으로 경기 종료 처리
-     */
-    private void handleFullMatchAtConfirm(Long matchId, Match match) {
-        try {
-
-            // 멱등성 보장: Redis 락으로 중복 실행 방지
-            String finishLockKey = "match:" + matchId + ":finish_lock";
-            Boolean acquired = redisTemplate.opsForValue()
-                    .setIfAbsent(finishLockKey, "1", Duration.ofSeconds(900));
-
-            if (Boolean.FALSE.equals(acquired)) {
-                log.info("이미 경기 종료 처리 중 (스킵): matchId={}", matchId);
-                return;
-            }
-
-            // DB에서 최신 상태 재확인
-            Match freshMatch = matchRepository.findById(matchId).orElse(null);
-            if (freshMatch == null || freshMatch.getStatus() == Match.MatchStatus.FINISHED) {
-                log.info("이미 종료된 경기 (스킵): matchId={}", matchId);
-                return;
-            }
-
-            // 1. Redis 카운터에서 통계 수집 및 DB 저장
-            saveMatchStatisticsFromRedis(matchId, match);
-
-            // 2. DB 상태 변경
-            match.setStatus(Match.MatchStatus.FINISHED);
-            match.setEndedAt(LocalDateTime.now());
-            matchRepository.save(match);
-
-            // 3. Redis 상태를 CLOSED로 설정
-            String statusKey = "match:" + matchId + ":status";
-            redisTemplate.opsForValue().set(statusKey, "CLOSED");
-            redisTemplate.expire(statusKey, Duration.ofSeconds(900));
-
-            // 4. Redis 정리
-            //  cleanupAllMatchRedis(matchId);
-
-            // 5. 외부 서버 알림
-            // statsServerClient.notifyMatchEnd(matchId);
-            roomServerClient.notifyMatchEnd(match.getRoomId());
-            statsServerClient.notifyMatchEnd(matchId);
-
-            log.info(" 경기 종료 처리 완료: matchId={}", matchId);
-            log.info("ℹ 미확정 유저는 클라이언트에서 FailedStatsController API 호출 필요");
-
-        } catch (Exception e) {
-            log.error("Confirm 시점 경기 종료 처리 중 오류: matchId={}", matchId, e);
-        }
-    }
-
-    /**
-     * Redis 카운터에서 통계 계산 및 Match 엔티티 저장
-     */
-    private void saveMatchStatisticsFromRedis(Long matchId, Match match) {
-        try {
-            // human_rank_counter = 성공한 실제 유저 수
-            String humanRankCounterKey = "match:" + matchId + ":human_rank_counter";
-            String humanRankValue = redisTemplate.opsForValue().get(humanRankCounterKey);
-            Integer successUserCount = (humanRankValue != null) ? Integer.parseInt(humanRankValue) : 0;
-
-            // total_rank_counter = 성공한 전체 참가자 수 (유저 + 봇)
-            String totalRankCounterKey = "match:" + matchId + ":total_rank_counter";
-            String totalRankValue = redisTemplate.opsForValue().get(totalRankCounterKey);
-            Integer totalSuccessCount = (totalRankValue != null) ? Integer.parseInt(totalRankValue) : 0;
-
-            // success_bot_count = 전체 - 유저
-            Integer successBotCount = totalSuccessCount - successUserCount;
-
-            // Match 엔티티에 저장
-            match.setSuccessUserCount(successUserCount);
-            match.setSuccessBotCount(Math.max(0, successBotCount));  // 음수 방지
-
-            log.info(" Redis 카운터로 경기 통계 계산: matchId={}, successUserCount={}, successBotCount={}, totalSuccess={}",
-                    matchId, successUserCount, successBotCount, totalSuccessCount);
-
-        } catch (Exception e) {
-            log.error("Redis 카운터 통계 저장 중 오류: matchId={}", matchId, e);
-            // 오류 시 0으로 설정
-            match.setSuccessUserCount(0);
-            match.setSuccessBotCount(0);
-        }
-    }
-
 
     /**
      * 경기 종료 시 통계 데이터 저장
