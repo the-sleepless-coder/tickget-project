@@ -55,14 +55,14 @@ MySQL  ──  경기 메타데이터·랭킹 영속 적재 → 주간 랭킹 �
 tickget-project/             (branch: dev)
 ├── AI/                      # AI 분석 (Python)
 ├── Backend/                 # 마이크로서비스 9종
-│   ├── ticketing-server/    # Java — 대기열(ZSET·Kafka·Outbox·스케줄러) + 좌석(동시성 제어·Redis·MongoDB)
+│   ├── **ticketing-server/**# Java — 대기열(ZSET·Kafka·Outbox·스케줄러) + 좌석(동시성 제어·Redis·MongoDB)
 │   ├── room-server/         # Java — 방 생성/관리 · Kafka 구독 → STOMP 세션 전파 · Redis Lua 스크립트
-│   ├── stats-server/        # Java — 경기/개인/랭킹 집계 · 미집계 재처리 스케줄러
+│   ├── **stats-server/**    # Java — 경기/개인/랭킹 집계 · 미집계 재처리 스케줄러
 │   ├── auth-server/         # Java — Google OAuth2 · JWT 발급/검증 필터
 │   ├── user-server/         # Java — 사용자 정보 · 마이페이지
 │   ├── search-server/       # Java — ElasticSearch 기반 검색
 │   ├── bot-server/          # Go — 봇 트래픽 생성 (match · scheduler · kafka · stats)
-│   ├── catpcha-server/      # Python/Flask — 보안문자 생성/검증
+│   ├── **catpcha-server/**  # Python/Flask — 보안문자 생성/검증
 │   └── test-server/         # 실험용 — MySQL/MongoDB 연동 검증
 ├── Frontend/                # React SPA (Nginx 서빙)
 ├── infra/                   # MySQL 초기화 스크립트
