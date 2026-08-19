@@ -24,6 +24,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.List;
 
 @Service
 @Slf4j
@@ -34,11 +35,8 @@ public class RoomQueueConsumerScheduler {
     private final ObjectMapper mapper;
     private final MatchStatusRepository matchStatusRepository;
 
-    private static final int MIN_THREADS = 10;
-    private static final int MAX_THREADS = 100;
-    private static final int TASKS_PER_THREAD_SCALE_UP = 5;
-    private static final int TASKS_PER_THREAD_SCALE_DOWN = 2;
-    private static final int SCALE_STEP = 30;
+    private static final int MIN_THREADS = 12;
+    private static final int MAX_THREADS = 12;
 
     // 전용 스레드 관련 코드를 따로 빼놓자 너무 헷갈려.
     private final Set<Long> activeRooms = ConcurrentHashMap.newKeySet();
@@ -93,7 +91,7 @@ public class RoomQueueConsumerScheduler {
             }
         }
     }
-
+    /*
     @Scheduled(fixedRate = 1000)
     public void adjustThreadPool() {
         int queueSize = roomExecutor.getQueue().size();
@@ -124,21 +122,13 @@ public class RoomQueueConsumerScheduler {
             log.info("스레드 풀 축소: {}→{} (큐:{}, 비율:{})", poolsize, newSize, queueSize, ratio);
         }
     }
-
+    */
+    // 전용 스레드 풀을 배정하여 다른 스레드풀 처리와 겹치지 않게 한다.
     @Scheduled(fixedRateString = "${consume-rate.kafka-emit}")
     public void crtThrdPublishDequeue() {
         if (activeRooms.isEmpty()) return;
         for (Long matchId : activeRooms) {
             roomExecutor.submit(() -> publishDequeueForRoom(matchId));
-        }
-    }
-
-    @Scheduled(fixedRateString = "${consume-rate.redis-emit}", initialDelay = 0)
-    public void crtThrdCommitDqdUsersRedis() {
-        if (activeRooms.isEmpty()) return;
-        long bucket = previousBucket();
-        for (Long matchId : activeRooms) {
-            roomExecutor.submit(() -> commitDqdUsersRedisForRoom(matchId, bucket));
         }
     }
 
@@ -151,7 +141,7 @@ public class RoomQueueConsumerScheduler {
     }
 
     private void publishDequeueForRoom(Long matchId) {
-        long bucket = currentBucket(); // 실행 시점에 bucket 계산 (지연 실행 시 올바른 bucket에 기록)
+        // long bucket = currentBucket(); // 실행 시점에 bucket 계산 (지연 실행 시 올바른 bucket에 기록)
         try {
             // 2초마다 400명, 즉 20ms 마다 각 방 별로 시간 순 대로 4명이 빠져나가게 한다.
             String zsetKey = "queue:" + matchId + ":waiting";
@@ -213,47 +203,10 @@ public class RoomQueueConsumerScheduler {
                 // 20ms 마다 삐져나간 사용자들을 2초 단위의 bucket 키에 모은다.
                 // 2000ms 마다 빠져나간 사용자들에 대한 정보를,
                 // 일괄적으로 Redis ZSET, HASH 자료구조에 저장한다.
-                redis.opsForList().rightPush(bucketListKey(matchId, bucket), userIdString);
+                // if(userIdLong > 0) redis.opsForList().rightPush(bucketListKey(matchId, bucket), userIdString);
             }
         } catch (Exception e) {
             log.error("publishDequeue 오류: matchId={}", matchId, e);
-        }
-    }
-
-    // Redis에서 사용자의 dequeue상태를 HASH 자료구조에 업데이트.
-    private void commitDqdUsersRedisForRoom(Long matchId, long bucket)
-    {
-        try {
-            // 2초 단위로 묶여진 bucket에 대한 키를 가져오고,
-            // 사용자의 상태를 dequeued로 바꿔준다.
-            String listKey = bucketListKey(matchId, bucket);
-            Long count = redis.opsForList().size(listKey);
-            if (count == null || count == 0) return;
-
-            redis.executePipelined((RedisCallback<Object>) connection -> {
-                // 사용자의 dequeueud 상태를 HASH 자료구조에 업데이트.
-                for (int i = 0; i < count; i++) {
-                    String userId = redis.opsForList().leftPop(listKey);
-                    if (userId == null) continue;
-                    Long userIdLong = Long.valueOf(userId);
-
-                    if (userIdLong > 0) {
-                        String userStateKey = QueueKeys.userStateKey(matchId, userId);
-                        connection.hSet(userStateKey.getBytes(), STATE.getBytes(), DEQUEUED.getBytes());
-                        connection.expire(userStateKey.getBytes(), STATE_TTL.getSeconds());
-                    }
-                }
-
-                Long tot = redis.opsForZSet().zCard("queue:" + matchId + ":waiting");
-                String totalKey = QueueKeys.roomTotal(matchId);
-                connection.set(totalKey.getBytes(), String.valueOf(tot == null ? 0 : tot).getBytes());
-
-                return null;
-            });
-
-            redis.delete(listKey);
-        } catch (Exception e) {
-            log.error("commitDqdUsersRedis 오류: matchId={}", matchId, e);
         }
     }
 
@@ -273,22 +226,28 @@ public class RoomQueueConsumerScheduler {
             Set<String> humans = redis.opsForSet().members(QueueKeys.humansSet(matchId));
             if (humans == null || humans.isEmpty()) return;
 
-            long now = System.currentTimeMillis();
-
-            // 1) 사람별 rank 조회 (ZRANK: O(log N), 전체 순회 없음)
-            //    파이프라인 콜백 안에서는 결과를 즉시 못 쓰므로, 읽기는 먼저 수행한다.
-            Map<String, Long> ranks = new HashMap<>(humans.size() * 2);
-            for (String userId : humans) {
-                Long r = zset.rank(zkey, userId);
-                if (r != null) ranks.put(userId, r); // null = 이미 대기열을 빠져나감
-            }
-            if (ranks.isEmpty()) return;
-
+            // 0) 사용자 배열
+            List<String> humanList = new ArrayList<>(humans);
+            
+            // 1) ZRANK 를 파이프라인으로 한 번에 조회 후 rankResults에 저장(왕복 1회)
+            List<Object> rankResults = redis.executePipelined((RedisCallback<Object>) conn -> {
+                StringRedisConnection c = (StringRedisConnection) conn;
+                for (String userId : humanList) {
+                    c.zRank(zkey, userId);
+                }
+                return null;   // 콜백은 반드시 null 반환
+            });
+            
             // 2) 조회 결과를 파이프라인으로 일괄 기록
+            long now = System.currentTimeMillis();
             redis.executePipelined((RedisCallback<Object>) conn -> {
                 StringRedisConnection c = (StringRedisConnection) conn;
-                for (Map.Entry<String, Long> e : ranks.entrySet()) {
-                    long rank = e.getValue();
+                
+                // 각 사용자 userId 에 대한 등수 정보를 기록.
+                for(int i=0; i < humanList.size(); i++)
+                {
+                    if(!(rankResults.get(i) instanceof Long l)) continue;
+                    long rank = l.longValue();
 
                     Map<String, String> m = new HashMap<>(4);
                     m.put("ahead",       Long.toString(rank));
@@ -296,16 +255,61 @@ public class RoomQueueConsumerScheduler {
                     m.put("total",       Long.toString(total));
                     m.put("lastUpdated", Long.toString(now));
 
-                    String hkey = QueueKeys.userStateKey(matchId, e.getKey());
+                    String hkey = QueueKeys.userStateKey(matchId, humanList.get(i));
                     c.hMSet(hkey, m);
                     c.expire(hkey, 1800);
                 }
+                    
                 return null;
             });
         } catch (Exception e) {
             log.error("updatePstsUsersRedis 오류: matchId={}", matchId, e);
         }
     }
+
+
+    /**
+    @Scheduled(fixedRateString = "${consume-rate.redis-emit}", initialDelay = 0)
+    public void crtThrdCommitDqdUsersRedis() {
+        if (activeRooms.isEmpty()) return;
+        long bucket = previousBucket();
+        for (Long matchId : activeRooms) {
+            roomExecutor.submit(() -> commitDqdUsersRedisForRoom(matchId, bucket));
+        }
+    }
+    */
+
+    // Redis에서 사용자의 dequeue상태를 HASH 자료구조에 업데이트.
+    /**private void commitDqdUsersRedisForRoom(Long matchId, long bucket)
+    {
+        try {
+            // 2초 단위로 빠져 나간 사람들을 담은 bucket에 대한 키를 가져오고,
+            // 사용자의 상태를 dequeued로 바꿔준다.
+            String listKey = bucketListKey(matchId, bucket);
+            Long count = redis.opsForList().size(listKey);
+            if(count == null || count == 0) return;
+
+            List<String> userIds = redis.opsForList().leftPop(listKey, count);
+            
+            redis.executePipelined((RedisCallback<Object>) connection -> {
+                StringRedisConnection c = (StringRedisConnection) connection;
+                // 사용자의 dequeued 상태를 HASH 자료구조에 업데이트.
+                for (String userId : userIds) {
+                    String userStateKey = QueueKeys.userStateKey(matchId, userId);
+                    c.hSet(userStateKey, STATE, DEQUEUED);
+                    c.expire(userStateKey, STATE_TTL.getSeconds());
+                    
+                }
+
+                return null;
+            });
+
+            redis.delete(listKey);
+        } catch (Exception e) {
+            log.error("commitDqdUsersRedis 오류: matchId={}", matchId, e);
+        }
+    }
+    */
 
     @PreDestroy
     public void shutdown() {

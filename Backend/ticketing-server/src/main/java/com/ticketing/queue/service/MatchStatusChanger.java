@@ -47,10 +47,9 @@ public class MatchStatusChanger {
 
         Match m = matchRepository.findById(matchId).orElse(null);
         if (m == null) return;
-        if (m.getStatus() == Match.MatchStatus.CANCELLED) return;
-
-        List<String> redisKeys = new ArrayList<>();
+        if (m.getStatus() == Match.MatchStatus.CANCELLED) return;        
         try {
+            List<String> redisKeys = new ArrayList<>();
             // 2) DB 상태 변경 (WAITING → PLAYING)
             saveMatchStatus(m);
             // 3) 매치 게임 상태 Redis 키 설정
@@ -59,11 +58,20 @@ public class MatchStatusChanger {
             saveRedisUserCount(roomId, matchId, m, redisKeys);
             // 5) room 서버에 경기 시작 알림
             notifyRoomServer(roomId);
-        } catch (MatchStartFlowException e) {
+        } catch (RuntimeException e) {
             // rethrow 하지 않고 같은 트랜잭션 안에서 보상을 완결한다.
             //  → CANCELLED(PLAYING을 덮어씀)와 봇 취소 outbox가 한 트랜잭션으로 원자 커밋된다.
             //    (throw e 로 두면 WAITING으로 롤백돼 방치되므로 안 됨)
-            log.error("경기 시작 실패 - 취소 보상: matchId={}", matchId, e);
+            if(e instanceof MatchStartFlowException)
+            {
+                log.error("경기 시작 실패 - 취소 보상: matchId={}", matchId, e);
+            }
+            else
+            {
+                log.error("경기 상태 변경 중 예기치 못한 오류 발생.");
+            }
+            
+            // 보상 트랜잭션 처리.
             compensate(m, matchId, roomId, redisKeys, dedupKey);
         }
     }

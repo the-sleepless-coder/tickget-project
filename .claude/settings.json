@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell($c = \"$env:USERPROFILE\\\\.gradle\\\\caches\\\\modules-2\\\\files-2.1\"; if \\(Test-Path $c\\) { Get-ChildItem $c -Directory | Where-Object { $_.Name -match 'aspectj|spring-aop|resilience4j' } | Select-Object -ExpandProperty Name } else { \"no gradle cache\" })"
+    ]
+  }
+}
